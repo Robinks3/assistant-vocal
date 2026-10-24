@@ -1,0 +1,14 @@
+Trait de côte fictif qui rappelle la rade de Marseille (une quarantaine de points), pour l'exemple fictif.
+Aucune donnée importée : le tracé sert seulement à montrer le format. Il est projeté dans le cadre de la carte
+de la page Vent mesuré (640 x 423 px de maquette, lon 5,22 à 5,47, lat 43,20 à 43,32).
+
+cote.txt : le trait de côte, avec les îles du Frioul, d'If et de Maïre en contours fermés.
+terre.txt : la terre, à l'est du trait, refermée hors cadre au nord-est et à l'est.
+
+Format : chemin SVG en absolu (M x,y L x,y ... Z), lu par CheminSvg.kt.
+
+Ces deux fichiers sont produits par carte/vent/generer_cote.py à partir de config-exemple/carte/cote_source.geojson,
+un GeoJSON fictif en longitude et latitude. Pour les régénérer :
+  ASSISTANT_VOCAL_CONFIG=config-exemple python carte/vent/generer_cote.py config-exemple/carte/cote_source.geojson
+Pour une vraie configuration, fournir un GeoJSON de côte ouvert (OpenStreetMap, IGN, Natural Earth) au même
+générateur, puis citer sa source en pied de la page Vent mesuré (vent.carte.attribution).

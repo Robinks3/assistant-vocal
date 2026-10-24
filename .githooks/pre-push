@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Avant chaque envoi : contrôle tous les commits qui partent (voir garde-fou.sh).
+exec "$(dirname "$0")/garde-fou.sh" --pousse

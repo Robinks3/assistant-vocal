@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="632" height="841" viewBox="0 0 632 841" font-family="Segoe UI, Arial, sans-serif">
+<rect width="632" height="841" fill="#FFFFFF"/>
+<polygon id="sejour_cuisine" points="76.0,716.0 556.0,716.0 556.0,396.0 76.0,396.0" fill="#F3E6CF" stroke="#2B2B2B" stroke-width="3"/>
+<polygon id="couloir" points="76.0,396.0 556.0,396.0 556.0,316.0 76.0,316.0" fill="#ECECEC" stroke="#2B2B2B" stroke-width="3"/>
+<polygon id="chambre_sacha" points="76.0,316.0 316.0,316.0 316.0,76.0 76.0,76.0" fill="#DCE8F5" stroke="#2B2B2B" stroke-width="3"/>
+<polygon id="chambre_camille" points="316.0,316.0 556.0,316.0 556.0,76.0 316.0,76.0" fill="#DCE8F5" stroke="#2B2B2B" stroke-width="3"/>
+<text x="316.0" y="552.0" text-anchor="middle" font-size="15" font-weight="600" fill="#1E1E1E">Séjour et cuisine</text>
+<text x="316.0" y="571.0" text-anchor="middle" font-size="13" fill="#1E1E1E">24,0 m²</text>
+<text x="316.0" y="352.0" text-anchor="middle" font-size="15" font-weight="600" fill="#1E1E1E">Couloir</text>
+<text x="316.0" y="371.0" text-anchor="middle" font-size="13" fill="#1E1E1E">6,0 m²</text>
+<text x="196.0" y="192.0" text-anchor="middle" font-size="15" font-weight="600" fill="#1E1E1E">Chambre de Sacha</text>
+<text x="196.0" y="211.0" text-anchor="middle" font-size="13" fill="#1E1E1E">9,0 m²</text>
+<text x="436.0" y="192.0" text-anchor="middle" font-size="15" font-weight="600" fill="#1E1E1E">Chambre de Camille</text>
+<text x="436.0" y="211.0" text-anchor="middle" font-size="13" fill="#1E1E1E">9,0 m²</text>
+<line x1="476.0" y1="396.0" x2="548.0" y2="396.0" stroke="#C0392B" stroke-width="7"/>
+<text x="512.0" y="416.0" text-anchor="middle" font-size="12" fill="#C0392B">Porte d'entrée</text>
+<line x1="60" y1="801" x2="220" y2="801" stroke="#2B2B2B" stroke-width="3"/>
+<text x="140" y="795" text-anchor="middle" font-size="12" fill="#1E1E1E">2 m</text>
+<text x="572" y="805" text-anchor="end" font-size="11" fill="#666666">Plan v0.1.0 du 2026-10-24</text>
+</svg>

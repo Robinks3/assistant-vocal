@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Avant chaque commit : refuse secrets, données personnelles et gros binaires (voir garde-fou.sh).
+exec "$(dirname "$0")/garde-fou.sh" --index

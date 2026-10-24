@@ -1,0 +1,394 @@
+{
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure de Marseille. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seul le device_id reste refusé. plafonds : données avant et après le plafond de volume à 50 % (verifier de securite.py, Securite.plafonner), exigé partout le 22/10/2026.",
+  "actions": [
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.exemple6"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "lumière du séjour, l'après-midi"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.chambre_camille_plafond"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "lumière de Camille (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "entity_id": [
+          "light.exemple6",
+          "light.exemple63"
+        ]
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "une cible de Camille dans une liste (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "entity_id": "all"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "all interdit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "area_id": "chambre_camille"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "zone de Camille (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "device_id interdit"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "entity_id": "Exemple44"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "réveil de Camille (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "script.turn_on",
+      "donnees": {
+        "entity_id": "script.exemple40"
+      },
+      "heure": 20,
+      "refus": false,
+      "note": "tout éteindre touche Camille (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "media_player.turn_on",
+      "donnees": {
+        "entity_id": "media_player.exemple20"
+      },
+      "heure": 2,
+      "refus": false,
+      "note": "télé allumée la nuit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "media_player.turn_on",
+      "donnees": {
+        "entity_id": "media_player.exemple20"
+      },
+      "heure": 9,
+      "refus": false,
+      "note": "télé à 9 h pile"
+    },
+    {
+      "service": "media_player.turn_off",
+      "donnees": {
+        "entity_id": "media_player.exemple20"
+      },
+      "heure": 2,
+      "refus": false,
+      "note": "éteindre la télé la nuit"
+    },
+    {
+      "service": "media_player.volume_down",
+      "donnees": {
+        "entity_id": "media_player.exemple22"
+      },
+      "heure": 3,
+      "refus": false,
+      "note": "baisser le son la nuit"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.exemple22",
+        "volume_level": 0.4
+      },
+      "heure": 3,
+      "refus": false,
+      "note": "monter le son la nuit à une valeur précise (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "media_player.volume_up",
+      "donnees": {
+        "entity_id": "media_player.exemple22"
+      },
+      "heure": 15,
+      "refus": true,
+      "note": "monter le son par pas est refusé : il passerait au-dessus du plafond de 50 %"
+    },
+    {
+      "service": "media_player.volume_mute",
+      "donnees": {
+        "entity_id": "media_player.exemple22",
+        "is_volume_muted": false
+      },
+      "heure": 3,
+      "refus": false,
+      "note": "rétablir le son la nuit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "media_player.volume_mute",
+      "donnees": {
+        "entity_id": "media_player.exemple22",
+        "is_volume_muted": true
+      },
+      "heure": 3,
+      "refus": false,
+      "note": "couper le son la nuit"
+    },
+    {
+      "service": "script.lancer_musique",
+      "donnees": {},
+      "heure": 1,
+      "refus": false,
+      "note": "script de musique appelé comme service la nuit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "script.turn_on",
+      "donnees": {
+        "entity_id": "script.lancer_musique"
+      },
+      "heure": 23,
+      "refus": false,
+      "note": "musique à 23 h"
+    },
+    {
+      "service": "vacuum.start",
+      "donnees": {
+        "entity_id": "vacuum.aspirateur"
+      },
+      "heure": 2,
+      "refus": false,
+      "note": "aspirateur hors du salon sonore"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.chambre_camille"
+      },
+      "heure": 21,
+      "personne": "Camille",
+      "refus": false,
+      "note": "Camille reconnu allume son plafond"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.exemple18",
+        "brightness_pct": 30
+      },
+      "heure": 23,
+      "personne": "camille",
+      "refus": false,
+      "note": "Camille reconnu règle son chevet"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.chambre_camille"
+      },
+      "heure": 21,
+      "personne": "Sacha",
+      "refus": false,
+      "note": "Sacha ne pilote toujours pas la chambre de Camille (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.chambre_camille"
+      },
+      "heure": 21,
+      "refus": false,
+      "note": "personne inconnue, chambre de Camille refusée (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "entity_id": "Exemple44"
+      },
+      "heure": 21,
+      "personne": "Camille",
+      "refus": false,
+      "note": "Camille reconnu, son réveil reste interdit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "area_id": "chambre_camille"
+      },
+      "heure": 21,
+      "personne": "Camille",
+      "refus": false,
+      "note": "Camille reconnu, sa zone entière reste interdite (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "entity_id": "all"
+      },
+      "heure": 21,
+      "personne": "Camille",
+      "refus": false,
+      "note": "Camille reconnu, all reste interdit (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "switch.turn_on",
+      "donnees": {
+        "entity_id": "switch.exemple64"
+      },
+      "heure": 21,
+      "personne": "Camille",
+      "refus": false,
+      "note": "Camille reconnu, une prise à lui reste interdite (permis depuis la levée du 22/10)"
+    },
+    {
+      "service": "light.turn_off",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 2,
+      "personne": "Sacha",
+      "refus": true,
+      "note": "device_id toujours interdit, même après la levée"
+    }
+  ],
+  "phrases": [
+    {
+      "phrase": "allume la chambre de Camille",
+      "refus": false
+    },
+    {
+      "phrase": "éteins la lampe de cam",
+      "refus": false
+    },
+    {
+      "phrase": "allume le salon",
+      "refus": false
+    },
+    {
+      "phrase": "mets la télé",
+      "refus": false
+    },
+    {
+      "phrase": "allume la chambre de Camille",
+      "personne": "Camille",
+      "refus": false
+    },
+    {
+      "phrase": "allume la chambre de Camille",
+      "personne": "Sacha",
+      "refus": false
+    }
+  ],
+  "plafonds": [
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.8
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.5
+      },
+      "note": "volume à 80 %, ramené au plafond de 50 %"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": 1
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.5
+      },
+      "note": "volume à fond, ramené au plafond"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.5
+      },
+      "attendu": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.5
+      },
+      "note": "pile au plafond, inchangé"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.exemple20",
+        "volume_level": 0.3
+      },
+      "attendu": {
+        "entity_id": "media_player.exemple20",
+        "volume_level": 0.3
+      },
+      "note": "volume de la télé sous le plafond, inchangé"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": "0.9"
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.5
+      },
+      "note": "volume écrit en texte, plafonné aussi"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": -0.2
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0
+      },
+      "note": "volume négatif ramené à 0"
+    },
+    {
+      "service": "media_player.volume_down",
+      "donnees": {
+        "entity_id": "media_player.salon"
+      },
+      "attendu": {
+        "entity_id": "media_player.salon"
+      },
+      "note": "baisser le volume, rien à plafonner"
+    },
+    {
+      "service": "light.turn_on",
+      "donnees": {
+        "entity_id": "light.exemple6",
+        "brightness_pct": 80
+      },
+      "attendu": {
+        "entity_id": "light.exemple6",
+        "brightness_pct": 80
+      },
+      "note": "luminosité à 80 %, pas concernée par le plafond"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "version": "0.1.0",
+  "remarque": "Une entrée par ampoule. Position x, y, z en mètres dans le repère de pieces.json, z = hauteur de l'ampoule.",
+  "lampes": [
+    {
+      "entite": "light.salon_plafond",
+      "nom": "Salon",
+      "type": "suspension",
+      "piece": "sejour_cuisine",
+      "xyz": [
+        2.0,
+        2.2,
+        2.2
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.salon_lampe_tele",
+      "nom": "Lampe TV",
+      "type": "lampe",
+      "piece": "sejour_cuisine",
+      "xyz": [
+        0.4,
+        0.3,
+        1.0
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.cuisine_suspension_1",
+      "nom": "Cuisine 1",
+      "type": "suspension",
+      "piece": "sejour_cuisine",
+      "xyz": [
+        4.6,
+        2.4,
+        2.1
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.cuisine_suspension_2",
+      "nom": "Cuisine 2",
+      "type": "suspension",
+      "piece": "sejour_cuisine",
+      "xyz": [
+        5.0,
+        2.4,
+        2.1
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.couloir_plafond",
+      "nom": "Entrée",
+      "type": "plafonnier",
+      "piece": "couloir",
+      "xyz": [
+        3.0,
+        4.5,
+        2.45
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.chambre_sacha_plafond",
+      "nom": "Plafond de Sacha",
+      "type": "plafonnier",
+      "piece": "chambre_sacha",
+      "xyz": [
+        1.5,
+        6.5,
+        2.45
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.chambre_sacha_chevet_gauche",
+      "nom": "Chevet gauche",
+      "type": "lampe",
+      "piece": "chambre_sacha",
+      "xyz": [
+        0.15,
+        6.1,
+        0.7
+      ],
+      "position": "deduite"
+    },
+    {
+      "entite": "light.chambre_sacha_chevet_droit",
+      "nom": "Chevet droit",
+      "type": "lampe",
+      "piece": "chambre_sacha",
+      "xyz": [
+        1.95,
+        6.1,
+        0.7
+      ],
+      "position": "deduite"
+    },
+    {
+      "entite": "light.chambre_camille_plafond_1",
+      "nom": "Plafond 1",
+      "type": "plafonnier",
+      "piece": "chambre_camille",
+      "xyz": [
+        4.2,
+        6.5,
+        2.45
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.chambre_camille_plafond_2",
+      "nom": "Plafond 2",
+      "type": "plafonnier",
+      "piece": "chambre_camille",
+      "xyz": [
+        4.8,
+        6.5,
+        2.45
+      ],
+      "position": "triangulee"
+    },
+    {
+      "entite": "light.chambre_camille_chevet",
+      "nom": "Chevet",
+      "type": "lampe",
+      "piece": "chambre_camille",
+      "xyz": [
+        5.9,
+        6.1,
+        0.7
+      ],
+      "position": "deduite"
+    }
+  ],
+  "groupes": {
+    "light.cuisine_suspensions": [
+      "light.cuisine_suspension_1",
+      "light.cuisine_suspension_2"
+    ],
+    "light.chambre_sacha_chevets": [
+      "light.chambre_sacha_chevet_gauche",
+      "light.chambre_sacha_chevet_droit"
+    ],
+    "light.chambre_camille_plafonds": [
+      "light.chambre_camille_plafond_1",
+      "light.chambre_camille_plafond_2"
+    ]
+  }
+}

@@ -1,0 +1,106 @@
+# Secrets : jamais dans le dépôt, même privé (jetons HA, satellites, clés Anthropic et transcription)
+.env
+*.env
+!.env.exemple
+poc/tls/
+poc/appareils.json
+*.jks
+*.keystore
+keystore.properties
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Données personnelles produites à l'usage : journaux de commandes, ratés, notes, latences
+poc/journal/
+journal/
+poc/commandes_apprises.yaml
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Environnements et caches
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Android : sorties de compilation et APK (le jeton des satellites y est compilé)
+local.properties
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+*.apk
+.idea/
+
+# Gros modèles : téléchargés par poc/outils/telecharger_modeles.py (adresse et empreinte SHA-256)
+poc/modeles/vision/sface.onnx
+android/app/src/main/assets/vision/sface.onnx
+poc/voix/*.onnx
+poc/voix/*.onnx.json
+
+# Dépôts tiers clonés pour inspiration (ils ont leur propre historique et leur licence)
+inspirations/*
+!inspirations/comparatif-projet_inspiration.md
+
+# Enregistrements de voix pour les bancs, sons et vidéos (données personnelles)
+android/test-canary/
+android/test-reveil/
+*.wav
+# Sons d'écoute synthétisés de l'appli (aucune voix), livrés avec elle
+!android/app/src/main/res/raw/ecoute_*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.opus
+*.mp4
+*.webm
+*.mov
+
+# Poids de LLM et embeddings (visages compris), copiés à part sur les appareils
+*.gguf
+*.litertlm
+*.safetensors
+*.npy
+*.npz
+
+# Copies de travail des sessions et agents Claude
+.claude/worktrees/
+# Captures et vidéos de la tablette (appartement, écran) : hors dépôt
+docs/captures/
+
+# Rendus des maquettes, régénérés par docs/maquettes/rendre.sh
+docs/maquettes/rendus/
+
+# Fichiers système
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Ancien emplacement de la configuration réelle (avant le dossier maison/ de la 0.23.1, config/ depuis la 0.25.0)
+poc/maison.json
+
+# Dossier de configuration réel de la maison (dépôt privé cloné là) et anciens emplacements du dictionnaire
+/config/
+/maison/
+poc/commandes.yaml
+android/app/src/main/assets/dictionnaire.json
+android/app/src/main/assets/maison3d/vue3d.html
+android/app/src/main/assets/carte/
+carte/pieces.json
+carte/meubles.json
+carte/lampes.json
+carte/3d/vue3d.html
+carte/3d/modele.glb
+ha-app/jarvis_dictionnaire.apercu.json
+
+# Sorties du plan d'exemple régénérées par carte/3d/generer_3d.py (le plan 2D d'exemple reste suivi)
+config-exemple/carte/modele.glb
+config-exemple/genere/android/maison3d/
+
+# Consignes personnelles des agents de codage
+CLAUDE.local.md

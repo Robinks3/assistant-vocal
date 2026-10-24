@@ -1,0 +1,1635 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Appartement 3D</title>
+<!-- Modèle de page : generer_3d.py remplace les marqueurs et écrit vue3d.html. Ne pas ouvrir ce fichier directement. -->
+<style>
+  :root { --fond: #000000; --texte: #8C8C8C; --texte-fort: #CFCFCF; --panneau: rgba(18, 18, 20, 0.88); --bord: #2A2A2E; --allume: #FFC86B; }
+  html, body { margin: 0; height: 100%; background: var(--fond); overflow: hidden; color: var(--texte);
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
+  canvas { display: block; touch-action: none; }
+  /* fondu des bords dans le noir (aperçu de l'écran ambiant) : la scène flotte au lieu d'être encadrée.
+     --bord : largeur du fondu, 23 % par défaut, moins sur l'écran ambiant où la vue est grande */
+  body { --bord: 23%; }
+  body.fondu #scene canvas {
+    --m1: calc(var(--bord) * 0.35); --m2: calc(var(--bord) * 0.65);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, rgba(0,0,0,.3) var(--m1), rgba(0,0,0,.75) var(--m2), #000 var(--bord), #000 calc(100% - var(--bord)), rgba(0,0,0,.75) calc(100% - var(--m2)), rgba(0,0,0,.3) calc(100% - var(--m1)), transparent 100%),
+                        linear-gradient(to bottom, transparent 0, rgba(0,0,0,.3) var(--m1), rgba(0,0,0,.75) var(--m2), #000 var(--bord), #000 calc(100% - var(--bord)), rgba(0,0,0,.75) calc(100% - var(--m2)), rgba(0,0,0,.3) calc(100% - var(--m1)), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, rgba(0,0,0,.3) var(--m1), rgba(0,0,0,.75) var(--m2), #000 var(--bord), #000 calc(100% - var(--bord)), rgba(0,0,0,.75) calc(100% - var(--m2)), rgba(0,0,0,.3) calc(100% - var(--m1)), transparent 100%),
+                linear-gradient(to bottom, transparent 0, rgba(0,0,0,.3) var(--m1), rgba(0,0,0,.75) var(--m2), #000 var(--bord), #000 calc(100% - var(--bord)), rgba(0,0,0,.75) calc(100% - var(--m2)), rgba(0,0,0,.3) calc(100% - var(--m1)), transparent 100%);
+    mask-composite: intersect;
+  }
+  body.fondu #version { display: none; }
+  /* dans l'appli (0.7.1), la version est affichée par l'appli elle-même (assistant.version()) */
+  body.appli #version { display: none; }
+  /* scène atténuée pendant l'écoute d'un projet d'inspiration (écran ambiant) */
+  #scene { position: fixed; inset: 0; transition: opacity .45s ease; }
+  /* fond du régime vivant (0.7.0) : dégradé, ombre, flaque, grain et particules, sous la toile 3D
+     transparente et hors de #scene, pour rester vivant pendant l'écoute */
+  #fond { position: fixed; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+  #panneau { position: fixed; top: 12px; right: 12px; width: 236px; max-height: calc(100% - 24px); overflow: auto;
+    background: var(--panneau); border: 1px solid var(--bord); border-radius: 12px; padding: 10px 10px 6px; font-size: 13px; box-sizing: border-box; }
+  #panneau.cache { display: none; }
+  #panneau h2 { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #666; margin: 10px 2px 4px; }
+  #panneau h2:first-child { margin-top: 0; }
+  .lampe { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; margin: 2px 0; border: 0; border-radius: 8px;
+    background: transparent; color: var(--texte-fort); font: inherit; text-align: left; cursor: pointer; }
+  .lampe:hover { background: #1E1E22; }
+  .pastille { width: 10px; height: 10px; border-radius: 50%; background: #333; flex: none; box-shadow: none; transition: background .3s, box-shadow .3s; }
+  .lampe.on .pastille { background: var(--allume); box-shadow: 0 0 8px var(--allume); }
+  .estimee { color: #666; font-size: 11px; margin-left: auto; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .actions button { flex: 1 1 auto; padding: 6px 8px; border: 1px solid var(--bord); border-radius: 8px; background: #141416; color: var(--texte-fort); font: inherit; cursor: pointer; }
+  .actions button:hover { background: #1E1E22; }
+  /* la maison en grand (0.8.0) : voile sur les autres pièces, étiquettes des pièces et pastilles des objets,
+     au-dessus de la scène et sans toucher (l'appli désigne ce qui est sous le doigt par assistant.designer) */
+  #voile { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #grand { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, "Segoe UI", Roboto, sans-serif; }
+  .etiq { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
+    color: #E8E2D8; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75); transition: opacity .3s; }
+  .etiq b { font-weight: 400; display: block; }
+  .etiq small { display: block; color: #D6CFC3; }
+  .past { position: absolute; left: 0; top: 0; border-radius: 50%; opacity: 0; transition: opacity .15s;
+    background: radial-gradient(circle at 40% 35%, rgba(52, 49, 44, 0.95), rgba(35, 33, 29, 0.95));
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(238, 234, 226, 0.1); }
+  .past svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .past.surligne { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(238, 234, 226, 0.1), 0 0 0 3px rgba(238, 234, 226, 0.35); }
+  #version { position: fixed; left: 10px; bottom: 8px; font-size: 11px; color: #4A4A4A; pointer-events: none; }
+  @media (max-width: 520px) { #panneau { width: calc(100% - 24px); max-height: 45%; top: auto; bottom: 28px; } }
+</style>
+</head>
+<body>
+<div id="panneau">
+  <div class="actions">
+    <button id="b-demo">Démo</button><button id="b-tout">Tout allumer</button><button id="b-rien">Tout éteindre</button>
+  </div>
+  <div class="actions">
+    <button id="b-act-on">Action : allumer le salon</button><button id="b-act-off">Action : éteindre le salon</button>
+  </div>
+  <div class="actions">
+    <button id="b-vue">Vue de dessus</button><button id="b-jour">Mode jour</button><button id="b-murs">Murs hauts</button>
+  </div>
+  <div id="liste"></div>
+</div>
+<script>
+  // dans l'appli, le panneau de démonstration ne doit jamais apparaître, même avant la fin du chargement
+  if (/[?&]panneau=0/.test(location.search) || window.assistantAndroid) document.getElementById("panneau").classList.add("cache");
+  if (window.assistantAndroid) document.body.classList.add("appli");
+</script>
+<canvas id="fond"></canvas>
+<div id="scene"></div>
+<canvas id="voile"></canvas>
+<div id="grand"></div>
+<div id="version">Plan 3D v{{VERSION}} du {{DATE}}</div>
+<script>(function(){"use strict";
+/*THREE*/
+})();</script>
+<script>
+"use strict";
+const DONNEES = /*SCENE*/;
+const T = THREE;
+const params = new URLSearchParams(location.search);
+
+// ---------- teintes ----------
+// Teintes de la scène (0.4.1). L'appli envoie sa palette (Palette.kt) par assistant.teintes dès le
+// chargement : ces valeurs ne servent qu'à la page ouverte seule dans un navigateur. Tout ce qui est
+// éteint est en neutre strict, sans bleu ni saturation, un seul matériau mat.
+// Jeux de teintes (0.5.0) : « neutre » (gris sombres d'origine) et « couleur » (demande du 22/10 :
+// garder le fond noir, mais un appartement en couleur et bien plus contrasté). teintes({jeu}) repart du jeu
+// choisi avant d'appliquer les autres clés reçues. sol_<type> : sol d'un type de pièce, sinon « sol ».
+// meublesReels : chaque meuble prend sa couleur de meubles.json au lieu du dégradé de gris.
+// forceLampes : intensité des lumières ponctuelles (moindre sur des surfaces claires, sinon tout sature).
+const JEUX = {
+  neutre: {
+    fond: "#000000", murDessus: "#2B2D31", murFace: "#1B1C1F", sol: "#141518",
+    meubleSombre: "#222428", meubleClair: "#2E3034", support: "#26282C", ampoule: "#3A3A3A",
+    lumiere: "#FFA757", poussiere: "#F0B46A", flux: "#6B9EFF", braise: "#FF6B1F",
+    meublesReels: false, forceLampes: 120, forceTache: 0.42, forceHalo: 0.95, ambiante: 1,
+    // 0.6.0 : écran de la télé allumée (lumière froide) et signe du son (rôle « musique » de la palette)
+    ecran: "#AFC6FF", musique: "#6FD3C1", forceEcran: 60,
+  },
+  couleur: {
+    fond: "#000000", murDessus: "#F4EFE6", murFace: "#A9A196", sol: "#B48A62",
+    sol_sejour: "#C2925F", sol_circulation: "#A9845E", sol_chambre: "#7F95B0", sol_salle_de_bain: "#6FA9A3",
+    meubleSombre: "#3A3530", meubleClair: "#D9CCB6", support: "#2E2B28", ampoule: "#6A6560",
+    lumiere: "#FFA757", poussiere: "#F0B46A", flux: "#6B9EFF", braise: "#FF6B1F",
+    // ambiante 0,78 : les surfaces claires rendent à 78 % de leur teinte, ce qui laisse de la marge aux
+    // lampes avant le blanc pur (retour du 22/10 : canapé et cuisine brûlés près des lampes allumées)
+    // 0.5.2 : plafond des blancs à 0,8 (aucun canal au-delà de 204) au lieu d'une ambiante baissée partout :
+    // les couleurs saturées et l'ombrage restent entiers, seuls les blancs descendent
+    meublesReels: true, forceLampes: 6, forceTache: 0.1, forceHalo: 0.3, ambiante: 1, plafondBlanc: 0.8,
+    ecran: "#AFC6FF", musique: "#6FD3C1", forceEcran: 8,
+  },
+};
+const TEINTES = { ...JEUX.neutre };
+let jeu = "neutre";
+// 0 à 1 : clarté de l'appartement (murs, sols, meubles), envoyée par l'appli selon l'heure et la palette.
+// Les lampes gardent leur éclat : la nuit, l'appartement s'assombrit et les lumières ressortent.
+let intensite = 1;
+
+// ---------- rendu ----------
+// toile transparente (0.7.0) : le fond du régime vivant est dessiné dessous, dans #fond
+const rendu = new T.WebGLRenderer({ antialias: true, alpha: true });
+rendu.setClearColor(0x000000, 0);
+// résolution réglable une fois au chargement (?pr=1.25), 1,5 au plus par défaut
+rendu.setPixelRatio(Math.min(window.devicePixelRatio || 1, +(params.get("pr") || 0) > 0 ? +params.get("pr") : 1.5));
+rendu.outputColorSpace = T.SRGBColorSpace;
+// sans courbe de tons : les teintes de la palette sortent telles quelles sous la lumière ambiante
+rendu.toneMapping = T.NoToneMapping;
+// la toile est dans #scene, que l'écran ambiant atténue pendant l'écoute
+document.getElementById("scene").prepend(rendu.domElement);
+const scene = new T.Scene();
+// pas de fond dans la scène : la teinte « fond » colore la page (body), le régime vivant dessine #fond
+document.body.style.background = TEINTES.fond;
+
+const E = DONNEES.emprise;
+const CX = (E.xmin + E.xmax) / 2, CY = (E.ymin + E.ymax) / 2;
+// repère du plan (x, y, hauteur z) vers three.js (X, Y haut, Z)
+const V = (x, y, z = 0) => new T.Vector3(x - CX, z, -(y - CY));
+
+// Lumière ambiante blanche d'intensité pi : un matériau mat rend alors exactement sa teinte (Lambert).
+// La nuit, seules les lampes allumées éclairent en plus, d'une lumière chaude.
+const AMBIANTE_NUIT = Math.PI, AMBIANTE_JOUR = 4 * Math.PI;
+const ambiante = new T.AmbientLight(0xffffff, AMBIANTE_NUIT);
+scene.add(ambiante);
+
+const camera = new T.PerspectiveCamera(38, 1, 0.1, 200);
+// Zone de la fenêtre où l'appartement est cadré (0.5.0), en fractions de la fenêtre. La toile couvre
+// toujours toute la fenêtre (lumières et particules débordent librement), mais la projection est décalée
+// (setViewOffset) pour que le cadrage « tout l'appartement » ou « une pièce » remplisse cette zone.
+// Par défaut un peu plus petit qu'avant (demande du 22/10).
+// 0.6.2 : par défaut la zone A de l'accueil validée (sans musique), pour qu'il n'y ait pas de
+// saut au chargement avant le premier appel de l'appli
+const zone = { x: 0.5, y: 0.275, l: 0.444, h: 0.45 };
+let zoneAnim = null;
+function zonePx() {
+  return { x: zone.x * innerWidth, y: zone.y * innerHeight,
+           w: Math.max(1, zone.l * innerWidth), h: Math.max(1, zone.h * innerHeight) };
+}
+const aspZone = () => { const z = zonePx(); return z.w / z.h; };
+function appliquerZone() {
+  const z = zonePx();
+  camera.aspect = z.w / z.h;
+  camera.setViewOffset(z.w, z.h, -z.x, -z.y, Math.max(1, innerWidth), Math.max(1, innerHeight));
+  camera.updateProjectionMatrix();
+}
+
+// ---------- textures dessinées ----------
+function textureHalo() {
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const g = c.getContext("2d"), d = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  d.addColorStop(0, "rgba(255,255,255,1)"); d.addColorStop(0.18, "rgba(255,255,255,0.55)");
+  d.addColorStop(0.5, "rgba(255,255,255,0.12)"); d.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = d; g.fillRect(0, 0, 128, 128);
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t;
+}
+const HALO = textureHalo();
+function texteAuSol(texte, largeurM) {
+  const c = document.createElement("canvas"), g = c.getContext("2d");
+  c.width = 512; c.height = 96;
+  g.font = "600 44px system-ui, 'Segoe UI', Roboto, sans-serif";
+  const lignes = [];
+  let l = "";
+  for (const mot of texte.split(" ")) {
+    const essai = l ? l + " " + mot : mot;
+    if (g.measureText(essai).width > 500 && l) { lignes.push(l); l = mot; } else l = essai;
+  }
+  lignes.push(l);
+  c.height = 56 * lignes.length + 16;
+  g.font = "600 44px system-ui, 'Segoe UI', Roboto, sans-serif";
+  g.fillStyle = "rgba(255,255,255,0.9)"; g.textAlign = "center"; g.textBaseline = "middle";
+  lignes.forEach((s, i) => g.fillText(s, 256, 36 + 56 * i));
+  const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+  const larg = Math.min(largeurM * 0.85, 2.2), haut = larg * c.height / c.width;
+  const m = new T.Mesh(new T.PlaneGeometry(larg, haut),
+    new T.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.35, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  return m;
+}
+
+// ---------- appartement ----------
+// Un seul matériau mat (Lambert), les teintes portées par les sommets : le dessus des murs et leurs faces
+// n'ont pas la même teinte, chaque meuble garde son rang de clarté d'origine entre deux gris neutres.
+const MAT = new T.MeshLambertMaterial({ vertexColors: true, dithering: true });
+// Pavés fusionnés en un seul maillage par famille (un appel de dessin au lieu de dizaines, pour la tablette)
+function paves(liste) {
+  const pos = [], nor = [], idx = [], boite = [];
+  liste.forEach((b, n) => {
+    const [x0, y0, x1, y1, z0, z1] = b, g = new T.BoxGeometry(x1 - x0, z1 - z0, y1 - y0);
+    g.translate(...V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2).toArray());
+    const base = pos.length / 3;
+    pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array);
+    for (let i = 0; i < g.attributes.position.count; i++) boite.push(n);
+    g.index.array.forEach(i => idx.push(base + i));
+    g.dispose();
+  });
+  const g = new T.BufferGeometry();
+  g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new T.Float32BufferAttribute(nor, 3));
+  g.setAttribute("color", new T.Float32BufferAttribute(new Array(pos.length).fill(0), 3));
+  g.setIndex(idx);
+  const m = new T.Mesh(g, MAT);
+  m.userData.boite = boite;
+  return m;
+}
+// teinte de chaque sommet d'un maillage de pavés : teinte(numéro du pavé, composante verticale de la normale)
+function colorer(mesh, teinte) {
+  const col = mesh.geometry.attributes.color, nor = mesh.geometry.attributes.normal, b = mesh.userData.boite;
+  for (let i = 0; i < col.count; i++) { const c = teinte(b[i], nor.getY(i)); col.setXYZ(i, c.r, c.g, c.b); }
+  col.needsUpdate = true;
+}
+// noms des pièces écrits au sol, cachés sur l'écran ambiant
+const nomsSol = [];
+// ce que le doigt peut toucher pour « toucher le plan » (sols, murs, meubles), voir dansLePlan
+const solides = [];
+const murs = paves(DONNEES.murs), linteaux = paves(DONNEES.linteaux);
+scene.add(murs, linteaux);
+solides.push(murs);
+let hauteurMurs = 1.1;
+function reglerMurs(h) {
+  hauteurMurs = h;
+  murs.scale.y = h / DONNEES.hauteur;
+  linteaux.visible = h >= DONNEES.hauteur - 0.01;
+  demander();
+}
+
+// un matériau de sol par pièce : le jeu « couleur » teinte les sols selon le type de pièce
+const MATS_SOL = [];
+for (const p of DONNEES.pieces) {
+  const forme = new T.Shape(p.polygone.map(([x, y]) => new T.Vector2(x - CX, y - CY)));
+  const g = new T.ShapeGeometry(forme); g.rotateX(-Math.PI / 2);
+  const mat = new T.MeshLambertMaterial({ color: TEINTES.sol, dithering: true });
+  mat.userData.type = p.type; MATS_SOL.push(mat);
+  const sol = new T.Mesh(g, mat);
+  sol.position.y = 0.001;
+  scene.add(sol);
+  solides.push(sol);
+  const xs = p.polygone.map(q => q[0]), ys = p.polygone.map(q => q[1]);
+  let ax = 0, ay = 0, aa = 0;   // centre de gravité
+  p.polygone.forEach(([x1, y1], i) => {
+    const [x2, y2] = p.polygone[(i + 1) % p.polygone.length], c = x1 * y2 - x2 * y1;
+    aa += c; ax += (x1 + x2) * c; ay += (y1 + y2) * c;
+  });
+  const etiquette = texteAuSol(p.nom, Math.max(...xs) - Math.min(...xs));
+  etiquette.position.copy(V(ax / (3 * aa), ay / (3 * aa), 0.02));
+  scene.add(etiquette);
+  nomsSol.push(etiquette);
+}
+const meubles = paves(DONNEES.meubles.map(m => m.boite));
+scene.add(meubles);
+solides.push(meubles);
+// rang de clarté de chaque meuble d'après sa couleur d'origine (0 le plus sombre, 1 le plus clair)
+const clartes = (() => {
+  const l = DONNEES.meubles.map(m => { const c = new T.Color(m.couleur); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; });
+  const tri = [...l].sort((a, b) => a - b);
+  return l.map(v => tri.length > 1 ? tri.indexOf(v) / (tri.length - 1) : 0.5);
+})();
+
+// ---------- lampes ----------
+const lampes = new Map();      // entité vers objet lampe
+const cibles = [];              // zones de toucher
+function kelvinVersCouleur(k) {
+  const t = k / 100; let r, g, b;
+  if (t <= 66) { r = 255; g = 99.47 * Math.log(t) - 161.12; b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04; }
+  else { r = 329.7 * Math.pow(t - 60, -0.1332); g = 288.12 * Math.pow(t - 60, -0.0755); b = 255; }
+  const c = v => Math.max(0, Math.min(255, v)) / 255;
+  return new T.Color(c(r), c(g), c(b));
+}
+// lumière d'une lampe sans couleur donnée par Home Assistant (teinte « lumiere » de la palette)
+const BLANC_CHAUD = new T.Color(TEINTES.lumiere);
+// teinte d'une ampoule éteinte, de la braise d'une extinction, du flux bleu d'une action
+const AMPOULE = new T.Color(TEINTES.ampoule), BRAISE = new T.Color(TEINTES.braise), BLEU_ORBE = new T.Color(TEINTES.flux);
+const MAT_SUPPORT = new T.MeshLambertMaterial({ color: TEINTES.support, dithering: true });
+
+for (const l of DONNEES.lampes) {
+  const [x, y, z] = l.xyz, pos = V(x, y, z), groupe = new T.Group();
+  const ampoule = new T.Mesh(new T.SphereGeometry(0.055, 16, 12), new T.MeshBasicMaterial({ color: AMPOULE }));
+  ampoule.position.copy(pos); groupe.add(ampoule);
+  const matSupport = MAT_SUPPORT;
+  if (l.type === "suspension") {
+    const abat = new T.Mesh(new T.CylinderGeometry(0.09, 0.2, 0.2, 20, 1, true), matSupport);
+    abat.position.copy(pos).add(new T.Vector3(0, 0.06, 0)); groupe.add(abat);
+    const fil = new T.Mesh(new T.CylinderGeometry(0.006, 0.006, DONNEES.hauteur - z), matSupport);
+    fil.position.copy(pos).add(new T.Vector3(0, (DONNEES.hauteur - z) / 2, 0)); groupe.add(fil);
+  } else if (l.type === "plafonnier") {
+    // plus de disque : au-dessus des murs bas, il flottait dans le vide (revue de design du 22/10)
+  } else {
+    const pied = new T.Mesh(new T.CylinderGeometry(0.02, 0.05, 0.28, 12), matSupport);
+    pied.position.copy(pos).add(new T.Vector3(0, -0.19, 0)); groupe.add(pied);
+  }
+  const halo = new T.Sprite(new T.SpriteMaterial({ map: HALO, color: BLANC_CHAUD, blending: T.AdditiveBlending,
+    transparent: true, depthWrite: false, opacity: 0 }));
+  const tailleHalo = l.type === "lampe" ? 0.9 : 1.4;
+  halo.position.copy(pos); halo.scale.setScalar(tailleHalo); groupe.add(halo);
+  const flaque = new T.Mesh(new T.CircleGeometry(1, 40), new T.MeshBasicMaterial({ map: HALO, color: BLANC_CHAUD,
+    blending: T.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 }));
+  flaque.rotation.x = -Math.PI / 2; flaque.position.set(pos.x, 0.012, pos.z);
+  const rayonFlaque = l.type === "lampe" ? 1.1 : 1.9;
+  flaque.scale.setScalar(rayonFlaque); groupe.add(flaque);
+  const onde = new T.Mesh(new T.RingGeometry(0.9, 1, 48), new T.MeshBasicMaterial({ color: BLANC_CHAUD,
+    blending: T.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0, side: T.DoubleSide }));
+  onde.rotation.x = -Math.PI / 2; onde.position.set(pos.x, 0.015, pos.z); groupe.add(onde);
+  const onde2 = onde.clone(); onde2.material = onde.material.clone(); groupe.add(onde2);
+  const implo = onde.clone(); implo.material = onde.material.clone(); groupe.add(implo);
+  const lumiere = new T.PointLight(BLANC_CHAUD, 0, l.type === "lampe" ? 3 : 4.5, 1.6);
+  lumiere.position.copy(pos); groupe.add(lumiere);
+  const zone = new T.Mesh(new T.SphereGeometry(0.3, 8, 6), new T.MeshBasicMaterial({ visible: false }));
+  zone.position.copy(pos); zone.userData.entite = l.entite; groupe.add(zone); cibles.push(zone);
+  scene.add(groupe);
+  lampes.set(l.entite, { def: l, ampoule, halo, flaque, onde, onde2, implo, lumiere, tailleHalo, rayonFlaque,
+    on: false, niveau: 1, couleur: BLANC_CHAUD.clone(), couleurHA: false, v: 0, depart: 0, de: 0, vers: 0, t0: 0, duree: 1, onde0: -1,
+    // étendue de la lumière (0,15 éteinte, 1 allumée), éclat de l'allumage, seconde onde, onde qui se
+    // referme, braise de l'ampoule après l'extinction, pulsation d'un réglage, chorégraphie d'une action
+    e: 0.15, e0: 0.15, eclat: 0.35, onde1: -1, implo0: -1, braise: 0, braise0: -1, pouls0: -1, choreo: null });
+}
+
+// ---------- télé et enceintes (0.6.0) ----------
+// Télé allumée : écran d'une lumière froide et douce qui éclaire le sol et le canapé, sans clignotement ni
+// défilement (écran OLED de la tablette). Enceinte qui joue : trois ondes lentes au sol dans la teinte
+// « musique » (une vague toutes les 5 s environ, plus ample avec le volume) et une lueur sur l'enceinte ;
+// en pause, la lueur seule, immobile ; à l'arrêt, rien. La musique peut jouer des heures : le mouvement
+// est lent et la page reste à sa cadence de repos (tour.ips).
+const ECRAN = new T.Color(TEINTES.ecran), MUSIQUE = new T.Color(TEINTES.musique);
+const medias = new Map();   // entité HA (et ses alias) vers objet média
+const PERIODE_ONDE = 5200;
+for (const md of DONNEES.medias || []) {
+  const mb = DONNEES.meubles.find(m => m.id === md.meuble);
+  if (!mb) continue;
+  const [x0, y0, x1, y1, z0, z1] = mb.boite, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const o = { def: md, type: md.type, etat: "off", volume: 0.35, v: 0, de: 0, vers: 0, t0: -1e9, enPause: false };
+  if (md.type === "tele") {
+    // face avant de l'écran, tournée vers +y du plan (le canapé), soit -Z dans three.js
+    o.ecran = new T.Mesh(new T.PlaneGeometry(x1 - x0 - 0.04, z1 - z0 - 0.04), new T.MeshBasicMaterial({ color: 0x050505 }));
+    o.ecran.position.copy(V(cx, y1 + 0.004, (z0 + z1) / 2)); o.ecran.rotation.y = Math.PI;
+    o.lumiere = new T.PointLight(ECRAN, 0, 4.5, 1.6);
+    o.lumiere.position.copy(V(cx, y1 + 0.5, (z0 + z1) / 2));
+    o.tache = new T.Mesh(new T.CircleGeometry(1, 40), new T.MeshBasicMaterial({ map: HALO, color: ECRAN,
+      blending: T.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 }));
+    o.tache.rotation.x = -Math.PI / 2; o.tache.position.copy(V(cx, y1 + 1.1, 0.013)); o.tache.scale.setScalar(1.7);
+    // lueur froide qui déborde du cadre : visible même quand la caméra voit la télé de dos
+    o.halo = new T.Sprite(new T.SpriteMaterial({ map: HALO, color: ECRAN, blending: T.AdditiveBlending,
+      transparent: true, depthWrite: false, opacity: 0 }));
+    o.halo.position.copy(V(cx, y1 + 0.08, (z0 + z1) / 2)); o.halo.scale.set((x1 - x0) * 1.9, (z1 - z0) * 2.4, 1);
+    scene.add(o.ecran, o.lumiere, o.tache, o.halo);
+  } else {
+    // les ondes partent du dessous de l'enceinte : au sol, ou à la hauteur du meuble qui la porte (0.6.2)
+    const pied = V(cx, cy, z0 + 0.016);
+    // une enceinte contre un mur (md.ondes = angle en degrés de la direction de la pièce, dans le plan)
+    // n'envoie ses ondes que dans un demi-cercle, sinon elles traverseraient le mur vers le noir
+    const demi = md.ondes != null, debut = demi ? (+md.ondes - 90) * Math.PI / 180 : 0;
+    o.arc = [debut, demi ? Math.PI : 2 * Math.PI];
+    o.anneaux = [0, 1, 2].map(() => {
+      // mélange normal (et non additif) : sur un parquet chaud, l'additif virait au jaune et perdait la teinte
+      const a = new T.Mesh(new T.RingGeometry(0.86, 1, 64, 1, debut, demi ? Math.PI : 2 * Math.PI),
+        new T.MeshBasicMaterial({ color: MUSIQUE, transparent: true, depthWrite: false, opacity: 0, side: T.DoubleSide }));
+      a.rotation.x = -Math.PI / 2; a.position.copy(pied); a.visible = false; scene.add(a); return a;
+    });
+    o.lueur = new T.Sprite(new T.SpriteMaterial({ map: HALO, color: MUSIQUE, blending: T.AdditiveBlending,
+      transparent: true, depthWrite: false, opacity: 0 }));
+    o.lueur.position.copy(V(cx, cy, z1 + 0.05)); o.lueur.visible = false; scene.add(o.lueur);
+  }
+  medias.set(md.entite, o);
+  for (const a of md.alias || []) medias.set(a, o);
+}
+function etatMedia(entite, e, instant) {
+  const membres = (DONNEES.groupes_medias || {})[entite] || [entite];
+  const etatHA = typeof e === "string" ? e : typeof e === "boolean" ? (e ? "on" : "off") : (e && (e.state ?? (e.on === undefined ? null : (e.on ? "on" : "off"))));
+  const a = (e && e.attributes) || e || {};
+  const vol = a.volume_level ?? a.volume;
+  for (const m of membres) {
+    const o = medias.get(m); if (!o || etatHA == null) continue;
+    o.etat = etatHA;
+    if (vol != null && isFinite(+vol)) o.volume = Math.max(0, Math.min(1, +vol));
+    const vers = o.type === "tele"
+      ? (["off", "standby", "unavailable", "unknown"].includes(etatHA) ? 0 : 1)
+      : (etatHA === "playing" ? 1 : etatHA === "paused" ? 0.45 : 0);
+    o.enPause = o.type !== "tele" && etatHA === "paused";
+    o.de = instant ? vers : o.v; o.vers = vers; o.t0 = instant ? -1e9 : performance.now();
+    if (instant) o.v = vers;
+    appliquerMedia(o, performance.now());
+  }
+  demander();
+}
+// [t] : horloge des ondes ; renvoie vrai si quelque chose bouge encore (fondu ou ondes)
+function appliquerMedia(o, t) {
+  const v = o.v;
+  if (o.type === "tele") {
+    o.ecran.material.color.setRGB(0.02, 0.02, 0.02).lerp(ECRAN, 0.85 * v);
+    o.lumiere.color.copy(ECRAN); o.lumiere.intensity = TEINTES.forceEcran * nuitLampes() * v;
+    o.tache.material.color.copy(ECRAN); o.tache.material.opacity = 0.3 * v; o.tache.visible = v > 0.002;
+    o.halo.material.color.copy(ECRAN); o.halo.material.opacity = 0.5 * v; o.halo.visible = v > 0.002;
+    return false;
+  }
+  // le jour (intensité au-dessus de 0,3), un parquet clair mange le signe : ondes et lueur plus marquées.
+  // La nuit (0,3 et moins), rien ne change.
+  const jourMedia = Math.max(0, Math.min(1, (intensite - 0.3) / 0.7));
+  o.lueur.material.color.copy(MUSIQUE);
+  o.lueur.material.opacity = Math.min(1, 0.45 * (1 + 0.8 * jourMedia) * v); o.lueur.visible = v > 0.002;
+  o.lueur.scale.setScalar((0.55 + 0.35 * o.volume) * (1 + 0.3 * jourMedia));
+  // épaisseur des ondes : 14 % du rayon la nuit, jusqu'à 24 % le jour (géométrie refaite seulement si elle change)
+  const bord = Math.round((0.14 + 0.1 * jourMedia) * 100) / 100;
+  if (o.bord !== bord) {
+    o.bord = bord;
+    for (const a of o.anneaux) { a.geometry.dispose(); a.geometry = new T.RingGeometry(1 - bord, 1, 64, 1, o.arc[0], o.arc[1]); }
+  }
+  const ondes = v > 0.002 && !o.enPause;
+  o.anneaux.forEach((a, i) => {
+    a.visible = ondes;
+    if (!ondes) return;
+    const p = ((t / PERIODE_ONDE) + i / 3) % 1;
+    a.scale.setScalar(0.22 + p * (0.7 + 1.3 * o.volume));
+    a.material.color.copy(MUSIQUE);
+    a.material.opacity = Math.min(0.95, 0.55 * (1 + 0.6 * jourMedia) * v * Math.pow(1 - p, 1.4) * Math.min(1, p * 6));
+  });
+  return ondes;
+}
+function avancerMedias(t) {
+  let fondu = false, ondes = false;
+  for (const o of new Set(medias.values())) {
+    const u = Math.max(0, Math.min(1, (t - o.t0) / 800));
+    o.v = o.de + (o.vers - o.de) * doux(u);
+    if (u < 1) fondu = true;
+    if (appliquerMedia(o, t)) ondes = true;
+  }
+  return { fondu, ondes };
+}
+
+// La maison ne répond plus (0.4.1) : l'état montré n'est plus sûr, les lumières passent en gris.
+let desature = false;
+const cGris = new T.Color();
+// la nuit (intensité basse), les surfaces sombres absorbent : les lampes éclairent plus fort pour que
+// les pièces allumées rayonnent (jusqu'à x3,5 à intensité 0, rien ne change à intensité 1)
+const nuitLampes = () => 1 + 2.5 * (1 - intensite);
+function appliquer(lp) {
+  const v = Math.max(0, lp.v), m = Math.min(1, v), b = lp.braise * (1 - m);
+  let c = lp.couleur;
+  if (desature) { const l = 0.6 * (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b); c = cGris.setRGB(l, l, l); }
+  const a = AMPOULE;
+  lp.ampoule.material.color.setRGB(Math.min(1, a.r + (c.r - a.r) * m + BRAISE.r * b),
+    Math.min(1, a.g + (c.g - a.g) * m + BRAISE.g * b), Math.min(1, a.b + (c.b - a.b) * m + BRAISE.b * b));
+  // au-delà de 1 (éclat), le halo additif devient plus lumineux que la lampe elle-même
+  lp.halo.material.color.copy(c).multiplyScalar(Math.max(1, v)); lp.halo.material.opacity = Math.min(1, v * TEINTES.forceHalo);
+  lp.halo.scale.setScalar(lp.tailleHalo * (0.45 + 0.55 * lp.e) * (0.6 + 0.4 * v));
+  // la tache au sol s'étale à l'allumage et se resserre à l'extinction
+  lp.flaque.material.color.copy(c); lp.flaque.material.opacity = TEINTES.forceTache * nuitLampes() * v;
+  lp.flaque.scale.setScalar(lp.rayonFlaque * (0.2 + 0.8 * lp.e));
+  lp.lumiere.color.copy(c); lp.lumiere.intensity = TEINTES.forceLampes * nuitLampes() * v;
+  lp.onde.material.color.copy(c); lp.onde2.material.color.copy(c); lp.implo.material.color.copy(c);
+  // à zéro, halo et tache ne sont pas dessinés (la lumière ponctuelle, elle, reste toujours visible)
+  lp.halo.visible = lp.halo.material.opacity > 0.002;
+  lp.flaque.visible = lp.flaque.material.opacity > 0.002;
+  // sans son disque, l'ampoule éteinte d'un plafonnier flotterait seule au-dessus des murs bas
+  if (lp.def.type === "plafonnier") lp.ampoule.visible = m > 0.002 || b > 0.002;
+}
+
+// Teintes de la palette de l'appli (0.4.1), appliquées à toute la scène. Depuis la 0.5.0 : clé « jeu »
+// (le jeu choisi repart de zéro, puis les autres clés s'appliquent par-dessus) et clé « intensite ».
+function teintes(t) {
+  t = { ...(t || {}) };
+  if (t.jeu && JEUX[t.jeu]) {
+    jeu = t.jeu;
+    for (const k of Object.keys(TEINTES)) delete TEINTES[k];
+    Object.assign(TEINTES, JEUX[jeu]);
+  }
+  if (t.intensite != null && isFinite(+t.intensite)) intensite = Math.max(0, Math.min(1, +t.intensite));
+  delete t.jeu; delete t.intensite;
+  Object.assign(TEINTES, t);
+  document.body.style.background = TEINTES.fond;
+  ambiante.intensity = (jour ? AMBIANTE_JOUR : AMBIANTE_NUIT) * TEINTES.ambiante;
+  // clarté de l'appartement : de 8 % (intensité 0) à 100 % de sa teinte, murs compris. À 0,1 ou 0,25, la
+  // nuit, l'appartement n'est plus qu'une silhouette et seules les lampes allumées ressortent.
+  // le facteur s'applique à la teinte telle qu'on la voit (sRGB), pas à la lumière linéaire : en linéaire,
+  // un quart de lumière paraît encore à moitié clair
+  const k = 0.08 + 0.92 * intensite, plafond = TEINTES.plafondBlanc ?? 1;
+  const f = c => {
+    c.convertLinearToSRGB();
+    const m = Math.max(c.r, c.g, c.b);
+    if (m > plafond) c.multiplyScalar(plafond / m);   // même teinte et même saturation, juste moins claire
+    return c.multiplyScalar(k).convertSRGBToLinear();
+  };
+  const dessus = f(new T.Color(TEINTES.murDessus)), face = f(new T.Color(TEINTES.murFace));
+  const murTeinte = (n, ny) => ny > 0.5 ? dessus : face;
+  colorer(murs, murTeinte); colorer(linteaux, murTeinte);
+  const sombre = f(new T.Color(TEINTES.meubleSombre)), clair = f(new T.Color(TEINTES.meubleClair)), c = new T.Color();
+  const reels = DONNEES.meubles.map(m => f(new T.Color(m.couleur)));
+  colorer(meubles, (n, ny) => TEINTES.meublesReels ? reels[n] : c.copy(sombre).lerp(clair, clartes[n]));
+  for (const m of MATS_SOL) f(m.color.set(TEINTES["sol_" + m.userData.type] || TEINTES.sol));
+  MAT_SUPPORT.color.set(TEINTES.support);
+  AMPOULE.set(TEINTES.ampoule); BRAISE.set(TEINTES.braise); BLEU_ORBE.set(TEINTES.flux);
+  POUSSIERE.set(TEINTES.poussiere);
+  ECRAN.set(TEINTES.ecran); MUSIQUE.set(TEINTES.musique);
+  for (const o of new Set(medias.values())) appliquerMedia(o, performance.now());
+  const avant = BLANC_CHAUD.clone();
+  BLANC_CHAUD.set(TEINTES.lumiere);
+  for (const lp of lampes.values()) {
+    if (!lp.couleurHA || lp.couleur.equals(avant)) lp.couleur.copy(BLANC_CHAUD);
+    appliquer(lp);
+  }
+  demander();
+}
+
+// ---------- états ----------
+const doux = t => 1 - Math.pow(1 - t, 3);
+// mode « action » : ce que assistant vient de faire, plus marqué qu'un simple changement d'état
+function changer(lp, on, niveau, couleur, mode) {
+  const avant = lp.on, fort = mode === "action";
+  lp.attente = 0;
+  lp.on = on;
+  if (niveau != null) lp.niveau = Math.max(0.05, Math.min(1, niveau));
+  if (couleur) { lp.couleur.copy(couleur); lp.couleurHA = true; }
+  lp.de = lp.v; lp.vers = on ? lp.niveau : 0; lp.t0 = performance.now(); lp.e0 = lp.e;
+  lp.duree = on ? (fort ? 950 : 750) : (fort ? 1000 : 550);
+  lp.eclat = fort ? 0.9 : 0.35;
+  if (on && !avant) { lp.onde0 = lp.t0; if (fort) lp.onde1 = lp.t0 + 240; }
+  if (!on && avant && fort) { lp.implo0 = lp.t0; lp.braise0 = lp.t0; braises(lp); }
+  majListe(); demander();
+}
+// état posé sans animation (premier affichage, état d'avant une action)
+function poserLampe(lp, on, niveau, couleur) {
+  lp.attente = 0; lp.on = on;
+  if (niveau != null) lp.niveau = Math.max(0.05, Math.min(1, niveau));
+  if (couleur) { lp.couleur.copy(couleur); lp.couleurHA = true; }
+  lp.v = lp.de = lp.vers = on ? lp.niveau : 0; lp.t0 = -1e9;
+  lp.e = lp.e0 = on ? 1 : 0.15;
+  lp.onde0 = lp.onde1 = lp.implo0 = lp.braise0 = lp.pouls0 = -1; lp.braise = 0;
+  appliquer(lp);
+}
+function lireEtat(e) {
+  if (typeof e === "boolean") return { on: e };
+  if (typeof e === "string") return { on: e === "on" };
+  const a = e.attributes || e;
+  const on = e.on !== undefined ? !!e.on : e.state === "on";
+  let niveau = null, couleur = null;
+  if (a.brightness != null) niveau = a.brightness / 255;
+  else if (a.niveau != null) niveau = a.niveau;
+  if (a.rgb_color) couleur = new T.Color(a.rgb_color[0] / 255, a.rgb_color[1] / 255, a.rgb_color[2] / 255);
+  else if (a.color_temp_kelvin) couleur = kelvinVersCouleur(a.color_temp_kelvin);
+  else if (a.kelvin) couleur = kelvinVersCouleur(a.kelvin);
+  return { on, niveau, couleur };
+}
+function etat(entite, e, instant) {
+  // télé et enceintes (0.6.0) : mêmes appels que les lampes, états on, off, playing, paused, idle
+  if (String(entite).startsWith("media_player.")) return etatMedia(entite, e, instant);
+  const membres = DONNEES.groupes[entite] || [entite], s = lireEtat(e);
+  for (const m of membres) {
+    const lp = lampes.get(m); if (!lp) continue;
+    // pendant une action, le vrai état attend la bascule de la chorégraphie
+    if (lp.choreo) { lp.choreo.etat = s; continue; }
+    if (instant) poserLampe(lp, s.on, s.niveau, s.couleur); else changer(lp, s.on, s.niveau, s.couleur);
+  }
+  if (instant) { majListe(); demander(); }
+}
+function etats(o, instant) {
+  if (Array.isArray(o)) o.forEach(s => s && s.entity_id && etat(s.entity_id, s, instant));
+  else Object.entries(o).forEach(([k, v]) => etat(k, v, instant));
+}
+const poser = o => etats(o, true);
+
+// ---------- action d'un projet d'inspiration sur des lumières ----------
+// L'appli appelle action({entité: effet}) dès que la page est prête, l'effet étant « allumer »,
+// « eteindre » ou « regler » (seul ou avec l'état HA lu : {effet, state, attributes}). La lampe repart
+// de son état d'avant, la caméra vole vers elle, un flux de particules bleues (celles de l'orbe)
+// tourne et se resserre sur l'ampoule, puis elle bascule : éclat, lumière qui s'étale au sol et deux
+// ondes, ou à l'extinction lumière qui se resserre, onde qui se referme et braises qui montent.
+const VOL_ACTION_MS = 950, BASCULE_MS = 1150, FLUX_MS = 700;
+function action(effets) {
+  const t = performance.now(), cibles = [];
+  for (const [ent, val] of Object.entries(effets || {})) {
+    const brut = typeof val === "string" ? val : (val && val.effet) || "regler";
+    const effet = brut === "allumer" || brut === "eteindre" ? brut : "regler";
+    const s = val && typeof val === "object" && val.state ? lireEtat(val) : null;
+    let touche = false;
+    for (const m of DONNEES.groupes[ent] || [ent]) {
+      const lp = lampes.get(m); if (!lp) continue;
+      touche = true;
+      if (effet === "allumer") poserLampe(lp, false);
+      else if (effet === "eteindre") poserLampe(lp, true);
+      else if (s) poserLampe(lp, s.on, s.niveau, s.couleur);
+      lp.choreo = { effet, etat: s, bascule: t + BASCULE_MS, flux: false };
+    }
+    if (touche) cibles.push(ent);
+  }
+  if (!cibles.length) return false;
+  orbite = null;
+  // écran ambiant : la rotation attend que l'appli ramène la vue large (ensemble)
+  tour.suspendu = true;
+  majListe();
+  montrer(cibles, VOL_ACTION_MS);
+  return true;
+}
+
+// ---------- poussières des pièces allumées (écran d'accueil, 0.4.1) ----------
+// Quelques poussières ambre de 1 à 2 px qui dérivent lentement dans chaque pièce où une lampe est
+// allumée (20 à 40 selon la surface, opacité 0,3 à 0,5), absentes quand tout est éteint. Elles suivent
+// la lumière de la pièce et ne servent que sur l'accueil (assistant.poussieres).
+const POUSSIERE = new T.Color(TEINTES.poussiere);
+let poussieresActives = false;
+const grains = [];
+for (const p of DONNEES.pieces) {
+  const xs = p.polygone.map(q => q[0]), ys = p.polygone.map(q => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const dedans = (x, y) => {
+    let d = false;
+    for (let i = 0, j = p.polygone.length - 1; i < p.polygone.length; j = i++) {
+      const [xi, yi] = p.polygone[i], [xj, yj] = p.polygone[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) d = !d;
+    }
+    return d;
+  };
+  let aire = 0;
+  p.polygone.forEach(([xa, ya], i) => { const [xb, yb] = p.polygone[(i + 1) % p.polygone.length]; aire += xa * yb - xb * ya; });
+  const n = Math.round(Math.max(20, Math.min(40, Math.abs(aire) / 2 * 1.4)));
+  for (let k = 0, essais = 0; k < n && essais < 500; essais++) {
+    const x = x0 + Math.random() * (x1 - x0), y = y0 + Math.random() * (y1 - y0);
+    if (!dedans(x, y)) continue;
+    grains.push({ piece: p.id, base: V(x, y, 0.15 + Math.random() * 1.5), amp: 0.05 + Math.random() * 0.12,
+      periode: 9000 + Math.random() * 12000, phase: Math.random() * 6.3, opacite: 0.3 + Math.random() * 0.2 });
+    k++;
+  }
+}
+const geoGrains = new T.BufferGeometry();
+const posGrains = new Float32Array(grains.length * 3), colGrains = new Float32Array(grains.length * 3);
+geoGrains.setAttribute("position", new T.BufferAttribute(posGrains, 3));
+geoGrains.setAttribute("color", new T.BufferAttribute(colGrains, 3));
+// taille en pixels de la toile (sans perspective) : 1 à 2 px réels selon la résolution de la page
+// 2 px depuis la 0.7.0 : 1 px ne se voyait pas sur les sols clairs du jeu couleur
+const poussieres = new T.Points(geoGrains, new T.PointsMaterial({ size: 2, sizeAttenuation: false, vertexColors: true,
+  transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+poussieres.frustumCulled = false;
+poussieres.visible = false;
+scene.add(poussieres);
+// lumière de chaque pièce (0 à 1) : la plus forte de ses lampes
+function lumieresParPiece() {
+  const l = {};
+  for (const lp of lampes.values()) if (lp.def.piece) l[lp.def.piece] = Math.max(l[lp.def.piece] || 0, Math.min(1, Math.max(0, lp.v)));
+  return l;
+}
+// rend vrai si des poussières sont visibles (images à suivre, à la cadence lente)
+function avancerPoussieres(t) {
+  if (!poussieresActives || desature) { poussieres.visible = false; return false; }
+  const l = lumieresParPiece();
+  let vues = false;
+  grains.forEach((g, i) => {
+    const j = 3 * i, a = l[g.piece] || 0, w = 2 * Math.PI * t / g.periode + g.phase;
+    posGrains[j] = g.base.x + g.amp * Math.sin(w); posGrains[j + 1] = g.base.y + 0.6 * g.amp * Math.sin(0.7 * w + 1.3);
+    posGrains[j + 2] = g.base.z + g.amp * Math.cos(0.83 * w);
+    const f = a * g.opacite;
+    colGrains[j] = POUSSIERE.r * f; colGrains[j + 1] = POUSSIERE.g * f; colGrains[j + 2] = POUSSIERE.b * f;
+    if (f > 0.01) vues = true;
+  });
+  poussieres.visible = vues;
+  if (vues) { geoGrains.attributes.position.needsUpdate = true; geoGrains.attributes.color.needsUpdate = true; }
+  return vues;
+}
+
+// ---------- particules : flux vers l'ampoule et braises ----------
+const NB_PARTICULES = 96;
+const geoParticules = new T.BufferGeometry();
+const posParticules = new Float32Array(NB_PARTICULES * 3), colParticules = new Float32Array(NB_PARTICULES * 3);
+geoParticules.setAttribute("position", new T.BufferAttribute(posParticules, 3));
+geoParticules.setAttribute("color", new T.BufferAttribute(colParticules, 3));
+const nuage = new T.Points(geoParticules, new T.PointsMaterial({ size: 0.24, map: HALO, vertexColors: true,
+  transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+nuage.frustumCulled = false;
+scene.add(nuage);
+const particules = new Array(NB_PARTICULES).fill(null);
+function lancer(p) {
+  const i = particules.indexOf(null);
+  if (i >= 0) particules[i] = p;
+}
+const hasard = (a, b) => a + Math.random() * (b - a);
+function flux(lp, fin) {
+  const t = performance.now(), c = lp.ampoule.position;
+  for (let k = 0; k < 28; k++) {
+    const a = hasard(0, 2 * Math.PI), el = hasard(-0.25, 0.9), r = hasard(0.9, 1.7);
+    lancer({ type: 0, t0: t + hasard(0, 140), t1: fin + hasard(-60, 30), centre: c.clone(), coul: lp.couleur,
+      off: new T.Vector3(Math.cos(a) * Math.cos(el) * r, Math.sin(el) * r, Math.sin(a) * Math.cos(el) * r),
+      tour: (Math.random() < 0.5 ? -1 : 1) * hasard(1.1, 2.2) });
+  }
+}
+function braises(lp) {
+  const t = performance.now(), c = lp.ampoule.position;
+  for (let k = 0; k < 10; k++) {
+    lancer({ type: 1, t0: t + hasard(0, 220), t1: t + hasard(1300, 2000), centre: c.clone(),
+      vit: new T.Vector3(hasard(-0.12, 0.12), hasard(0.22, 0.5), hasard(-0.12, 0.12)), phase: hasard(0, 6) });
+  }
+}
+// rend vrai tant qu'une particule vit ou attend son départ
+function avancerParticules(t) {
+  let vivantes = false;
+  for (let i = 0; i < NB_PARTICULES; i++) {
+    const p = particules[i], j = 3 * i;
+    colParticules[j] = colParticules[j + 1] = colParticules[j + 2] = 0;
+    if (!p) continue;
+    vivantes = true;
+    if (t < p.t0) continue;
+    const w = (t - p.t0) / (p.t1 - p.t0);
+    if (w >= 1) { particules[i] = null; continue; }
+    if (p.type === 0) {
+      // spirale qui se resserre en accélérant sur l'ampoule, du bleu de l'orbe à la couleur de la lampe
+      const k = w * w, ang = p.tour * (1 - k), q = 1 - k;
+      const x = p.off.x * Math.cos(ang) - p.off.z * Math.sin(ang), z = p.off.x * Math.sin(ang) + p.off.z * Math.cos(ang);
+      posParticules[j] = p.centre.x + x * q; posParticules[j + 1] = p.centre.y + p.off.y * q; posParticules[j + 2] = p.centre.z + z * q;
+      const f = Math.min(1, w * 4) * (0.9 + 1.1 * k);
+      colParticules[j] = (BLEU_ORBE.r + (p.coul.r - BLEU_ORBE.r) * k) * f;
+      colParticules[j + 1] = (BLEU_ORBE.g + (p.coul.g - BLEU_ORBE.g) * k) * f;
+      colParticules[j + 2] = (BLEU_ORBE.b + (p.coul.b - BLEU_ORBE.b) * k) * f;
+    } else {
+      // braise qui monte en ondulant et pâlit
+      const s = (t - p.t0) / 1000, f = Math.pow(1 - w, 1.5) * 0.9;
+      posParticules[j] = p.centre.x + p.vit.x * s + 0.03 * Math.sin(p.phase + s * 7);
+      posParticules[j + 1] = p.centre.y + p.vit.y * s;
+      posParticules[j + 2] = p.centre.z + p.vit.z * s + 0.03 * Math.cos(p.phase + s * 6);
+      colParticules[j] = BRAISE.r * f; colParticules[j + 1] = BRAISE.g * f; colParticules[j + 2] = BRAISE.b * f;
+    }
+  }
+  geoParticules.attributes.position.needsUpdate = true;
+  geoParticules.attributes.color.needsUpdate = true;
+  return vivantes;
+}
+// lente rotation de la caméra après une action, freinée jusqu'à l'arrêt
+let orbite = null;
+
+// ---------- caméra et gestes ----------
+const cam = { theta: -0.55, derive: 0, phi: 0.92, r: 20, cible: new T.Vector3() };
+let vueDessus = false;
+// dernière visée de montrer : un redimensionnement la refait au lieu de revenir à tout l'appartement
+let visee = null;
+// Rotation lente de l'écran ambiant (0.4.0) : un tour complet en tour.periode secondes autour de
+// l'appartement, à tour.ips images par seconde au plus quand rien d'autre ne bouge. C'est aussi la
+// protection de l'écran OLED : rien ne reste immobile. Suspendue par une action, reprise par ensemble().
+// 0.5.2 : tour.amplitude (radians) non nulle, la caméra se balance de plus ou moins cette amplitude autour
+// de son angle de base au lieu de faire le tour (aller et retour en tour.periode), et le cadrage ne tient
+// que sur l'enveloppe du balancement : l'appartement est bien plus grand qu'avec un tour complet.
+const tour = { periode: 0, ips: 10, suspendu: false, dernier: 0, cadre: 1, amplitude: 0, phase: 0 };
+let minuteurTour = null;
+const PHI_TOUR = 0.92;
+// angle de la vue fixe (sans rotation), réglable par ?angle=75 pour les captures (0.6.0)
+const ANGLE_FIXE = isFinite(+params.get("angle")) && params.get("angle") !== null ? +params.get("angle") * Math.PI / 180 : -0.55;
+// Distance de caméra la plus courte où tous les points [pts] (repère three.js) tiennent dans la vue,
+// à [marge] près du bord (coordonnées normalisées), pour un angle et une cible donnés : recherche par
+// dichotomie avec une caméra d'essai, perspective comprise (le bord proche grossit plus que le lointain).
+const camEssai = new T.PerspectiveCamera(38, 1, 0.1, 200), pEssai = new T.Vector3();
+function distanceQuiTient(theta, phi, cible, pts, marge) {
+  camEssai.fov = camera.fov; camEssai.aspect = aspZone(); camEssai.updateProjectionMatrix();
+  let a = 1, b = 120;
+  for (let k = 0; k < 24; k++) {
+    const r = (a + b) / 2;
+    camEssai.position.set(cible.x + r * Math.sin(phi) * Math.sin(theta), cible.y + r * Math.cos(phi), cible.z + r * Math.sin(phi) * Math.cos(theta));
+    camEssai.lookAt(cible); camEssai.updateMatrixWorld();
+    const tient = pts.every(p => { pEssai.copy(p).project(camEssai); return pEssai.z < 1 && Math.abs(pEssai.x) <= marge && Math.abs(pEssai.y) <= marge; });
+    if (tient) b = r; else a = r;
+  }
+  return b;
+}
+// Cercle qui contient tout l'appartement, au sol et en haut des murs : sa projection est la même sous
+// tous les angles, une distance qui le fait tenir vaut pour toute la rotation.
+let rayonTour = null;
+function distanceTour(phi) {
+  const R = Math.hypot(E.xmax - E.xmin, E.ymax - E.ymin) / 2, pts = [];
+  for (let k = 0; k < 24; k++) {
+    const a = k / 24 * 2 * Math.PI;
+    for (const z of [0, hauteurMurs]) pts.push(new T.Vector3(R * Math.cos(a), z, R * Math.sin(a)));
+  }
+  return distanceQuiTient(0, phi, new T.Vector3(0, 0.3, 0), pts, 1.03 / tour.cadre);
+}
+// Coins réels de l'appartement (sols et haut des murs), pour cadrer une vue fixe ou un balancement
+const COINS = DONNEES.pieces.flatMap(p => p.polygone.flatMap(([x, y]) => [V(x, y, 0), V(x, y, 1.1)]));
+// Distance qui fait tenir l'appartement à tous les angles de [theta - amplitude, theta + amplitude]
+function distanceBalancement(theta, phi, amplitude) {
+  const pts = COINS.map(p => new T.Vector3(p.x, Math.min(p.y, hauteurMurs), p.z)), cible = new T.Vector3(0, 0.3, 0);
+  let r = 0;
+  const n = amplitude > 0 ? 12 : 0;
+  for (let k = 0; k <= n; k++) r = Math.max(r, distanceQuiTient(theta + (n ? amplitude * (2 * k / n - 1) : 0), phi, cible, pts, 1.03 / tour.cadre));
+  return r;
+}
+// vue de tout l'appartement ; en rotation, à l'angle courant [theta]
+function vueEnsemble(theta) {
+  const w = E.xmax - E.xmin, h = E.ymax - E.ymin, asp = aspZone();
+  const f = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+  if (tour.periode > 0) {
+    const th = theta ?? cam.theta;
+    if (!rayonTour || rayonTour.asp !== asp || rayonTour.cadre !== tour.cadre || rayonTour.amplitude !== tour.amplitude
+        || (tour.amplitude > 0 && Math.abs(rayonTour.theta - th) > 1e-3))
+      rayonTour = { asp, cadre: tour.cadre, amplitude: tour.amplitude, theta: th,
+                    r: tour.amplitude > 0 ? distanceBalancement(th, PHI_TOUR, tour.amplitude) : distanceTour(PHI_TOUR) };
+    return { theta: th, phi: PHI_TOUR, r: rayonTour.r, cible: new T.Vector3(0, 0.3, 0) };
+  }
+  // bords fondus : les coins vides du cadre disparaissent de toute façon, on peut serrer un peu
+  const fondu = document.body.classList.contains("fondu");
+  return { theta: vueDessus ? 0 : ANGLE_FIXE, phi: vueDessus ? 0.001 : 0.92,
+           r: (fondu ? 0.98 : 1.05) * Math.max(h / 2 / f, w / 2 / f / asp) + (fondu ? 1.2 : 3), cible: new T.Vector3() };
+}
+function cadrer() {
+  visee = null;
+  const v = vueEnsemble();
+  cam.r = v.r; cam.cible.copy(v.cible); cam.theta = v.theta; cam.phi = v.phi;
+  demander();
+}
+// L'angle vu est la base (vols, cadrages, gestes) plus la dérive de la rotation lente : un vol ou un
+// cadrage ne défait pas la rotation, et la rotation ne gêne pas un vol (0.4.1).
+function placerCamera() {
+  const { phi, r, cible } = cam, theta = cam.theta + cam.derive;
+  camera.position.set(cible.x + r * Math.sin(phi) * Math.sin(theta), cible.y + r * Math.cos(phi), cible.z + r * Math.sin(phi) * Math.cos(theta));
+  camera.lookAt(cible);
+}
+const pointeurs = new Map();
+let derniereDist = 0, dernierMilieu = null, deplace = false;
+const toile = rendu.domElement;
+toile.addEventListener("pointerdown", ev => { toile.setPointerCapture(ev.pointerId); pointeurs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, x0: ev.clientX, y0: ev.clientY, bouton: ev.button }); deplace = false; derniereDist = 0; dernierMilieu = null; });
+toile.addEventListener("pointermove", ev => {
+  const p = pointeurs.get(ev.pointerId); if (!p) return;
+  const dx = ev.clientX - p.x, dy = ev.clientY - p.y;
+  p.x = ev.clientX; p.y = ev.clientY;
+  if (Math.hypot(p.x - p.x0, p.y - p.y0) > 6) deplace = true;
+  if (pointeurs.size === 1) {
+    if (p.bouton === 2) panoramique(dx, dy);
+    else { cam.theta -= dx * 0.006; cam.phi = Math.min(1.45, Math.max(0.001, cam.phi - dy * 0.005)); }
+  } else if (pointeurs.size === 2) {
+    const [a, b] = [...pointeurs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    if (derniereDist) cam.r = Math.min(60, Math.max(4, cam.r * derniereDist / d));
+    if (dernierMilieu) panoramique(m.x - dernierMilieu.x, m.y - dernierMilieu.y);
+    derniereDist = d; dernierMilieu = m;
+  }
+  demander();
+});
+const relacher = ev => {
+  const p = pointeurs.get(ev.pointerId);
+  pointeurs.delete(ev.pointerId);
+  if (p && !deplace && pointeurs.size === 0 && ev.type === "pointerup") toucher(ev.clientX, ev.clientY);
+  derniereDist = 0; dernierMilieu = null;
+};
+toile.addEventListener("pointerup", relacher);
+toile.addEventListener("pointercancel", relacher);
+toile.addEventListener("contextmenu", ev => ev.preventDefault());
+toile.addEventListener("wheel", ev => { ev.preventDefault(); cam.r = Math.min(60, Math.max(4, cam.r * Math.exp(ev.deltaY * 0.001))); demander(); }, { passive: false });
+toile.addEventListener("dblclick", cadrer);
+function panoramique(dx, dy) {
+  const k = cam.r * 0.0015, droite = new T.Vector3(), avant = new T.Vector3();
+  camera.getWorldDirection(avant); avant.y = 0; avant.normalize();
+  droite.crossVectors(avant, camera.up).normalize();
+  cam.cible.addScaledVector(droite, -dx * k).addScaledVector(avant, dy * k);
+}
+const lanceur = new T.Raycaster();
+function toucher(x, y) {
+  lanceur.setFromCamera(new T.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1), camera);
+  const t = lanceur.intersectObjects(cibles, false)[0];
+  if (!t) return;
+  const entite = t.object.userData.entite, lp = lampes.get(entite);
+  const voulu = !lp.on, pont = window.assistantAndroid;
+  if (pont && pont.basculer) {
+    // l'appli décide (sécurité en dur) et renvoie le vrai état par assistant.etat : en attendant, la lampe palpite
+    lp.attente = performance.now(); demander();
+    pont.basculer(entite, voulu);
+  } else if (window.parent !== window) {
+    lp.attente = performance.now(); demander();
+    window.parent.postMessage({ type: "basculer", entite, on: voulu }, "*");
+  } else changer(lp, voulu);
+}
+
+// cadrage animé sur des lampes ou une pièce (appelé quand l'assistant agit)
+let vol = null;
+// Le cadrage suit la demande : une seule pièce (celle des lampes visées, ou nommée), la caméra la
+// cadre en entier ; plusieurs pièces, elle reste sur la vue de tout l'appartement.
+function montrer(quoi, duree = 900) {
+  const liste = Array.isArray(quoi) ? quoi : [quoi];
+  const pts = [], pieces = new Set();
+  for (const q of liste) {
+    for (const m of DONNEES.groupes[q] || [q]) {
+      const lp = lampes.get(m);
+      if (lp) { pts.push(lp.def.xyz); if (lp.def.piece) pieces.add(lp.def.piece); }
+    }
+    if (DONNEES.pieces.some(x => x.id === q)) pieces.add(q);
+  }
+  if (!pts.length && !pieces.size) return false;
+  visee = liste;
+  orbite = null;
+  const de = { ...cam, cible: cam.cible.clone() };
+  if (pieces.size !== 1) {
+    vol = { t0: performance.now(), duree, de, vers: vueEnsemble() };
+    demander();
+    return true;
+  }
+  const p = DONNEES.pieces.find(x => x.id === [...pieces][0]);
+  if (p) p.polygone.forEach(([x, y]) => pts.push([x, y, 0]));
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), zm = pts.reduce((a, p) => a + (p[2] || 0), 0) / pts.length;
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const f = Math.tan(T.MathUtils.degToRad(camera.fov / 2)), asp = aspZone();
+  const cible = V((x0 + x1) / 2, (y0 + y1) / 2, zm * 0.55);
+  let r, theta = -0.55;
+  if (tour.periode > 0 || grandEtat.actif) {
+    // écran ambiant qui tourne, ou maison en grand (0.8.0) : on garde l'angle courant, et la pièce (sol, haut des murs, lampes)
+    // tient dans la vue par projection, bords fondus compris
+    theta = cam.theta;
+    const coins = [];
+    for (const [x, y, z] of pts) { coins.push(V(x, y, z || 0)); coins.push(V(x, y, Math.max(z || 0, hauteurMurs))); }
+    r = Math.max(5, distanceQuiTient(theta + cam.derive, 0.8, cible, coins, 0.72));
+  } else {
+    r = Math.max(6, Math.max(y1 - y0 + 1.2, (x1 - x0 + 1.2) / asp) / 2 / f + 2);
+  }
+  vol = { t0: performance.now(), duree, de,
+          // la pièce entière, visée un peu au-dessus du sol pour garder suspensions et plafonniers
+          vers: { theta, phi: 0.8, r, cible } };
+  demander();
+  return true;
+}
+
+// retour animé à la vue large (à l'angle courant si la scène tourne), puis reprise de la rotation
+function ensemble(duree) {
+  orbite = null;
+  visee = null;
+  if (!(duree > 0)) { vol = null; tour.suspendu = false; cadrer(); return; }
+  vol = { t0: performance.now(), duree, de: { ...cam, cible: cam.cible.clone() }, vers: vueEnsemble(),
+          fin: () => { tour.suspendu = false; } };
+  demander();
+}
+
+// ---------- régimes de l'accueil (0.7.0) ----------
+// Vivant (1) quand quelqu'un est devant la tablette, la touche ou lui parle : fond en dégradé, ombre de
+// contact et flaque de lumière sous l'appartement, grain, particules qui flottent dans la moitié droite,
+// appartement plus saturé. En retrait (0) : noir pur, rien de tout cela, appartement désaturé. Valeurs de
+// la planche « Accueil vivant et en retrait » validée le 22/10. Le soir (intensité 0,2 et
+// moins), fond presque noir et effets à 45 %.
+const toileFond = document.getElementById("fond"), cFond = toileFond.getContext("2d");
+const regime = { v: window.assistantAndroid ? 0 : 1, de: 0, vers: 0, t0: -1e9, duree: 1 };
+regime.de = regime.vers = regime.v;
+const DEGRADE_JOUR = ["#05080F", "#0B1322", "#1A2B44"], DEGRADE_SOIR = ["#000000", "#06060B", "#0D0D17"];
+const TEXTE = new T.Color("#E8EAED"), LUMIERE_PLANCHE = new T.Color("#F7B56A"), FROID = new T.Color("#8CB1F4");
+// grain : bruit gris fixe, tiré une fois
+const grainMotif = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 160;
+  const g = c.getContext("2d"), d = g.createImageData(160, 160);
+  for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0); return c;
+})();
+// particules : position de base en fractions de la fenêtre (moitié droite), dérive lente
+const particulesFond = Array.from({ length: 40 }, (_, i) => ({
+  x: 0.5 + 0.5 * Math.random(), y: Math.random(), rayon: 1.2 + 2 * Math.random(), chaude: i % 9 < 4,
+  ax: 0.01 + 0.02 * Math.random(), ay: 0.008 + 0.015 * Math.random(), periode: 22000 + 26000 * Math.random(),
+  phase: 2 * Math.PI * Math.random(), tirage: Math.random(),
+}));
+const cMel = new T.Color(), cLampes = new T.Color();
+// couleurs three.js en lumière linéaire, converties en sRGB pour le canevas 2D
+const cCss = new T.Color();
+const css = (c, a) => { const s = cCss.copy(c).convertLinearToSRGB(); return `rgba(${Math.round(s.r * 255)},${Math.round(s.g * 255)},${Math.round(s.b * 255)},${a.toFixed(3)})`; };
+function melangeHex(a, b, k) { return new T.Color(a).lerp(new T.Color(b), k); }
+// couleur moyenne des lampes allumées, ou rien si tout est éteint
+function couleurLampes() {
+  let n = 0; cLampes.setRGB(0, 0, 0);
+  for (const lp of lampes.values()) if (lp.on) { cLampes.add(lp.couleur); n++; }
+  return n ? cLampes.multiplyScalar(1 / n) : null;
+}
+function regler(niveau, duree) {
+  regime.de = regime.v; regime.vers = Math.max(0, Math.min(1, +niveau || 0));
+  regime.t0 = performance.now(); regime.duree = Math.max(1, +duree || 0);
+  if (!(duree > 0)) { regime.v = regime.vers; appliquerRegime(); }
+  demander();
+}
+// saturation et clarté de l'appartement (filtre CSS de la toile 3D), opacité du fond
+function appliquerRegime() {
+  const v = regime.v;
+  toileFond.style.opacity = v.toFixed(3);
+  const sat = 0.45 + 0.85 * v, contraste = 1 + 0.05 * v, clarte = 0.85 + 0.15 * v;
+  rendu.domElement.style.filter = `saturate(${sat.toFixed(3)}) contrast(${contraste.toFixed(3)}) brightness(${clarte.toFixed(3)})`;
+}
+// dessine #fond ; renvoie vrai si des particules bougent (la boucle garde alors sa cadence de repos)
+function dessinerFond(t) {
+  if (regime.v <= 0.003) return false;
+  const W = innerWidth, H = innerHeight;
+  if (toileFond.width !== W || toileFond.height !== H) { toileFond.width = W; toileFond.height = H; }
+  const g = cFond, soir = Math.max(0, Math.min(1, (0.5 - intensite) / 0.3));   // 0 le jour, 1 à 0,2 et moins
+  const k = 1 - 0.55 * soir;   // effets à 45 % le soir
+  // dégradé vertical
+  const d = g.createLinearGradient(0, 0, 0, H);
+  [0, 0.42, 1].forEach((p, i) => d.addColorStop(p, "#" + melangeHex(DEGRADE_JOUR[i], DEGRADE_SOIR[i], soir).getHexString()));
+  g.globalCompositeOperation = "source-over"; g.globalAlpha = 1; g.fillStyle = d; g.fillRect(0, 0, W, H);
+  const z = zonePx();
+  const ellipse = (cx, cy, rx, ry, arrets) => {
+    g.save(); g.translate(cx, cy); g.scale(rx, ry);
+    const r = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+    arrets.forEach(([p, c]) => r.addColorStop(p, c));
+    g.fillStyle = r; g.beginPath(); g.arc(0, 0, 1, 0, 2 * Math.PI); g.fill(); g.restore();
+  };
+  // ombre de contact sous l'appartement
+  ellipse(z.x + z.w / 2, z.y + 0.62 * z.h, 0.44 * z.w, 0.17 * z.h,
+    [[0, "rgba(0,0,0,0.55)"], [0.6, "rgba(0,0,0,0.25)"], [1, "rgba(0,0,0,0)"]]);
+  // flaque de lumière chaude, prise sur la couleur des lampes allumées ; tout éteint, neutre et faible
+  const cl = couleurLampes();
+  const cf = cl ? cMel.copy(TEXTE).lerp(cl.lerp(LUMIERE_PLANCHE, 0.5), 0.55) : cMel.copy(TEXTE);
+  const af = (cl ? 1 : 0.35) * k;
+  ellipse(z.x + z.w / 2, z.y + 0.5 * z.h, 0.58 * z.w, 0.35 * z.h,
+    [[0, css(cf, 0.24 * af)], [0.55, css(cf, 0.09 * af)], [1, css(cf, 0)]]);
+  // grain fin
+  g.globalAlpha = 0.09 * k; g.globalCompositeOperation = "overlay";
+  g.fillStyle = g.createPattern(grainMotif, "repeat"); g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
+  // particules : 40 le jour, 18 le soir
+  const chaude = cl ? cl.clone() : LUMIERE_PLANCHE.clone(), froide = TEXTE.clone().lerp(FROID, 0.6);
+  const n = soir > 0.5 ? 18 : 40;
+  for (let i = 0; i < n; i++) {
+    const p = particulesFond[i], w = 2 * Math.PI * t / p.periode + p.phase;
+    const x = (p.x + p.ax * Math.sin(w)) * W, y = ((p.y + p.ay * Math.sin(0.7 * w + 1.1)) % 1) * H;
+    const pres = x > z.x - 0.1 * z.w && x < z.x + 1.1 * z.w && y > z.y - 0.1 * z.h && y < z.y + 1.1 * z.h;
+    const a = (0.18 + (pres ? 0.45 : 0.25) * p.tirage) * k;
+    const c = p.chaude ? chaude : froide, r = p.rayon * 1.8;
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, css(c, a)); rg.addColorStop(0.45, css(c, a * 0.7)); rg.addColorStop(1, css(c, 0));
+    g.fillStyle = rg; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fill();
+  }
+  return true;
+}
+
+function attenuer(opacite, duree) {
+  const s = document.getElementById("scene").style;
+  s.transitionDuration = (duree ?? 450) + "ms";
+  s.opacity = Math.max(0, Math.min(1, opacite));
+}
+
+// ---------- boucle : on ne dessine que quand quelque chose bouge ----------
+// Page faite pour tourner en continu sur l'accueil (0.4.1) : cadence plafonnée (cadenceAction pendant une
+// animation, tour.ips au repos), pause qui coupe tout requestAnimationFrame (assistant.pause).
+let cadenceAction = 30;
+let attendu = false, enPause = false, derniereImage = 0, rapide = false;
+function demander() { if (!attendu && !enPause) { attendu = true; requestAnimationFrame(image); } }
+const douxDouble = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(2 - 2 * u, 3) / 2;
+// une onde à zéro n'est pas dessinée (visible faux), contrairement aux lumières ponctuelles, jamais cachées
+// (en cacher une change le nombre de lumières et recompile les shaders, d'où un gel)
+function onde(m, t0, t, duree, ampleur) {
+  if (t0 < 0) { m.visible = false; return -1; }
+  const w = (t - t0) / duree;
+  if (w < 0) { m.material.opacity = 0; m.visible = false; return t0; }
+  if (w >= 1) { m.material.opacity = 0; m.visible = false; return -1; }
+  m.scale.setScalar(0.2 + ampleur * doux(w)); m.material.opacity = 0.45 * (1 - w) * (1 - w); m.visible = true;
+  return t0;
+}
+function image(t) {
+  attendu = false;
+  if (enPause) return;
+  // plafond de cadence : une image trop tôt attend la suivante sans rien dessiner
+  if (derniereImage && t - derniereImage < 1000 / (rapide ? cadenceAction : Math.max(tour.ips, 1)) - 4) {
+    if (rapide) demander();
+    else if (!minuteurTour) minuteurTour = setTimeout(() => { minuteurTour = null; demander(); }, 1000 / tour.ips - (t - derniereImage));
+    return;
+  }
+  derniereImage = t;
+  let encore = false;
+  for (const lp of lampes.values()) {
+    const c = lp.choreo;
+    if (c) {
+      encore = true;
+      if (!c.flux && c.effet !== "eteindre" && t >= c.bascule - FLUX_MS) { c.flux = true; flux(lp, c.bascule); }
+      if (t >= c.bascule) {
+        lp.choreo = null;
+        const s = c.etat;
+        if (c.effet === "allumer") changer(lp, true, s && s.on ? s.niveau : null, s && s.on ? s.couleur : null, "action");
+        else if (c.effet === "eteindre") changer(lp, false, null, null, "action");
+        else {
+          if (s) changer(lp, s.on, s.niveau, s.couleur);
+          lp.pouls0 = performance.now(); lp.onde0 = lp.pouls0;
+        }
+        // écran ambiant qui tourne : pas de demi-tour après l'action, la rotation reprendra avec la vue large
+        if (!orbite && !vol && pointeurs.size === 0 && tour.periode === 0) orbite = { t0: t, theta0: cam.theta, duree: 6500 };
+      }
+    }
+    const u = Math.max(0, Math.min(1, (t - lp.t0) / lp.duree));
+    if (u < 1) {
+      encore = true;
+      let v = lp.de + (lp.vers - lp.de) * doux(u);
+      if (lp.vers > lp.de) v += lp.eclat * lp.vers * Math.sin(Math.PI * Math.min(1, u * 2.2)) * (1 - u);   // éclat à l'allumage
+      lp.v = v;
+      lp.e = lp.e0 + ((lp.on ? 1 : 0.15) - lp.e0) * doux(u);
+    } else { lp.v = lp.vers; lp.e = lp.on ? 1 : 0.15; }
+    if (lp.pouls0 >= 0) {
+      const w = (t - lp.pouls0) / 650;
+      if (w >= 1) lp.pouls0 = -1;
+      else if (w > 0) { encore = true; lp.v += 0.5 * Math.max(lp.vers, 0.3) * Math.sin(Math.PI * w) * (1 - w); }
+    }
+    if (lp.braise0 >= 0) {
+      const w = (t - lp.braise0) / 1800;
+      if (w >= 1) { lp.braise0 = -1; lp.braise = 0; }
+      else { encore = true; lp.braise = 0.85 * (1 - w) * (1 - w); }
+    }
+    // ondes au sol, à peu près dans la pièce de la lampe
+    if ((lp.onde0 = onde(lp.onde, lp.onde0, t, 1200, 1.7)) >= 0) encore = true;
+    if ((lp.onde1 = onde(lp.onde2, lp.onde1, t, 1400, 2.2)) >= 0) encore = true;
+    if (lp.implo0 >= 0) {
+      // onde qui se referme sur la lampe qui s'éteint
+      const w = (t - lp.implo0) / 900;
+      if (w >= 1) { lp.implo0 = -1; lp.implo.material.opacity = 0; }
+      else { encore = true; lp.implo.scale.setScalar(2.4 - 5.15 * doux(w)); lp.implo.material.opacity = 0.5 * Math.sin(Math.PI * w); }
+    }
+    lp.implo.visible = lp.implo0 >= 0;
+    if (lp.attente) {
+      const w = (t - lp.attente) / 3000;
+      if (w >= 1) lp.attente = 0;   // pas de réponse de l'appli : on abandonne l'attente
+      else { encore = true; lp.v = Math.max(lp.v, 0.25 + 0.2 * Math.sin(w * 3000 / 140)); }
+    }
+    appliquer(lp);
+  }
+  if (avancerParticules(t)) encore = true;
+  if (zoneAnim) {
+    const u = Math.min(1, (t - zoneAnim.t0) / zoneAnim.duree), k = doux(u), a = zoneAnim.de, b = zoneAnim.vers;
+    for (const c of ["x", "y", "l", "h"]) zone[c] = a[c] + (b[c] - a[c]) * k;
+    appliquerZone();
+    if (u < 1) encore = true;
+    else { zoneAnim = null; rayonTour = null; if (visee) montrer(visee, 350); }
+  }
+  if (orbite && (vol || pointeurs.size > 0)) orbite = null;
+  if (orbite) {
+    const k = (t - orbite.t0) / orbite.duree;
+    if (k >= 1) orbite = null;
+    else { encore = true; cam.theta = orbite.theta0 + 0.3 * doux(k); }
+  }
+  if (vol) {
+    const u = Math.min(1, (t - vol.t0) / vol.duree), k = douxDouble(u), a = vol.de, b = vol.vers;
+    let dt = b.theta - a.theta; dt = Math.atan2(Math.sin(dt), Math.cos(dt));
+    cam.theta = a.theta + dt * k; cam.phi = a.phi + (b.phi - a.phi) * k; cam.r = a.r + (b.r - a.r) * k;
+    cam.cible.copy(a.cible).lerp(b.cible, k);
+    if (u < 1) encore = true;
+    else { const fin = vol.fin; vol = null; if (fin) fin(); }
+  }
+  // rotation lente, le temps écoulé plafonné (une page masquée ne fait pas de bond à son retour)
+  const tourne = tour.periode > 0 && !tour.suspendu && !grandEtat.actif && !vol && !orbite && pointeurs.size === 0;
+  if (tourne && tour.dernier) {
+    const pas = Math.min(t - tour.dernier, 500) / 1000 * 2 * Math.PI / tour.periode;
+    if (tour.amplitude > 0) { tour.phase += pas; cam.derive = tour.amplitude * Math.sin(tour.phase); }
+    else cam.derive += pas;
+  }
+  tour.dernier = tourne ? t : 0;
+  const media = avancerMedias(t);
+  if (media.fondu) encore = true;
+  // régime vivant ou en retrait (0.7.0) : transition, puis fond qui vit à la cadence de repos
+  if (regime.v !== regime.vers) {
+    const u = Math.min(1, (t - regime.t0) / regime.duree);
+    regime.v = regime.de + (regime.vers - regime.de) * doux(u);
+    if (u >= 1) regime.v = regime.vers; else encore = true;
+    appliquerRegime();
+  }
+  const fondVivant = dessinerFond(t);
+  const grainsVus = avancerPoussieres(t) || media.ondes || fondVivant;
+  placerCamera();
+  // les particules gardent une taille lisible quand la caméra reste loin (plusieurs pièces)
+  nuage.material.size = 0.24 * Math.max(1, cam.r / 9);
+  nuage.visible = particules.some(p => p);
+  rendu.render(scene, camera);
+  if (dessinerGrand(t)) encore = true;
+  rapide = encore;
+  if (encore) demander();
+  else if ((tourne || grainsVus) && !minuteurTour) {
+    // rien d'autre ne bouge : quelques images par seconde suffisent à la rotation et aux poussières
+    minuteurTour = setTimeout(() => { minuteurTour = null; demander(); }, 1000 / tour.ips);
+  }
+}
+function redimensionner() {
+  rendu.setSize(innerWidth, innerHeight);
+  appliquerZone();
+  demander();
+}
+// Nouvelle zone de cadrage (0.5.0), avec transition douce : la zone glisse et, dans le même temps, la
+// caméra rejoint le cadrage qui tient dans la nouvelle zone (tout l'appartement, ou la pièce visée).
+function disposition(d) {
+  d = d || {};
+  const lim = (v, def) => (v != null && isFinite(+v)) ? Math.max(0, Math.min(1, +v)) : def;
+  const vers = { x: lim(d.x, zone.x), y: lim(d.y, zone.y), l: Math.max(0.05, lim(d.largeur, zone.l)), h: Math.max(0.05, lim(d.hauteur, zone.h)) };
+  const duree = Math.max(0, +(d.duree_ms ?? d.duree ?? 0) || 0);
+  const de = { ...zone };
+  if (duree === 0) {
+    Object.assign(zone, vers); zoneAnim = null; rayonTour = null; appliquerZone();
+    if (visee) montrer(visee, 1); else if (!vol) cadrer();
+    demander();
+    return;
+  }
+  // cadrage d'arrivée calculé avec la zone d'arrivée : tout l'appartement, ou (0.8.0) la pièce visée, d'un seul
+  // mouvement au lieu d'un vol dans l'ancienne zone suivi d'un recadrage
+  Object.assign(zone, vers); rayonTour = null;
+  let arrivee = null;
+  if (!visee) arrivee = vueEnsemble();
+  else { const v0 = vol; if (montrer(visee, duree)) arrivee = vol.vers; vol = v0; }
+  Object.assign(zone, de); rayonTour = null;
+  zoneAnim = { de, vers, t0: performance.now(), duree };
+  if (arrivee) vol = { t0: zoneAnim.t0, duree, de: { ...cam, cible: cam.cible.clone() }, vers: arrivee };
+  demander();
+}
+// la WebView peut naître à 0 pixel puis grandir sans événement resize : on surveille la page elle-même
+let tailleVue = "";
+new ResizeObserver(() => {
+  const t = innerWidth + "x" + innerHeight;
+  if (t === tailleVue) return;
+  tailleVue = t; redimensionner();
+  if (vol) return;
+  if (visee) montrer(visee, 1); else cadrer();
+}).observe(document.documentElement);
+
+// ---------- panneau de démonstration ----------
+const liste = document.getElementById("liste");
+const NOMS_PIECES = Object.fromEntries(DONNEES.pieces.map(p => [p.id, p.nom]));
+function construireListe() {
+  liste.innerHTML = "";
+  const parPiece = {};
+  DONNEES.lampes.forEach(l => (parPiece[l.piece] ||= []).push(l));
+  for (const [piece, ls] of Object.entries(parPiece)) {
+    const h = document.createElement("h2"); h.textContent = NOMS_PIECES[piece] || piece; liste.appendChild(h);
+    for (const l of ls) {
+      const b = document.createElement("button"); b.className = "lampe"; b.dataset.entite = l.entite;
+      b.innerHTML = '<span class="pastille"></span><span></span>' + (l.position === "estimee" ? '<span class="estimee">position estimée</span>' : "");
+      b.children[1].textContent = l.nom;
+      b.onclick = () => { const lp = lampes.get(l.entite); changer(lp, !lp.on); };
+      liste.appendChild(b);
+    }
+  }
+}
+function majListe() {
+  liste.querySelectorAll(".lampe").forEach(b => b.classList.toggle("on", lampes.get(b.dataset.entite).on));
+}
+let demoMinuteur = null;
+function demo() {
+  if (demoMinuteur) { clearTimeout(demoMinuteur); demoMinuteur = null; }
+  const ordre = DONNEES.lampes.map(l => l.entite);
+  ordre.forEach(e => changer(lampes.get(e), false));
+  let i = 0;
+  const pas = () => {
+    if (i < ordre.length) changer(lampes.get(ordre[i]), true);
+    else if (i < 2 * ordre.length) changer(lampes.get(ordre[i - ordre.length]), false);
+    else { demoMinuteur = null; return; }
+    i++; demoMinuteur = setTimeout(pas, i <= ordre.length ? 450 : 250);
+  };
+  demoMinuteur = setTimeout(pas, 400);
+}
+let jour = false;
+document.getElementById("b-demo").onclick = demo;
+document.getElementById("b-act-on").onclick = () => { cadrer(); action({ "light.exemple6": "allumer" }); };
+document.getElementById("b-act-off").onclick = () => { cadrer(); action({ "light.exemple6": "eteindre" }); };
+document.getElementById("b-tout").onclick = () => lampes.forEach(lp => changer(lp, true));
+document.getElementById("b-rien").onclick = () => lampes.forEach(lp => changer(lp, false));
+document.getElementById("b-vue").onclick = ev => { vueDessus = !vueDessus; ev.target.textContent = vueDessus ? "Vue en perspective" : "Vue de dessus"; cadrer(); };
+function reglerJour(actif) { jour = !!actif; ambiante.intensity = (jour ? AMBIANTE_JOUR : AMBIANTE_NUIT) * TEINTES.ambiante; demander(); }
+document.getElementById("b-jour").onclick = ev => { reglerJour(!jour); ev.target.textContent = jour ? "Mode nuit" : "Mode jour"; };
+document.getElementById("b-murs").onclick = ev => {
+  const haut = hauteurMurs < DONNEES.hauteur; reglerMurs(haut ? DONNEES.hauteur : 1.1);
+  ev.target.textContent = haut ? "Murs bas" : "Murs hauts";
+};
+const panneau = document.getElementById("panneau");
+if (params.get("panneau") === "0" || window.assistantAndroid) panneau.classList.add("cache");
+
+// ---------- la maison en grand (0.8.0) ----------
+// Demande du 23/10/2026 : toucher la maison de l'accueil l'ouvre en grand, et on règle la maison dans la
+// vue (piste « mélange » du canevas, version 29). La page ne prend aucun toucher : l'appli lui demande ce qui est
+// sous le doigt (designer) et décide. En vue entière, le nom de chaque pièce réglable est posé au sol
+// (etiquettes). Une pièce choisie (choisir) est cadrée, les autres sont voilées à 65 % et son sol reçoit un
+// liseré, puis des pastilles de 56 px apparaissent sur ses objets (pastilles), caméra figée, une fois le vol fini.
+const toileVoile = document.getElementById("voile"), cVoile = toileVoile.getContext("2d");
+const couche = document.getElementById("grand");
+const grandEtat = { actif: false, piece: null, voile: 0, voileDe: 0, voileVers: 0, voileT0: 0, opacite: 0.65,
+  etiquettes: [], pastilles: [], taille: 56, police: 20, positions: [], visibles: false, suspenduAvant: false };
+const POLY = Object.fromEntries(DONNEES.pieces.map(p => [p.id, p.polygone]));
+function centrePiece(id) {
+  const q = POLY[id]; if (!q) return null;
+  let ax = 0, ay = 0, aa = 0;
+  q.forEach(([x1, y1], i) => { const [x2, y2] = q[(i + 1) % q.length], c = x1 * y2 - x2 * y1; aa += c; ax += (x1 + x2) * c; ay += (y1 + y2) * c; });
+  return [ax / (3 * aa), ay / (3 * aa)];
+}
+function versEcran(v) {
+  const p = v.clone().project(camera);
+  return { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight, devant: p.z < 1 };
+}
+function dansPolygone(x, y, q) {
+  let dedans = false;
+  for (let i = 0, j = q.length - 1; i < q.length; j = i++) {
+    const [xi, yi] = q[i], [xj, yj] = q[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) dedans = !dedans;
+  }
+  return dedans;
+}
+function pieceDuPoint(px, py) { const p = DONNEES.pieces.find(p => dansPolygone(px, py, p.polygone)); return p ? p.id : null; }
+// Position d'un objet réglable : une lampe (ou le centre des ampoules d'un groupe), une télé ou une enceinte
+// (le dessus de son meuble).
+function positionObjet(entite) {
+  const membres = DONNEES.groupes[entite] || [entite];
+  const pts = membres.map(m => lampes.get(m)).filter(Boolean).map(lp => lp.def.xyz);
+  if (pts.length) return V(pts.reduce((a, q) => a + q[0], 0) / pts.length, pts.reduce((a, q) => a + q[1], 0) / pts.length, pts.reduce((a, q) => a + q[2], 0) / pts.length);
+  const md = (DONNEES.medias || []).find(m => m.entite === entite || (m.alias || []).includes(entite));
+  const mb = md && DONNEES.meubles.find(m => m.id === md.meuble);
+  if (!mb) return null;
+  const [x0, y0, x1, y1, , z1] = mb.boite;
+  return V((x0 + x1) / 2, (y0 + y1) / 2, z1);
+}
+const GLYPHES = {
+  lampe: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z",
+  tele: "M3 5h18v12H3zM8 21h8",
+  enceinte: "M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7",
+};
+const AMBRE = "#F2994A";
+// cadenas discret devant le nom d'une pièce protégée (drapeau de l'occupant remis), dessiné au trait
+const CADENAS = '<svg viewBox="0 0 24 24" width="0.8em" height="0.8em" style="vertical-align:-0.05em;margin-right:0.35em" fill="none" stroke="#D6CFC3" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
+let voileSale = false;
+function grand(actif) {
+  actif = !!actif;
+  if (actif === grandEtat.actif) return;
+  grandEtat.actif = actif;
+  if (actif) {
+    // caméra figée en grand : les cibles ne bougent pas sous le doigt
+    grandEtat.suspenduAvant = tour.suspendu; tour.suspendu = true;
+    nomsSol.forEach(m => m.visible = false);
+  } else {
+    tour.suspendu = grandEtat.suspenduAvant;
+    grandEtat.piece = null; grandEtat.pastilles = []; grandEtat.etiquettes = [];
+    voiler(0, 0);
+  }
+  construireCouche();
+  demander();
+}
+function voiler(vers, duree) {
+  grandEtat.voileDe = grandEtat.voile; grandEtat.voileVers = vers; grandEtat.voileT0 = performance.now();
+  grandEtat.voileDuree = Math.max(1, duree || 1);
+  if (!(duree > 0)) grandEtat.voile = vers;
+}
+function choisir(id, duree) {
+  if (!grandEtat.actif) return false;
+  // sans durée : d'un coup (page qui renaît pendant la maison en grand)
+  const d = duree > 0 ? duree : 0;
+  if (id && POLY[id]) {
+    grandEtat.piece = id;
+    montrer([id], d || 1);
+    voiler(grandEtat.opacite, d ? 400 : 0);
+  } else {
+    grandEtat.piece = null; grandEtat.pastilles = [];
+    ensemble(d);
+    voiler(0, d ? 300 : 0);
+  }
+  construireCouche();
+  demander();
+  return true;
+}
+// Étiquettes de la vue entière : [{piece, nom, etat, verrou}], texte décidé par l'appli (état lu dans HA).
+function etiquettes(liste) { grandEtat.etiquettes = Array.isArray(liste) ? liste : []; construireCouche(); demander(); }
+// Pastilles de la pièce choisie : [{entite, genre (lampe, tele, enceinte), fraction, allume, etat (ok, rate, hors), surligne}].
+function pastilles(liste) { grandEtat.pastilles = Array.isArray(liste) ? liste : []; construireCouche(); demander(); }
+const echapper = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Couche des étiquettes ou des pastilles. Même liste qu'avant (mêmes entités, même pièce) : les éléments sont
+// mis à jour sur place, sans repartir de zéro ni rejouer leur fondu à chaque nouvel état lu dans HA.
+let cleCouche = "";
+function construireCouche() {
+  if (!grandEtat.actif) { couche.innerHTML = ""; cleCouche = ""; return; }
+  const d = grandEtat.taille, f = grandEtat.police, piece = grandEtat.piece;
+  const liste = piece ? grandEtat.pastilles : grandEtat.etiquettes;
+  const cle = (piece || "") + "|" + d + "|" + f + "|" + liste.map(q => q.entite || q.piece).join(",");
+  const neuf = cle !== cleCouche;
+  if (neuf) { couche.innerHTML = ""; cleCouche = cle; }
+  const C = 2 * Math.PI * 28;
+  liste.forEach((q, i) => {
+    const n = neuf ? document.createElement("div") : couche.children[i];
+    if (!piece) {
+      n.className = "etiq";
+      n.innerHTML = `<b style="font-size:${f}px">${q.verrou ? CADENAS : ""}${echapper(q.nom)}</b><small style="font-size:${Math.round(f * 0.75)}px">${echapper(q.etat)}</small>`;
+      n.dataset.piece = q.piece;
+    } else {
+      n.className = "past" + (q.surligne ? " surligne" : "");
+      n.style.width = n.style.height = d + "px";
+      const hors = q.etat === "hors", rate = q.etat === "rate";
+      const arc = rate ? AMBRE : q.genre === "lampe" ? TEINTES.lumiere : "#BAB2A6";
+      const glyphe = hors ? "#6D6861" : q.allume ? (q.genre === "lampe" ? TEINTES.lumiere : "#EEEAE2") : "#989288";
+      const f2 = hors ? 0 : Math.max(0, Math.min(1, +q.fraction || 0));
+      n.innerHTML = `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="none" stroke="${hors ? "#6D6861" : "rgba(80,78,72,0.9)"}" stroke-width="4" ${hors ? 'stroke-dasharray="4 5"' : ""}></circle>`
+        + (f2 > 0 ? `<circle cx="32" cy="32" r="28" fill="none" stroke="${arc}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(f2 * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"></circle>` : "")
+        + (rate ? `<circle cx="32" cy="32" r="28" fill="none" stroke="${AMBRE}" stroke-width="4"></circle>` : "")
+        + `<g transform="translate(19 19) scale(1.083)" fill="none" stroke="${glyphe}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${GLYPHES[q.genre] || GLYPHES.lampe}"></path></g></svg>`;
+      n.dataset.entite = q.entite;
+    }
+    if (neuf) couche.appendChild(n);
+  });
+}
+// Chaque image en grand : voile, liseré, filets et place des étiquettes et des pastilles. Rend vrai pendant un fondu.
+function dessinerGrand(t) {
+  const w = innerWidth, h = innerHeight;
+  if (!grandEtat.actif && grandEtat.voile <= 0 && grandEtat.voileVers <= 0) {
+    if (voileSale) { cVoile.clearRect(0, 0, toileVoile.width, toileVoile.height); voileSale = false; }
+    return false;
+  }
+  if (toileVoile.width !== w || toileVoile.height !== h) { toileVoile.width = w; toileVoile.height = h; }
+  cVoile.clearRect(0, 0, w, h);
+  voileSale = true;
+  let encore = false;
+  if (grandEtat.voile !== grandEtat.voileVers) {
+    const u = Math.min(1, (t - grandEtat.voileT0) / grandEtat.voileDuree);
+    grandEtat.voile = grandEtat.voileDe + (grandEtat.voileVers - grandEtat.voileDe) * doux(u);
+    if (u >= 1) grandEtat.voile = grandEtat.voileVers; else encore = true;
+  }
+  if (!grandEtat.actif && grandEtat.voile <= 0) return encore;
+  const id = grandEtat.piece, q = id && POLY[id];
+  if (q && grandEtat.voile > 0) {
+    const bas = q.map(([x, y]) => versEcran(V(x, y, 0))), haut = q.map(([x, y]) => versEcran(V(x, y, hauteurMurs)));
+    cVoile.fillStyle = `rgba(0, 0, 0, ${grandEtat.voile.toFixed(3)})`;
+    cVoile.fillRect(0, 0, w, h);
+    // la pièce choisie (sol, haut des murs et leurs faces) est découpée dans le voile
+    cVoile.globalCompositeOperation = "destination-out";
+    cVoile.fillStyle = "#000";
+    const remplir = pts => { cVoile.beginPath(); pts.forEach((p, i) => i ? cVoile.lineTo(p.x, p.y) : cVoile.moveTo(p.x, p.y)); cVoile.closePath(); cVoile.fill(); };
+    remplir(bas); remplir(haut);
+    for (let i = 0; i < q.length; i++) { const j = (i + 1) % q.length; remplir([bas[i], bas[j], haut[j], haut[i]]); }
+    cVoile.globalCompositeOperation = "source-over";
+    cVoile.strokeStyle = `rgba(240, 176, 112, ${(0.6 * grandEtat.voile / Math.max(0.01, grandEtat.opacite)).toFixed(3)})`;
+    cVoile.lineWidth = 3; cVoile.lineJoin = "round";
+    cVoile.beginPath(); bas.forEach((p, i) => i ? cVoile.lineTo(p.x, p.y) : cVoile.moveTo(p.x, p.y)); cVoile.closePath(); cVoile.stroke();
+  }
+  if (!grandEtat.actif) return encore;
+  const enVol = !!vol || !!zoneAnim;
+  if (!id) {
+    for (const n of couche.children) {
+      const c = centrePiece(n.dataset.piece); if (!c) continue;
+      const e = versEcran(V(c[0], c[1], 0.05));
+      n.style.transform = `translate(${e.x.toFixed(1)}px, ${e.y.toFixed(1)}px) translate(-50%, -50%)`;
+      n.style.opacity = enVol ? "0" : "1";
+    }
+    grandEtat.positions = [];
+    return encore;
+  }
+  // pastilles au-dessus de leur objet, écartées si deux se touchent, reliées à l'objet par un filet
+  const d = grandEtat.taille, pos = [];
+  for (const n of couche.children) {
+    const v = positionObjet(n.dataset.entite); if (!v) continue;
+    const o = versEcran(v);
+    let x = o.x, y = o.y - d * 1.25;
+    for (const p of pos) { if (Math.hypot(p.x - x, p.y - y) < d + 10) { x = p.x + (x >= p.x ? 1 : -1) * (d + 12); } }
+    // bornées à la zone du plan : jamais sur la barre du haut ni sous le panneau de l'appli
+    const zx0 = zone.x * w, zx1 = (zone.x + zone.l) * w, zy0 = zone.y * h, zy1 = (zone.y + zone.h) * h;
+    x = Math.max(zx0 + d * 0.6, Math.min(zx1 - d * 0.6, x)); y = Math.max(zy0 + d * 0.6, Math.min(zy1 - d * 0.6, y));
+    pos.push({ x, y, ox: o.x, oy: o.y, entite: n.dataset.entite });
+    n.style.transform = `translate(${(x - d / 2).toFixed(1)}px, ${(y - d / 2).toFixed(1)}px)`;
+    n.style.opacity = enVol ? "0" : "1";
+    if (!enVol) {
+      cVoile.strokeStyle = "rgba(238, 234, 226, 0.45)"; cVoile.lineWidth = 1.5;
+      cVoile.beginPath(); cVoile.moveTo(x, y + d / 2); cVoile.lineTo(o.x, o.y); cVoile.stroke();
+      cVoile.fillStyle = "rgba(238, 234, 226, 0.6)"; cVoile.beginPath(); cVoile.arc(o.x, o.y, 3.5, 0, 2 * Math.PI); cVoile.fill();
+    }
+  }
+  grandEtat.positions = enVol ? [] : pos;
+  return encore;
+}
+// Contenu réglable de chaque pièce, pour le panneau de l'appli : les lampes (un groupe dont toutes les ampoules
+// sont dans la pièce remplace ses ampoules), puis la télé et les enceintes posées sur un meuble de la pièce.
+function contenu() {
+  const pieceMeuble = Object.fromEntries((DONNEES.meubles || []).map(m => [m.id, m.piece || pieceDuPoint((m.boite[0] + m.boite[2]) / 2, (m.boite[1] + m.boite[3]) / 2)]));
+  return DONNEES.pieces.map(p => {
+    const dedans = DONNEES.lampes.filter(l => l.piece === p.id);
+    const pris = new Set(), liste = [];
+    for (const [g, membres] of Object.entries(DONNEES.groupes || {})) {
+      if (membres.length && membres.every(m => dedans.some(l => l.entite === m))) { liste.push({ entite: g, nom: "" }); membres.forEach(m => pris.add(m)); }
+    }
+    for (const l of dedans) if (!pris.has(l.entite)) liste.push({ entite: l.entite, nom: l.nom || "" });
+    const medias = (DONNEES.medias || []).filter(m => pieceMeuble[m.meuble] === p.id).map(m => ({ entite: m.entite, nom: m.nom || "", type: m.type, alias: m.alias || [] }));
+    return { id: p.id, nom: p.nom, lampes: liste, medias };
+  });
+}
+// Ce qui est sous le doigt ([x], [y] en pixels CSS de la page) : une pastille, une pièce, ou le vide. La pièce est
+// désignée par son nom posé au sol (vue entière), sinon par le point du sol sous le doigt, et seulement ensuite
+// par l'objet touché : le haut d'un mur ou d'un meuble haut tombe souvent au-dessus de la pièce voisine.
+const PLAN_SOL = new T.Plane(new T.Vector3(0, 1, 0), 0);
+function designer(x, y) {
+  const d = grandEtat.taille;
+  for (const p of grandEtat.positions) if (Math.hypot(p.x - x, p.y - y) <= d / 2 + 8) return { genre: "pastille", entite: p.entite };
+  if (!grandEtat.piece) {
+    for (const n of couche.children) {
+      if (n.style.opacity === "0" || !n.dataset.piece) continue;
+      const r = n.getBoundingClientRect();
+      if (x >= r.left - 16 && x <= r.right + 16 && y >= r.top - 16 && y <= r.bottom + 16) return { genre: "piece", id: n.dataset.piece };
+    }
+  }
+  lanceur.setFromCamera(new T.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1), camera);
+  const t = lanceur.intersectObjects(solides, false)[0];
+  if (!t) return { genre: "vide" };
+  const sol = new T.Vector3();
+  const surSol = lanceur.ray.intersectPlane(PLAN_SOL, sol) && pieceDuPoint(sol.x + CX, -sol.z + CY);
+  const id = surSol || pieceDuPoint(t.point.x + CX, -t.point.z + CY);
+  return id ? { genre: "piece", id } : { genre: "vide" };
+}
+
+// ---------- interface pour l'appli ----------
+window.assistant = {
+  // 0.7.1 : version de la page (« 0.7.1 ») et date des données, pour la couche de service de l'appli
+  version: () => DONNEES.version,
+  dateVersion: () => DONNEES.date,
+  etat, etats, poser, action, demo,
+  lampes: () => DONNEES.lampes.map(l => ({ entite: l.entite, nom: l.nom, piece: l.piece, on: lampes.get(l.entite).on })),
+  // 0.6.0 : télé et enceintes connues de la page, avec l'état et le volume montrés
+  medias: () => (DONNEES.medias || []).map(m => { const o = medias.get(m.entite); return { entite: m.entite, alias: m.alias, nom: m.nom, type: m.type, etat: o.etat, volume: o.volume }; }),
+  vue: nom => { vueDessus = nom === "dessus"; cadrer(); },
+  montrer, ensemble,
+  murs: h => reglerMurs(Math.max(0.2, Math.min(DONNEES.hauteur, h))),
+  jour: reglerJour,
+  panneau: visible => panneau.classList.toggle("cache", !visible),
+  // [bord] : largeur du fondu en part de la vue (0,23 par défaut)
+  fondu: (actif, bord) => {
+    document.body.classList.toggle("fondu", !!actif);
+    if (bord > 0) document.body.style.setProperty("--bord", (100 * Math.min(0.45, bord)).toFixed(1) + "%");
+    demander();
+  },
+  // écran ambiant (0.4.0) : rotation lente, scène atténuée, noms au sol
+  // 0.5.2 : [amplitudeDeg] non nulle, balancement de plus ou moins cette amplitude (degrés) au lieu du tour,
+  // autour de [angleDeg] (angle de base de la caméra, 75 conseillé : le grand côté de l'appartement est
+  // alors couché dans une zone en paysage)
+  rotation: (periode, ips, cadre, amplitudeDeg, angleDeg) => {
+    tour.periode = Math.max(0, +periode || 0);
+    if (ips > 0) tour.ips = Math.min(30, ips);
+    if (cadre > 0) tour.cadre = cadre;
+    if (amplitudeDeg != null) tour.amplitude = Math.max(0, Math.min(180, +amplitudeDeg || 0)) * Math.PI / 180;
+    // l'angle atteint devient l'angle de base : pas de saut en passant du tour au balancement
+    cam.theta += cam.derive; cam.derive = 0; tour.phase = 0;
+    if (angleDeg != null && isFinite(+angleDeg)) cam.theta = +angleDeg * Math.PI / 180;
+    tour.suspendu = false; tour.dernier = 0;
+    if (!vol && !visee) cadrer();
+    demander();
+  },
+  attenuer,
+  nomsAuSol: visibles => { nomsSol.forEach(m => m.visible = !!visibles); demander(); },
+  // 0.4.1 : palette de l'appli, cadence de repos, pause, poussières, maison qui ne répond plus, toucher
+  teintes,
+  // 0.4.2 : teintes du jeu de couleurs choisi dans l'appli (lumière chaude, poussières, flux, pluie)
+  palette: t => teintes(t),
+  // 0.5.0 : zone de cadrage {x, y, largeur, hauteur} en fractions de la fenêtre, transition en duree_ms
+  disposition,
+  // 0.7.0 : régime de l'accueil, 1 vivant, 0 en retrait, valeurs intermédiaires possibles
+  regime: (niveau, duree_ms) => regler(niveau, duree_ms),
+  // cadence de repos, et plafond pendant une action (moins quand la tablette chauffe)
+  cadence: (n, a) => { if (n > 0) tour.ips = Math.min(30, n); if (a > 0) cadenceAction = Math.min(60, a); demander(); },
+  pause: actif => {
+    enPause = !!actif;
+    if (enPause) { if (minuteurTour) { clearTimeout(minuteurTour); minuteurTour = null; } }
+    else { tour.dernier = 0; derniereImage = 0; demander(); }
+  },
+  poussieres: actif => { poussieresActives = !!actif; demander(); },
+  desaturer: actif => { desature = !!actif; lampes.forEach(appliquer); demander(); },
+  // le point (x, y) de la page tombe-t-il sur l'appartement (sol, murs, meubles) ou dans le noir autour ?
+  // 0.8.0 : la maison en grand. [taille] et [police] des pastilles et des étiquettes, en pixels CSS.
+  grand: (actif, taille, police) => { if (taille > 0) grandEtat.taille = +taille; if (police > 0) grandEtat.police = +police; grand(actif); },
+  choisir, etiquettes, pastilles,
+  voile: opacite => { grandEtat.opacite = Math.max(0, Math.min(0.9, +opacite || 0.65)); if (grandEtat.piece) voiler(grandEtat.opacite, 200); demander(); },
+  designer: (x, y) => JSON.stringify(designer(x, y)),
+  contenu: () => JSON.stringify(contenu()),
+  dansLePlan: (x, y) => {
+    lanceur.setFromCamera(new T.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1), camera);
+    return lanceur.intersectObjects(solides, false).length > 0;
+  },
+};
+// Battement toutes les 10 s pour l'appli, qui recrée la vue si la page se tait. Contexte WebGL perdu :
+// l'appli recrée la vue aussi (0.4.1).
+setInterval(() => { if (window.assistantAndroid && window.assistantAndroid.battement) window.assistantAndroid.battement(); }, 10000);
+toile.addEventListener("webglcontextlost", ev => {
+  ev.preventDefault();
+  if (window.assistantAndroid && window.assistantAndroid.contextePerdu) window.assistantAndroid.contextePerdu();
+});
+addEventListener("message", ev => {
+  const d = ev.data || {};
+  if (d.type === "etat") etat(d.entite, d);
+  else if (d.type === "etats") etats(d.etats);
+  else if (d.type === "demo") demo();
+  else if (d.type === "montrer") montrer(d.cibles || d.entite);
+  else if (d.type === "poser") poser(d.etats);
+  else if (d.type === "action") action(d.effets);
+  else if (d.type === "rotation") window.assistant.rotation(d.periode, d.ips, d.cadre, d.amplitude, d.angle);
+  else if (d.type === "fondu") window.assistant.fondu(d.actif, d.bord);
+  else if (d.type === "nomsAuSol") window.assistant.nomsAuSol(d.visibles);
+  else if (d.type === "attenuer") attenuer(d.opacite, d.duree);
+  else if (d.type === "ensemble") ensemble(d.duree);
+  else if (d.type === "teintes") teintes(d.teintes);
+  else if (d.type === "palette") teintes(d.teintes);
+  else if (d.type === "poussieres") window.assistant.poussieres(d.actif);
+  else if (d.type === "desaturer") window.assistant.desaturer(d.actif);
+  else if (d.type === "pause") window.assistant.pause(d.actif);
+  else if (d.type === "disposition") disposition(d);
+  else if (d.type === "regime") regler(d.niveau, d.duree_ms);
+  else if (d.type === "grand") window.assistant.grand(d.actif, d.taille, d.police);
+  else if (d.type === "choisir") choisir(d.id, d.duree);
+  else if (d.type === "etiquettes") etiquettes(d.liste);
+  else if (d.type === "pastilles") pastilles(d.liste);
+});
+
+construireListe();
+// ?jeu=couleur&intensite=0.4 pour essayer un jeu dans un navigateur (l'appli envoie le sien par teintes)
+teintes(params.get("jeu") ? { jeu: params.get("jeu"), intensite: params.get("intensite") ?? undefined } : undefined);
+reglerMurs(1.1);
+redimensionner();
+cadrer();
+if (params.get("demo") === "1") setTimeout(demo, 600);
+appliquerRegime();
+// ?regime=0 ou 1 : régime de l'accueil au chargement (0.7.0), pour les captures
+if (params.get("regime") !== null) regler(+params.get("regime"));
+// ?zone=x,y,largeur,hauteur et ?rotation=periode,amplitude,angle : réglages de l'accueil, pour les captures
+if (params.get("zone")) { const [x, y, largeur, hauteur] = params.get("zone").split(",").map(Number); disposition({ x, y, largeur, hauteur }); }
+if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.assistant.rotation(p, 10, 1, a, g); }
+// ?medias=media_player.exemple20:on,media_player.salon:playing:0.5 : télé et enceintes (0.6.0)
+if (params.get("medias")) params.get("medias").split(",").forEach(s => {
+  const [e, st, vol] = s.trim().split(":");
+  etat(e, { state: st, attributes: vol ? { volume_level: +vol } : {} }, true);
+});
+// ?allumer=light.exemple6,light.cuisine : lampes allumées d'emblée, pour les captures des maquettes
+if (params.get("allumer")) poser(Object.fromEntries(params.get("allumer").split(",").map(e => [e.trim(), "on"])));
+if (params.get("fondu") === "1") document.body.classList.add("fondu");
+// l'appli peut maintenant envoyer les états initiaux
+if (window.assistantAndroid && window.assistantAndroid.pret) window.assistantAndroid.pret(DONNEES.version);
+else if (window.parent !== window) window.parent.postMessage({ type: "pret", version: DONNEES.version }, "*");
+</script>
+</body>
+</html>

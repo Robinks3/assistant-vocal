@@ -1,0 +1,366 @@
+# Dictionnaire des commandes vocales, consulté AVANT Home Assistant et le LLM.
+# Assistant vocal local v0.3.0, 2026-10-11.
+#
+# Chaque commande :
+#   phrases : formes acceptées. (a|b) = l'un ou l'autre, [mot] = facultatif,
+#             {emplacement} = une valeur de la section emplacements. Même syntaxe que
+#             les phrases personnalisées de Home Assistant, pour les y transférer plus tard.
+#   action  : service HA exact (domaine.service) et cible. Une liste = plusieurs actions.
+#   reponse : ce que l'assistant dit après coup.
+# La ponctuation, les majuscules et les accents sont ignorés, et une petite erreur de
+# transcription est tolérée (« enceint » pour « enceinte »).
+
+# Ce que voit le LLM : appareils renommés pour lui ou masqués, sans rien changer dans HA.
+llm:
+  renommer:
+    media_player.tele_salon: "Télévision du séjour (télé, TV)"
+    light.salon_lampe_tele: "Lampe TV (lampe posée près de la télé, ce n'est pas la télé)"
+    # Enceintes du séjour et de la cuisine : chacune garde le nom de sa pièce pour l'assistant.
+    media_player.barre_son_salon: "Salon (barre de son du salon, son de la télé possible)"
+    media_player.barre_son_salon_enceinte: "Salon (même enceinte, lecteur Music Assistant)"
+    media_player.enceinte_cuisine: "Cuisine (enceinte de la cuisine)"
+    media_player.enceinte_cuisine_enceinte: "Cuisine (même enceinte, lecteur Music Assistant)"
+  notes:  # ajoutées en bout de ligne de l'appareil dans ce que voit le LLM
+    media_player.tele_salon: "entrées et applis via media_player.select_source, donnees {\"source\": ...} parmi HDMI1, HDMI2, HDMI3, TV, Chaînes TNT, YouTube, Netflix, Prime Video, Disney+, CANAL+, france.tv, ARTE, M6+, TF1+, Spotify : Music & Podcasts, Apple TV, XBOX"
+  masquer:
+    - media_player.tele      # lecteur Music Assistant de la télé, pas la télé
+    - media_player.tele_3    # idem
+    - switch.tv_journalisation_de_debogage
+
+# « Ma chambre » selon la personne qui parle (décision de Sacha du 21/10/2026, règle 3 de
+# poc/securite.py). Une commande dont toutes les cibles sont dans la chambre de Sacha (clés de
+# « remplacer ») et dont la phrase ne nomme pas Sacha (« ma chambre », « mes chevets », « mon
+# plafond », « ma lumière », « bonne nuit ») vise :
+#   - les lumières de Sacha quand Sacha parle, ou quand on ne sait pas qui parle (pas de vision,
+#     plusieurs personnes, identité pas encore sûre) : comme avant ;
+#   - celles de la personne listée ici quand la tablette la reconnaît seule et avec assurance ;
+#   - rien pour une personne vue mais inconnue, ou reconnue sans chambre déclarée : refus expliqué.
+# « La chambre de Sacha » garde toujours ses cibles. La sécurité en dur vérifie ensuite chaque action.
+# Exporté pour l'appli par android/outils/exporter_dictionnaire.py (même règle dans DictionnaireLocal.kt).
+personnes:
+  defaut: sacha
+  inconnu: "Je ne te reconnais pas, donc je ne sais pas de quelle chambre tu parles. Dis « la chambre de Sacha » si c'est elle."
+  sans_chambre: "Je ne sais pas quelle chambre est la tienne. Dis « la chambre de Sacha » si c'est elle."
+  camille:
+    remplacer:
+      light.chambre_sacha_plafond: light.chambre_camille_plafonds            # groupe des deux ampoules du plafond
+      light.chambre_sacha_chevets: light.chambre_camille_chevet
+      # Camille n'a droit qu'aux services de lumière : l'extinction douce devient une extinction lente.
+      script.lampes_nuit_eteindre:
+        {service: light.turn_off, entity_id: light.chambre_camille_chevet, transition: 5,
+         reponse: "J'éteins ton chevet. Bonne nuit."}
+
+emplacements:
+  hdmi:
+    "1|un": HDMI1
+    "2|deux": HDMI2
+    "3|trois": HDMI3
+  appli:
+    "youtube": YouTube
+    "netflix": Netflix
+    "prime [vidéo]|amazon prime": Prime Video
+    "disney [plus]|disney+": Disney+
+    "canal [plus]|canal+": CANAL+
+    "france tv|france télévisions": france.tv
+    "arte": ARTE
+    "m6 [plus]": M6+
+    "tf1 [plus]": TF1+
+    "[la] tnt|les chaînes [de la tnt]|la télé normale": Chaînes TNT
+    "apple tv": Apple TV
+    "la xbox|xbox": XBOX
+  # Luminosité (« mets la lumière de ma chambre à 100% » partait au LLM).
+  lumiere:
+    "ma chambre|[la] chambre [de] Sacha|[le] plafond [de ma chambre]": light.chambre_sacha_plafond
+    "[le] salon|[le] séjour|[la] suspension": light.salon_plafond
+    "[la] cuisine": light.cuisine_suspensions
+    "[l'] entrée": light.couloir_plafond
+    "[la] lampe [de la] (télé|tv)": light.salon_lampe_tele
+    "[les|mes] chevets": light.chambre_sacha_chevets
+  # Couleurs  : la valeur est la teinte en degrés, envoyée en hs_color avec 100 de saturation.
+  # Mêmes huit teintes que ReglageLampe.kt (appli). « rose » et « orange » sont aussi des noms communs : les
+  # phrases ne les prennent que derrière « en » (« mets le salon en rose »), jamais seuls.
+  couleur:
+    "rouge": 0
+    "orange": 30
+    "jaune": 55
+    "vert": 120
+    "cyan": 180
+    "bleu": 220
+    "violet": 275
+    "rose": 330
+  # Blancs nommés, en kelvins (mêmes valeurs que ReglageLampe.kt). « chaud » vise la lumière, jamais le chauffage.
+  # blanc : derrière « en » (masculin). blancf : derrière « lumière » (féminin).
+  blanc:
+    "bougie": 2200
+    "chaud|blanc chaud": 2700
+    "blanc|neutre|blanc neutre": 4000
+    "froid|blanc froid": 6000
+  blancf:
+    "bougie": 2200
+    "chaude": 2700
+    "blanche|neutre": 4000
+    "froide": 6000
+  pourcent:
+    "10|dix": 10
+    "20|vingt": 20
+    "30|trente": 30
+    "40|quarante": 40
+    "50|cinquante|moitié": 50
+    "60|soixante": 60
+    "70|soixante-dix": 70
+    "80|quatre-vingts|quatre-vingt": 80
+    "90|quatre-vingt-dix": 90
+    "100|cent|fond": 100
+  piece:
+    "[le] séjour|[le] salon": sejour
+    "[la] salle à manger": salle_a_manger
+    "[l'] entrée": entree
+    "[la] chambre [de] Sacha|ma chambre": chambre_sacha
+    "[la] chambre [de] Camille": chambre_camille
+    "[la] chambre d'ami[s]": chambre_ami
+    "[la] salle de bain[s] [de] Sacha|ma salle de bain": sdb_sacha
+    "[la] salle de bain[s] [de] Camille": sdb_camille
+    "[les] pièces de vie": pieces_communes
+    "tout [l'appartement]|partout|l'appartement": tout
+
+commandes:
+  # Télévision
+  - phrases: ["(éteins|coupe|ferme) [la] (télé|télévision|tv) [du séjour|du salon]"]
+    action: {service: media_player.turn_off, entity_id: media_player.tele_salon}
+    reponse: "J'éteins la télé."
+  - phrases: ["(allume|lance|mets) [la] (télé|télévision|tv) [du séjour|du salon]"]
+    action: {service: media_player.turn_on, entity_id: media_player.tele_salon}
+    reponse: "J'allume la télé."
+
+  - phrases: ["(mets|passe|bascule|change) [la télé|la télévision] (sur|en) [la prise|l'entrée|le port] hdmi {hdmi}",
+              "(mets|passe) [sur] [la prise|l'entrée] hdmi {hdmi}"]
+    action: {service: media_player.select_source, entity_id: media_player.tele_salon, source: "{hdmi}"}
+    reponse: "Je passe la télé sur l'entrée demandée."
+  - phrases: ["(mets|lance|ouvre) {appli} [sur la télé|sur la télévision]",
+              "(mets|passe) [la télé|la télévision] sur {appli}"]
+    action: {service: media_player.select_source, entity_id: media_player.tele_salon, source: "{appli}"}
+    reponse: "C'est parti sur la télé."
+
+  # Lecture, chaînes, volume et son de la télé .
+  # Les actions « dynamique » (poc/commandes_dynamiques.py, CommandesDynamiques.kt) lisent l'état d'un appareil
+  # AVANT de choisir le service. Elles se résolvent en actions ordinaires, que la sécurité en dur contrôle ensuite
+  # comme toutes les autres.
+  # Chaîne suivante et précédente : à vérifier sur place, la TNT répond peut-être autrement.
+  - phrases: ["[mets|passe à] [la] chaîne suivante", "chaîne d'après", "chaîne plus"]
+    action: {service: media_player.media_next_track, entity_id: media_player.tele_salon}
+    reponse: "Chaîne suivante."
+  - phrases: ["[mets|passe à] [la] chaîne précédente", "chaîne d'avant", "chaîne moins"]
+    action: {service: media_player.media_previous_track, entity_id: media_player.tele_salon}
+    reponse: "Chaîne précédente."
+  # « pause » seul : la télé si elle lit quelque chose, la musique sinon.
+  - phrases: ["pause", "mets pause", "mets en pause"]
+    action:
+      dynamique: selon_etat
+      entite: media_player.tele_salon
+      etats: [playing]
+      alors: {service: media_player.media_pause, entity_id: media_player.tele_salon}
+      sinon: {service: script.turn_on, entity_id: script.couper_musique}
+    reponse: "C'est en pause."
+  - phrases: ["mets [la télé|le film|la vidéo|la lecture] en pause", "pause [sur] [la] (télé|télévision|tv)"]
+    action: {service: media_player.media_pause, entity_id: media_player.tele_salon}
+    reponse: "Télé en pause."
+  # « reprends » : seulement si la télé est en pause, sinon rien n'est lancé.
+  - phrases: ["reprends [la lecture]", "(remets|relance) la lecture", "play"]
+    action:
+      dynamique: selon_etat
+      entite: media_player.tele_salon
+      etats: [paused]
+      alors: {service: media_player.media_play, entity_id: media_player.tele_salon}
+      reponse_vide: "Il n'y a rien à reprendre."
+    reponse: "Je reprends la lecture."
+  # « monte » et « baisse » sans complément : le volume si la télé est allumée, la lumière du salon sinon.
+  # Trois pas de volume par ordre (un pas de cette télé est petit), 20 points de luminosité.
+  - phrases: ["monte", "monte un peu", "augmente"]
+    action:
+      dynamique: selon_etat
+      entite: media_player.tele_salon
+      etats: ["on", playing, paused, idle, buffering]
+      alors:
+        - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+        - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+        - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+      sinon: {service: light.turn_on, entity_id: light.salon_plafond, brightness_step_pct: 20}
+    reponse: "C'est monté."
+  - phrases: ["baisse", "baisse un peu", "diminue"]
+    action:
+      dynamique: selon_etat
+      entite: media_player.tele_salon
+      etats: ["on", playing, paused, idle, buffering]
+      alors:
+        - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+        - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+        - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+      sinon: {service: light.turn_on, entity_id: light.salon_plafond, brightness_step_pct: -20}
+    reponse: "C'est baissé."
+  - phrases: ["(monte|augmente|remonte) [un peu] (le son|le volume|la télé|la télévision|la tv) [de la télé|de la télévision|du salon]",
+              "[mets] [un peu] plus fort"]
+    action:
+      - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+      - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+      - {service: media_player.volume_up, entity_id: media_player.tele_salon}
+    reponse: "Je monte le son."
+  - phrases: ["(baisse|diminue) [un peu] (le son|le volume|la télé|la télévision|la tv) [de la télé|de la télévision|du salon]",
+              "[mets] [un peu] moins fort"]
+    action:
+      - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+      - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+      - {service: media_player.volume_down, entity_id: media_player.tele_salon}
+    reponse: "Je baisse le son."
+  - phrases: ["coupe le son [de la télé|de la télévision]", "(mets|passe) la télé en sourdine", "(mets|passe) en sourdine", "muet"]
+    action: {service: media_player.volume_mute, entity_id: media_player.tele_salon, is_volume_muted: true}
+    reponse: "Son coupé."
+  - phrases: ["(remets|rétablis|réactive) le son [de la télé|de la télévision]", "(enlève|retire) la sourdine"]
+    action: {service: media_player.volume_mute, entity_id: media_player.tele_salon, is_volume_muted: false}
+    reponse: "Son remis."
+  # Son de nuit de la barre de son. L'interrupteur ci-dessous est fictif : le vrai nom va dans la copie privée,
+  # et dans reglages.interrupteurs de maison.json si ce dossier en déclare (liste blanche des interrupteurs).
+  - phrases: ["(active|mets|allume) le son de nuit"]
+    action: {service: switch.turn_on, entity_id: switch.barre_son_salon_son_de_nuit}
+    reponse: "Son de nuit activé."
+  - phrases: ["(désactive|enlève|coupe|éteins) le son de nuit"]
+    action: {service: switch.turn_off, entity_id: switch.barre_son_salon_son_de_nuit}
+    reponse: "Son de nuit coupé."
+
+  # Musique (scripts existants)
+  - phrases: ["(lance|mets|démarre) [la] musique", "allume les enceintes"]
+    action: {service: script.turn_on, entity_id: script.lancer_musique}
+    reponse: "C'est parti pour la musique."
+  # « pause » seul n'est plus ici : il vise la télé si elle lit quelque chose, la musique sinon (plus bas).
+  - phrases: ["(coupe|arrête|stoppe) [la] musique", "(mets|met) [la] musique en pause"]
+    action: {service: script.turn_on, entity_id: script.couper_musique}
+    reponse: "Musique en pause."
+  - phrases: ["(transfère|passe|bascule) [la musique|spotify] (sur|vers) [les] (enceintes|enceintes)"]
+    action: {service: script.turn_on, entity_id: script.deplacer_musique}
+    reponse: "Je passe la musique sur les enceintes."
+  - phrases: ["(remets|mets) le volume [des enceintes] par défaut", "volume normal"]
+    action: {service: script.turn_on, entity_id: script.volume_enceinte_reglage}
+    reponse: "Volume remis par défaut."
+
+  # Lumières
+  - phrases: ["allume [la lumière du|le] (salon|séjour)"]
+    action: {service: light.turn_on, entity_id: light.salon_plafond}
+    reponse: "Salon allumé."
+  - phrases: ["éteins [la lumière du|le] (salon|séjour)"]
+    action: {service: light.turn_off, entity_id: light.salon_plafond}
+    reponse: "Salon éteint."
+  - phrases: ["allume [la lumière de] la cuisine"]
+    action: {service: light.turn_on, entity_id: light.cuisine_suspensions}
+    reponse: "Cuisine allumée."
+  - phrases: ["éteins [la lumière de] la cuisine"]
+    action: {service: light.turn_off, entity_id: light.cuisine_suspensions}
+    reponse: "Cuisine éteinte."
+  - phrases: ["allume [la lumière de] l'entrée"]
+    action: {service: light.turn_on, entity_id: light.couloir_plafond}
+    reponse: "Entrée allumée."
+  - phrases: ["éteins [la lumière de] l'entrée"]
+    action: {service: light.turn_off, entity_id: light.couloir_plafond}
+    reponse: "Entrée éteinte."
+  - phrases: ["allume la lampe [de la] (télé|tv)"]
+    action: {service: light.turn_on, entity_id: light.salon_lampe_tele}
+    reponse: "Lampe de la télé allumée."
+  - phrases: ["éteins la lampe [de la] (télé|tv)"]
+    action: {service: light.turn_off, entity_id: light.salon_lampe_tele}
+    reponse: "Lampe de la télé éteinte."
+  - phrases: ["allume [les|mes] chevets", "allume mon chevet"]
+    action: {service: light.turn_on, entity_id: light.chambre_sacha_chevets}
+    reponse: "Chevets allumés."
+  - phrases: ["éteins [les|mes] chevets", "éteins [les|mes] chevets en douceur", "éteins mon chevet", "bonne nuit"]
+    action: {service: script.turn_on, entity_id: script.lampes_nuit_eteindre}
+    reponse: "J'éteins les chevets en douceur. Bonne nuit."
+  # « Les lumières de ma chambre » = plafond et chevets (essai de Sacha du 13/10 : « Allume les
+  # lumières dans ma chambre » absente du dictionnaire, Haiku a allumé les deux).
+  - phrases: ["allume [toutes] les lumières (de|dans) (ma chambre|[la] chambre [de] Sacha)", "allume tout dans (ma chambre|[la] chambre [de] Sacha)"]
+    action: {service: light.turn_on, entity_id: [light.chambre_sacha_plafond, light.chambre_sacha_chevets]}
+    reponse: "J'allume ta chambre."
+  - phrases: ["(éteins|coupe) [toutes] les lumières (de|dans) (ma chambre|[la] chambre [de] Sacha)", "éteins tout dans (ma chambre|[la] chambre [de] Sacha)"]
+    action: {service: light.turn_off, entity_id: [light.chambre_sacha_plafond, light.chambre_sacha_chevets]}
+    reponse: "J'éteins ta chambre."
+  - phrases: ["allume [le] plafond [de ma chambre|de Sacha|Sacha]", "allume la lumière (de|dans) (ma chambre|[la] chambre [de] Sacha)",
+              "allume (mon plafond|ma lumière)"]
+    action: {service: light.turn_on, entity_id: light.chambre_sacha_plafond}
+    reponse: "Plafond allumé."
+  - phrases: ["éteins [le] plafond [de ma chambre|de Sacha|Sacha]", "éteins la lumière (de|dans) (ma chambre|[la] chambre [de] Sacha)",
+              "éteins (mon plafond|ma lumière)"]
+    action: {service: light.turn_off, entity_id: light.chambre_sacha_plafond}
+    reponse: "Plafond éteint."
+  - phrases: ["(mets|règle|allume) [la lumière (de|du|dans)] {lumiere} à {pourcent} [pour cent|%]"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", brightness_pct: "{pourcent}"}
+    reponse: "C'est réglé."
+  # Couleur, blanc et chaleur . La couleur ne s'entend que derrière « en » (« rose » et
+  # « orange » sont aussi des noms communs), « chaud » et « chaude » visent toujours la lumière.
+  - phrases: ["(mets|passe|change) {lumiere} en {couleur}", "(mets|passe) la lumière (de|du|dans) {lumiere} en {couleur}"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", hs_color: ["{couleur}", 100]}
+    reponse: "C'est réglé."
+  - phrases: ["(mets|passe|change) {lumiere} en {blanc}", "(mets|passe) la lumière (de|du|dans) {lumiere} en {blanc}"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", color_temp_kelvin: "{blanc}"}
+    reponse: "C'est réglé."
+  - phrases: ["(mets|allume) [une|la] lumière {blancf} (dans|de|du) {lumiere}"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", color_temp_kelvin: "{blancf}"}
+    reponse: "C'est réglé."
+  # Plus chaud, plus froid : un pas de 500 K, borné par chaque lampe (seules celles qui sont allumées en blanc bougent).
+  # Sans pièce : le séjour (plafond et lampe de la télé).
+  - phrases: ["[un peu] plus chaud", "(mets|rends) la lumière [un peu] plus chaude", "lumière [un peu] plus chaude", "réchauffe la lumière"]
+    action: {dynamique: kelvin_pas, entity_id: [light.salon_plafond, light.salon_lampe_tele], pas: -500,
+             reponse_vide: "Aucune lampe allumée en blanc à rendre plus chaude, ou elles sont déjà au plus chaud."}
+    reponse: "C'est plus chaud."
+  - phrases: ["[un peu] plus froid", "(mets|rends) la lumière [un peu] plus froide", "lumière [un peu] plus froide", "refroidis la lumière"]
+    action: {dynamique: kelvin_pas, entity_id: [light.salon_plafond, light.salon_lampe_tele], pas: 500,
+             reponse_vide: "Aucune lampe allumée en blanc à rendre plus froide, ou elles sont déjà au plus froid."}
+    reponse: "C'est plus froid."
+  - phrases: ["[un peu] plus chaud (dans|de|du) {lumiere}", "(mets|rends) [la lumière (de|du|dans)] {lumiere} [un peu] plus (chaud|chaude)"]
+    action: {dynamique: kelvin_pas, entity_id: "{lumiere}", pas: -500,
+             reponse_vide: "Aucune lampe allumée en blanc à rendre plus chaude, ou elles sont déjà au plus chaud."}
+    reponse: "C'est plus chaud."
+  - phrases: ["[un peu] plus froid (dans|de|du) {lumiere}", "(mets|rends) [la lumière (de|du|dans)] {lumiere} [un peu] plus (froid|froide)"]
+    action: {dynamique: kelvin_pas, entity_id: "{lumiere}", pas: 500,
+             reponse_vide: "Aucune lampe allumée en blanc à rendre plus froide, ou elles sont déjà au plus froid."}
+    reponse: "C'est plus froid."
+  # Luminosité relative : 20 points par ordre. Sans pièce : le plafond du séjour.
+  - phrases: ["(monte|augmente) [un peu] la lumière", "plus de lumière", "plus clair"]
+    action: {service: light.turn_on, entity_id: light.salon_plafond, brightness_step_pct: 20}
+    reponse: "C'est plus clair."
+  - phrases: ["(baisse|diminue) [un peu] la lumière", "moins de lumière", "plus sombre"]
+    action: {service: light.turn_on, entity_id: light.salon_plafond, brightness_step_pct: -20}
+    reponse: "C'est plus sombre."
+  - phrases: ["(monte|augmente) [un peu] la lumière (de|du|dans) {lumiere}"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", brightness_step_pct: 20}
+    reponse: "C'est plus clair."
+  - phrases: ["(baisse|diminue) [un peu] la lumière (de|du|dans) {lumiere}"]
+    action: {service: light.turn_on, entity_id: "{lumiere}", brightness_step_pct: -20}
+    reponse: "C'est plus sombre."
+  # « Toutes les lumières » : jamais chez Camille (sécurité en dur du 13/10/2026, poc/securite.py).
+  # Éteindre = toutes les autres, liste explicite ; allumer = pièces communes seulement.
+  - phrases: ["(éteins|coupe) [toutes] les lumières", "(éteins|coupe) toutes les lampes"]
+    action: {service: light.turn_off, entity_id: [light.salon_plafond, light.cuisine_suspensions, light.cuisine_suspension_1, light.cuisine_suspension_2, light.salon_lampe_tele, light.couloir_plafond, light.chambre_sacha_plafond, light.chambre_sacha_chevets]}
+    reponse: "J'éteins toutes les lumières."
+  - phrases: ["allume [toutes] les lumières", "allume toutes les lampes"]
+    action: {service: light.turn_on, entity_id: [light.salon_plafond, light.cuisine_suspensions, light.salon_lampe_tele, light.couloir_plafond]}
+    reponse: "J'allume les pièces communes."
+
+  # Le script HA « tout_eteindre » vise toutes les lumières, Camille compris : refusé par la
+  # sécurité, remplacé ici par ses trois étapes sans la chambre de Camille.
+  - phrases: ["(éteins|coupe) tout", "tout éteindre"]
+    action:
+      - {service: light.turn_off, entity_id: [light.salon_plafond, light.cuisine_suspensions, light.cuisine_suspension_1, light.cuisine_suspension_2, light.salon_lampe_tele, light.couloir_plafond, light.chambre_sacha_plafond, light.chambre_sacha_chevets]}
+      - {service: script.turn_on, entity_id: script.couper_musique}
+      - {service: media_player.turn_off, entity_id: media_player.tele_salon}
+    reponse: "J'éteins tout, sauf chez Camille."
+
+  # Aspirateur (scripts existants)
+  - phrases: ["(aspire|passe l'aspirateur dans|passe l'aspirateur sur) {piece}"]
+    action: {service: script.turn_on, entity_id: "script.aspirer_{piece}"}
+    reponse: "L'aspirateur part."
+  - phrases: ["(lave|passe la serpillère dans|passe la serpillière dans|nettoie le sol de) {piece}"]
+    action: {service: script.turn_on, entity_id: "script.laver_{piece}"}
+    reponse: "Le lavage commence."
+  - phrases: ["(nettoie|aspire et lave) tout [l'appartement]"]
+    action: {service: script.turn_on, entity_id: script.aspirateur_partout}
+    reponse: "Nettoyage complet lancé."
+  - phrases: ["(renvoie|remets|ramène) l'aspirateur à [sa] base", "aspirateur à la base", "(arrête|stoppe) l'aspirateur"]
+    action: {service: script.turn_on, entity_id: script.aspirateur_retour}
+    reponse: "L'aspirateur rentre à sa base."

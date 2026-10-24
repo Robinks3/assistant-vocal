@@ -1,0 +1,11 @@
+numpy
+websockets
+wyoming
+httpx
+python-dotenv
+pyyaml
+anthropic
+tzdata
+# 0.17.0 : Silero VAD, certificat du port chiffré
+onnxruntime
+cryptography

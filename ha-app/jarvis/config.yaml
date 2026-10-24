@@ -1,0 +1,34 @@
+name: assistant
+version: "0.25.2"
+slug: jarvis
+description: Serveur de l'assistant vocal local (téléphones satellites), sans PC fixe.
+arch:
+  - amd64
+init: false
+startup: application
+boot: auto
+homeassistant_api: true
+ports:
+  8765/tcp: 8765
+  8766/tcp: 8766
+ports_description:
+  8765/tcp: Satellites vocaux, en clair (ancien accès, à couper quand tous les téléphones sont à jour)
+  8766/tcp: Satellites vocaux, chiffré (wss), appairage des nouveaux téléphones
+options:
+  anthropic_api_key: ""
+  satellite_jeton: ""
+  essai: false
+  ancien_acces: true
+  stt_api_cle: ""
+  stt_api_url: "https://api.mistral.ai/v1/audio/transcriptions"
+  stt_api_modele: "voxtral-mini-latest"
+  stt_api_nom: "Voxtral"
+schema:
+  anthropic_api_key: password
+  satellite_jeton: password
+  essai: bool
+  ancien_acces: bool
+  stt_api_cle: password
+  stt_api_url: url
+  stt_api_modele: str
+  stt_api_nom: str

@@ -1,0 +1,24 @@
+faster-whisper==1.2.1
+sounddevice
+numpy
+httpx
+python-dotenv
+piper-tts
+openwakeword
+pyyaml
+psutil
+anthropic
+wyoming
+cryptography
+opencv-python-headless
+# 0.25.1 : dépendances utilisées sans être listées, trouvées en rédigeant le guide d'installation.
+# Serveur des satellites (wss), transcription Canary sur le PC et onnxruntime.
+websockets
+onnx-asr[cpu,hub]
+# Importé directement par poc/vad.py (Silero VAD), en plus d'arriver par onnx-asr et openwakeword.
+onnxruntime
+# Tests (python -m pytest poc/tests), plan 2D (carte/generer_plan.py).
+pytest
+pillow
+# 0.19.0 : fuseaux horaires sous Windows (jour du relais santé, heure de la maison pour la sécurité)
+tzdata

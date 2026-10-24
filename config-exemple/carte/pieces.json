@@ -1,0 +1,95 @@
+{
+  "version": "0.1.0",
+  "date": "2026-10-24",
+  "logement": "Appartement d'exemple (fictif)",
+  "unite": "m",
+  "repere": {
+    "origine": "Angle intérieur du séjour, côté télévision",
+    "axe_x": "Le long du mur de la télévision",
+    "axe_y": "Du séjour vers les chambres",
+    "sens": "Repère direct : y vers le haut du plan. Pour dessiner sur un écran (y vers le bas), utiliser y_ecran = (ymax - y) * echelle",
+    "emprise": {
+      "xmin": -0.2,
+      "ymin": -0.2,
+      "xmax": 6.2,
+      "ymax": 8.2
+    },
+    "nord": null
+  },
+  "source": {
+    "methode": "Plan fictif dessiné pour l'exemple",
+    "echelle": "Mètres",
+    "controles": [],
+    "precision": "Sans objet"
+  },
+  "pieces": [
+    {
+      "id": "sejour_cuisine",
+      "nom": "Séjour et cuisine",
+      "type": "sejour",
+      "confiance": "haute",
+      "polygone": [
+        [0, 0],
+        [6, 0],
+        [6, 4],
+        [0, 4]
+      ],
+      "remarque": "Pièce ouverte : télévision, canapé, cuisine.",
+      "surface_m2": 24.0
+    },
+    {
+      "id": "couloir",
+      "nom": "Couloir",
+      "type": "circulation",
+      "confiance": "haute",
+      "polygone": [
+        [0, 4],
+        [6, 4],
+        [6, 5],
+        [0, 5]
+      ],
+      "remarque": "Dessert les deux chambres.",
+      "surface_m2": 6.0
+    },
+    {
+      "id": "chambre_sacha",
+      "nom": "Chambre de Sacha",
+      "type": "chambre",
+      "confiance": "haute",
+      "polygone": [
+        [0, 5],
+        [3, 5],
+        [3, 8],
+        [0, 8]
+      ],
+      "remarque": "",
+      "surface_m2": 9.0
+    },
+    {
+      "id": "chambre_camille",
+      "nom": "Chambre de Camille",
+      "type": "chambre",
+      "confiance": "haute",
+      "polygone": [
+        [3, 5],
+        [6, 5],
+        [6, 8],
+        [3, 8]
+      ],
+      "remarque": "",
+      "surface_m2": 9.0
+    }
+  ],
+  "portes": [
+    {
+      "id": "porte_entree",
+      "nom": "Porte d'entrée",
+      "segment": [
+        [5.0, 4.0],
+        [5.9, 4.0]
+      ],
+      "largeur_reelle_m": 0.9
+    }
+  ],
+  "surface_totale_m2": 48.0
+}

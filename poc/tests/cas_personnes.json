@@ -1,0 +1,209 @@
+{
+  "_lisez_moi": "« Ma chambre » selon la personne qui parle (section personnes de commandes.yaml, configuration config-exemple/, 21/10/2026). Cas communs à poc/tests/test_personnes.py (dictionnaire du serveur) et à DictionnaireTest.kt (assets/dictionnaire.json de l'appli). personne absente = on ne sait pas qui parle. cibles = entity_id attendus après remplacement, dans l'ordre des actions. refus = la commande est refusée avec une explication. Chaque action rendue passe ensuite par la sécurité en dur avec la même personne : securite_refus dit si elle doit être refusée.",
+  "cas": [
+    {
+      "phrase": "allume les lumières de ma chambre",
+      "cibles": [
+        [
+          "light.exemple14",
+          "light.exemple11"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "personne inconnue de la tablette : chambre de Sacha, comme avant"
+    },
+    {
+      "phrase": "allume les lumières de ma chambre",
+      "personne": "Sacha",
+      "cibles": [
+        [
+          "light.exemple14",
+          "light.exemple11"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "Sacha reconnu"
+    },
+    {
+      "phrase": "allume les lumières de ma chambre",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.chambre_camille",
+          "light.exemple18"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "Camille reconnu : ses lumières"
+    },
+    {
+      "phrase": "éteins mes chevets",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple18"
+        ]
+      ],
+      "service": "light.turn_off",
+      "securite_refus": false,
+      "note": "le script d'extinction douce devient une extinction de lumière"
+    },
+    {
+      "phrase": "éteins mes chevets",
+      "cibles": [
+        [
+          "script.lampes_nuit_eteindre"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "sans personne, script de Sacha"
+    },
+    {
+      "phrase": "allume le plafond",
+      "personne": "camille",
+      "cibles": [
+        [
+          "light.chambre_camille"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "plafond sans nom, Camille reconnu"
+    },
+    {
+      "phrase": "mets ma chambre à 50%",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.chambre_camille"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "luminosité par emplacement"
+    },
+    {
+      "phrase": "allume les lumières de la chambre de Sacha",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple14",
+          "light.exemple11"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "la chambre de Sacha nommée garde ses cibles"
+    },
+    {
+      "phrase": "allume le plafond Sacha",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple14"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "le plafond de Sacha nommé"
+    },
+    {
+      "phrase": "allume les lumières de ma chambre",
+      "personne": "inconnu",
+      "refus": true,
+      "note": "personne vue mais inconnue : refus expliqué"
+    },
+    {
+      "phrase": "allume les lumières de ma chambre",
+      "personne": "Lou",
+      "refus": true,
+      "note": "reconnue sans chambre déclarée : refus expliqué"
+    },
+    {
+      "phrase": "allume le salon",
+      "personne": "inconnu",
+      "cibles": [
+        [
+          "light.exemple6"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "une pièce commune ne dépend pas de qui parle"
+    },
+    {
+      "phrase": "allume le salon",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple6"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "Camille au salon"
+    },
+    {
+      "phrase": "éteins toutes les lumières",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple6",
+          "light.cuisine",
+          "light.exemple15",
+          "light.exemple16",
+          "light.exemple7",
+          "light.exemple17",
+          "light.exemple14",
+          "light.exemple11"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "toute la maison n'est pas « ma chambre » : liste inchangée"
+    },
+    {
+      "phrase": "bonne nuit",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple18"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "bonne nuit de Camille : son chevet"
+    },
+    {
+      "phrase": "allume ma lumière",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.chambre_camille"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "ma lumière de Camille : son plafond"
+    },
+    {
+      "phrase": "éteins mon plafond",
+      "personne": "Sacha",
+      "cibles": [
+        [
+          "light.exemple14"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "mon plafond de Sacha"
+    },
+    {
+      "phrase": "allume mon chevet",
+      "personne": "Camille",
+      "cibles": [
+        [
+          "light.exemple18"
+        ]
+      ],
+      "securite_refus": false,
+      "note": "mon chevet de Camille"
+    },
+    {
+      "phrase": "allume mon plafond",
+      "personne": "inconnu",
+      "refus": true,
+      "note": "mon plafond, personne inconnue"
+    }
+  ]
+}

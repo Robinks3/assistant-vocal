@@ -1,0 +1,228 @@
+{
+  "version": "0.1.0",
+  "remarque": "Meubles en pavés droits, en mètres dans le repère de pieces.json : x0, y0, x1, y1 au sol, z0 et z1 en hauteur.",
+  "hauteur_plafond": 2.5,
+  "meubles": [
+    {
+      "id": "meuble_tv",
+      "nom": "Meuble télé",
+      "piece": "sejour_cuisine",
+      "boite": [
+        1.0,
+        0.0,
+        2.6,
+        0.45,
+        0.0,
+        0.5
+      ],
+      "couleur": "#EDE8DF"
+    },
+    {
+      "id": "television",
+      "nom": "Télévision",
+      "piece": "sejour_cuisine",
+      "boite": [
+        1.2,
+        0.1,
+        2.4,
+        0.2,
+        0.5,
+        1.2
+      ],
+      "couleur": "#222222"
+    },
+    {
+      "id": "barre_son",
+      "nom": "Barre de son",
+      "piece": "sejour_cuisine",
+      "boite": [
+        1.4,
+        0.25,
+        2.2,
+        0.4,
+        0.5,
+        0.6
+      ],
+      "couleur": "#333333"
+    },
+    {
+      "id": "canape",
+      "nom": "Canapé",
+      "piece": "sejour_cuisine",
+      "boite": [
+        1.0,
+        2.0,
+        3.0,
+        2.9,
+        0.0,
+        0.8
+      ],
+      "couleur": "#8A9BA8"
+    },
+    {
+      "id": "plan_travail",
+      "nom": "Plan de travail",
+      "piece": "sejour_cuisine",
+      "boite": [
+        4.0,
+        0.0,
+        6.0,
+        0.6,
+        0.0,
+        0.9
+      ],
+      "couleur": "#D9D3C7"
+    },
+    {
+      "id": "enceinte_cuisine",
+      "nom": "Enceinte de la cuisine",
+      "piece": "sejour_cuisine",
+      "boite": [
+        5.6,
+        0.1,
+        5.8,
+        0.3,
+        0.9,
+        1.1
+      ],
+      "couleur": "#333333"
+    },
+    {
+      "id": "table_manger",
+      "nom": "Table à manger",
+      "piece": "sejour_cuisine",
+      "boite": [
+        4.2,
+        2.0,
+        5.4,
+        2.9,
+        0.0,
+        0.75
+      ],
+      "couleur": "#B08B62"
+    },
+    {
+      "id": "lit_sacha",
+      "nom": "Lit de Sacha",
+      "piece": "chambre_sacha",
+      "boite": [
+        0.2,
+        6.2,
+        1.8,
+        8.0,
+        0.0,
+        0.5
+      ],
+      "couleur": "#C9D3E0"
+    },
+    {
+      "id": "lit_camille",
+      "nom": "Lit de Camille",
+      "piece": "chambre_camille",
+      "boite": [
+        4.2,
+        6.2,
+        5.8,
+        8.0,
+        0.0,
+        0.5
+      ],
+      "couleur": "#C9D3E0"
+    }
+  ],
+  "ouvertures": [
+    {
+      "id": "porte_entree",
+      "segment": [
+        [
+          5.0,
+          4.0
+        ],
+        [
+          5.9,
+          4.0
+        ]
+      ],
+      "porte": true
+    },
+    {
+      "id": "sejour_couloir",
+      "segment": [
+        [
+          0.5,
+          4.0
+        ],
+        [
+          4.5,
+          4.0
+        ]
+      ],
+      "porte": false
+    },
+    {
+      "id": "porte_sacha",
+      "segment": [
+        [
+          1.0,
+          5.0
+        ],
+        [
+          1.9,
+          5.0
+        ]
+      ],
+      "porte": true
+    },
+    {
+      "id": "porte_camille",
+      "segment": [
+        [
+          4.0,
+          5.0
+        ],
+        [
+          4.9,
+          5.0
+        ]
+      ],
+      "porte": true
+    }
+  ],
+  "medias": [
+    {
+      "entite": "media_player.tele_salon",
+      "nom": "Télévision",
+      "type": "tele",
+      "meuble": "television",
+      "alias": []
+    },
+    {
+      "entite": "media_player.barre_son_salon",
+      "nom": "Barre de son du salon",
+      "type": "enceinte",
+      "meuble": "barre_son",
+      "alias": [
+        "media_player.barre_son_salon_enceinte"
+      ],
+      "position": "vue",
+      "ondes": 90
+    },
+    {
+      "entite": "media_player.enceinte_cuisine",
+      "nom": "Enceinte de la cuisine",
+      "type": "enceinte",
+      "meuble": "enceinte_cuisine",
+      "alias": [
+        "media_player.enceinte_cuisine_enceinte"
+      ],
+      "position": "vue",
+      "ondes": 270
+    }
+  ],
+  "groupes_medias": {
+    "media_player.enceintes_maison": [
+      "media_player.barre_son_salon",
+      "media_player.enceinte_cuisine"
+    ]
+  }
+}

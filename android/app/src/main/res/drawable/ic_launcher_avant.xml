@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Premier plan : un J tracé comme une onde vocale, prolongé à droite par deux ondes
+  sonores. Halo bleu derrière, ombre portée douce en dessous, dégradé clair vers
+  l'accent pour le volume. Tout tient dans la zone sûre de 66 dp (rayon 33 autour de 54,54).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Halo -->
+    <path android:pathData="M22,53a32,32 0 1,0 64,0a32,32 0 1,0 -64,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="53"
+                android:gradientRadius="32"
+                android:startColor="#664C8DFF"
+                android:endColor="#004C8DFF" />
+        </aapt:attr>
+    </path>
+
+    <!-- Ombre portée, en deux passes pour l'adoucir -->
+    <group
+        android:translateX="1.2"
+        android:translateY="2.4">
+        <path
+            android:pathData="M60,30L60,60A13,13 0 0 1 34.78,64.45"
+            android:strokeWidth="12"
+            android:strokeColor="#26000000"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M60,30L60,60A13,13 0 0 1 34.78,64.45"
+            android:strokeWidth="10"
+            android:strokeColor="#33000000"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M68.78,36.22A11,11 0 0 1 68.78,51.78"
+            android:strokeWidth="6"
+            android:strokeColor="#26000000"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M73.73,31.27A18,18 0 0 1 73.73,56.73"
+            android:strokeWidth="6"
+            android:strokeColor="#1A000000"
+            android:strokeLineCap="round" />
+    </group>
+
+    <!-- Ondes sonores -->
+    <path
+        android:pathData="M73.73,31.27A18,18 0 0 1 73.73,56.73"
+        android:strokeWidth="4"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="70"
+                android:startY="30"
+                android:endX="78"
+                android:endY="58"
+                android:startColor="#997FB2FF"
+                android:endColor="#664C8DFF" />
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M68.78,36.22A11,11 0 0 1 68.78,51.78"
+        android:strokeWidth="4"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="68"
+                android:startY="36"
+                android:endX="73"
+                android:endY="52"
+                android:startColor="#EE9CC3FF"
+                android:endColor="#DD4C8DFF" />
+        </aapt:attr>
+    </path>
+
+    <!-- Le J -->
+    <path
+        android:pathData="M60,30L60,60A13,13 0 0 1 34.78,64.45"
+        android:strokeWidth="9"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="40"
+                android:startY="28"
+                android:endX="60"
+                android:endY="76"
+                android:startColor="#FF7FB2FF"
+                android:endColor="#FF3F7AE8" />
+        </aapt:attr>
+    </path>
+
+    <!-- Reflet discret sur le fût du J -->
+    <path
+        android:pathData="M58.3,32.5L58.3,52"
+        android:strokeWidth="1.6"
+        android:strokeColor="#55E6F0FF"
+        android:strokeLineCap="round" />
+</vector>

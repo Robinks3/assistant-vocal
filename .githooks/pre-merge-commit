@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Avant un commit de fusion automatique : même contrôle que pre-commit (voir garde-fou.sh).
+exec "$(dirname "$0")/garde-fou.sh" --index

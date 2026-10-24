@@ -1,0 +1,825 @@
+{
+  "_lisez_moi": "Configuration d'exemple de la maison, avec des valeurs fictives. Copier tout le dossier config-exemple/ en config/ (non suivi par git, ou dépôt privé de configuration cloné là) et y mettre les vraies valeurs. Lu par poc/maison.py, par les tests (ASSISTANT_VOCAL_CONFIG) et par android/app/build.gradle.kts, qui le copie dans BuildConfig.MAISON_JSON. reseau : adresses de Home Assistant, du relais santé et du tableau de bord santé, alias SSH de Home Assistant, adresses wss par défaut compilées dans l'APK. securite : nom_occupant (nom affiché dans les refus), mots_proteges (tout identifiant qui les contient est intouchable), mots_pieces (mots d'un nom de pièce qui la rendent protégée), zones_protegees, entites_protegees, son_salon (lecteurs et scripts muets aux heures calmes), heures_calmes, plafond_volume (volume le plus fort permis, en pourcentage : 100 ou absent, aucun plafond), permis_personne (par prénom en minuscules sans accent : ce que la personne reconnue peut piloter chez elle). appareils : la télé (tele) et le préfixe de ses entités (tele_famille), la musique (lecteurs Music Assistant des enceintes par nom, « toutes » pour le groupe, entités enceintes natives derrière chacun, lecteur Spotify, noms d'appareil et de source Spotify Connect, scripts de musique). llm : lieu (« Tu es l'assistant vocal de ... ») et consignes ajoutées telles quelles à celles du LLM. ha : alias d'appareils et entités exposées à Assist (ha-app/configurer-ha.py). Pour l'appli : appareils.sortie_son (enceintes de l'écran Musique, dans l'ordre, avec leur nom court), appareils.noms_courts (noms du panneau de la maison en grand), llm.utilisateur, llm.consignes_appareil (lignes « - ... » de la consigne du LLM de l'appareil) et llm.exemples_appareil ([phrase, réponse JSON]). appareils.lumieres_banc : les deux lumières des outils de banc (salon, lampe de la télé). reglages.tele.sources : tuiles du volet de la télé dans la maison en grand, dans l'ordre, chacune avec son nom affiché (nom) et le nom exact de la source dans la liste de la télé (source, par exemple HDMI1 ou Netflix). La tuile Toutes, qui déplie toutes les sources de la télé, est ajoutée par l'appli. Le volume passe par media_player.volume_set et le plafond de securite.plafond_volume. Sans section, le volet n'a que le volume. reglages.vue3d.correspondances : entités de Home Assistant que la vue 3D appelle autrement (clé : entité de Home Assistant, valeur : entité de la maison 3D), par exemple le lecteur d'une télé qui porte un autre nom dans la maquette. Sans section, chaque entité garde son nom. assistant : nom affiché de l'assistant (nom) dans l'appli, l'appli Home Assistant et les messages, « Assistant » sans elle. proprietaire : prénom affiché (nom), clé de son jeton SATELLITE_JETON et de ses droits santé (cle), transcriptions erronées de son prénom corrigées avant le dictionnaire (variantes). appareils.ordre_pieces : ordre des pièces dans l'appli, noms en minuscules. mer : météo marine du plan d'eau (fuseau, points avec titre, stations, point par défaut, point du soleil et de l'eau, mots qui désignent chaque point, modèles Open-Meteo, vagues régionales, station à terre, libellés). vent : vent mesuré (cadre et dessin de la carte, balises balises, stations stations officielles, station à terre, stations préférées). Sans ces sections, ou avec \"actif\": false, les pages Mer et Vent n'existent pas. reveil : mot de réveil de la maison, modèle openWakeWord reveil/<mot>.onnx du dossier (mot, nom affiché, langue, licence affichée dans l'appli). Sans section, le mot vaut « assistant » (ou MOT_REVEIL de poc/.env, réglage de secours). Sans le fichier du modèle, le moteur se replie sur « Hey Jarvis », affiche ce nom et l'écrit au journal au démarrage. L'exemple ne fournit pas de modèle : le déposer dans reveil/ ou retirer la section avant de compiler l'APK. acces : ecoute (adresses où les ports 8765 et 8766 s'ouvrent, 0.0.0.0 par défaut), reseaux_autorises (CIDR dont une connexion est acceptée, par défaut la maison, le tailnet et la machine elle-même, \"*\" pour tout ouvrir), ancien_acces (false coupe le jeton dans l'adresse sur 8765, JARVIS_ANCIEN_ACCES l'emporte s'il est réglé), clair_restreint (true : une connexion qui n'arrive pas en wss est fermée avec le code 4003, sauf de la boucle locale 127.0.0.1 et ::1. Absent ou false : comportement inchangé, le port 8765 reste ouvert), administrateurs (identités en plus du propriétaire autorisées à gérer les appareils et les réglages, par exemple appareil:ab12cd34), roles (rôle de chaque jeton fixe de poc/.env, par clé en minuscules : habitant, partage ou invite. Un jeton absent de la liste est habitant, une valeur inconnue vaut invite. La clé du propriétaire et celles de administrateurs sont toujours administrateur, une autre valeur est ignorée avec un avertissement au démarrage. Un appareil appairé prend le rôle de son entrée d'appareils.json, invite s'il n'en a pas). habitants : clés en minuscules sans accent des personnes qui habitent la maison, en plus du propriétaire et des clés de securite.permis_personne. Une personne attribuée à un appareil (changer_personne) ou déclarée par une tablette partagée doit en faire partie. administration : page d'administration de l'appli Home Assistant (Ingress). utilisateurs_ha : identifiants d'utilisateurs Home Assistant autorisés à l'ouvrir, en plus d'être administrateurs de HA (liste vide ou absente : personne n'entre, et la page refusée affiche l'identifiant à ajouter). url_client : adresse du client web, encodée dans le QR code d'invitation sous la forme <url_client>#code=<6 chiffres> (absente : la page affiche seulement le code). acces.invitation_essais_par_ip et invitation_fenetre_s : nombre d'essais de code d'invitation permis par adresse source dans la fenêtre (secondes), puis blocage de cette adresse seule. acces.invitation_essais_global : plafond d'essais toutes adresses confondues, au-delà duquel le code est détruit. routines : réglages des routines à la voix, tous facultatifs (voir l'entrée _lisez_moi de la section). journal : conserver_jours (durée de garde de l'historique des échanges, seul fichier qui garde les phrases), taille_max_ko et fichiers_max (rotation du journal des durées, qui ne contient aucune phrase), phrases_dans_la_console (diagnostic : remet les phrases dans la sortie du serveur, JARVIS_DIAGNOSTIC l'emporte). correspondance_pieces : mesures par pièce (température, humidité, CO2, particules fines), remplie à la main. Clé : identifiant d'une pièce de carte/pieces.json. Valeur : la ou les zones de Home Assistant (identifiants de zone) dont les capteurs donnent les mesures de cette pièce. Une pièce absente de la liste n'a pas de mesure. Les pièces dont une zone figure dans securite.zones_protegees n'affichent jamais de valeur. L'exemple décrit une maison fictive et la rade de Marseille, avec des valeurs fictives, pour faire tourner les tests.",
+  "reseau": {
+    "ha_url": "http://homeassistant.local:8123",
+    "sante_url": "http://sante.exemple.ts.net:8096",
+    "sante_donnees_url": "https://sante.exemple.ts.net/dashboard/HealthStats/dashboard/data-auto.js",
+    "ssh_ha": "ha",
+    "android_serveur_pc": "wss://192.168.0.10:8766",
+    "android_serveur_ha": "wss://192.168.0.20:8766",
+    "android_hotes_pc": "pc-maison.local",
+    "android_hotes_ha": "homeassistant.local"
+  },
+  "acces": {
+    "ecoute": [
+      "0.0.0.0"
+    ],
+    "reseaux_autorises": [
+      "127.0.0.0/8",
+      "::1/128",
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+      "100.64.0.0/10"
+    ],
+    "ancien_acces": true,
+    "clair_restreint": false,
+    "invitation_essais_par_ip": 3,
+    "invitation_fenetre_s": 120,
+    "invitation_essais_global": 30,
+    "administrateurs": [],
+    "roles": {
+      "camille": "habitant",
+      "tablette": "partage"
+    }
+  },
+  "habitants": [
+    "sacha",
+    "camille"
+  ],
+  "routines": {
+    "_lisez_moi": "Routines à la voix (0.42.0), facultatif : sans cette section, les valeurs ci-dessous sont celles par défaut. active (false coupe toute la fonction), delai_confirmation_s (délai du « oui » après la reformulation), absorption_s (durée pendant laquelle un « oui » isolé qui suit un brouillon reste absorbé), nombre_max (routines au total), etapes_max (étapes par routine), variantes_max (variantes de phrase retenues), lettres_min (longueur minimale d'une phrase de déclenchement), pause_max_s (une pause), duree_max_s (somme des pauses), intervalle_min_s (délai entre deux lancements de la même routine), question_delai_s (délai d'une étape question), phrases_interdites (phrases en plus de la liste en dur, qui ne peuvent pas lancer une routine). Les routines elles-mêmes sont dans routines.json du dossier de données du serveur, jamais ici. Le fichier routines-exemple.json de config-exemple/ décrit trois routines fictives (Arrivée, Soirée, Film) au même format, pour les tests et les captures de l'écran Routines du client web : le serveur ne le lit jamais.",
+    "active": true,
+    "delai_confirmation_s": 30,
+    "absorption_s": 120,
+    "nombre_max": 30,
+    "etapes_max": 8,
+    "variantes_max": 5,
+    "lettres_min": 6,
+    "pause_max_s": 600,
+    "duree_max_s": 1800,
+    "intervalle_min_s": 10,
+    "question_delai_s": 10,
+    "phrases_interdites": [
+      "bonne nuit sacha"
+    ]
+  },
+  "journal": {
+    "conserver_jours": 30,
+    "taille_max_ko": 512,
+    "fichiers_max": 5,
+    "phrases_dans_la_console": false
+  },
+  "administration": {
+    "utilisateurs_ha": [
+      "0123456789abcdef0123456789abcdef"
+    ]
+  },
+  "client_web": {
+    "_lisez_moi": "hote : nom de Tailscale Serve du client web (aussi le rpId de WebAuthn). session_jours : un navigateur associé qui reste ce nombre de jours sans se connecter perd sa session. invite_jours : durée de vie de l'accès d'un navigateur invité. quotas : demandes permises à un navigateur par fenêtre de fenetre_s secondes, séparément pour le texte et pour la voix et pour chaque rôle (0 : ce rôle ne peut pas demander par ce moyen, l'invité reste à des valeurs faibles). maison : écran Maison. reglage_attente_s : secondes avant de dire qu'un réglage n'a pas été appliqué par la lampe (5 par défaut, 60 au plus). pieces : liste ordonnée de {id, nom, lumieres, tele, protegee}, l'id (minuscules, chiffres, tiret bas) est la clé de correspondance_pieces pour les mesures d'air, lumieres et tele sont les seules entités que le navigateur peut voir ou régler, protegee à true réduit la pièce à une ligne sans entité ni mesure (la règle de l'occupant de securite.py la protège aussi quand elle est active). roles : pour chaque rôle, pieces (\"toutes\" ou liste d'identifiants), mesures (mesures d'air et de température) et tele (ligne de la télévision). Sans cette clé, administrateur et habitant voient tout et l'invité rien. meteo : écran Météo et mer. roles : pour chaque rôle, true s'il voit l'écran (sans cette clé, administrateur et habitant le voient, l'invité non). Les points, balises et textes viennent de la section mer et de la section vent.",
+    "hote": "assistant.exemple.ts.net",
+    "session_jours": 30,
+    "invite_jours": 7,
+    "quotas": {
+      "fenetre_s": 600,
+      "texte": {
+        "administrateur": 60,
+        "habitant": 30,
+        "invite": 5
+      },
+      "voix": {
+        "administrateur": 30,
+        "habitant": 15,
+        "invite": 3
+      }
+    },
+    "maison": {
+      "reglage_attente_s": 5,
+      "pieces": [
+        {
+          "id": "sejour_cuisine",
+          "nom": "Séjour et cuisine",
+          "lumieres": [
+            "light.salon_plafond",
+            "light.salon_lampe_tele",
+            "light.cuisine_suspensions"
+          ],
+          "tele": "media_player.tele_salon"
+        },
+        {
+          "id": "couloir",
+          "nom": "Couloir",
+          "lumieres": [
+            "light.couloir_plafond"
+          ]
+        },
+        {
+          "id": "chambre_sacha",
+          "nom": "Chambre de Sacha",
+          "lumieres": [
+            "light.chambre_sacha_plafond",
+            "light.chambre_sacha_chevets"
+          ]
+        },
+        {
+          "id": "chambre_camille",
+          "nom": "Chambre de Camille",
+          "lumieres": [
+            "light.chambre_camille_plafonds",
+            "light.chambre_camille_chevet"
+          ],
+          "protegee": true
+        }
+      ],
+      "roles": {
+        "administrateur": {
+          "pieces": "toutes",
+          "mesures": true,
+          "tele": true
+        },
+        "habitant": {
+          "pieces": "toutes",
+          "mesures": true,
+          "tele": true
+        },
+        "invite": {
+          "pieces": [
+            "sejour_cuisine"
+          ],
+          "mesures": false,
+          "tele": false
+        }
+      }
+    },
+    "meteo": {
+      "roles": {
+        "administrateur": true,
+        "habitant": true,
+        "invite": false
+      }
+    }
+  },
+  "fuseau": "Europe/Paris",
+  "correspondance_pieces": {
+    "sejour_cuisine": [
+      "coin_repas",
+      "salon",
+      "cuisine"
+    ],
+    "couloir": [
+      "couloir"
+    ],
+    "chambre_sacha": [
+      "chambre_1"
+    ],
+    "chambre_camille": [
+      "chambre_camille"
+    ]
+  },
+  "securite": {
+    "nom_occupant": "Camille",
+    "mots_proteges": [
+      "camille",
+      "cam"
+    ],
+    "mots_pieces": [
+      "camille"
+    ],
+    "zones_protegees": [
+      "chambre_camille",
+      "salle_de_bain_camille"
+    ],
+    "entites_protegees": [
+      "automation.alarme_matin",
+      "sensor.telecommande_chevet_batterie",
+      "sensor.telecommande_chevet_tension_de_la_batterie",
+      "sensor.telecommande_chevet_type_de_batterie",
+      "update.telecommande_chevet_micrologiciel",
+      "event.telecommande_chevet_bouton_1",
+      "event.telecommande_chevet_bouton_2",
+      "script.extinction_generale"
+    ],
+    "son_salon": [
+      "media_player.tele",
+      "media_player.tele_salon",
+      "media_player.tele_3",
+      "media_player.barre_son_salon",
+      "media_player.barre_son_salon_enceinte",
+      "media_player.enceinte_cuisine",
+      "media_player.enceinte_cuisine_enceinte",
+      "media_player.enceintes_maison",
+      "media_player.serveur_audio",
+      "media_player.spotify_sacha",
+      "media_player.groupe_maison",
+      "media_player.groupe_maison_2",
+      "script.lancer_musique",
+      "script.deplacer_musique",
+      "script.volume_enceinte_reglage"
+    ],
+    "heures_calmes": {
+      "debut": 0,
+      "fin": 9
+    },
+    "plafond_volume": 100,
+    "assist_repli": false,
+    "permis_personne": {
+      "camille": {
+        "entites": [
+          "light.chambre_camille_plafonds",
+          "light.chambre_camille_chevet",
+          "light.chambre_camille_plafond_1",
+          "light.chambre_camille_plafond_2"
+        ],
+        "services": [
+          "light.toggle",
+          "light.turn_off",
+          "light.turn_on"
+        ]
+      }
+    }
+  },
+  "appareils": {
+    "tele": "media_player.tele_salon",
+    "tele_famille": "media_player.tele",
+    "musique": {
+      "enceintes": {
+        "toutes": "media_player.enceintes_maison",
+        "salon": "media_player.barre_son_salon",
+        "cuisine": "media_player.enceinte_cuisine"
+      },
+      "natifs": {
+        "media_player.enceintes_maison": [
+          "media_player.barre_son_salon_enceinte",
+          "media_player.enceinte_cuisine_enceinte"
+        ],
+        "media_player.barre_son_salon": [
+          "media_player.barre_son_salon_enceinte"
+        ],
+        "media_player.enceinte_cuisine": [
+          "media_player.enceinte_cuisine_enceinte"
+        ]
+      },
+      "spotify": "media_player.spotify_sacha",
+      "spotify_appareil": "Enceintes Maison | Music Assistant",
+      "source_connect": "Spotify Connect (Enceintes Maison)",
+      "scripts": [
+        "script.lancer_musique",
+        "script.deplacer_musique"
+      ],
+      "script_lancer": "script.lancer_musique",
+      "textes": {
+        "groupe": "les enceintes",
+        "outil": "les enceintes",
+        "exemple_titre": "La Route du Sel",
+        "exemple_artiste": "Lou Fictif",
+        "exemple_artiste_2": "Zéphyrine",
+        "exemple_artiste_3": "Orphée"
+      }
+    },
+    "sortie_son": [
+      {
+        "entite": "media_player.barre_son_salon",
+        "nom": "Salon"
+      },
+      {
+        "entite": "media_player.enceinte_cuisine",
+        "nom": "Cuisine"
+      },
+      {
+        "entite": "media_player.enceinte_bureau",
+        "nom": "Bureau"
+      }
+    ],
+    "noms_courts": {
+      "light.salon_plafond": "Suspension",
+      "light.salon_lampe_tele": "Lampe de la télé",
+      "light.cuisine_suspensions": "Cuisine",
+      "light.couloir_plafond": "Entrée",
+      "light.chambre_sacha_plafond": "Plafond",
+      "light.chambre_sacha_chevets": "Chevets",
+      "light.chambre_camille_plafonds": "Plafond",
+      "light.chambre_camille_chevet": "Chevet",
+      "media_player.tele_salon": "Télé",
+      "media_player.barre_son_salon": "Barre de son",
+      "media_player.enceinte_cuisine": "Enceinte de la cuisine"
+    },
+    "lumieres_banc": [
+      "light.salon_plafond",
+      "light.salon_lampe_tele"
+    ],
+    "ordre_pieces": [
+      "séjour",
+      "salle à manger",
+      "entrée",
+      "couloir",
+      "chambre sacha"
+    ],
+    "android": {
+      "application_id": "assistant.vocal.jarvis"
+    }
+  },
+  "reglages": {
+    "applis": [
+      "Netflix",
+      "YouTube",
+      "Prime Video",
+      "Disney+",
+      "CANAL+"
+    ],
+    "tele": {
+      "domaine": "tele_connectee",
+      "sources": [
+        {
+          "nom": "TNT",
+          "source": "TV"
+        },
+        {
+          "nom": "Netflix",
+          "source": "Netflix"
+        },
+        {
+          "nom": "YouTube",
+          "source": "YouTube"
+        },
+        {
+          "nom": "Prime Video",
+          "source": "Prime Video"
+        },
+        {
+          "nom": "Disney+",
+          "source": "Disney+"
+        },
+        {
+          "nom": "CANAL+",
+          "source": "CANAL+"
+        },
+        {
+          "nom": "HDMI 1",
+          "source": "HDMI1"
+        }
+      ]
+    },
+    "vue3d": {
+      "correspondances": {
+        "media_player.tele_famille_fictive": "media_player.tele_salon"
+      }
+    }
+  },
+  "llm": {
+    "lieu": "l'appartement de Sacha",
+    "consignes": [
+      "La télé du séjour est media_player.tele_salon (les deux autres « TV » sont des lecteurs de musique)."
+    ],
+    "utilisateur": "Sacha",
+    "consignes_appareil": [
+      "- La télé est media_player.tele_salon. La « lampe de la télé » ou « lampe TV » est light.salon_lampe_tele, c'est une lumière, pas la télé."
+    ],
+    "exemples_appareil": [
+      [
+        "allume la cuisine à moitié",
+        "{\"actions\": [{\"service\": \"light.turn_on\", \"entity_id\": \"light.cuisine_suspensions\", \"donnees\": {\"brightness_pct\": 50}}], \"reponse\": \"La cuisine est allumée à moitié.\"}"
+      ],
+      [
+        "baisse le son de la télé",
+        "{\"actions\": [{\"service\": \"media_player.volume_down\", \"entity_id\": \"media_player.tele_salon\", \"donnees\": {}}], \"reponse\": \"Je baisse le son de la télé.\"}"
+      ],
+      [
+        "quelle heure est-il",
+        "{\"actions\": [], \"reponse\": \"Je ne sais que piloter la maison.\"}"
+      ]
+    ]
+  },
+  "ha": {
+    "alias": {
+      "light.salon_lampe_tele": [
+        "lampe de la télé",
+        "lampe TV"
+      ],
+      "media_player.tele_salon": [
+        "télé",
+        "télévision",
+        "TV"
+      ],
+      "media_player.barre_son_salon": [
+        "enceinte du salon",
+        "Barre de son du salon"
+      ],
+      "media_player.enceinte_cuisine_enceinte": [
+        "enceinte de la cuisine"
+      ],
+      "vacuum.robot": [
+        "aspirateur"
+      ],
+      "light.chambre_sacha_chevets": [
+        "chevets",
+        "lampes de chevet"
+      ],
+      "light.chambre_sacha_plafond": [
+        "plafond de ma chambre"
+      ],
+      "cover.chambre_sacha": [
+        "volet de ma chambre"
+      ],
+      "select.tele_salon_sortie_audio": [
+        "sortie audio de la télé"
+      ],
+      "remote.tele_salon_telecommande": [
+        "télécommande de la télé"
+      ],
+      "switch.chambre_camille_prise": [
+        "prise de la chambre de Camille"
+      ],
+      "switch.barre_son_salon_son_de_nuit": [
+        "son de nuit de la barre de son"
+      ]
+    },
+    "exposer": [
+      "media_player.barre_son_salon"
+    ]
+  },
+  "assistant": {
+    "nom": "Iris"
+  },
+  "reveil": {
+    "mot": "assistant",
+    "nom": "Assistant",
+    "langue": "fr",
+    "licence": "Licence fictive d'exemple, à remplacer par celle du modèle"
+  },
+  "proprietaire": {
+    "nom": "Sacha",
+    "cle": "sacha",
+    "variantes": [
+      "sasha",
+      "sachat"
+    ]
+  },
+  "mer": {
+    "actif": true,
+    "nom": "rade de Marseille",
+    "fuseau": "Europe/Paris",
+    "points": [
+      {
+        "id": "prado",
+        "nom": "Prado",
+        "lat": "43.25",
+        "lon": "5.36",
+        "soleil": true,
+        "titre": "Mer au Prado",
+        "stations": [
+          "prado",
+          "callelongue",
+          "port",
+          "frioul"
+        ],
+        "defaut": true
+      },
+      {
+        "id": "pharo",
+        "nom": "Pharo",
+        "lat": "43.28",
+        "lon": "5.33",
+        "titre": "Mer devant le Pharo",
+        "stations": [
+          "frioul",
+          "endoume",
+          "callelongue"
+        ]
+      },
+      {
+        "id": "rade",
+        "nom": "Milieu de rade",
+        "lat": "43.27",
+        "lon": "5.31",
+        "eau": true,
+        "titre": "Mer au milieu de la rade",
+        "stations": [
+          "frioul",
+          "callelongue",
+          "prado"
+        ],
+        "sans_station": true
+      }
+    ],
+    "modele_principal": {
+      "actif": true,
+      "modele": "meteofrance_arpege_europe",
+      "nom": "ARPEGE"
+    },
+    "modele_second": {
+      "actif": true,
+      "modele": "meteofrance_arome_france_hd",
+      "nom": "AROME"
+    },
+    "mfwam": {
+      "actif": true
+    },
+    "vagues_regional": {
+      "source": "vagues régionales d'exemple",
+      "actif": true,
+      "url": "https://api.vagues.exemple.invalid/produits/vagues/timeseries/{lieu}",
+      "lieux": [
+        {
+          "point": "prado",
+          "lieu": "mr01",
+          "nom": "Vagues du Prado",
+          "panne": "Vagues du Prado indisponibles"
+        },
+        {
+          "point": "pharo",
+          "lieu": "mr02",
+          "nom": "Vagues du Pharo",
+          "panne": "Vagues du Pharo indisponibles"
+        }
+      ]
+    },
+    "station": {
+      "actif": true,
+      "url": "https://station.exemple.invalid/api/public/station/station-port/snapshot",
+      "nom": "Vieux-Port",
+      "point": "prado"
+    },
+    "alias": [
+      [
+        "pharo",
+        "pharo"
+      ],
+      [
+        "frioul",
+        "pharo"
+      ],
+      [
+        "endoume",
+        "pharo"
+      ],
+      [
+        "callelongue",
+        "prado"
+      ],
+      [
+        "rade",
+        "rade"
+      ],
+      [
+        "prado",
+        "prado"
+      ]
+    ],
+    "mots_lieu": [
+      "marseille"
+    ],
+    "titre": "Mer à Marseille",
+    "libelle_terre": "Météo à Marseille",
+    "attribution": "Vent ARPEGE et AROME par Open-Meteo, vagues Copernicus MFWAM et vagues locales d'exemple, station du port."
+  },
+  "vent": {
+    "actif": true,
+    "cadre": [
+      43.2,
+      43.32,
+      5.22,
+      5.47
+    ],
+    "balises": {
+      "actif": true,
+      "nom": "Balises de la rade",
+      "url": "https://balises.exemple.invalid/api/trpc/observations.lire?batch=1&input={requete}",
+      "requete": {
+        "type": "exemple",
+        "observationWindow": "6hr",
+        "latitude": 43.27,
+        "longitude": 5.33
+      },
+      "user_agent": "assistant-vocal/1.0 (exemple, usage personnel)",
+      "panne": "Balises de régate indisponibles",
+      "fiches": {
+        "101": {
+          "id": "frioul",
+          "nom": "Frioul",
+          "genre": "balise de régate",
+          "type": "mer",
+          "lat": 43.28,
+          "lon": 5.28,
+          "point": "pharo"
+        },
+        "102": {
+          "id": "endoume",
+          "nom": "Endoume",
+          "genre": "balise abritée",
+          "type": "abritee",
+          "lat": 43.28,
+          "lon": 5.34,
+          "point": "pharo"
+        },
+        "103": {
+          "id": "prado",
+          "nom": "Prado",
+          "genre": "balise de régate",
+          "type": "mer",
+          "lat": 43.25,
+          "lon": 5.36,
+          "point": "prado"
+        },
+        "104": {
+          "id": "callelongue",
+          "nom": "Callelongue",
+          "genre": "balise de régate",
+          "type": "mer",
+          "lat": 43.21,
+          "lon": 5.34,
+          "point": "prado"
+        },
+        "105": {
+          "id": "lfml",
+          "nom": "Marignane",
+          "genre": "aéroport, hors carte",
+          "type": "terre",
+          "lat": 43.44,
+          "lon": 5.22,
+          "point": null
+        }
+      }
+    },
+    "stations_officielles": {
+      "actif": true,
+      "nom": "Stations officielles",
+      "panne": "Stations officielles indisponibles",
+      "url": "https://stations.exemple.invalid/api/observations?q={q}",
+      "nommees": [
+        {
+          "nom_brut": "callelongue meteo",
+          "id": "callelongue",
+          "nom": "Callelongue",
+          "genre": "station officielle",
+          "type": "mer",
+          "point": "prado"
+        }
+      ],
+      "reseau_amateur": "amateurs",
+      "quartiers": {
+        "stn080": "Longchamp",
+        "stn292": "Longchamp",
+        "stn304": "Castellane",
+        "stn307": "Castellane"
+      }
+    },
+    "station": {
+      "actif": true,
+      "url": "https://station.exemple.invalid/api/public/station/station-port/snapshot?window=day",
+      "id": "port",
+      "nom": "Vieux-Port",
+      "genre": "station à terre",
+      "type": "terre",
+      "lat": 43.3,
+      "lon": 5.37,
+      "point": "prado"
+    },
+    "points_proches": {
+      "prado": [
+        43.25,
+        5.36
+      ],
+      "pharo": [
+        43.28,
+        5.33
+      ]
+    },
+    "titre": "Vent mesuré dans la rade",
+    "preferees": [
+      "prado",
+      "frioul"
+    ],
+    "note_regate": "Prado et Endoume n'émettent que les jours de régate.",
+    "carte": {
+      "largeur": 640,
+      "hauteur": 423,
+      "cote": "carte/cote.txt",
+      "terre": "carte/terre.txt",
+      "lieux": [
+        {
+          "nom": "MARSEILLE",
+          "lat": 43.31,
+          "lon": 5.43
+        },
+        {
+          "nom": "CASTELLANE",
+          "lat": 43.285,
+          "lon": 5.43
+        },
+        {
+          "nom": "PRADO",
+          "lat": 43.255,
+          "lon": 5.42
+        },
+        {
+          "nom": "POINTE ROUGE",
+          "lat": 43.23,
+          "lon": 5.4
+        }
+      ],
+      "decalages": {
+        "frioul": [
+          0,
+          70
+        ],
+        "endoume": [
+          -70,
+          50
+        ],
+        "prado": [
+          -90,
+          40
+        ],
+        "callelongue": [
+          -80,
+          -30
+        ],
+        "port": [
+          -90,
+          10
+        ],
+        "stn304": [
+          -20,
+          60
+        ],
+        "stn307": [
+          40,
+          60
+        ],
+        "stn292": [
+          30,
+          -46
+        ],
+        "stn080": [
+          -30,
+          -46
+        ]
+      },
+      "attribution": "Balises de régate et stations fictives, station du port, fond de carte dessiné à la main pour l'exemple."
+    }
+  },
+  "sante": {
+    "sports": {
+      "familles": {
+        "course": [
+          "course",
+          "Course à pied"
+        ],
+        "course_tapis": [
+          "course",
+          "Course à pied"
+        ],
+        "marche": [
+          "marche",
+          "Marche"
+        ],
+        "randonnee": [
+          "randonnee",
+          "Randonnée"
+        ],
+        "velo": [
+          "velo",
+          "Vélo"
+        ],
+        "velo_appartement": [
+          "velo",
+          "Vélo"
+        ],
+        "natation_piscine": [
+          "natation",
+          "Natation"
+        ],
+        "natation_eau_libre": [
+          "natation",
+          "Natation"
+        ],
+        "renforcement": [
+          "musculation",
+          "Musculation"
+        ],
+        "halterophilie": [
+          "musculation",
+          "Musculation"
+        ],
+        "ski": [
+          "ski",
+          "Ski"
+        ],
+        "snowboard": [
+          "snowboard",
+          "Snowboard"
+        ],
+        "natation": [
+          "natation",
+          "Natation"
+        ]
+      },
+      "libelles_tableau": {
+        "Course à pied": "course",
+        "Marche": "marche",
+        "Randonnée": "randonnee",
+        "Vélo": "velo",
+        "Natation": "natation_piscine",
+        "Musculation": "renforcement",
+        "Ski": "ski"
+      },
+      "hors_charge": [
+        "ski",
+        "snowboard"
+      ],
+      "titres": {
+        "course nature": "Course nature"
+      }
+    }
+  }
+}
