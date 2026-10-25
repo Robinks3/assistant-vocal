@@ -64,6 +64,10 @@ DOSSIER = dossier_config()
 CONFIG = charger(DOSSIER / "maison.json")
 RESEAU = CONFIG.get("reseau") or {}
 SECURITE = CONFIG.get("securite") or {}
+# Section acces (25/10/2026) : ecoute (adresses où les ports s'ouvrent), reseaux_autorises (réseaux dont une
+# connexion est acceptée), ancien_acces (jeton dans l'adresse sur le port en clair), administrateurs (identités
+# autorisées à gérer les appareils et les réglages, en plus du propriétaire). Voir acces.py.
+ACCES = CONFIG.get("acces") if isinstance(CONFIG.get("acces"), dict) else {}
 FUSEAU = CONFIG.get("fuseau") or "UTC"
 # Propriétaire de la maison (section proprietaire) : prénom affiché, clé de son jeton SATELLITE_JETON et de ses
 # droits santé, transcriptions erronées de son prénom à corriger.

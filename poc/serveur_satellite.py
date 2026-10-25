@@ -270,8 +270,12 @@ class Moteur:
         return {"etat": "cerveau", "actif": self.cerveau_actif, "pret": self.cerveau_pret,
                 "message": self.cerveau_message}
 
-    async def diffuser(self, message):
+    async def diffuser(self, message, administrateurs=False):
+        """Envoie [message] aux satellites connectés, ou aux seuls administrateurs (appairage : le code
+        ne doit arriver qu'à qui a le droit d'accepter la demande)."""
         for sat in list(self.satellites):
+            if administrateurs and not acces.est_administrateur(sat.identite):
+                continue
             try:
                 await sat.envoyer(**message)
             except Exception:
@@ -876,6 +880,12 @@ def passerelle_ha(moteur, msg):
         return {"etat": "ha", "id": ident, "code": 502, "corps": f"{e.__class__.__name__} : {e}"}
 
 
+# Messages réservés au propriétaire et aux administrateurs de acces.administrateurs : gestion des appareils et de
+# l'appairage, réglages communs à tous (transcription, mode, cerveau), lecture des phrases ratées et des retours.
+TYPES_ADMINISTRATEUR = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer",
+                                  "transcription", "mode", "cerveau", "manques"})
+
+
 class Satellite:
     """Machine à états d'un téléphone connecté."""
 
@@ -1158,6 +1168,10 @@ class Satellite:
         if not isinstance(msg, dict):  # [], "x", 3 : rien à faire, sans lever d'exception
             return
         genre = msg.get("type")
+        if isinstance(genre, str) and genre in TYPES_ADMINISTRATEUR and not acces.est_administrateur(self.identite):
+            print(f"[{self.nom}] message « {genre} » refusé : réservé à un administrateur")
+            await self.envoyer(etat="refuse", type=genre, message="réservé à un administrateur")
+            return
         if msg.get("type") == "lecture_finie":
             self.sourd_jusqua = time.time() + 0.3
             self.tampon = np.zeros(0, dtype=np.int16)
@@ -1212,7 +1226,7 @@ class Satellite:
                 for sat in list(self.moteur.satellites):  # coupé tout de suite, pas à sa prochaine connexion
                     if nom and getattr(sat, "personne", None) == nom and sat is not self:
                         asyncio.create_task(sat.ws.close(code=4001, reason="appareil révoqué"))
-            await self.envoyer(**app.vue())
+            await self.envoyer(**app.vue(avec_code=True))
         elif msg.get("type") == "llm":
             asyncio.create_task(self.repondre_llm(msg))
         elif msg.get("type") == "manque":
@@ -1281,7 +1295,9 @@ async def servir(args):
     moteur = Moteur(args.essai)
     moteur.appareils = acces.Appareils(A.DONNEES, jetons)
     print(f"  appareils appairés : {', '.join(a['nom'] for a in moteur.appareils.liste) or 'aucun'}")
-    ancien_acces = os.getenv("JARVIS_ANCIEN_ACCES", "1").strip() != "0"
+    ancien_acces = acces.ancien_acces_permis(os.getenv("JARVIS_ANCIEN_ACCES"))
+    reseaux = acces.reseaux_autorises()
+    adresses = acces.adresses_ecoute()
     contexte_tls = None
     if args.port_tls:
         cert, cle, moteur.empreinte_tls = acces.certificat(A.DONNEES)
@@ -1315,7 +1331,8 @@ async def servir(args):
         await ws.send(json.dumps({"etat": "appairage", "code": code, "id": ident,
                                   "message": "Accepte cette demande depuis un appareil déjà connecté"},
                                  ensure_ascii=False))
-        await moteur.diffuser({"etat": "appairage_demande", "id": ident, "nom": nom, "code": code})
+        # Le code n'est dit qu'aux administrateurs, qui seuls peuvent accepter la demande.
+        await moteur.diffuser({"etat": "appairage_demande", "id": ident, "nom": nom, "code": code}, administrateurs=True)
         try:
             jeton = await asyncio.wait_for(futur, 300)
         except asyncio.TimeoutError:
@@ -1331,6 +1348,10 @@ async def servir(args):
     async def accueil(ws, chiffre=False):
         requete = getattr(ws, "request", None)
         chemin = requete.path if requete is not None else ws.path
+        if not acces.adresse_autorisee(ws.remote_address[0], reseaux):
+            print(f"connexion refusée (réseau non autorisé) depuis {ws.remote_address[0]}")
+            await ws.close(code=4003, reason="réseau non autorisé")
+            return
         if chiffre and urlparse(chemin).path.rstrip("/") == "/appairage":
             await appairage(ws, chemin)
             return
@@ -1356,13 +1377,14 @@ async def servir(args):
 
     serveurs = []
     if args.port:
-        serveurs.append(await websockets.serve(accueil, "0.0.0.0", args.port, max_size=2 ** 22, ping_interval=20))
+        serveurs.append(await websockets.serve(accueil, adresses, args.port, max_size=2 ** 22, ping_interval=20))
     if contexte_tls:
-        serveurs.append(await websockets.serve(accueil_chiffre, "0.0.0.0", args.port_tls, ssl=contexte_tls,
+        serveurs.append(await websockets.serve(accueil_chiffre, adresses, args.port_tls, ssl=contexte_tls,
                                                max_size=2 ** 22, ping_interval=20))
     print(f"Serveur satellite v{A.VERSION}, port {args.port}"
           + (" (ancien accès ?jeton= permis)" if ancien_acces else " (jeton en en-tête seulement)")
           + (f" et port chiffré {args.port_tls}" if contexte_tls else "")
+          + f", écoute {', '.join(adresses)}, réseaux {', '.join(str(r) for r in reseaux)}"
           + f", seuil du mot de réveil {seuil['valeur']:.2f}, cerveau {moteur.cerveau_actif} "
           f"({'ESSAI, rien n est exécuté' if args.essai else 'actions réelles'}). Ctrl+C pour arrêter.")
     if args.calibrer:

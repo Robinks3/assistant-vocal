@@ -6,6 +6,9 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.33.1 (2026-10-25)
+- `Securite.kt` : `floor_id` et `label_id` refusés comme cibles, à l'identique de `securite.py` (cas communs).
+
 ## 0.33.0 (2026-10-25)
 - Écran Musique : une enceinte hors ligne (`unavailable` ou `unknown`) ne se coche plus. Sa ligne dit « hors
   ligne » en orange, la barre de volume est grisée et le pourcentage vaut « - ». Un toucher donne « La cuisine

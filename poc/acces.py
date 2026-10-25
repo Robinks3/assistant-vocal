@@ -17,7 +17,74 @@ assistant (auteurs inspiration), réécrites ici.
 import base64, hashlib, hmac, json, re, secrets, time
 from datetime import datetime, timedelta, timezone
 
+import ipaddress
+
+import maison
 import securite
+
+# Réseaux dont une connexion est acceptée par défaut : la maison (adresses privées), le tailnet (Tailscale),
+# la machine elle-même (Tailscale Serve et les routines locales arrivent de 127.0.0.1). Un réseau public est refusé.
+RESEAUX_PAR_DEFAUT = ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+                      "169.254.0.0/16", "100.64.0.0/10", "fe80::/10", "fd00::/8")
+
+
+def _liste_acces(cle):
+    v = maison.ACCES.get(cle)
+    return [str(x).strip() for x in v] if isinstance(v, list) else None
+
+
+def reseaux_autorises():
+    """Réseaux acceptés, d'après acces.reseaux_autorises (CIDR) ou RESEAUX_PAR_DEFAUT. Une entrée illisible
+    est ignorée. « * » ou 0.0.0.0/0 ouvre à tous (retour à l'ancien comportement)."""
+    voulus = _liste_acces("reseaux_autorises") or list(RESEAUX_PAR_DEFAUT)
+    reseaux = []
+    for v in voulus:
+        if v == "*":
+            v = "0.0.0.0/0"
+        try:
+            reseaux.append(ipaddress.ip_network(v, strict=False))
+        except ValueError:
+            print(f"acces : réseau illisible ignoré : {v}")
+    if any(r.prefixlen == 0 for r in reseaux):
+        reseaux.append(ipaddress.ip_network("::/0"))
+    return reseaux
+
+
+def adresse_autorisee(ip, reseaux):
+    """Vrai si l'adresse de l'homologue est dans un réseau autorisé. Une adresse illisible est refusée."""
+    try:
+        a = ipaddress.ip_address(str(ip).split("%")[0])
+    except ValueError:
+        return False
+    if getattr(a, "ipv4_mapped", None):
+        a = a.ipv4_mapped
+    return any(a in r for r in reseaux if r.version == a.version)
+
+
+def adresses_ecoute():
+    """Adresses d'écoute des ports (acces.ecoute), « 0.0.0.0 » seul par défaut : le filtre par réseau
+    (reseaux_autorises) ne dépend ainsi d'aucune adresse de carte réseau. Y mettre les adresses du PC
+    ferme réellement les ports sur les autres interfaces."""
+    return [a for a in (_liste_acces("ecoute") or []) if a] or ["0.0.0.0"]
+
+
+def ancien_acces_permis(env=None):
+    """Ancien accès ?jeton= sur le port en clair : JARVIS_ANCIEN_ACCES s'il est réglé, sinon acces.ancien_acces
+    de la configuration, sinon permis (inchangé tant que Alex n'a pas décidé de le couper)."""
+    if env is not None and str(env).strip() != "":
+        return str(env).strip() != "0"
+    v = maison.ACCES.get("ancien_acces")
+    return v if isinstance(v, bool) else True
+
+
+def administrateurs():
+    """Identités autorisées à gérer les appareils et les réglages : le propriétaire, plus acces.administrateurs
+    (identités telles que renvoyées par Appareils.identite, par exemple « appareil:ab12cd34 »)."""
+    return {maison.CLE_PROPRIETAIRE} | {a.lower() for a in (_liste_acces("administrateurs") or [])}
+
+
+def est_administrateur(identite):
+    return bool(identite) and str(identite).lower() in administrateurs()
 
 
 def empreinte(jeton):
@@ -96,9 +163,11 @@ class Appareils:
         self.enregistrer()
         return len(self.liste) < avant
 
-    def vue(self):
+    def vue(self, avec_code=False):
+        """Liste des appareils. Le code d'appairage n'y figure que sur demande expresse (avec_code), pour
+        l'écran d'un administrateur : sans lui, une vue ne permet pas de deviner le code d'une demande."""
         return {"etat": "appareils",
-                "attente": [{"id": i, "nom": d["nom"], "code": d["code"], "ip": d["ip"]}
+                "attente": [dict({"id": i, "nom": d["nom"], "ip": d["ip"]}, **({"code": d["code"]} if avec_code else {}))
                             for i, d in self.attente.items() if not d["futur"].done()],
                 "appareils": [{"id": a["id"], "nom": a["nom"], "cree": a["cree"], "dernier": a["dernier"]}
                               for a in self.liste],

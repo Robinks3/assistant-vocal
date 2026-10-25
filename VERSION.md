@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.31.0 (2026-10-25), failles critiques de la conception du client web
+- `securite.py` refuse `floor_id` et `label_id` comme cibles, comme `device_id` : un étage ou une étiquette visait un
+  groupe d'entités sans passer par la liste blanche par appareil. Cas communs ajoutés à `cas_securite.json`.
+- `recevoir_texte` contrôle un rôle : `appareils`, `appairer`, `refuser_appareil`, `revoquer`, `transcription`, `mode`,
+  `cerveau` et `manques` ne passent que pour un administrateur (le propriétaire, plus `acces.administrateurs`). Les
+  autres reçoivent `{"etat": "refuse"}`.
+- Le code d'appairage n'est plus diffusé à tous : `appairage_demande` ne part qu'aux administrateurs et la vue des
+  appareils ne donne le code qu'à eux. Le téléphone qui demande l'appairage voit toujours son code.
+- Nouvelle section `acces` de `maison.json` (clé fictive dans `config-exemple/`) : `ecoute` (adresses d'écoute des ports
+  8765 et 8766, `0.0.0.0` par défaut), `reseaux_autorises` (connexion refusée hors maison, tailnet et machine locale par
+  défaut, `"*"` pour tout ouvrir), `ancien_acces` (jeton dans l'adresse sur 8765, permis par défaut,
+  `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Ports 8765 et ancien accès non coupés : décision de Alex.
+
 ## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
 - Services ouverts au serveur (`SERVICES_PERMIS`) : `domaine_tele.launch_app`, `domaine_tele.send_text_input`,
   `domaine_tele.set_picture_setting`, `remote.send_command` et `select.select_option`. Ces trois domaines restent

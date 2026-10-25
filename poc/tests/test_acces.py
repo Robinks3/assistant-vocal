@@ -35,7 +35,7 @@ def test_appairage_puis_revocation(tmp_path):
         ident, code, nom = app.demande("tablette <script>", "192.0.2.1", futur)
         assert len(code) == 4 and code.isdigit()
         assert nom == "tablette script"
-        assert app.vue()["attente"][0]["code"] == code
+        assert app.vue(avec_code=True)["attente"][0]["code"] == code
         assert app.accepter(ident) == nom
         jeton = await futur
         assert app.identifier(jeton) == nom
