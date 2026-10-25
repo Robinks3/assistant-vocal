@@ -184,6 +184,9 @@ def verifier(service, donnees, maintenant=None, personne=None):
     zones = cibles(donnees.get("area_id"))
     if donnees.get("device_id"):
         return "viser un appareil par son identifiant est interdit (sécurité)"
+    # Un étage ou une étiquette désigne un groupe d'entités que la liste blanche par appareil ne voit pas (25/10/2026).
+    if "floor_id" in donnees or "label_id" in donnees:
+        return "viser un étage ou une étiquette est interdit (sécurité)"
     # Avec un plafond, monter le son par pas passerait au-dessus : seul un volume précis (volume_set plafonné) passe.
     if service == "media_player.volume_up" and plafond_actif():
         return refus_volume_up()
