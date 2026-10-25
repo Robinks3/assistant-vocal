@@ -420,7 +420,7 @@ class Maison(
         val modele = """
             {%- set ns = namespace(a=[], m=[]) -%}
             {%- for s in states.light -%}
-            {%- set ns.a = ns.a + [{'id': s.entity_id, 'etat': s.state, 'lum': s.attributes.brightness if s.state == 'on' else none, 'rgb': s.attributes.rgb_color if s.state == 'on' else none, 'kelvin': s.attributes.color_temp_kelvin if s.state == 'on' else none}] -%}
+            {%- set ns.a = ns.a + [{'id': s.entity_id, 'etat': s.state, 'lum': s.attributes.brightness if s.state == 'on' else none, 'rgb': s.attributes.rgb_color if s.state == 'on' else none, 'kelvin': s.attributes.color_temp_kelvin if s.state == 'on' else none, 'hs': s.attributes.hs_color if s.state == 'on' else none, 'mode': s.attributes.color_mode if s.state == 'on' else none}] -%}
             {%- endfor -%}
             {%- for s in states.media_player -%}
             {%- set ns.m = ns.m + [{'id': s.entity_id, 'nom': s.name, 'etat': s.state, 'zone': area_id(s.entity_id) or '', 'piece': area_name(s.entity_id) or '', 'volume': s.attributes.volume_level if s.attributes.volume_level is defined else none}] -%}
@@ -435,7 +435,7 @@ class Maison(
             val o = a.optJSONObject(i) ?: return@mapNotNull null
             val e = Appareils.lire(o) ?: return@mapNotNull null
             val f = fixes[e.id]
-            if (f == null) e else f.copy(etat = e.etat, luminosite = e.luminosite, rgb = e.rgb, kelvin = e.kelvin)
+            if (f == null) e else f.copy(etat = e.etat, luminosite = e.luminosite, rgb = e.rgb, kelvin = e.kelvin, teinte = e.teinte, mode = e.mode)
         }
         val m = j.optJSONArray("medias") ?: JSONArray()
         val medias = (0 until m.length()).mapNotNull { i -> m.optJSONObject(i)?.let(Appareils::lire) }
@@ -489,7 +489,7 @@ class Maison(
         val modele = """
             {%- set ns = namespace(a=[]) -%}
             {%- for s in states if s.domain in ['light', 'media_player', 'vacuum', 'fan', 'cover', 'climate'] -%}
-            {%- set ns.a = ns.a + [{'id': s.entity_id, 'nom': s.name, 'etat': s.state, 'zone': area_id(s.entity_id) or '', 'piece': area_name(s.entity_id) or '', 'lum': s.attributes.brightness if s.domain == 'light' and s.state == 'on' else none, 'modes': s.attributes.supported_color_modes or [], 'membres': (s.attributes.entity_id or []) if s.domain == 'light' else [], 'volume': s.attributes.volume_level if s.domain == 'media_player' and s.attributes.volume_level is defined else none, 'sources': (s.attributes.source_list or []) if s.domain == 'media_player' else [], 'source': s.attributes.source or '', 'classe': s.attributes.device_class or '', 'kmin': s.attributes.min_color_temp_kelvin or 0, 'kmax': s.attributes.max_color_temp_kelvin or 0, 'rgb': s.attributes.rgb_color if s.domain == 'light' and s.state == 'on' else none, 'kelvin': s.attributes.color_temp_kelvin if s.domain == 'light' and s.state == 'on' else none}] -%}
+            {%- set ns.a = ns.a + [{'id': s.entity_id, 'nom': s.name, 'etat': s.state, 'zone': area_id(s.entity_id) or '', 'piece': area_name(s.entity_id) or '', 'lum': s.attributes.brightness if s.domain == 'light' and s.state == 'on' else none, 'modes': s.attributes.supported_color_modes or [], 'membres': (s.attributes.entity_id or []) if s.domain == 'light' else [], 'volume': s.attributes.volume_level if s.domain == 'media_player' and s.attributes.volume_level is defined else none, 'sources': (s.attributes.source_list or []) if s.domain == 'media_player' else [], 'source': s.attributes.source or '', 'classe': s.attributes.device_class or '', 'kmin': s.attributes.min_color_temp_kelvin or 0, 'kmax': s.attributes.max_color_temp_kelvin or 0, 'rgb': s.attributes.rgb_color if s.domain == 'light' and s.state == 'on' else none, 'kelvin': s.attributes.color_temp_kelvin if s.domain == 'light' and s.state == 'on' else none, 'hs': s.attributes.hs_color if s.domain == 'light' and s.state == 'on' else none, 'mode': s.attributes.color_mode if s.domain == 'light' and s.state == 'on' else none}] -%}
             {%- endfor -%}
             {{ ns.a | tojson }}
         """.trimIndent()
@@ -911,6 +911,30 @@ class Maison(
             d["volume_level"]?.toDoubleOrNull()?.let { v ->
                 val lu = attr.optDouble("volume_level")
                 if (!lu.isNaN() && kotlin.math.abs(lu - v) > 0.06) return false
+            }
+            return reglageConforme(d, attr)
+        }
+
+        /**
+         * Température (100 K) ou teinte (8 degrés, bouclage autour de 0) demandée à une lampe. Le serveur 0.31.0 donne
+         * color_mode : une lampe restée dans l'autre mode n'a pas obéi. Sans color_mode (ancien serveur), seul ce qui est lu compte.
+         */
+        private fun reglageConforme(d: Map<String, String>, attr: JSONObject): Boolean {
+            val mode = attr.optString("color_mode")
+            d["color_temp_kelvin"]?.toDoubleOrNull()?.let { k ->
+                if (mode.isNotEmpty() && mode != "color_temp") return false
+                val lu = attr.optDouble("color_temp_kelvin")
+                if (!lu.isNaN() && !ReglageLampe.kelvinConforme(k.toInt(), lu.toInt())) return false
+            }
+            val demandee = d["hs_color"]?.let { v -> Regex("""[\d.]+""").find(v)?.value?.toFloatOrNull() }
+                ?: d["rgb_color"]?.let { v ->
+                    ReglageLampe.teinteDeRgb(Regex("""\d+""").findAll(v).map { it.value.toInt() }.toList())
+                }
+            if (demandee != null) {
+                if (mode == "color_temp") return false
+                val lue = attr.optJSONArray("hs_color")?.optDouble(0)?.toFloat()
+                    ?: attr.optJSONArray("rgb_color")?.let { a -> ReglageLampe.teinteDeRgb((0 until a.length()).map { a.optInt(it) }) }
+                if (lue != null && !ReglageLampe.teinteConforme(demandee, lue)) return false
             }
             return true
         }

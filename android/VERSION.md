@@ -6,6 +6,12 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.34.0 (2026-10-25), volet de réglage des lampes
+- Chaque ligne de lampe de l'écran Maison a un chevron qui ouvre deux onglets. Blanc : quatre pastilles (Bougie, Chaud, Neutre, Froid) et une piste de kelvins bornée à la plage réelle de la lampe. Couleur : huit pastilles et une piste de teinte.
+- Les pistes passent par `Cadence` (un ordre toutes les 300 ms, valeur finale au relâchement). L'état affiché sous le nom ajoute le blanc (« 2700 K chaud ») ou « couleur ».
+- Confirmation étendue : `Attentes.conforme` et `Maison.conforme` vérifient le mode, les kelvins à 100 K près et la teinte à 8 degrés près (bouclage 0/360).
+- Nouveau `ReglageLampe.kt` et tests `ReglageLampeTest`. Demande le serveur 0.32.0 pour la confirmation des couleurs (sans lui, rien n'est démenti).
+
 ## 0.33.1 (2026-10-25)
 - `Securite.kt` : `floor_id` et `label_id` refusés comme cibles, à l'identique de `securite.py` (cas communs).
 

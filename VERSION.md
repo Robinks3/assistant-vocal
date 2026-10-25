@@ -4,6 +4,10 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.32.0 (2026-10-25), état des lampes pour le volet de réglage
+- `etat()` renvoie pour une lampe `color_mode`, `color_temp_kelvin`, `hs_color`, `rgb_color`, `min_color_temp_kelvin` et
+  `max_color_temp_kelvin` (les valeurs absentes sont omises), pour que l'appli confirme un blanc ou une couleur demandés.
+
 ## Serveur 0.31.0 (2026-10-25), failles critiques de la conception du client web
 - `securite.py` refuse `floor_id` et `label_id` comme cibles, comme `device_id` : un étage ou une étiquette visait un
   groupe d'entités sans passer par la liste blanche par appareil. Cas communs ajoutés à `cas_securite.json`.

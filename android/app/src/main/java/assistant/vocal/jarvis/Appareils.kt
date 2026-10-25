@@ -38,6 +38,9 @@ object Appareils {
         /** Couleur d'une lumière allumée (rgb_color) et sa température en kelvins, pour le plan 3D (0.18.1). */
         val rgb: List<Int>? = null,
         val kelvin: Int? = null,
+        /** Teinte en degrés et mode de couleur lus (color_mode), pour juger un réglage fin (0.34.0). */
+        val teinte: Float? = null,
+        val mode: String = "",
     ) {
         val domaine: String get() = id.substringBefore('.')
         val allume: Boolean get() = etat !in ETATS_ETEINTS
@@ -179,6 +182,10 @@ object Appareils {
     fun couleur(a: Appareil, r: Int, g: Int, b: Int): Commande =
         Commande("light.turn_on", JSONObject().put("entity_id", a.id).put("rgb_color", JSONArray(listOf(r, g, b))))
 
+    /** Couleur nommée du volet : teinte en degrés à pleine saturation, la luminosité reste celle de la lampe. */
+    fun teinte(a: Appareil, degres: Int): Commande =
+        Commande("light.turn_on", JSONObject().put("entity_id", a.id).put("hs_color", JSONArray(listOf(degres, 100))))
+
     /** Appui long, lumière blanche : température en kelvins, bornée à ce que la lampe accepte. */
     fun blanc(a: Appareil, kelvin: Int): Commande {
         val k = if (a.kelvinMin > 0 && a.kelvinMax >= a.kelvinMin) kelvin.coerceIn(a.kelvinMin, a.kelvinMax) else kelvin
@@ -245,10 +252,12 @@ object Appareils {
         val nom = if (id in ENCEINTES) SortieSon.nomCourt(id) else o.optString("nom").ifBlank { Maison.nomBrut(id) }
         val rgb = o.optJSONArray("rgb")?.let { a -> (0 until a.length()).map { a.optInt(it) } }?.takeIf { it.size == 3 }
         val kelvin = if (o.isNull("kelvin") || !o.has("kelvin")) null else o.optInt("kelvin").takeIf { it > 0 }
+        val hs = o.optJSONArray("hs")?.takeIf { it.length() >= 1 && !it.isNull(0) }?.optDouble(0)?.toFloat()
+        val teinte = hs ?: rgb?.let { ReglageLampe.teinteDeRgb(it) }
         return Appareil(
             id, nom, o.optString("etat"), o.optString("zone"), o.optString("piece"),
             lum, volume, liste("modes"), liste("membres"), liste("sources"), o.optString("source"), o.optString("classe"),
-            o.optInt("kmin", 0), o.optInt("kmax", 0), rgb, kelvin,
+            o.optInt("kmin", 0), o.optInt("kmax", 0), rgb, kelvin, teinte, if (o.isNull("mode")) "" else o.optString("mode"),
         )
     }
 }

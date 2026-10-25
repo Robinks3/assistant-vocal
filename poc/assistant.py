@@ -48,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.31.0"
+VERSION = "0.32.0"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -299,6 +299,21 @@ class Transcripteur:
 
 
 # ---------------------------------------------------------------- Home Assistant
+ATTRIBUTS_LUS = ("friendly_name", "brightness", "temperature", "current_temperature",
+                 "volume_level", "media_title", "media_artist", "source", "unit_of_measurement")
+# Lampe (0.31.0) : mode de couleur et réglages, pour répondre à « elle est en quelle couleur ? ».
+ATTRIBUTS_LAMPE = ("color_mode", "color_temp_kelvin", "hs_color", "rgb_color",
+                   "min_color_temp_kelvin", "max_color_temp_kelvin")
+
+
+def attributs_lus(attrs):
+    """Attributs d'une entité que lire_etat montre au LLM. Les réglages de couleur d'une lampe éteinte
+    (null dans HA) sont omis."""
+    r = {k: v for k, v in attrs.items() if k in ATTRIBUTS_LUS}
+    r.update({k: v for k, v in attrs.items() if k in ATTRIBUTS_LAMPE and v is not None})
+    return r
+
+
 class HomeAssistant:
     def __init__(self, url, token):
         import httpx
@@ -392,10 +407,7 @@ class HomeAssistant:
             return {"erreur": f"entité inconnue : {entity_id}"}
         r.raise_for_status()
         e = r.json()
-        attrs = {k: v for k, v in e["attributes"].items()
-                 if k in ("friendly_name", "brightness", "temperature", "current_temperature",
-                          "volume_level", "media_title", "media_artist", "source", "unit_of_measurement")}
-        return {"etat": e["state"], **attrs}
+        return {"etat": e["state"], **attributs_lus(e["attributes"])}
 
     def service(self, domaine, service, entity_id=None, donnees=None, confirmer=True):
         """Service demandé par le LLM ou rejoué par une routine (confirmer=False : pas d'attente

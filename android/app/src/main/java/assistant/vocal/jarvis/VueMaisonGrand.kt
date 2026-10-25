@@ -2,6 +2,7 @@ package assistant.vocal.jarvis
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -188,6 +189,8 @@ internal class VueMaisonGrand(private val ctx: Context) {
     private var soir = false
     private val attentes = Attentes()
     private val cadences = HashMap<String, Cadence>()
+    private val cadencesBlanc = HashMap<String, Cadence>()
+    private val cadencesTeinte = HashMap<String, Cadence>()
     private val visees = HashMap<String, VolumeVise>()
     private var surligne: String? = null
     private var surligneJusqua = 0L
@@ -212,6 +215,8 @@ internal class VueMaisonGrand(private val ctx: Context) {
         montrerPiece(null)
         attentes.oublier()
         cadences.clear()
+        cadencesBlanc.clear()
+        cadencesTeinte.clear()
         visees.clear()
         echecsDits.clear()
         messageJusqua = 0L
@@ -371,21 +376,21 @@ internal class VueMaisonGrand(private val ctx: Context) {
         envoyer(Appareils.regler(a, pct / 100f), MaisonEnGrand.prevuIntensite(a, pct))
     }
 
-    private fun couleur(o: MaisonEnGrand.Objet, rgb: Int) {
+    /** Blanc au kelvin près (bornes de la lampe), relu ensuite par la conformité à 100 K. */
+    private fun blancK(o: MaisonEnGrand.Objet, kelvin: Int) {
         val a = vu(o) ?: return
-        val r = (rgb shr 16) and 0xFF
-        val g = (rgb shr 8) and 0xFF
-        val b = rgb and 0xFF
-        envoyer(Appareils.couleur(a, r, g, b), a.copy(etat = "on", rgb = listOf(r, g, b)))
+        val c = Appareils.blanc(a, kelvin)
+        envoyer(c, a.copy(etat = "on", mode = "color_temp", kelvin = c.corps.optInt("color_temp_kelvin", kelvin)))
     }
 
-    private fun blanc(o: MaisonEnGrand.Objet, fraction: Float) {
+    /** Couleur nommée ou teinte du curseur : hs_color à pleine saturation, la luminosité ne bouge pas. */
+    private fun teinte(o: MaisonEnGrand.Objet, degres: Int) {
         val a = vu(o) ?: return
-        val k0 = if (a.kelvinMin > 0) a.kelvinMin else KELVIN_CHAUD
-        val k1 = if (a.kelvinMax > k0) a.kelvinMax else KELVIN_FROID
-        val k = (k0 + (k1 - k0) * fraction.coerceIn(0f, 1f)).roundToInt()
-        val c = Appareils.blanc(a, k)
-        envoyer(c, a.copy(etat = "on", kelvin = c.corps.optInt("color_temp_kelvin", k)))
+        val d = ((degres % 360) + 360) % 360
+        envoyer(
+            Appareils.teinte(a, d),
+            a.copy(etat = "on", mode = "hs", teinte = d.toFloat(), rgb = ReglageLampe.rgbDeTeinte(d.toFloat()), kelvin = null),
+        )
     }
 
     /**
@@ -517,16 +522,35 @@ internal class VueMaisonGrand(private val ctx: Context) {
             echelle = s
         }
         private val cadence = cadences.getOrPut(o.entite) { Cadence() }
-        override val glisse: Boolean get() = piste.glisse
+        private val cadenceBlanc = cadencesBlanc.getOrPut(o.entite) { Cadence() }
+        private val cadenceTeinte = cadencesTeinte.getOrPut(o.entite) { Cadence() }
+        override val glisse: Boolean get() = piste.glisse || pisteBlanc.glisse || pisteTeinte.glisse
         private var reglable = false
+        private val chevron = ChevronVolet(ctx)
 
-        /** Ligne qui s'ouvre sous la lampe : 5 couleurs et la piste du chaud au froid. */
+        /** Onglet choisi au doigt (true : Couleur), null tant que personne n'a choisi : la lampe décide. */
+        private var ongletCouleur: Boolean? = null
+
+        /** Ligne qui s'ouvre sous la lampe (0.34.0) : onglets Blanc et Couleur, chacun avec ses pastilles nommées et sa piste. */
         val teintes = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
         }
-        private val couleurs = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        private val onglets = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        private val ongletBlanc = texte(Palette.texte1, 18f)
+        private val ongletCoul = texte(Palette.texte1, 18f)
+        private val panneauBlanc = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        private val panneauCouleur = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        private val pastillesBlanc = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        private val pastillesCouleur = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         private val pisteBlanc = PisteBlanc(ctx)
+        private val pisteTeinte = PisteBlanc(ctx).apply {
+            bande = true
+            degrade = IntArray(7) { Color.HSVToColor(floatArrayOf(it * 60f, 1f, 1f)) }
+            gauche = ""
+            droite = ""
+            contentDescription = "Teinte de la couleur"
+        }
 
         override val vue: View = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -545,6 +569,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
             }, LinearLayout.LayoutParams(px(LARGEUR_NOM), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(12f) })
             addView(etatDroite, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = px(24f) })
             addView(piste, LinearLayout.LayoutParams(px(LARGEUR_PISTE_LAMPE), px(56f)))
+            addView(chevron, LinearLayout.LayoutParams(px(56f), px(56f)))
         }
 
         init {
@@ -553,17 +578,54 @@ internal class VueMaisonGrand(private val ctx: Context) {
             piste.surDebut = { surToucher(); surligner(o.entite) }
             piste.surBouge = { f -> surToucher(); cadence.bouge(pourcent(f), maintenant())?.let { intensite(o, it) } }
             piste.surLacher = { f -> surToucher(); cadence.fin(pourcent(f), maintenant())?.let { intensite(o, it) } }
-            for (c in COULEURS) {
-                couleurs.addView(View(ctx).apply {
-                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c) }
-                    isClickable = true
-                    contentDescription = "Couleur ${NOMS_COULEURS[COULEURS.indexOf(c)]}"
-                    setOnClickListener { surToucher(); surligner(o.entite); couleur(o, c) }
-                }, LinearLayout.LayoutParams(px(48f), px(48f)).apply { marginEnd = px(12f) })
+            chevron.setOnClickListener { surToucher(); surligner(o.entite); ouvrirTeintes() }
+            for (b in ReglageLampe.BLANCS) {
+                pastillesBlanc.addView(pastille(b.rgb, "Blanc ${b.nom.lowercase()}", b.nom) {
+                    surToucher(); surligner(o.entite); blancK(o, b.kelvin)
+                }, LinearLayout.LayoutParams(px(88f), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(8f) })
             }
-            teintes.addView(couleurs)
-            teintes.addView(pisteBlanc, LinearLayout.LayoutParams(px(270f), px(52f)).apply { topMargin = px(10f) })
-            pisteBlanc.surLacher = { f -> surToucher(); surligner(o.entite); blanc(o, f) }
+            for (t in ReglageLampe.TEINTES) {
+                val rgb = ReglageLampe.rgbDeTeinte(t.degres.toFloat())
+                pastillesCouleur.addView(pastille(Color.rgb(rgb[0], rgb[1], rgb[2]), "Couleur ${t.nom.lowercase()}", t.nom) {
+                    surToucher(); surligner(o.entite); teinte(o, t.degres)
+                }, LinearLayout.LayoutParams(px(72f), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(6f) })
+            }
+            ongletBlanc.texte = "Blanc"
+            ongletCoul.texte = "Couleur"
+            ongletBlanc.setOnClickListener { surToucher(); ongletCouleur = false; majLignes(maintenant()) }
+            ongletCoul.setOnClickListener { surToucher(); ongletCouleur = true; majLignes(maintenant()) }
+            onglets.addView(ongletBlanc, LinearLayout.LayoutParams(px(110f), px(44f)).apply { marginEnd = px(8f) })
+            onglets.addView(ongletCoul, LinearLayout.LayoutParams(px(110f), px(44f)))
+            panneauBlanc.addView(pastillesBlanc)
+            panneauBlanc.addView(pisteBlanc, LinearLayout.LayoutParams(px(380f), px(52f)).apply { topMargin = px(8f) })
+            panneauCouleur.addView(pastillesCouleur)
+            panneauCouleur.addView(pisteTeinte, LinearLayout.LayoutParams(px(380f), px(52f)).apply { topMargin = px(8f) })
+            teintes.addView(onglets)
+            teintes.addView(panneauBlanc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
+            teintes.addView(panneauCouleur, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
+            // Les deux pistes passent par la Cadence : une valeur toutes les 300 ms pendant le geste, la dernière au lâcher.
+            pisteBlanc.surDebut = { surToucher(); surligner(o.entite) }
+            pisteBlanc.surBouge = { f -> surToucher(); vu(o)?.let { a -> cadenceBlanc.bouge(ReglageLampe.kelvinDe(a, f), maintenant())?.let { blancK(o, it) } } }
+            pisteBlanc.surLacher = { f -> surToucher(); vu(o)?.let { a -> cadenceBlanc.fin(ReglageLampe.kelvinDe(a, f), maintenant())?.let { blancK(o, it) } } }
+            pisteTeinte.surDebut = { surToucher(); surligner(o.entite) }
+            pisteTeinte.surBouge = { f -> surToucher(); cadenceTeinte.bouge(degresDe(f), maintenant())?.let { teinte(o, it) } }
+            pisteTeinte.surLacher = { f -> surToucher(); cadenceTeinte.fin(degresDe(f), maintenant())?.let { teinte(o, it) } }
+        }
+
+        /** Position de la bande (0 à 1) en degrés de teinte, de 0 à 359. */
+        private fun degresDe(f: Float) = (f.coerceIn(0f, 1f) * 359f).roundToInt()
+
+        /** Pastille ronde de la couleur [rgb] avec son nom dessous. */
+        private fun pastille(rgb: Int, description: String, nomCourt: String, clic: () -> Unit) = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            isClickable = true
+            contentDescription = description
+            setOnClickListener { clic() }
+            addView(View(ctx).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(rgb) }
+            }, LinearLayout.LayoutParams(px(44f), px(44f)))
+            addView(texte(Palette.texte3, 14f).apply { texte = nomCourt }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(2f) })
         }
 
         /** Pourcentage d'intensité au doigt : au moins 1 % (une lampe ne s'éteint que par son rond). */
@@ -616,12 +678,27 @@ internal class VueMaisonGrand(private val ctx: Context) {
             surlignee(surligne == objet.entite)
             val ouverte = teinteOuverte == objet.entite && !hors
             teintes.visibility = if (ouverte) View.VISIBLE else View.GONE
-            couleurs.visibility = if (a?.couleur == true) View.VISIBLE else View.GONE
-            pisteBlanc.visibility = if (a?.blanc == true) View.VISIBLE else View.GONE
+            chevron.visibility = if (!hors && a != null && (a.couleur || a.blanc)) View.VISIBLE else View.INVISIBLE
+            chevron.ouvert = ouverte
+            chevron.contentDescription = (if (ouverte) "Replier les réglages de " else "Régler la couleur de ") + n.lowercase()
             if (ouverte && a != null) {
-                val k0 = if (a.kelvinMin > 0) a.kelvinMin else KELVIN_CHAUD
-                val k1 = if (a.kelvinMax > k0) a.kelvinMax else KELVIN_FROID
-                pisteBlanc.fraction = a.kelvin?.let { ((it - k0).toFloat() / (k1 - k0)).coerceIn(0f, 1f) } ?: 0.5f
+                // Couleur seulement si la lampe sait en faire, Blanc seulement si elle sait régler sa chaleur.
+                val surCouleur = when {
+                    !a.blanc -> true
+                    !a.couleur -> false
+                    else -> ongletCouleur ?: ReglageLampe.enCouleur(a)
+                }
+                onglets.visibility = if (a.couleur && a.blanc) View.VISIBLE else View.GONE
+                ongletBlanc.couleur(if (!surCouleur) Palette.texte1 else Palette.texte3)
+                ongletCoul.couleur(if (surCouleur) Palette.texte1 else Palette.texte3)
+                panneauBlanc.visibility = if (!surCouleur) View.VISIBLE else View.GONE
+                panneauCouleur.visibility = if (surCouleur) View.VISIBLE else View.GONE
+                val (k0, k1) = ReglageLampe.bornes(a)
+                pisteBlanc.gauche = "$k0 K"
+                pisteBlanc.droite = "$k1 K"
+                if (!pisteBlanc.glisse) pisteBlanc.fraction = a.kelvin?.let { ReglageLampe.fractionDe(a, it) } ?: 0.5f
+                if (!pisteTeinte.glisse) pisteTeinte.fraction = (a.teinte ?: 0f) / 359f
+                pisteTeinte.couleurCurseur = a.teinte?.let { Color.HSVToColor(floatArrayOf(it, 1f, 1f)) }
             }
         }
     }
@@ -749,15 +826,11 @@ internal class VueMaisonGrand(private val ctx: Context) {
         const val DUREE_SURLIGNE_MS = 400L
         const val DUREE_MESSAGE_MS = 4_000L
         /** Blanc du chaud au froid quand la lampe ne dit pas ses bornes. */
-        const val KELVIN_CHAUD = 2700
-        const val KELVIN_FROID = 6500
         /** État sous le nom d'une lampe (maquette `MaisonMelange`). */
         private const val ETAT = 0xFFC9C2B6.toInt()
         private const val TAG_RESUME = "resume"
         private const val TAG_MUSIQUE = "musique"
         /** Les 5 couleurs de la ligne qui s'ouvre (maquette `MaisonMelangeCouleur`). */
-        val COULEURS = listOf(0xFFF6B26B, 0xFFF7E3C8, 0xFF9CC3F2, 0xFFE89AB0, 0xFF9ED9B5).map { it.toInt() }
-        val NOMS_COULEURS = listOf("orangée", "crème", "bleue", "rose", "verte")
     }
 }
 
@@ -872,7 +945,22 @@ internal class PisteBlanc(ctx: Context) : View(ctx) {
             }
         }
     var surLacher: (Float) -> Unit = {}
-    private var glisse = false
+    /** Le doigt bouge : la valeur part en cours de geste, par la Cadence de l'appelant. */
+    var surBouge: (Float) -> Unit = {}
+    var surDebut: () -> Unit = {}
+    var glisse = false
+        private set
+    /** Dégradé de la piste, mots aux deux bouts et couleur du curseur (null : crème du blanc). */
+    var degrade = intArrayOf(0xFFF6B26B.toInt(), 0xFFF7E3C8.toInt(), 0xFFCFE0F7.toInt())
+        set(v) { field = v; invalidate() }
+    var gauche = "chaud"
+        set(v) { if (field != v) { field = v; invalidate() } }
+    var droite = "froid"
+        set(v) { if (field != v) { field = v; invalidate() } }
+    var couleurCurseur: Int? = null
+        set(v) { if (field != v) { field = v; invalidate() } }
+    /** Bande de teinte : pas de mots sous la piste. */
+    var bande = false
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val mot = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Polices.texte(ctx) }
 
@@ -891,8 +979,13 @@ internal class PisteBlanc(ctx: Context) : View(ctx) {
                 glisse = true
                 parent?.requestDisallowInterceptTouchEvent(true)
                 fraction = f
+                surDebut()
+                surBouge(f)
             }
-            android.view.MotionEvent.ACTION_MOVE -> fraction = f
+            android.view.MotionEvent.ACTION_MOVE -> {
+                fraction = f
+                surBouge(f)
+            }
             android.view.MotionEvent.ACTION_UP -> {
                 fraction = f
                 glisse = false
@@ -908,18 +1001,48 @@ internal class PisteBlanc(ctx: Context) : View(ctx) {
         val y = 24f * k
         val e = 10f * k
         val rc = 12f * k
-        p.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, intArrayOf(0xFFF6B26B.toInt(), 0xFFF7E3C8.toInt(), 0xFFCFE0F7.toInt()), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+        val n = degrade.size
+        p.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, degrade, FloatArray(n) { it / (n - 1f) }, Shader.TileMode.CLAMP)
         c.drawRoundRect(0f, y - e / 2, width.toFloat(), y + e / 2, e / 2, e / 2, p)
         p.shader = null
         val xc = rc + (width - 2 * rc) * fraction
         p.color = Palette.fond
         c.drawCircle(xc, y, rc + 3f * k, p)
-        p.color = 0xFFF7DFC0.toInt()
+        p.color = couleurCurseur ?: 0xFFF7DFC0.toInt()
         c.drawCircle(xc, y, rc, p)
+        if (bande) return
         mot.textSize = 14f * k
         mot.color = Palette.texte3
-        c.drawText("chaud", 0f, height.toFloat() - 2f * k, mot)
-        val l = mot.measureText("froid")
-        c.drawText("froid", width - l, height.toFloat() - 2f * k, mot)
+        c.drawText(gauche, 0f, height.toFloat() - 2f * k, mot)
+        val l = mot.measureText(droite)
+        c.drawText(droite, width - l, height.toFloat() - 2f * k, mot)
+    }
+}
+
+/** Chevron de la ligne d'une lampe : pointe vers le bas, se retourne quand le volet est ouvert. */
+internal class ChevronVolet(ctx: Context) : View(ctx) {
+    var ouvert = false
+        set(v) { if (field != v) { field = v; invalidate() } }
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+
+    init { isClickable = true }
+
+    override fun onDraw(c: Canvas) {
+        val k = width / 56f
+        p.strokeWidth = 3f * k
+        p.color = Palette.texte2
+        val cx = width / 2f
+        val cy = height / 2f
+        val sens = if (ouvert) -1f else 1f
+        val ch = android.graphics.Path().apply {
+            moveTo(cx - 8f * k, cy - 4f * k * sens)
+            lineTo(cx, cy + 4f * k * sens)
+            lineTo(cx + 8f * k, cy - 4f * k * sens)
+        }
+        c.drawPath(ch, p)
     }
 }

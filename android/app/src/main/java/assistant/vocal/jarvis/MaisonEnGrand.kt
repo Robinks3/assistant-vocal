@@ -208,7 +208,8 @@ internal object MaisonEnGrand {
     /** État d'une lampe sous son nom : « allumée, 80 % », « allumés », « éteinte », « hors ligne ». */
     fun etatLampe(nom: String, a: Appareils.Appareil?): String = when {
         horsLigne(a) -> "hors ligne"
-        a!!.allume -> accorder("allumé", nom) + (a.luminosite?.takeIf { a.reglable }?.let { ", $it %" } ?: "")
+        a!!.allume -> accorder("allumé", nom) + (a.luminosite?.takeIf { a.reglable }?.let { ", $it %" } ?: "") +
+            (ReglageLampe.blancAffiche(a)?.let { ", $it" } ?: if (ReglageLampe.enCouleur(a)) ", couleur" else "")
         else -> accorder("éteint", nom)
     }
 
@@ -306,7 +307,8 @@ internal class Attentes(private val delaiMs: Long = DELAI_MS, private val dureeE
          */
         fun conforme(l: Appareils.Appareil, p: Appareils.Appareil, volume: Boolean = false): Boolean = when {
             p.domaine == "light" -> (l.etat == "on") == (p.etat == "on") &&
-                (p.etat != "on" || p.luminosite == null || l.luminosite == null || abs(l.luminosite - p.luminosite) <= 2)
+                (p.etat != "on" || p.luminosite == null || l.luminosite == null || abs(l.luminosite - p.luminosite) <= 2) &&
+                (p.etat != "on" || ReglageLampe.reglageConforme(l, p))
             volume -> p.volume != null && l.volume != null && abs(l.volume - p.volume) <= 0.02
             p.domaine == "media_player" -> MaisonEnGrand.teleAllumee(l) == MaisonEnGrand.teleAllumee(p)
             else -> l.etat == p.etat
