@@ -37,9 +37,6 @@ notification du service.
   (Python), `phrasesApprisesFusionneesSansRemplacerLaConfiguration` (aucune tolérance aux fautes) et
   `phrasesApprisesEtrangeresOuAbimeesIgnorees` (Kotlin). versionCode 59.
 
-- Tests : `test_phrases_apprises_hors_export_de_configuration` (Python) et
-  `phrasesApprisesFusionneesSansRemplacerLaConfiguration` (Kotlin). versionCode 59.
-
 ## 0.32.1 (2026-10-25)
 - Passerelle HA qui ne se remettait pas d'un redémarrage de l'appli Home Assistant : la poignée de main
   WebSocket n'avait aucun délai (`readTimeout(0)` sans `callTimeout`), un serveur qui accepte la connexion
