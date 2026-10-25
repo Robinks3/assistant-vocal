@@ -170,6 +170,23 @@ def verifier_previsions(corps, personne=None):
     return securite.verifier("weather.get_forecasts", corps, personne=personne)
 
 
+URL_HTTPS = re.compile(r"https://\S+")
+SCHEMA_URL = re.compile(r"\s*[A-Za-z][A-Za-z0-9+.-]*:")
+
+
+def refus_launch_app(service, corps):
+    """Raison du refus pour domaine_tele.launch_app (0.30.0), ou None : une URL doit être en https://,
+    et aucune autre valeur ne doit commencer par un autre schéma (http:, javascript:, data:...)."""
+    if service != "domaine_tele.launch_app":
+        return None
+    for cle, valeur in (corps if isinstance(corps, dict) else {}).items():
+        if cle == "url" and not (isinstance(valeur, str) and valeur.isprintable() and URL_HTTPS.fullmatch(valeur)):
+            return "launch_app : l'URL doit commencer par https:// (sécurité)"
+        if cle != "url" and isinstance(valeur, str) and SCHEMA_URL.match(valeur) and not URL_HTTPS.match(valeur):
+            return "launch_app : seule une URL en https:// est permise (sécurité)"
+    return None
+
+
 def verifier_requete_ha(methode, chemin, corps, personne=None):
     """Raison du refus, ou None si la passerelle peut transmettre cette requête à Home Assistant."""
     methode = (methode or "GET").upper()
@@ -189,4 +206,7 @@ def verifier_requete_ha(methode, chemin, corps, personne=None):
     domaine, service = m.groups()
     if domaine in DOMAINES_INTERDITS:
         return f"domaine {domaine} interdit par la passerelle"
+    refus = refus_launch_app(f"{domaine}.{service}", corps)
+    if refus:
+        return refus
     return securite.verifier(f"{domaine}.{service}", corps if isinstance(corps, dict) else {}, personne=personne)

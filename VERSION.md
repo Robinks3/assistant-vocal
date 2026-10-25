@@ -4,6 +4,17 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
+- Services ouverts au serveur (`SERVICES_PERMIS`) : `domaine_tele.launch_app`, `domaine_tele.send_text_input`,
+  `domaine_tele.set_picture_setting`, `remote.send_command` et `select.select_option`. Ces trois domaines restent
+  hors du contexte du LLM (`DOMAINES_CONTEXTE`), ils servent aux volets de l'appli.
+- `launch_app` : toute URL qui ne commence pas par `https://` est refusée (http:, javascript:, data:, espaces ou
+  caractères de contrôle compris), au serveur (`HomeAssistant.service`) et à la passerelle
+  (`acces.refus_launch_app`, appelée par `verifier_requete_ha`).
+- Inchangés : refus de `device_id`, `DOMAINES_INTERDITS`, règles de `securite.py`. `light.turn_on` n'a pas de liste
+  de clés, `flash` et `effect` passent donc déjà (test ajouté).
+- Dictionnaire d'exemple exporté de nouveau (liste des services permis). Tests dans `test_services_reglages.py`.
+
 ## Serveur 0.29.1 (2026-10-25), deux défauts des routines
 - `lire_etat` refuse toute entité absente de l'inventaire courant, sans appeler Home Assistant : le LLM ne
   peut plus contourner l'enum du schéma.

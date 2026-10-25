@@ -48,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.29.1"
+VERSION = "0.30.0"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -80,6 +80,10 @@ SERVICES_PERMIS = {
     "script": {"turn_on"},
     "input_boolean": {"turn_on", "turn_off", "toggle"},
     "button": {"press"},
+    # Réglages fins de la télé téléviseur et des lampes (0.30.0) : hors contexte du LLM, voir DOMAINES_CONTEXTE.
+    "domaine_tele": {"launch_app", "send_text_input", "set_picture_setting"},
+    "remote": {"send_command"},
+    "select": {"select_option"},
 }
 # Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
 # quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
@@ -88,7 +92,7 @@ if not securite.plafond_actif():
 # Les boutons (36 chez aspirateur) gonflent le prompt sans servir à la voix.
 # Ni boutons ni interrupteurs : dans la maison d'origine, ce sont des réglages (enceintes, aspirateur) qui embrouillent
 # Qwen 9B (« Lecture automatique TV » pris pour la télé, banc du 12/10). Le dictionnaire les couvre.
-DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - {"button", "switch"}) | {"sensor", "binary_sensor", "weather"})
+DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - {"button", "switch", "domaine_tele", "remote", "select"}) | {"sensor", "binary_sensor", "weather"})
 
 
 def charger_env():
@@ -404,7 +408,8 @@ class HomeAssistant:
         corps = dict(donnees or {})
         if entity_id:
             corps["entity_id"] = entity_id
-        refus = securite.verifier(f"{domaine}.{service}", corps, personne=self.personne)
+        refus = (acces.refus_launch_app(f"{domaine}.{service}", corps)
+                 or securite.verifier(f"{domaine}.{service}", corps, personne=self.personne))
         if refus:  # sécurité en dur (occupant protégé, son la nuit), même en essai
             return {"erreur": f"refusé : {refus}. Ne réessaie pas autrement, dis-le simplement."}
         inconnues = [e for e in securite.cibles(entity_id) if self.entites_llm and e not in self.entites_llm]
