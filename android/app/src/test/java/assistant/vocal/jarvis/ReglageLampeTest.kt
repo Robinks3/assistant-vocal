@@ -217,4 +217,13 @@ class ReglageLampeTest {
         assertEquals("Bleu", ReglageLampe.nomTeinte(225f))
         assertEquals("Rose", ReglageLampe.nomTeinte(335f))
     }
+
+    @Test
+    fun valeurDuVoletMemeEteinteOuAUnSeulMode() {
+        assertEquals("2700 K chaud", ReglageLampe.valeurVolet(lampe(kelvin = 2700), false))
+        assertEquals("Violet", ReglageLampe.valeurVolet(lampe(teinte = 275f), true))
+        assertEquals("4000 K neutre", ReglageLampe.valeurVolet(lampe(etat = "off", kelvin = 4000), false))
+        assertEquals("éteinte", ReglageLampe.valeurVolet(lampe(etat = "off"), false))
+        assertEquals("", ReglageLampe.valeurVolet(lampe(), true))
+    }
 }

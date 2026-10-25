@@ -11,10 +11,13 @@ notification du service.
   le volet de réglage et un second toucher le replie. Le volet s'ouvre sur l'onglet du mode réel de la lampe (Couleur
   si elle est en couleur, Blanc sinon), même après un choix d'onglet fait lors d'une ouverture précédente. Une lampe
   sans réglage (marche / arrêt seulement) ou hors ligne garde le toucher de ligne qui bascule. Le chevron n'est plus
-  qu'un indice.
-- Volet : onglets, pastilles et pistes à 48 dp au moins, valeur actuelle à côté des onglets (« 2700 K chaud » ou nom
-  de la couleur), descriptions de contenu et rôle bouton pour TalkBack.
-- Tests : `ReglageLampeTest` (geste de la ligne, onglet par défaut, nom de teinte).
+  qu'un indice. Disposition retenue par Alex sur maquette (variante C) : le chevron suit le nom et la piste d'intensité
+  prend toute la largeur restante de la ligne, toujours visible.
+- Volet : onglets, pastilles et pistes à 48 dp au moins, valeur actuelle en tête (« 2700 K chaud » ou nom de la
+  couleur), y compris pour une lampe à un seul mode (valeur hors des onglets) et éteinte (dernière valeur, sinon
+  « éteinte »). Descriptions de contenu et rôle bouton pour TalkBack, rond masqué à TalkBack quand la ligne fait la même
+  chose (lampe sans réglage).
+- Tests : `ReglageLampeTest` (geste de la ligne, onglet par défaut, nom de teinte, valeur du volet).
 
 ## 0.35.0 (2026-10-25), reconnexion robuste
 - Découverte (`Decouverte.kt`) : l'adresse configurée reste l'identité du serveur (jeton et clé retenus rangés

@@ -536,6 +536,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
         }
+        private val entete = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         private val onglets = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         private val ongletBlanc = texte(Palette.texte1, 18f)
         private val ongletCoul = texte(Palette.texte1, 18f)
@@ -568,10 +569,11 @@ internal class VueMaisonGrand(private val ctx: Context) {
                 orientation = LinearLayout.VERTICAL
                 addView(nom)
                 addView(etat, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(2f) })
-            }, LinearLayout.LayoutParams(px(LARGEUR_NOM), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(12f) })
+            }, LinearLayout.LayoutParams(px(LARGEUR_NOM), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = px(4f) })
+            // Variante C : le chevron suit le nom, la piste d'intensité prend toute la largeur restante.
+            addView(chevron, LinearLayout.LayoutParams(px(48f), px(56f)).apply { marginEnd = px(12f) })
             addView(etatDroite, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = px(24f) })
-            addView(piste, LinearLayout.LayoutParams(px(LARGEUR_PISTE_LAMPE), px(56f)))
-            addView(chevron, LinearLayout.LayoutParams(px(56f), px(56f)))
+            addView(piste, LinearLayout.LayoutParams(0, px(56f), 1f).apply { marginEnd = px(16f) })
         }
 
         init {
@@ -603,12 +605,14 @@ internal class VueMaisonGrand(private val ctx: Context) {
             ongletCoul.contentDescription = "Réglage de la couleur"
             onglets.addView(ongletBlanc, LinearLayout.LayoutParams(px(110f), px(48f)).apply { marginEnd = px(8f) })
             onglets.addView(ongletCoul, LinearLayout.LayoutParams(px(110f), px(48f)).apply { marginEnd = px(16f) })
-            onglets.addView(valeurReglage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(48f)))
+            // La valeur vit hors des onglets : une lampe à un seul mode les cache mais garde sa valeur.
+            entete.addView(onglets)
+            entete.addView(valeurReglage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(48f)))
             panneauBlanc.addView(pastillesBlanc)
             panneauBlanc.addView(pisteBlanc, LinearLayout.LayoutParams(px(380f), px(56f)).apply { topMargin = px(8f) })
             panneauCouleur.addView(pastillesCouleur)
             panneauCouleur.addView(pisteTeinte, LinearLayout.LayoutParams(px(380f), px(56f)).apply { topMargin = px(8f) })
-            teintes.addView(onglets)
+            teintes.addView(entete)
             teintes.addView(panneauBlanc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
             teintes.addView(panneauCouleur, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
             // Les deux pistes passent par la Cadence : une valeur toutes les 300 ms pendant le geste, la dernière au lâcher.
@@ -709,9 +713,11 @@ internal class VueMaisonGrand(private val ctx: Context) {
             surlignee(surligne == objet.entite)
             val ouverte = teinteOuverte == objet.entite && !hors
             teintes.visibility = if (ouverte) View.VISIBLE else View.GONE
-            chevron.visibility = if (!hors && a != null && (a.couleur || a.blanc)) View.VISIBLE else View.INVISIBLE
-            chevron.ouvert = ouverte
             val reglage = !hors && a != null && (a.couleur || a.blanc)
+            chevron.visibility = if (reglage) View.VISIBLE else View.GONE
+            chevron.ouvert = ouverte
+            // Sans réglage, la ligne et le rond font la même chose : TalkBack ne lit que la ligne.
+            rond.importantForAccessibility = if (reglage) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_NO
             vue.contentDescription = if (reglage) {
                 (if (ouverte) "Replier les réglages de " else "Déplier les réglages de ") + n.lowercase() + ", " + e
             } else {
@@ -724,8 +730,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
                 ongletBlanc.couleur(if (!surCouleur) Palette.texte1 else Palette.texte3)
                 ongletCoul.couleur(if (surCouleur) Palette.texte1 else Palette.texte3)
                 // Valeur actuelle à côté des onglets : « 2700 K chaud » ou le nom de la couleur.
-                val v = if (surCouleur) a.teinte?.let { ReglageLampe.nomTeinte(it) } else ReglageLampe.blancAffiche(a)
-                poser(valeurReglage, v.orEmpty())
+                poser(valeurReglage, ReglageLampe.valeurVolet(a, surCouleur))
                 panneauBlanc.visibility = if (!surCouleur) View.VISIBLE else View.GONE
                 panneauCouleur.visibility = if (surCouleur) View.VISIBLE else View.GONE
                 val (k0, k1) = ReglageLampe.bornes(a)
@@ -855,7 +860,6 @@ internal class VueMaisonGrand(private val ctx: Context) {
         const val LARGEUR_PANNEAU = 436f
         /** Nom d'une lampe et piste de l'intensité : « Lampe de la télé » tient en entier à 21 px (vu sur la tablette). */
         const val LARGEUR_NOM = 160f
-        const val LARGEUR_PISTE_LAMPE = 135f
         /** Le panneau part à y 112 et s'arrête 24 px au-dessus du bas de l'écran. */
         const val HAUTEUR_MAX_PANNEAU = 664f
         const val DUREE_SURLIGNE_MS = 400L

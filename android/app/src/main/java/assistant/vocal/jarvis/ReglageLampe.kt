@@ -85,6 +85,15 @@ internal object ReglageLampe {
         else -> choix ?: enCouleur(a)
     }
 
+    /**
+     * Valeur montrée en tête du volet : « 2700 K chaud » en Blanc, le nom de la couleur en Couleur. Une lampe éteinte
+     * garde la dernière valeur connue, sans quoi le volet dit « éteinte » plutôt que de rester vide.
+     */
+    fun valeurVolet(a: Appareils.Appareil, surCouleur: Boolean): String {
+        val v = if (surCouleur) a.teinte?.let { nomTeinte(it) } else a.kelvin?.let { "$it K ${mot(it)}" }
+        return v ?: if (a.allume) "" else "éteinte"
+    }
+
     /** Nom de la couleur nommée la plus proche d'une teinte, pour la valeur affichée dans l'onglet Couleur. */
     fun nomTeinte(degres: Float): String = TEINTES.minBy { ecartTeinte(it.degres.toFloat(), degres) }.nom
 
