@@ -53,7 +53,8 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 
 Les données vivantes ne sont pas de la configuration. Elles vont dans le dossier `JARVIS_DONNEES` (`poc/` par
 défaut, `/data` dans l'appli Home Assistant) : `journal/latences.csv`, `journal/manques.jsonl`,
-`journal/retours.jsonl`, `journal/musique.jsonl`, `commandes_apprises.yaml`, `appareils.json` et le certificat
+`journal/retours.jsonl`, `journal/musique.jsonl`, `commandes_apprises.yaml` (et son export pour l'appli,
+`genere/android/dictionnaire_appris.json`), `appareils.json` et le certificat
 `tls/cert.pem`, `tls/cle.pem`.
 
 Variables lues par le serveur, en plus de celles de `poc/.env.exemple` :

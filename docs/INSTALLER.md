@@ -462,6 +462,7 @@ Gradle refuse de produire une APK tant qu'il manque l'un de ces éléments :
 |---|---|
 | `config/maison.json` (ou le dossier de `ASSISTANT_VOCAL_CONFIG`) | 4 |
 | `genere/android/dictionnaire.json` de la configuration | 4, `exporter_dictionnaire.py` |
+| `genere/android/dictionnaire_appris.json` du dossier de données, s'il y a des phrases apprises | 4, `exporter_dictionnaire.py` (le même lancement) |
 | `genere/android/maison3d/vue3d.html` de la configuration | 4, `generer_3d.py` |
 | `reveil/<mot>.onnx` si la section `reveil` existe | 4 |
 | Les fichiers de `vent.carte` si la section `vent` est active | 4 |

@@ -16,6 +16,20 @@ notification du service.
   deux fichiers, une phrase apprise ne remplace jamais une phrase de `commandes.yaml`.
 - Option `--sortie FICHIER` de l'exporteur : `test_export_exemple_a_jour` compare l'export d'exemple refait
   dans un dossier temporaire et ne réécrit plus `config-exemple/genere/android/dictionnaire.json` suivi par git.
+- Jeton `export` commun aux deux fichiers d'un même export (absent de l'exemple) : `DictionnaireLocal` ignore
+  des phrases apprises venues d'un autre export (fichier périmé, autre machine, autre maison). Un fichier de
+  phrases apprises abîmé n'ajoute rien et ne casse plus le dictionnaire. L'étape « Dictionnaire » du
+  déroulé dit ce qui est arrivé aux phrases apprises (nombre, ignorées, illisibles).
+- Exporteur en `argparse` (`--exemple`, `--sortie`, `--donnees`), argument inconnu refusé. Un
+  `JARVIS_DONNEES` ou `--donnees` relatif part de la racine du dépôt, comme `-PdonneesDossier` dans
+  `build.gradle.kts`. Gradle compare les dossiers par chemin canonique (exemple, dossier de données égal à
+  celui de la configuration) et écrit à la compilation le dossier de phrases apprises embarqué.
+- Garde-fou : `dictionnaire_appris.json` refusé dans un commit.
+- Tests : `test_phrases_apprises_hors_export_de_configuration` (jeton commun, phrase déjà couverte par
+  `commandes.yaml` laissée hors de l'export à part), `test_export_donnees_relatives_depuis_la_racine`
+  (Python), `phrasesApprisesFusionneesSansRemplacerLaConfiguration` (aucune tolérance aux fautes) et
+  `phrasesApprisesEtrangeresOuAbimeesIgnorees` (Kotlin). versionCode 59.
+
 - Tests : `test_phrases_apprises_hors_export_de_configuration` (Python) et
   `phrasesApprisesFusionneesSansRemplacerLaConfiguration` (Kotlin). versionCode 59.
 

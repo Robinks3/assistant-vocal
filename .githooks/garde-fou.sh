@@ -16,7 +16,7 @@ TAILLE_MAX_MO=${GARDE_FOU_TAILLE_MAX_MO:-5}
 TAILLE_MAX=$((TAILLE_MAX_MO * 1024 * 1024))
 
 # Fichiers à ne jamais versionner, voir .gitignore. Les modèles (*.exemple) restent permis.
-CHEMINS_INTERDITS='(^|/)\.env($|\.)|(^|/)local\.properties$|(^|/)keystore\.properties$|\.(jks|keystore|p12|pfx|pem|key|crt|cer|der|csr)$|(^|/)poc/tls/|(^|/)maison\.json$|^(config|maison)/|(^|/)assistant\.onnx$|(^|/)poc/commandes\.yaml$|^android/app/src/main/assets/(dictionnaire\.json|maison3d/vue3d\.html)$|^carte/(pieces|meubles|lampes)\.json$|(^|/)journal/|(^|/)commandes_apprises\.yaml$|(^|/)appareils\.json$|\.(apk|aab|apks)$|\.(wav|mp3|m4a|flac|ogg|opus|aac|amr|3gp|webm|mp4|mov|mkv|avi)$|\.(gguf|litertlm|safetensors|pt|pth|ckpt|npy|npz)$|\.(db|sqlite|sqlite3)$|(^|/)docs/captures/|(^|/)test-(canary|reveil)/'
+CHEMINS_INTERDITS='(^|/)\.env($|\.)|(^|/)local\.properties$|(^|/)keystore\.properties$|\.(jks|keystore|p12|pfx|pem|key|crt|cer|der|csr)$|(^|/)poc/tls/|(^|/)maison\.json$|^(config|maison)/|(^|/)assistant\.onnx$|(^|/)poc/commandes\.yaml$|^android/app/src/main/assets/(dictionnaire\.json|maison3d/vue3d\.html)$|^carte/(pieces|meubles|lampes)\.json$|(^|/)journal/|(^|/)commandes_apprises\.yaml$|(^|/)dictionnaire_appris\.json$|(^|/)appareils\.json$|\.(apk|aab|apks)$|\.(wav|mp3|m4a|flac|ogg|opus|aac|amr|3gp|webm|mp4|mov|mkv|avi)$|\.(gguf|litertlm|safetensors|pt|pth|ckpt|npy|npz)$|\.(db|sqlite|sqlite3)$|(^|/)docs/captures/|(^|/)test-(canary|reveil)/'
 CHEMINS_PERMIS='\.(exemple|example)$|^config-exemple/maison\.json$|^android/app/src/main/res/raw/ecoute_[a-z_]+\.wav$'
 
 # Secrets reconnaissables à leur forme : jeton Home Assistant (JWT), clés Anthropic, OpenAI, GitHub,

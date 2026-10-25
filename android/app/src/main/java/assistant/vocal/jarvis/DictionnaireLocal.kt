@@ -54,25 +54,40 @@ class DictionnaireLocal(j: JSONObject, appris: JSONObject? = null) {
     /** « Ma chambre » selon la personne qui parle (section personnes de commandes.yaml, 21/10/2026). */
     val personnes = Personnes(j.optJSONObject("personnes"))
 
+    /** Ce qui est arrivé aux phrases apprises, pour l'étape « Dictionnaire » du déroulé. */
+    val etatAppris: String
+
     init {
         version = j.optString("version")
         genereLe = j.optString("genere_le")
         lire(j, remplacer = true)
-        appris?.let { lire(it, remplacer = false) }
+        val avant = formes.size
+        etatAppris = when {
+            appris == null -> "aucune phrase apprise"
+            // Les deux fichiers sortent du même export (même jeton) : sinon les phrases apprises viennent d'une
+            // autre configuration ou d'un export plus ancien, et viseraient des entités d'une autre maison.
+            appris.optString("export") != j.optString("export") || j.optString("export").isEmpty() ->
+                "phrases apprises ignorées : pas du même export que dictionnaire.json"
+            else -> kotlin.runCatching { lire(appris, remplacer = false) }.fold(
+                { "phrases apprises : ${formes.size - avant}" },
+                { "phrases apprises illisibles : ${it.message}" },
+            )
+        }
     }
 
     private fun lire(j: JSONObject, remplacer: Boolean) {
         val modeles = j.getJSONArray("modeles")
         val a = j.getJSONArray("formes")
-        for (i in 0 until a.length()) {
+        // Tout lu avant d'ajouter : un fichier abîmé au milieu n'ajoute rien plutôt qu'une moitié.
+        val lues = (0 until a.length()).map { i ->
             val o = a.getJSONArray(i)
             val v = o.optJSONObject(2)
-            val f = Forme(
+            Forme(
                 o.getString(0), modeles.getJSONObject(o.getInt(1)),
                 v?.let { x -> x.keys().asSequence().associateWith { x.optString(it) } } ?: emptyMap(),
             )
-            if (remplacer) formes[f.cle] = f else formes.putIfAbsent(f.cle, f)
         }
+        for (f in lues) if (remplacer) formes[f.cle] = f else formes.putIfAbsent(f.cle, f)
     }
 
     val taille: Int get() = formes.size

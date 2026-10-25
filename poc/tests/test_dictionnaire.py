@@ -97,8 +97,12 @@ def test_phrases_apprises_hors_export_de_configuration(tmp_path):
     config, donnees = tmp_path / "config", tmp_path / "donnees"
     shutil.copytree(racine / "config-exemple", config, ignore=shutil.ignore_patterns("genere"))
     donnees.mkdir()
+    # Une phrase déjà couverte par commandes.yaml ne part pas dans l'export à part.
+    deja = json.loads((racine / "config-exemple" / "genere" / "android" / "dictionnaire.json")
+                      .read_text(encoding="utf-8"))["formes"][0][0]
     (donnees / "commandes_apprises.yaml").write_text(
-        "apprises:\n- phrase: Phrase apprise de test\n  action: {service: light.turn_on, entity_id: light.essai}\n",
+        "apprises:\n- phrase: Phrase apprise de test\n  action: {service: light.turn_on, entity_id: light.essai}\n"
+        f"- phrase: {deja}\n  action: {{service: light.turn_on, entity_id: light.essai}}\n",
         encoding="utf-8")
     env = {**os.environ, "ASSISTANT_VOCAL_CONFIG": str(config), "JARVIS_DONNEES": str(donnees)}
     _exporter(env=env)
@@ -108,10 +112,35 @@ def test_phrases_apprises_hors_export_de_configuration(tmp_path):
     assert not any(m.get("appris") for m in dico["modeles"])
     assert [f[0] for f in appris["formes"]] == ["phrase apprise de test"]
     assert appris["modeles"][0]["appris"] and appris["modeles"][0]["source"] == "commandes_apprises.yaml"
+    # Même jeton dans les deux fichiers : l'appli ignore des phrases apprises d'un autre export.
+    assert dico["export"] and appris["export"] == dico["export"]
     # Sans phrase apprise, l'export à part est réécrit vide plutôt que laissé périmé.
     (donnees / "commandes_apprises.yaml").unlink()
     _exporter(env=env)
     assert json.loads((donnees / "genere" / "android" / "dictionnaire_appris.json").read_text(encoding="utf-8"))["formes"] == []
+
+
+def test_export_donnees_relatives_depuis_la_racine(tmp_path):
+    """--donnees relatif part de la racine du dépôt, comme -PdonneesDossier dans build.gradle.kts, quel que soit
+    le dossier d'où l'export est lancé. Un argument inconnu est refusé plutôt qu'ignoré."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    racine = Path(__file__).resolve().parents[2]
+    config = tmp_path / "config"
+    shutil.copytree(racine / "config-exemple", config, ignore=shutil.ignore_patterns("genere"))
+    relatif = os.path.relpath(tmp_path / "donnees", racine)
+    env = {**os.environ, "ASSISTANT_VOCAL_CONFIG": str(config)}
+    env.pop("JARVIS_DONNEES", None)
+    script = str(racine / "android" / "outils" / "exporter_dictionnaire.py")
+    r = subprocess.run([sys.executable, script, "--donnees", relatif], cwd=tmp_path, env=env,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert r.returncode == 0, r.stderr
+    assert (tmp_path / "donnees" / "genere" / "android" / "dictionnaire_appris.json").exists()
+    r = subprocess.run([sys.executable, script, "--exemple", "--sortei", str(tmp_path / "x.json")], env=env,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert r.returncode != 0 and not (tmp_path / "x.json").exists()
 
 
 def test_prenom_mal_entendu_corrige():

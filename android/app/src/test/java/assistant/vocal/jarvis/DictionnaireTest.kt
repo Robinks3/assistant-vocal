@@ -2,6 +2,7 @@ package assistant.vocal.jarvis
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -100,18 +101,47 @@ class DictionnaireTest {
     @Test
     fun phrasesApprisesFusionneesSansRemplacerLaConfiguration() {
         val dossier = System.getProperty("maison.dossier") ?: error("propriété système maison.dossier absente")
+        // L'export d'exemple n'a pas de jeton : celui d'un vrai export, commun aux deux fichiers.
         val config = JSONObject(File(dossier, "genere/android/dictionnaire.json").readText(Charsets.UTF_8))
+            .put("export", "jeton")
         val cleConfig = config.getJSONArray("formes").getJSONArray(0).getString(0)
-        val appris = JSONObject("""{"version":"test","genere_le":"","modeles":[
+        fun appris(export: String) = JSONObject("""{"version":"test","genere_le":"","export":"$export","modeles":[
             {"actions":[{"service":"light.turn_on","entity_id":"light.essai"}],"reponse":"Appris.","source":"commandes_apprises.yaml","appris":true,"ligne":1,"motif":"x"},
             {"actions":[{"service":"light.turn_off","entity_id":"light.essai"}],"reponse":"Écrasé.","source":"commandes_apprises.yaml","appris":true,"ligne":2,"motif":"y"}],
             "formes":[["phrase apprise de test",0],["$cleConfig",1]]}""")
         val sans = DictionnaireLocal(config)
-        val avec = DictionnaireLocal(config, appris)
+        val avec = DictionnaireLocal(config, appris("jeton"))
         assertEquals(sans.taille + 1, avec.taille)
+        assertEquals("phrases apprises : 1", avec.etatAppris)
         val t = avec.chercher("phrase apprise de test")
         assertTrue(t != null && t.forme.appris && t.forme.reponse == "Appris.")
+        // Une phrase apprise n'est reconnue que mot pour mot, même à une lettre près.
+        assertNull(avec.chercher("phrase apprise de tests"))
         val c = avec.chercher(cleConfig)
         assertTrue(c != null && !c.forme.appris && c.forme.reponse != "Écrasé.")
+    }
+
+    /** Phrases apprises d'un autre export (fichier périmé, autre maison) ou abîmées : ignorées, le reste marche. */
+    @Test
+    fun phrasesApprisesEtrangeresOuAbimeesIgnorees() {
+        val dossier = System.getProperty("maison.dossier") ?: error("propriété système maison.dossier absente")
+        val config = JSONObject(File(dossier, "genere/android/dictionnaire.json").readText(Charsets.UTF_8))
+            .put("export", "jeton")
+        val taille = DictionnaireLocal(config).taille
+        val apprisVide = """"modeles":[{"actions":[],"reponse":"","source":"","ligne":1,"motif":"x"}]"""
+        val autre = DictionnaireLocal(config, JSONObject("""{"export":"autre",$apprisVide,"formes":[["phrase etrangere",0]]}"""))
+        assertEquals(taille, autre.taille)
+        assertNull(autre.chercher("phrase etrangere"))
+        assertTrue(autre.etatAppris.startsWith("phrases apprises ignorées"))
+        // Indice de modèle hors limites à la deuxième forme : rien n'est ajouté, pas même la première.
+        val abime = DictionnaireLocal(config,
+            JSONObject("""{"export":"jeton",$apprisVide,"formes":[["phrase valide",0],["phrase cassee",7]]}"""))
+        assertEquals(taille, abime.taille)
+        assertNull(abime.chercher("phrase valide"))
+        assertTrue(abime.etatAppris.startsWith("phrases apprises illisibles"))
+        // Sans jeton des deux côtés (export d'avant la 0.32.2), les phrases apprises ne sont pas prises.
+        val ancien = DictionnaireLocal(config.put("export", ""),
+            JSONObject("""{$apprisVide,"formes":[["phrase ancienne",0]]}"""))
+        assertNull(ancien.chercher("phrase ancienne"))
     }
 }

@@ -58,7 +58,7 @@ Contenu de `genere/` :
 
 | Fichier | Produit par | Usage |
 |---|---|---|
-| `genere/android/dictionnaire.json` | `.venv\Scripts\python android/outils/exporter_dictionnaire.py` | Dictionnaire embarqué dans l'APK. Obligatoire pour fabriquer une APK. |
+| `genere/android/dictionnaire.json` | `.venv\Scripts\python android/outils/exporter_dictionnaire.py` | Dictionnaire embarqué dans l'APK. Obligatoire pour fabriquer une APK. Les phrases apprises vont à part, dans le dossier de données (ligne suivante). |
 | `genere/android/maison3d/vue3d.html` | `.venv\Scripts\python carte/3d/generer_3d.py` | Vue 3D du logement embarquée dans l'APK. Obligatoire pour fabriquer une APK. |
 | `genere/android/carte/*.txt` | À fournir (aucun générateur dans le moteur) | Trait de côte et terre de la carte du vent mesuré (section `vent`). |
 | `genere/ha/jarvis_dictionnaire.apercu.json` | `python ha-app/configurer-ha.py --essai` | Aperçu de l'automatisation envoyée à Home Assistant. |
@@ -86,7 +86,9 @@ Sur un autre poste, il suffit de cloner ce dépôt dans `config/` à la racine d
 `genere/android/dictionnaire.json` ne contient que ce qui vient de `commandes.yaml` : depuis l'appli 0.32.2,
 les phrases apprises de la machine partent dans un export à part, hors de ce dossier (voir
 [l'export à refaire avant de compiler l'APK](#lexport-à-refaire-avant-de-compiler-lapk)). Le versionner ne
-versionne donc pas ces phrases.
+versionne donc pas ces phrases. Un `dictionnaire.json` committé dans un dépôt de configuration avant la 0.32.2
+contient encore les phrases apprises jusqu'au prochain export, et l'historique git les garde : le refaire,
+puis réécrire l'historique si ces phrases ne doivent pas y rester.
 
 ### Ce qui n'y va pas
 
@@ -95,7 +97,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | Donnée | Où elle reste |
 |---|---|
 | Jeton Home Assistant, jetons des satellites (`SATELLITE_JETON`, `SATELLITE_JETON_<NOM>`), clé Anthropic, clé de transcription en ligne, jeton du service de santé | `poc/.env` de chaque machine (modèle : `poc/.env.exemple`). Sur l'appli Home Assistant, ses options (`ha-app/configurer-options.py`). |
-| Phrases apprises (`commandes_apprises.yaml`), journaux (`journal/`), appareils appairés (`appareils.json`), clés TLS (`tls/`) | Dossier de données de la machine : `JARVIS_DONNEES`, `poc/` par défaut sur le PC, `/data` dans l'appli Home Assistant. |
+| Phrases apprises (`commandes_apprises.yaml` et leur export pour l'appli, `genere/android/dictionnaire_appris.json`), journaux (`journal/`), appareils appairés (`appareils.json`), clés TLS (`tls/`) | Dossier de données de la machine : `JARVIS_DONNEES`, `poc/` par défaut sur le PC, `/data` dans l'appli Home Assistant. |
 | Profils de visages | Fichier privé de l'appli, sur la tablette seulement. |
 | APK | Nulle part : elle embarque `maison.json` en entier et le jeton `SATELLITE_JETON`, elle ne doit pas circuler. |
 
@@ -615,8 +617,11 @@ L'appli n'a pas de lecteur YAML : elle embarque `genere/android/dictionnaire.jso
 développées, la vue du LLM, la section `personnes` et la liste blanche des services. Les phrases apprises
 de la machine qui exporte vont dans un second fichier, `genere/android/dictionnaire_appris.json` du dossier
 de données (`JARVIS_DONNEES`, `poc/` par défaut, ignoré par git), que la compilation ajoute aux assets
-quand il existe (`-PdonneesDossier=...` pour en désigner un autre). L'appli les fusionne au dictionnaire,
-sans qu'une phrase apprise remplace une phrase de `commandes.yaml`. Après chaque changement du dictionnaire
+quand il existe (`-PdonneesDossier=...` pour en désigner un autre, `--donnees` côté export). Un chemin relatif
+part de la racine du dépôt, pour l'export comme pour la compilation. L'appli les fusionne au dictionnaire,
+sans qu'une phrase apprise remplace une phrase de `commandes.yaml`. Les deux fichiers portent le même jeton
+`export` : des phrases apprises d'un autre export (fichier périmé, autre machine) ou illisibles sont
+ignorées, et l'étape « Dictionnaire » du déroulé de l'appli le dit. Après chaque changement du dictionnaire
 ou des phrases apprises :
 
 ```powershell
@@ -626,7 +631,7 @@ ou des phrases apprises :
 Sans ce fichier, la compilation d'une APK échoue avec la commande à lancer.
 
 Pour l'exemple, `.venv\Scripts\python android/outils/exporter_dictionnaire.py --exemple` exporte le dictionnaire de
-`config-exemple/` sans phrase apprise ni date. Le test `test_export_exemple_a_jour` de
+`config-exemple/` sans phrase apprise, ni date, ni jeton. Le test `test_export_exemple_a_jour` de
 `poc/tests/test_dictionnaire.py` refait cet export dans un dossier temporaire et le compare au fichier
 suivi par git, sans jamais le réécrire. S'il échoue, relancer l'export `--exemple` à la main et le committer
 avec le `commandes.yaml` d'exemple modifié. Les tests de

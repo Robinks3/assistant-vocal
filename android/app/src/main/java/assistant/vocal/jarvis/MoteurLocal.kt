@@ -139,7 +139,7 @@ class MoteurLocal(
             etape("Dictionnaire") {
                 val d = DictionnaireLocal(contexte)
                 dico = d
-                "${d.taille} formes, généré le ${d.genereLe}" to Etat.Statut.OK
+                "${d.taille} formes, généré le ${d.genereLe}, ${d.etatAppris}" to Etat.Statut.OK
             }
             etape("Mot de réveil") {
                 reveil = ReveilLocal(contexte, mot = motReveil)

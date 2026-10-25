@@ -13,30 +13,44 @@ d'usage, pas de la configuration : depuis l'appli 0.32.2 elles partent dans un e
 genere/android/dictionnaire_appris.json du dossier de données (JARVIS_DONNEES, poc/ par défaut), au même
 format (« modeles » et « formes », sans « llm » ni « personnes »), sans les phrases déjà couvertes par
 commandes.yaml. build.gradle.kts l'ajoute aux assets s'il existe, DictionnaireLocal.kt le fusionne.
+Les deux fichiers portent le même jeton « export » : l'appli ignore des phrases apprises venues d'un autre
+export (fichier périmé, autre machine, autre maison).
 
 Usage : python android/outils/exporter_dictionnaire.py   (à relancer avant chaque compilation
 quand le dictionnaire ou les phrases apprises ont changé)
-        python android/outils/exporter_dictionnaire.py --exemple   (dictionnaire de config-exemple/, sans phrase
-apprise ni date, pour les tests unitaires de l'appli : un test de poc/tests vérifie qu'il est à jour)
-        --sortie FICHIER   écrit le dictionnaire ailleurs que dans genere/android/ (ce test compare ainsi sans
-réécrire l'export d'exemple suivi par git)
+        --exemple   dictionnaire de config-exemple/, sans phrase apprise, ni date, ni jeton, pour les tests
+unitaires de l'appli : un test de poc/tests vérifie qu'il est à jour
+        --sortie FICHIER   écrit dictionnaire.json ailleurs que dans genere/android/ (ce test compare ainsi sans
+réécrire l'export d'exemple suivi par git). Hors --exemple, les phrases apprises restent écrites dans le
+dossier de données.
+        --donnees DOSSIER   dossier de données (JARVIS_DONNEES sinon). Un chemin relatif part de la racine
+du dépôt, comme dans build.gradle.kts.
 """
-import json, os, re, sys, time
+import argparse, json, os, re, sys, time, uuid
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
-POC = ICI.parent.parent / "poc"
-EXEMPLE = "--exemple" in sys.argv
+RACINE = ICI.parent.parent
+POC = RACINE / "poc"
+_args = argparse.ArgumentParser(description="Exporte le dictionnaire de Jarvis pour l'appli Android.")
+_args.add_argument("--exemple", action="store_true")
+_args.add_argument("--sortie", type=Path)
+_args.add_argument("--donnees")
+ARGS = _args.parse_args()
+EXEMPLE = ARGS.exemple
 if EXEMPLE:
-    os.environ["ASSISTANT_VOCAL_CONFIG"] = str(POC.parent / "config-exemple")
+    os.environ["ASSISTANT_VOCAL_CONFIG"] = str(RACINE / "config-exemple")
+# Avant l'import d'assistant, qui lit JARVIS_DONNEES : même résolution d'un chemin relatif que Gradle.
+_donnees = ARGS.donnees or os.getenv("JARVIS_DONNEES", "")
+if _donnees.strip():
+    os.environ["JARVIS_DONNEES"] = str(Path(_donnees) if Path(_donnees).is_absolute() else RACINE / _donnees)
 sys.path.insert(0, str(POC))
 import yaml  # noqa: E402
 import assistant as A  # noqa: E402
 import maison  # noqa: E402
 from dictionnaire import developper, normaliser  # noqa: E402
 
-SORTIE = (Path(sys.argv[sys.argv.index("--sortie") + 1]) if "--sortie" in sys.argv
-          else maison.chemin("genere/android/dictionnaire.json"))
+SORTIE = ARGS.sortie or maison.chemin("genere/android/dictionnaire.json")
 SORTIE_APPRIS = A.DONNEES / "genere" / "android" / "dictionnaire_appris.json"
 
 
@@ -99,12 +113,16 @@ def main():
     # Pour le LLM sur l'appareil (0.13.0) : même vue que le LLM des serveurs (appareils renommés,
     # masqués, notes) et même liste blanche de services.
     # L'exemple ne porte ni version ni date : il ne change que si son dictionnaire change.
+    # Jeton commun aux deux fichiers de cet export, absent de l'exemple pour qu'il reste stable.
+    jeton = "" if EXEMPLE else uuid.uuid4().hex
     sortie = {"version": "exemple" if EXEMPLE else A.VERSION,
               "genere_le": "exemple" if EXEMPLE else time.strftime("%Y-%m-%d %H:%M"), "modeles": modeles, "formes": formes,
               "llm": donnees.get("llm") or {},
               # « Ma chambre » selon la personne qui parle (21/10/2026), appliqué par DictionnaireLocal.Personnes.
               "personnes": donnees.get("personnes") or {},
               "services_permis": {d: sorted(s) for d, s in A.SERVICES_PERMIS.items()}}
+    if jeton:
+        sortie["export"] = jeton
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     SORTIE.write_text(json.dumps(sortie, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{len(formes)} formes exportées vers {SORTIE} ({SORTIE.stat().st_size // 1024} Ko)")
@@ -112,7 +130,7 @@ def main():
         return
     # Toujours écrit, même vide, pour qu'une APK ne garde pas d'anciennes phrases oubliées depuis.
     SORTIE_APPRIS.parent.mkdir(parents=True, exist_ok=True)
-    SORTIE_APPRIS.write_text(json.dumps({"version": A.VERSION, "genere_le": sortie["genere_le"],
+    SORTIE_APPRIS.write_text(json.dumps({"version": A.VERSION, "genere_le": sortie["genere_le"], "export": jeton,
                                          "modeles": modeles_appris, "formes": formes_appris},
                                         ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{len(formes_appris)} phrases apprises exportées vers {SORTIE_APPRIS}")

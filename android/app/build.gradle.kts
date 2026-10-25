@@ -172,9 +172,15 @@ android {
     // Fichiers produits à partir de la configuration de la maison : dictionnaire.json, maison3d/vue3d.html et
     // carte/ (trait de côte et terre de la carte du vent mesuré).
     sourceSets["main"].assets.srcDir(File(dossierLu, "genere/android"))
-    // Phrases apprises (dictionnaire_appris.json), jamais avec la configuration fictive.
-    File(dossierDonnees, "genere/android").takeIf { it.isDirectory && dossierLu != dossierExemple }
-        ?.let { sourceSets["main"].assets.srcDir(it) }
+    // Phrases apprises (dictionnaire_appris.json), jamais avec la configuration fictive. Chemins canoniques : un
+    // même dossier écrit autrement (« ./config », lien) ne doit ni passer pour un autre ni être ajouté deux fois.
+    File(dossierDonnees, "genere/android").takeIf {
+        it.isDirectory && dossierLu.canonicalFile != dossierExemple.canonicalFile &&
+            it.canonicalFile != File(dossierLu, "genere/android").canonicalFile
+    }?.let {
+        logger.lifecycle("Phrases apprises prises dans ${it.path}")
+        sourceSets["main"].assets.srcDir(it)
+    }
 
     // Les tests unitaires tournent sur la configuration fictive de config-exemple/, jamais sur la vraie : propriété
     // système lue par ConfigMaison.kt et DictionnaireTest. `-PmaisonTests=reel` les lance sur le dossier de la
