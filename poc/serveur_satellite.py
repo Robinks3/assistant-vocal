@@ -141,6 +141,8 @@ class Moteur:
         self.satellites = set()
         self.cerveau_actif = "claude" if cfg.get("llm_fournisseur") == "claude" else "local"
         self.cerveau_pret, self.cerveau_message = True, ""
+        if self.cerveau_actif == "claude" and A.cle_claude_absente():
+            self.cerveau_message = A.MANQUE_CLE_CLAUDE  # affiché par l'appli dans les réglages
         self.essai = essai
         self.noms = Noms(self)
         self.stt_actif = "pc" if self.profil == "pc" else "ha_stp"
@@ -278,6 +280,11 @@ class Moteur:
             await self.diffuser(self.etat_cerveau())
             return
         async with self.verrou:
+            if choix == "claude" and A.cle_claude_absente():  # garder le modèle local plutôt que plus rien
+                self.cerveau_message = f"{A.MANQUE_CLE_CLAUDE}, je reste sur le modèle local"
+                print(f"  cerveau : {self.cerveau_actif} ({self.cerveau_message})")
+                await self.diffuser(self.etat_cerveau())
+                return
             self.cerveau_actif, self.cerveau_pret = choix, False
             if choix == "claude":
                 self.cerveau_message = "Bascule sur Claude en ligne..."
@@ -290,7 +297,8 @@ class Moteur:
                 await self.diffuser(self.etat_cerveau())
                 pret = await asyncio.to_thread(demarrer_llm_local)
                 if not pret:
-                    self.cerveau_actif, self.cerveau_message = "claude", "Carte graphique indisponible, je reste sur Claude"
+                    self.cerveau_actif, self.cerveau_message = "claude", "Carte graphique indisponible, je reste sur Claude" + (
+                        f" ({A.MANQUE_CLE_CLAUDE})" if A.cle_claude_absente() else "")
                     self.assistant.cerveau = A.CerveauClaude(self.cfg, self.assistant.ha)
                 else:
                     self.assistant.cerveau = A.Cerveau(self.cfg, self.assistant.ha)

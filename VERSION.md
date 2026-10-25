@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.27.1 (2026-10-25), cerveau Claude sans clé Anthropic
+- Avertissement au démarrage quand le cerveau Claude n'a pas de clé (`ANTHROPIC_API_KEY` vide dans
+  `poc/.env`, ou option `anthropic_api_key` de l'appli HA). Chaque demande au LLM échoue alors sur une erreur
+  claire, sans appel à l'API, au lieu de l'erreur d'authentification du SDK. Le message part aussi vers
+  l'appli dans l'état du cerveau.
+- Bascule vers Claude demandée depuis le téléphone refusée sans clé : le modèle local reste chargé au lieu
+  d'être arrêté pour un cerveau qui ne répondrait pas.
+- Test `poc/tests/test_cle_claude.py`.
+
 ## Serveur 0.27.0 (2026-10-25), plafond de volume réglable, aucun par défaut
 - Le plafond fixe de 50 % du volume devient le réglage `securite.plafond_volume` de `maison.json`, en
   pourcentage : absent, `null` ou `100`, aucun plafond (le défaut). La configuration d'exemple et celle de

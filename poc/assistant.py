@@ -29,8 +29,8 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.27.0"
-DATE_VERSION = "2026-10-24"
+VERSION = "0.27.1"
+DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
 # Données vivantes (dictionnaire, phrases apprises, journal) : à côté du code sur le PC, dans le
@@ -1005,6 +1005,16 @@ def presélection(texte, liste, maxi=4):
     return ", ".join(f"{e} ({nom})" for _, e, nom in scores[:maxi])
 
 
+MANQUE_CLE_CLAUDE = ("ANTHROPIC_API_KEY vide (poc/.env, ou option anthropic_api_key de l'appli HA) : "
+                     "le cerveau Claude ne peut répondre à aucune demande")
+
+
+def cle_claude_absente():
+    """Vrai quand le cerveau Claude n'a pas de clé (0.27.1) : sans cet avertissement, chaque demande au LLM
+    échouait sur une erreur d'authentification du SDK, sans rien dire au démarrage."""
+    return not os.getenv("ANTHROPIC_API_KEY", "").strip()
+
+
 class CerveauClaude(Cerveau):
     """Même rôle que Cerveau, mais avec Claude (API Anthropic, SDK officiel) au lieu de Qwen local.
 
@@ -1017,6 +1027,9 @@ class CerveauClaude(Cerveau):
         super().__init__(cfg, ha)
         self.anthropic = anthropic
         self.client = anthropic.Anthropic(max_retries=1, timeout=20)
+        self.sans_cle = cle_claude_absente()
+        if self.sans_cle:
+            print(f"  ! {MANQUE_CLE_CLAUDE}.")
         self.modele = cfg["claude_modele"]
         self.outils = self.outils_claude(set())
         self.mesures = []  # (durée, tokens entrée, tokens lus en cache, tokens sortie) par appel
@@ -1027,6 +1040,8 @@ class CerveauClaude(Cerveau):
                  "input_schema": o["function"]["parameters"]} for o in outils_avec_entites(entites)]
 
     def repondre(self, texte):
+        if self.sans_cle:
+            raise RuntimeError(MANQUE_CLE_CLAUDE)
         if time.time() - self.dernier_echange > 120:
             self.historique = []
         self.oublier_si_autre_personne()
