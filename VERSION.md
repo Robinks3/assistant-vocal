@@ -4,6 +4,37 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.27.3 (2026-10-25), défauts relevés pendant la documentation
+- Clé Claude : `ANTHROPIC_AUTH_TOKEN` compte comme une clé, comme dans le SDK. Sans clé, la réponse parlée
+  dit « Je n'ai pas de clé Anthropic » au lieu de « Le PC est peut-être occupé », et le journal garde le
+  texte de l'erreur. Le refus de passer sur Claude sans clé se décide hors du verrou et ne s'affiche
+  qu'une fois. Tests dans `test_cle_claude.py`.
+- Vent mesuré éteint : le message de démarrage donne toutes les causes (`VENT_MESURE=0`, `METEO_MER=0`,
+  `"actif": false`). `maison.actif(section)` lit `"actif"` comme l'appli (vrai seulement pour `true`,
+  donc `1` ou `"oui"` valent faux), pour `mer` et `vent`. `point_proche` ne plante plus (`ValueError`)
+  quand aucun point n'est déclaré : il rend une chaîne vide et l'appli prend son point par défaut.
+- Script de musique sans `appareils.musique.enceintes.toutes` : la confirmation d'écoute ne vérifie plus
+  rien au lieu de chercher un groupe inexistant. Les autres commandes de musique demandent toujours cette
+  enceinte.
+- `poc/outils/telecharger_modeles.py` télécharge aussi la voix `en_US-lessac-medium` (modèle et `.json`,
+  vérifiés par empreinte SHA-256).
+- `maison.json` : message distinct pour un fichier absent (copier l'exemple) et un fichier illisible
+  (le corriger, sans recopier l'exemple qui effacerait la configuration).
+- `poc/.env` lu avant les options de `serveur_satellite.py` : `JARVIS_PORT_TLS` y prend effet (une ligne
+  vide garde 8766).
+  `poc/.env.exemple` liste les variables qui manquaient (`CLAUDE_MODELE`, `SEUIL_REVEIL`, `VOIX`,
+  `STT_API_*`, `JARVIS_PROFIL`, `JARVIS_PORT_TLS`, `JARVIS_ANCIEN_ACCES`, `JARVIS_WYOMING_SSH`,
+  `SATELLITE_JETON_<NOM>`) et dit lesquelles ne se lisent que dans l'environnement.
+- `ha-app/deployer.sh` prend `python3` ou `python`, essayés tour à tour (le raccourci du Microsoft Store
+  ne compte pas), et s'arrête sur `Python introuvable` sinon.
+- Garde-fou : un fichier `.env` indexé reçoit un conseil adapté (`git rm --cached`), en plus de celui
+  sur les secrets quand il y en a ailleurs.
+- Vision : une erreur d'analyse renvoie son type seulement, le détail part dans le journal du serveur.
+- Journal de calibration du réveil dans le dossier de données (`JARVIS_DONNEES`), plus dans `poc/` en dur.
+- Heures calmes : le refus dit la plage de `heures_calmes` au lieu de « entre minuit et 9 h » figé.
+- Docstrings de `assistant.py` et `serveur_satellite.py` à jour. `docs/FAQ.md` : section « Limites
+  connues », messages de `maison.json`, du déployeur et du garde-fou.
+
 ## Serveur 0.27.2 (2026-10-25), METEO_MER=0 éteint aussi le vent mesuré
 - `METEO_MER=0` (ou `non`, `false`, `off`) éteint désormais la météo marine et le vent mesuré, puisque la page
   Vent fait partie du panneau Mer. Avant, le vent restait servi et il fallait aussi `VENT_MESURE=0`.

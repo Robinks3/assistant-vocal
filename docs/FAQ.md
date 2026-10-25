@@ -14,6 +14,7 @@ Les commandes sont écrites pour Windows (PowerShell), depuis la racine du dép�
 - [Santé, Mer et Vent](#santé-mer-et-vent)
 - [Appli Home Assistant](#appli-home-assistant)
 - [Garde-fou et tests](#garde-fou-et-tests)
+- [Limites connues](#limites-connues)
 
 ## Compilation de l'APK
 
@@ -141,21 +142,22 @@ du serveur, le jeton d'appairage et les visages.
 ### Le serveur s'arrête faute de configuration
 
 ```text
-Configuration de la maison illisible (<chemin>/maison.json) : <erreur>. Copier le dossier config-exemple/ en config/ (ou régler ASSISTANT_VOCAL_CONFIG) et y mettre les vraies valeurs de la maison.
+Configuration de la maison absente (<chemin>/maison.json) : <erreur>. Copier le dossier config-exemple/ en config/ (ou régler ASSISTANT_VOCAL_CONFIG) et y mettre les vraies valeurs de la maison.
+Configuration de la maison illisible (<chemin>/maison.json) : <erreur>. Corriger le fichier, à enregistrer en UTF-8 et en JSON valide (virgules, guillemets droits, accolades).
 ```
 
 Le serveur, l'assistant, l'export du dictionnaire et la vue 3D s'arrêtent tous ainsi quand le dossier de
-configuration manque ou contient un `maison.json` illisible. Si le dossier manque, copiez `config-exemple/`
-en `config/`, ou réglez `ASSISTANT_VOCAL_CONFIG`.
+configuration manque ou contient un `maison.json` illisible. Avec « absente », copiez `config-exemple/` en
+`config/`, ou réglez `ASSISTANT_VOCAL_CONFIG`.
 
-Si le dossier existe et que `<erreur>` contient `BOM`, `Expecting value` ou `Expecting ','`, ne recopiez pas
-l'exemple : vos modifications seraient perdues. Le fichier n'est pas du JSON valide en UTF-8 sans BOM.
+Avec « illisible », ne recopiez pas l'exemple : vos modifications seraient perdues. Si `<erreur>`
+contient `BOM`, `Expecting value` ou `Expecting ','`, le fichier n'est pas du JSON valide en UTF-8 sans BOM.
 Réenregistrez-le en « UTF-8 » (sans BOM) dans votre éditeur, ou corrigez la virgule ou le guillemet signalé.
 Sous Windows PowerShell 5.1, `Set-Content -Encoding utf8` ajoute un BOM : préférez un éditeur de texte.
 
 `ASSISTANT_VOCAL_CONFIG` doit être réglée dans le terminal, pas dans `poc/.env` : le dossier est lu au
-chargement du programme, avant `poc/.env`. Il en va de même pour `JARVIS_DONNEES`, `VAD_MODELE` et
-`JARVIS_PORT_TLS`.
+chargement du programme, avant `poc/.env`. Il en va de même pour `JARVIS_DONNEES` et `VAD_MODELE`, et
+pour elles seules. `JARVIS_PORT_TLS` se lit dans `poc/.env` depuis la 0.27.3.
 
 ```powershell
 $env:ASSISTANT_VOCAL_CONFIG = "D:\maison\config"
@@ -379,9 +381,18 @@ le LLM local (`llama-server` sur `http://127.0.0.1:8080/v1`), qui ne tourne pas 
 `LLM_FOURNISSEUR=claude` et une clé `ANTHROPIC_API_KEY` valide, ou démarrez votre LLM local. Les fichiers
 `.bat` du serveur forcent déjà `claude`.
 
+Depuis la 0.27.3, une clé absente a son propre message :
+
+```text
+Je n'ai pas de clé Anthropic, Claude ne peut pas répondre.
+```
+
+Mettez `ANTHROPIC_API_KEY` (ou un jeton `ANTHROPIC_AUTH_TOKEN`) dans `poc/.env`, ou l'option
+`anthropic_api_key` de l'appli Home Assistant, puis redémarrez le serveur.
+
 ### La musique est refusée
 
-Les commandes de musique demandent une section `appareils.musique` avec une enceinte `toutes` dans
+Les commandes de musique demandent une enceinte `appareils.musique.enceintes.toutes` dans
 `maison.json`, et l'intégration Music Assistant dans Home Assistant. Sans elles, elles sont refusées
 volontairement.
 
@@ -451,8 +462,8 @@ pages restent vides.
 Le script refuse de déployer sans configuration réelle (`maison.json` et `commandes.yaml`). Créez
 `config/` ou réglez `ASSISTANT_VOCAL_CONFIG`.
 
-Sous Windows, lancez-le dans Git Bash. Le script appelle `python` pour lire l'alias SSH : si Git Bash ne
-le trouve pas, ajoutez Python au `PATH` de ce terminal. Une erreur SSH signale un alias `reseau.ssh_ha`
+Sous Windows, lancez-le dans Git Bash. Le script prend `python3` ou, à défaut, `python` pour lire l'alias
+SSH. S'il s'arrête sur `Python introuvable (python3 ou python).`, ajoutez Python au `PATH` de ce terminal. Une erreur SSH signale un alias `reseau.ssh_ha`
 absent de `~/.ssh/config`, ou une appli SSH qui refuse la clé.
 
 ### L'appli n'apparaît pas dans Home Assistant
@@ -485,9 +496,14 @@ session SSH sans `SUPERVISOR_TOKEN` ou une appli installée sous un autre identi
 Le message se termine par :
 
 ```text
-Garde-fou : commit refusé. Retirer ces éléments de l'index (git restore --staged <fichier>),
-mettre les secrets dans poc/.env, puis recommencer.
+Garde-fou : commit refusé. Retirer ces éléments de l'index (git restore --staged <fichier>).
+Mettre les secrets dans poc/.env.
+Puis recommencer.
 ```
+
+La ligne sur les secrets ne paraît que si un secret a été trouvé. Si un fichier `.env` est lui-même
+indexé, une ligne s'ajoute : `Un fichier .env déjà suivi se retire par git rm --cached <fichier>.`
+Retirez-le de l'index et du suivi, puis vérifiez que `.gitignore` l'exclut toujours.
 
 Il est précédé d'une ou plusieurs de ces rubriques :
 
@@ -588,3 +604,65 @@ plus ce fichier lui-même : refaites l'export à la main, puis committez-le avec
 ```powershell
 .venv\Scripts\python android/outils/exporter_dictionnaire.py --exemple
 ```
+
+## Limites connues
+
+Ce que le moteur ne sait pas encore faire, relevé en écrivant la documentation. Rien de cela n'est une
+panne : la configuration doit en tenir compte.
+
+### Configuration de la maison
+
+- Les pages Mer et Vent de l'appli demandent les deux sections `mer` et `vent` actives, et un `vent.cadre`
+  de quatre nombres. Une maison qui n'a que la section `mer` n'a pas de page Mer sur la tablette, même si
+  le serveur sert la météo marine.
+- `mer.nom` n'est lu par aucun code : le titre des pages vient des points déclarés.
+- Aucune source météo (Open-Meteo, VaguesRegional, StationsOfficielles, Balises, station à terre) ne s'éteint seule
+  depuis la configuration. Seules les sections entières s'éteignent, par `"actif": false`, `METEO_MER=0`
+  ou `VENT_MESURE=0`.
+- Le trait de côte de la carte du vent n'a pas de générateur dans le moteur : il se fournit tout fait dans
+  le dossier de configuration.
+- `carte/3d/generer_3d.py` traite une arête oblique comme verticale, tourne toujours la télé vers +y et
+  exige les champs `groupes` et `ouvertures`, même vides.
+- Le jour courant de la santé (Aujourd'hui, Tendances, Jour) suit le fuseau `Europe/Paris`, écrit dans le
+  code de l'appli, `poc/sante.py` et `poc/sante_hist.py`, quel que soit le fuseau de la maison. Une mesure
+  sans décalage horaire est lue dans ce même fuseau.
+- Le LLM de l'appareil (mode Cet appareil) ne lit pas `llm.notes` de `commandes.yaml`. Seuls le serveur et
+  Claude en tiennent compte.
+- Un script de musique sans `appareils.musique.enceintes.toutes` n'a pas de confirmation d'écoute : la
+  commande part, sans vérification que le groupe joue.
+- Les heures calmes ne passent pas minuit : avec `"debut": 22` et `"fin": 7`, elles ne s'appliquent
+  jamais. Gardez un début inférieur à la fin (de minuit à 9 h par défaut).
+
+### Serveur et installation
+
+- `MICRO` vaut `fifine` quand la ligne manque dans `poc/.env` : réglez-la avec un morceau du nom de votre
+  micro, ou laissez-la vide pour le micro par défaut de Windows.
+- `MOT_REVEIL` sans modèle `reveil/<mot>.onnx` dans le dossier de configuration retombe sur « Hey Jarvis »
+  sans le dire. Dans le profil ha, Home Assistant guette toujours « Hey Jarvis » par Wyoming, quel que soit
+  le mot de la configuration.
+- `poc/lancer-llm.ps1`, qui démarre llama-server pour le cerveau local, contient les chemins de la machine
+  d'origine. Adaptez-les avant le premier essai. Sous Linux et macOS, le démarrage et l'arrêt automatiques
+  du LLM local (`powershell`, `taskkill`) échouent : lancez llama-server vous-même.
+- Assist de Home Assistant n'est jamais appelé tant que la sécurité est active : une phrase que le
+  dictionnaire ne connaît pas part directement au LLM.
+- La copie du modèle de transcription Canary sur la tablette n'a pas d'outil. Elle se fait à la main par
+  `adb push` dans le dossier de l'appli.
+- L'APK n'a pas de signature de publication : elle se signe avec la clé de débogage d'Android Studio.
+
+### Appli Home Assistant
+
+- Elle n'est déclarée que pour `amd64` : un Home Assistant sur Raspberry Pi ne la propose pas.
+- `ha-app/deployer.sh` ne copie pas le dossier `reveil/` de la configuration, et les options de l'appli
+  n'ont ni `CLAUDE_MODELE` ni de jeton `SATELLITE_JETON_<NOM>` pour un second téléphone.
+
+### Sécurité du réseau
+
+- Sur le port en clair (8765), un jeton valide suffit pour la vision, la transcription, Home Assistant et
+  le LLM. Seule la santé exige la liaison chiffrée (8766). Gardez le port en clair fermé hors du réseau
+  local, ou coupez-le par `--port 0`. L'appli Home Assistant n'a pas cette option : retirez plutôt la
+  redirection du port 8765 dans ses réglages réseau.
+- L'appli autorise le trafic en clair (`usesCleartextTraffic`). Ses options de lancement de test
+  `test_reveil`, `test_llm` et `test_canary` restent actives dans toute APK. `test_previsions`,
+  `test_sante` et `test_sante_historique` ne marchent qu'en compilation de débogage, celle que décrit
+  `INSTALLER.md` (`assembleDebug`).
+- `LICENCES-TIERS.md` ne liste pas encore les modèles LiteRT, Qwen ni les conditions des sources météo.

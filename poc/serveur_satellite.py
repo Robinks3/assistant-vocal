@@ -20,7 +20,7 @@ Messages texte reçus du téléphone :
   {"type": "manque", ...}      raté du dictionnaire sur un appareil, ajouté à journal/manques.jsonl
   {"type": "retour", "verdict": "bien"|"mauvais", "entendu", "compris_par", ...}  note du propriétaire,
                               journal/retours.jsonl, phrase apprise oubliée si mauvaise
-  {"type": "manques", "n"}    lecture des deux journaux (poc/outils/manques.py)
+  {"type": "manques", "n"}    lecture des deux journaux, manques et retours
   {"type": "reveil", "score"} mot de réveil détecté sur le téléphone (appli 0.9.0+) : le téléphone
                               n'envoie alors le son que pendant l'écoute d'une phrase
 
@@ -118,6 +118,15 @@ def wav_de(signal_int16, taux):
     return tampon.getvalue()
 
 
+def causes_vent_eteint():
+    """Toutes les raisons pour lesquelles le vent mesuré est éteint, pour la ligne du démarrage (0.27.3)."""
+    if not (VM.ACTIF and MM.ACTIF):
+        return "pas de sections « mer » et « vent » actives dans maison.json"
+    causes = [n for n, eteint in (("METEO_MER=0", MM.eteinte_par_env()), ("VENT_MESURE=0", VM.eteint_par_env()))
+              if eteint]
+    return " et ".join(causes) or "raison inconnue"
+
+
 class Moteur:
     """Ressources partagées entre les satellites : chargées une seule fois."""
 
@@ -141,13 +150,14 @@ class Moteur:
         self.satellites = set()
         self.cerveau_actif = "claude" if cfg.get("llm_fournisseur") == "claude" else "local"
         self.cerveau_pret, self.cerveau_message = True, ""
-        if self.cerveau_actif == "claude" and A.cle_claude_absente():
-            self.cerveau_message = A.MANQUE_CLE_CLAUDE  # affiché par l'appli dans les réglages
         self.essai = essai
         self.noms = Noms(self)
         self.stt_actif = "pc" if self.profil == "pc" else "ha_stp"
         if self.profil == "ha":
             self.cerveau_actif = "claude"  # pas de carte graphique sur le petit serveur
+        # Après le forçage du profil ha (0.27.3) : sur HA, Claude est le seul cerveau, quel que soit llm_fournisseur.
+        if self.cerveau_actif == "claude" and A.cle_claude_absente():
+            self.cerveau_message = A.MANQUE_CLE_CLAUDE  # affiché par l'appli dans les réglages
         self.arbitre = Arbitre(self)
         self.appareils = None    # acces.Appareils, réglé par servir()
         self.empreinte_tls = ""  # clé publique du port chiffré, pour l'épinglage côté téléphone
@@ -184,9 +194,7 @@ class Moteur:
         # personnelle, dans les deux profils. VENT_MESURE=0 ou METEO_MER=0 l'éteint (voir vent_mesure.py).
         self.vent_mesure = VM.depuis_env()
         print("  vent mesuré : " + ("Balises, StationsOfficielles et station" if self.vent_mesure
-                                    else "éteint (" + (("METEO_MER=0" if MM.eteinte_par_env() else "VENT_MESURE=0")
-                                                       if VM.ACTIF and MM.ACTIF
-                                                       else "pas de sections « mer » et « vent » actives dans maison.json") + ")"))
+                                    else "éteint (" + causes_vent_eteint() + ")"))
 
     def refus_sante(self, sat):
         """Raison du refus du relais santé pour cette connexion, ou None (sat : un Satellite)."""
@@ -280,12 +288,16 @@ class Moteur:
         if choix == self.cerveau_actif and self.cerveau_pret:
             await self.diffuser(self.etat_cerveau())
             return
+        if choix == "claude" and A.cle_claude_absente():  # garder le modèle local plutôt que plus rien
+            # Hors du verrou (0.27.3) : le refus ne doit pas attendre une commande en cours, et une appli qui
+            # redemande Claude à chaque reconnexion ne répète pas la même ligne dans le journal.
+            refus = f"{A.MANQUE_CLE_CLAUDE}, je reste sur le modèle local"
+            if self.cerveau_message != refus:
+                self.cerveau_message = refus
+                print(f"  cerveau : {self.cerveau_actif} ({refus})")
+            await self.diffuser(self.etat_cerveau())
+            return
         async with self.verrou:
-            if choix == "claude" and A.cle_claude_absente():  # garder le modèle local plutôt que plus rien
-                self.cerveau_message = f"{A.MANQUE_CLE_CLAUDE}, je reste sur le modèle local"
-                print(f"  cerveau : {self.cerveau_actif} ({self.cerveau_message})")
-                await self.diffuser(self.etat_cerveau())
-                return
             self.cerveau_actif, self.cerveau_pret = choix, False
             if choix == "claude":
                 self.cerveau_message = "Bascule sur Claude en ligne..."
@@ -298,8 +310,9 @@ class Moteur:
                 await self.diffuser(self.etat_cerveau())
                 pret = await asyncio.to_thread(demarrer_llm_local)
                 if not pret:
-                    self.cerveau_actif, self.cerveau_message = "claude", "Carte graphique indisponible, je reste sur Claude" + (
-                        f" ({A.MANQUE_CLE_CLAUDE})" if A.cle_claude_absente() else "")
+                    self.cerveau_actif, self.cerveau_message = "claude", (
+                        f"Carte graphique indisponible et pas de clé Claude : aucun cerveau ne répond ({A.MANQUE_CLE_CLAUDE})"
+                        if A.cle_claude_absente() else "Carte graphique indisponible, je reste sur Claude")
                     self.assistant.cerveau = A.CerveauClaude(self.cfg, self.assistant.ha)
                 else:
                     self.assistant.cerveau = A.Cerveau(self.cfg, self.assistant.ha)
@@ -793,7 +806,8 @@ def enregistrer_seuil(seuil):
     lignes = [l for l in env.read_text(encoding="utf-8").splitlines() if not l.startswith("SEUIL_REVEIL=")]
     lignes.append(f"SEUIL_REVEIL={seuil}")
     env.write_text("\n".join(lignes) + "\n", encoding="utf-8")
-    journal = A.ICI / "journal" / "calibration_reveil.csv"
+    journal = A.DONNEES / "journal" / "calibration_reveil.csv"  # dossier de données (0.27.3), plus poc/ en dur
+    journal.parent.mkdir(parents=True, exist_ok=True)
     neuf = not journal.exists()
     with open(journal, "a", encoding="utf-8") as f:
         if neuf:
@@ -1354,18 +1368,19 @@ async def servir(args):
 
 
 def main():
+    # poc/.env lu avant les options (0.27.3) : JARVIS_PORT_TLS y était sans effet.
+    from dotenv import load_dotenv
+    load_dotenv(A.ICI / ".env")
     p = argparse.ArgumentParser(description="Serveur des satellites vocaux")
     p.add_argument("--essai", action="store_true")
     p.add_argument("--port", type=int, default=8765, help="port en clair (0 pour le couper)")
-    p.add_argument("--port-tls", type=int, default=int(os.getenv("JARVIS_PORT_TLS", "8766")),
+    p.add_argument("--port-tls", type=int, default=int(os.getenv("JARVIS_PORT_TLS") or "8766"),
                    help="port chiffré wss (0 pour le couper)")
     p.add_argument("--seuil", type=float, default=None,
                    help="score du mot de réveil (0 à 1), sinon SEUIL_REVEIL de poc/.env, sinon 0,5")
     p.add_argument("--calibrer", action="store_true", help="calibrage guidé du mot de réveil au démarrage")
     a = p.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    from dotenv import load_dotenv
-    load_dotenv(A.ICI / ".env")
     if a.seuil is None:
         a.seuil = float(os.getenv("SEUIL_REVEIL", "0.5"))
     try:

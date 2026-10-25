@@ -54,6 +54,7 @@ class SanteTest {
         val lou = PersonneVue(2, "p2", "Lou", true, sur = true)
         val inconnu = PersonneVue(3, null, null, true, inconnu = true)
         assertTrue(Sante.proprietaireSeulSur(listOf(sacha)))
+        assertTrue(Sante.proprietaireSeulSur(listOf(PersonneVue(1, "p1", " SÂCHA ", true, sur = true))))
         // Identité seulement gardée de mémoire (tête tournée, ou quelqu'un d'autre à sa place) : non.
         assertFalse(Sante.proprietaireSeulSur(listOf(sachaDeMemoire)))
         assertFalse(Sante.proprietaireSeulSur(listOf(sacha, lou)))

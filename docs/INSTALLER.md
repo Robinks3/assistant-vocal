@@ -348,9 +348,9 @@ l'étape 7). Supprimer la ligne d'une personne lui coupe l'accès au prochain d�
 | `MAISON_DOSSIER` | Ancien nom de la précédente | aucun | Environnement du terminal seulement |
 | `JARVIS_DONNEES` | Dossier des données vivantes (journaux, phrases apprises, `tls/`, `appareils.json`) | `poc/` | Environnement du terminal seulement |
 | `VAD_MODELE` | Modèle Silero VAD | `poc/modeles/silero_vad.onnx` | Environnement du terminal seulement |
-| `JARVIS_PORT_TLS` | Port chiffré par défaut | `8766` | Environnement du terminal seulement, ou option `--port-tls` |
+| `JARVIS_PORT_TLS` | Port chiffré par défaut | `8766` | `poc/.env`, ou option `--port-tls` |
 | `GARDE_FOU_TAILLE_MAX_MO` | Taille maximale d'un fichier pour le garde-fou | `5` | Environnement du terminal |
-| `HOTE_TEST`, `PORT_TEST`, `MODE_ESSAI` | Outil de test `poc/outils/faux_telephone.py`, qui demande aussi la voix Piper `en_US-lessac-medium` dans `poc/voix/` (non téléchargée par `telecharger_modeles.py`) | `127.0.0.1`, `8765`, vide | Environnement du terminal |
+| `HOTE_TEST`, `PORT_TEST`, `MODE_ESSAI` | Outil de test `poc/outils/faux_telephone.py`, qui demande aussi la voix Piper `en_US-lessac-medium` dans `poc/voix/` (téléchargée par `telecharger_modeles.py`) | `127.0.0.1`, `8765`, vide | Environnement du terminal |
 
 Les quatre variables marquées « environnement du terminal seulement » sont lues au chargement des
 modules Python, avant `poc/.env` : écrites dans `poc/.env`, elles sont sans effet.
@@ -741,8 +741,8 @@ Assistant. Si votre appli SSH ne le montre pas, adaptez le chemin dans `ha-app/d
 
 ### Déploiement
 
-Depuis un terminal Bash (Git Bash sous Windows), à la racine du dépôt. Le script appelle `python`, qui
-doit être trouvé dans ce terminal :
+Depuis un terminal Bash (Git Bash sous Windows), à la racine du dépôt. Le script appelle `python3` ou, à défaut,
+`python`, qui doit être trouvé dans ce terminal :
 
 ```bash
 bash ha-app/deployer.sh

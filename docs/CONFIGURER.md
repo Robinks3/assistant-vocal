@@ -903,8 +903,8 @@ Quand la règle 2 est active, entre `heures_calmes.debut` (compris) et `heures_c
 l'heure de `fuseau`, un service sur une entité de `son_salon`, ou un script de `son_salon` appelé comme
 service, est refusé, sauf `media_player.turn_off`, `media_player.media_pause`, `media_player.media_stop`,
 `media_player.volume_down`, `media_player.volume_mute` (pas pour rétablir le son) et `script.turn_off`.
-Cette liste de services est écrite dans le code. Le message de refus parle de "minuit et 9 h" quelles que
-soient les heures configurées.
+Cette liste de services est écrite dans le code. Le message de refus donne la plage configurée, par exemple
+"pas de son dans le salon entre minuit et 9 h (sécurité)", et dit "minuit" pour l'heure 0.
 
 ### Le plafond de volume
 

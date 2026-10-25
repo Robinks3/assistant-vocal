@@ -19,4 +19,5 @@ def test_image_absente_ou_illisible():
             raise ValueError("image illisible")
     assert "erreur" in VI.traiter_message(Faux(), {"id": 1})
     rep = VI.traiter_message(Faux(), {"id": 2, "jpeg": "AAAA"})
-    assert rep["id"] == 2 and "illisible" in rep["erreur"]
+    # Type seul côté téléphone, détail dans le journal du serveur (0.27.3).
+    assert rep["id"] == 2 and rep["erreur"] == "analyse impossible (ValueError)"

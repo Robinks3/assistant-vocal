@@ -100,8 +100,13 @@ case "${1:---index}" in
         done
         if ! verifier "$TMP/chemins" "$TMP/ajouts" "$TMP/gros"; then
             echo
-            echo "Garde-fou : commit refusé. Retirer ces éléments de l'index (git restore --staged <fichier>),"
-            echo "mettre les secrets dans poc/.env, puis recommencer."
+            echo "Garde-fou : commit refusé. Retirer ces éléments de l'index (git restore --staged <fichier>)."
+            if grep -q -E '(^|/)\.env($|\.)' "$TMP/r_chemins"; then
+                # Un .env indexé : le retirer du suivi, il garde les secrets sur la machine.
+                echo "Un fichier .env déjà suivi se retire par git rm --cached <fichier>."
+            fi
+            [ -s "$TMP/r_secrets" ] && echo "Mettre les secrets dans poc/.env."
+            echo "Puis recommencer."
             exit 1
         fi
         ;;

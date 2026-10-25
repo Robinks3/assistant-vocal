@@ -21,10 +21,17 @@ fi
 for f in maison.json commandes.yaml; do
     [ -f "$MAISON/$f" ] || { echo "$MAISON/$f absent : copier config-exemple/ en config/ et l'adapter." >&2; exit 1; }
 done
-SSH_HA="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["reseau"]["ssh_ha"])' "$MAISON/maison.json")"
+# Premier Python qui répond vraiment (0.27.3) : beaucoup de Linux n'ont que python3, et le python3 de
+# Windows peut n'être qu'un raccourci vers le Store qui ne lance rien.
+PY=""
+for c in python3 python; do
+    if "$c" -c 'import json' >/dev/null 2>&1; then PY="$c"; break; fi
+done
+[ -n "$PY" ] || { echo "Python introuvable (python3 ou python)." >&2; exit 1; }
+SSH_HA="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["reseau"]["ssh_ha"])' "$MAISON/maison.json")"
 cp -r "$ICI/jarvis/." "$ETAPE/"
 # Nom affiché de l'appli dans HA : section assistant de maison.json, sinon « Assistant ».
-python - "$MAISON/maison.json" "$ETAPE/config.yaml" <<'PY'
+"$PY" - "$MAISON/maison.json" "$ETAPE/config.yaml" <<'PY'
 import json, re, sys
 section = json.load(open(sys.argv[1], encoding="utf-8")).get("assistant")
 nom = section.get("nom") if isinstance(section, dict) else None

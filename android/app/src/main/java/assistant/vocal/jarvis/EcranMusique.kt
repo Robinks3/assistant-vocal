@@ -123,7 +123,7 @@ internal class EcranMusique(
             addView(texte(14f, Couleur.TEXTE_2, lignes = 4).apply {
                 // La règle de nuit n'est annoncée que si elle est en vigueur (levée le 22/10/2026).
                 text = "Une seule musique, synchronisée sur les enceintes cochées." + if (Securite.HEURE_CALME_ACTIVE)
-                    " Pas de son au salon de minuit à 9 h : le Salon et la Cuisine ne peuvent pas être ajoutés la nuit." else ""
+                    " Pas de son au salon ${Securite.PLAGE_CALME} : le Salon et la Cuisine ne peuvent pas être ajoutés la nuit." else ""
             }, marge(6))
             for ((id, nom) in SortieSon.ENCEINTES) addView(construireLigne(id, nom), marge(14))
             addView(suivantTitre, marge(24))

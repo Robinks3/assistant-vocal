@@ -16,7 +16,8 @@ import java.util.TimeZone
  * nom_occupant.
  * 1. ne JAMAIS toucher à ce qui appartient à l'occupant (chambre, salle de bain, lumières, réveils,
  *    automatisations, scripts, téléphone), ni viser « all », une zone de l'occupant ou un appareil ;
- * 2. aucun son dans le salon entre minuit et 9 h (heure du fuseau de la maison) ;
+ * 2. aucun son dans le salon pendant les heures calmes (heures_calmes, de minuit à 9 h par défaut,
+ *    heure du fuseau de la maison) ;
  * 3. exception décidée le 21/10/2026 : l'occupant reconnu par la tablette, seul devant elle et
  *    avec assurance, peut allumer, éteindre et régler ses lumières à lui (PERMIS_PERSONNE), et rien
  *    d'autre de ce qui lui appartient. Quelqu'un d'autre, ou personne de sûr : la règle 1 reste entière.
@@ -87,6 +88,9 @@ object Securite {
     )
     private val HEURE_CALME_DEBUT = conf.optJSONObject("heures_calmes")?.optInt("debut", 0) ?: 0
     private val HEURE_CALME_FIN = conf.optJSONObject("heures_calmes")?.optInt("fin", 9) ?: 9
+    /** Plage dite dans le refus et l'écran Musique, tirée de heures_calmes (0.32.3, figée auparavant). */
+    val PLAGE_CALME: String = listOf(HEURE_CALME_DEBUT, HEURE_CALME_FIN)
+        .map { if (it % 24 == 0) "minuit" else "$it h" }.let { (de, a) -> "entre $de et $a" }
     private val FUSEAU: String = maison.optString("fuseau").ifEmpty { "UTC" }
 
     /** Règle 3 : ce que la personne reconnue peut piloter chez elle, et rien de plus. */
@@ -152,7 +156,7 @@ object Securite {
             var silencieux = service in SERVICES_SILENCIEUX
             if (service == "media_player.volume_mute" && action.has("is_volume_muted") && !action.optBoolean("is_volume_muted")) silencieux = false
             if (!silencieux && (service in SON_SALON || entites.any { it in SON_SALON })) {
-                return "pas de son dans le salon entre minuit et 9 h (sécurité)"
+                return "pas de son dans le salon $PLAGE_CALME (sécurité)"
             }
         }
         return null

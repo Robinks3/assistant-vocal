@@ -8,7 +8,7 @@ Le serveur ne garde rien : ni image, ni empreinte. Il rend les visages trouvés,
 compare elle-même les empreintes aux profils qu'elle a enregistrés. Ainsi les profils ne vivent
 qu'à un seul endroit, que la vision tourne sur la tablette ou sur le PC.
 """
-import base64, time
+import base64, sys, time
 from pathlib import Path
 
 import numpy as np
@@ -76,6 +76,8 @@ def traiter_message(vision, msg):
     try:
         w, h, visages = vision.analyser(base64.b64decode(brut))
     except Exception as e:
-        return {"etat": "vision", "id": ident, "erreur": f"{e.__class__.__name__} : {e}"}
+        # Le détail reste dans le journal du serveur, la tablette ne reçoit que le type d'erreur (0.27.3).
+        print(f"vision : {e.__class__.__name__} : {e}", file=sys.stderr)
+        return {"etat": "vision", "id": ident, "erreur": f"analyse impossible ({e.__class__.__name__})"}
     return {"etat": "vision", "id": ident, "ms": round((time.perf_counter() - t) * 1000),
             "largeur": w, "hauteur": h, "visages": visages}

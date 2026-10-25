@@ -57,7 +57,9 @@ internal object Sante {
     /** Le propriétaire, reconnu sur cette image même (identité sûre), est la seule personne de l'image. */
     fun proprietaireSeulSur(personnes: List<PersonneVue>): Boolean {
         val p = personnes.singleOrNull() ?: return false
-        return !p.inconnu && p.sur && p.nom != null && p.nom.trim().equals(PRENOM, ignoreCase = true)
+        // Sans accents ni casse (0.32.3), comme « ma chambre » : un profil « Helene » vaut « Hélène ».
+        return !p.inconnu && p.sur && p.nom != null &&
+            Securite.personneNormalisee(p.nom) == Securite.personneNormalisee(PRENOM)
     }
 
     /**

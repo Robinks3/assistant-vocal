@@ -7,8 +7,8 @@ Ci-dessous, « l'occupant » est la personne nommée par `nom_occupant`.
 1. L'assistant ne touche JAMAIS à ce qui appartient à l'occupant : sa chambre, sa salle de bain, ses
    lumières, ses réveils, ses automatisations, ses scripts, son téléphone. Interdit aussi : viser
    « all », une zone de l'occupant, ou un appareil par son identifiant (on ne sait pas ce qu'il contient).
-2. Aucun son dans le salon (séjour, cuisine ouverte, enceintes de l'appartement) entre minuit et
-   9 h : seuls éteindre, mettre en pause, arrêter, baisser et couper le son restent permis.
+2. Aucun son dans le salon (séjour, cuisine ouverte, enceintes de l'appartement) pendant les heures
+   calmes (`heures_calmes`, de minuit à 9 h par défaut) : seuls éteindre, mettre en pause, arrêter, baisser et couper le son restent permis.
 
 3. Exception décidée le 21/10/2026 : quand la tablette reconnaît l'occupant, seul devant elle,
    l'assistant peut allumer, éteindre et régler ses lumières à lui (`permis_personne` de la configuration),
@@ -60,6 +60,8 @@ SERVICES_SILENCIEUX = {"media_player.turn_off", "media_player.media_pause", "med
                        "media_player.volume_down", "media_player.volume_mute", "script.turn_off"}
 HEURE_CALME_DEBUT = int((maison.SECURITE.get("heures_calmes") or {}).get("debut", 0))
 HEURE_CALME_FIN = int((maison.SECURITE.get("heures_calmes") or {}).get("fin", 9))
+# Plage dite dans le refus, tirée de heures_calmes (0.27.3, « entre minuit et 9 h » était écrit en dur).
+PLAGE_CALME = "entre {} et {}".format(*("minuit" if h % 24 == 0 else f"{h} h" for h in (HEURE_CALME_DEBUT, HEURE_CALME_FIN)))
 
 # Plafond du volume, réglé dans la configuration : securite.plafond_volume, en pourcentage, 100 par défaut
 # (aucun plafond). Le 12/10, « Mets le salon à fond » avait mis la Enceintes au maximum (en essai, rien n'est
@@ -198,7 +200,7 @@ def verifier(service, donnees, maintenant=None, personne=None):
             silencieux = False
         # Un script peut aussi être appelé comme service (« script.lancer_musique »).
         if not silencieux and (service in SON_SALON or any(e in SON_SALON for e in entites)):
-            return "pas de son dans le salon entre minuit et 9 h (sécurité)"
+            return f"pas de son dans le salon {PLAGE_CALME} (sécurité)"
     return None
 
 

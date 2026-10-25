@@ -1,8 +1,8 @@
 """Télécharge les gros modèles absents du dépôt, vérifie leur empreinte SHA-256 et les range.
 
-Les petits modèles (mot de réveil de l'appli, Silero VAD, YuNet) sont versionnés. Les gros (voix Piper,
-SFace) ne le sont pas : ce script les récupère à des versions épinglées, vérifiées par leur empreinte, et
-copie SFace dans les assets de l'appli Android avant sa compilation. Depuis la 0.25.1, il fait aussi
+Les petits modèles (mot de réveil de l'appli, Silero VAD, YuNet) sont versionnés. Les gros (voix Piper
+française et anglaise, SFace) ne le sont pas : ce script les récupère à des versions épinglées, vérifiées
+par leur empreinte, et copie SFace dans les assets de l'appli Android avant sa compilation. Depuis la 0.25.1, il fait aussi
 télécharger par openWakeWord son modèle « hey_jarvis » et ses modèles de prétraitement, dont le serveur
 a besoin pour guetter le mot de réveil (sans vérification d'empreinte, rangés par openWakeWord dans son
 propre dossier). Canary (transcription) se télécharge seul au premier lancement par onnx-asr, et sa copie
@@ -19,6 +19,11 @@ MODELES = [
      "641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99"),
     ("poc/voix/fr_FR-siwis-medium.onnx.json", f"{PIPER}/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json",
      "39479916c2db192b5ac9764daddd0c744d83e023ad890c6976c0633ae4df8959"),
+    # Voix anglaise de poc/outils/faux_telephone.py (mot de réveil dit à l'anglaise), pas du serveur (0.27.3).
+    ("poc/voix/en_US-lessac-medium.onnx", f"{PIPER}/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+     "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f"),
+    ("poc/voix/en_US-lessac-medium.onnx.json", f"{PIPER}/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
+     "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"),
     ("poc/modeles/vision/sface.onnx", f"{ZOO}/face_recognition_sface/face_recognition_sface_2021dec.onnx",
      "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"),
 ]

@@ -6,6 +6,13 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.32.3 (2026-10-25)
+- Écran Santé réservé au propriétaire : le nom du profil se compare sans accents ni casse, comme le nom
+  des pièces (`personneNormalisee`). Un profil « Helene » vaut « Hélène ».
+- Heures calmes : le refus de musique et l'écran Musique disent la plage tirée de `heures_calmes`
+  (`Securite.PLAGE_CALME`) au lieu de « entre minuit et 9 h » figé.
+- Test `SanteTest` (profil accentué). versionCode 60.
+
 ## 0.32.2 (2026-10-25)
 - Phrases apprises sorties de l'export versionnable : `android/outils/exporter_dictionnaire.py` n'écrit plus
   dans `genere/android/dictionnaire.json` du dossier de configuration que ce qui vient de `commandes.yaml`.

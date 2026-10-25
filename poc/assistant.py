@@ -2,7 +2,7 @@
 
 Micro -> Canary 1B v2 en français (STT, CPU) -> dictionnaire de commandes (commandes.yaml de la configuration)
 -> intentions locales de Home Assistant
--> sinon LLM LM Studio avec outils HA -> Piper (TTS) -> haut-parleurs.
+-> sinon LLM (llama-server local ou Claude) avec outils HA -> Piper (TTS) -> haut-parleurs.
 
 Usage :
   python poc/assistant.py               appui sur Entrée pour parler
@@ -29,7 +29,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.27.2"
+VERSION = "0.27.3"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -681,6 +681,8 @@ class HomeAssistant:
         domaine, _, action = service.partition(".")
         scripts = [e for e in securite.cibles(corps.get("entity_id")) if e in self.SCRIPTS_MUSIQUE]
         if (domaine == "script" and action == "turn_on" and scripts) or service in self.SCRIPTS_MUSIQUE:
+            if not self.ENCEINTES_MUSIQUE.get("toutes"):
+                return []  # sans enceinte « toutes » dans maison.json, aucun groupe à écouter (0.27.3)
             t0 = time.time()
             joue = self.musique_en_cours(max(delai, 12.0))
             journaliser_musique({"demande": ", ".join(scripts) or service, "type": "script", "enceinte": "toutes",
@@ -1005,14 +1007,15 @@ def presélection(texte, liste, maxi=4):
     return ", ".join(f"{e} ({nom})" for _, e, nom in scores[:maxi])
 
 
-MANQUE_CLE_CLAUDE = ("ANTHROPIC_API_KEY vide (poc/.env, ou option anthropic_api_key de l'appli HA) : "
-                     "le cerveau Claude ne peut répondre à aucune demande")
+MANQUE_CLE_CLAUDE = ("ANTHROPIC_API_KEY vide (poc/.env, ou option anthropic_api_key de l'appli HA, "
+                     "puis redémarrer le serveur) : le cerveau Claude ne peut répondre à aucune demande")
 
 
 def cle_claude_absente():
     """Vrai quand le cerveau Claude n'a pas de clé (0.27.1) : sans cet avertissement, chaque demande au LLM
-    échouait sur une erreur d'authentification du SDK, sans rien dire au démarrage."""
-    return not os.getenv("ANTHROPIC_API_KEY", "").strip()
+    échouait sur une erreur d'authentification du SDK, sans rien dire au démarrage. Le SDK accepte aussi un
+    jeton ANTHROPIC_AUTH_TOKEN à la place de la clé (0.27.3)."""
+    return not any(os.getenv(v, "").strip() for v in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"))
 
 
 class CerveauClaude(Cerveau):
@@ -1027,7 +1030,9 @@ class CerveauClaude(Cerveau):
         super().__init__(cfg, ha)
         self.anthropic = anthropic
         self.client = anthropic.Anthropic(max_retries=1, timeout=20)
-        self.sans_cle = cle_claude_absente()
+        # Variables vides ou faites d'espaces, ou rien trouvé par le client lui-même.
+        self.sans_cle = cle_claude_absente() or not (getattr(self.client, "api_key", None)
+                                                      or getattr(self.client, "auth_token", None))
         if self.sans_cle:
             print(f"  ! {MANQUE_CLE_CLAUDE}.")
         self.modele = cfg["claude_modele"]
@@ -1294,8 +1299,11 @@ class Assistant:
                 parole, actions = self.cerveau.repondre(texte)
                 self.apprendre(texte, parole)
             except Exception as e:
-                parole = "Le modèle de langage ne répond pas. Le PC est peut-être occupé."
-                voie += f" erreur {e.__class__.__name__}"
+                if str(e) == MANQUE_CLE_CLAUDE:  # 0.27.3 : la cause réelle, pas un PC soi-disant occupé
+                    parole = "Je n'ai pas de clé Anthropic, Claude ne peut pas répondre."
+                else:
+                    parole = "Le modèle de langage ne répond pas. Le PC est peut-être occupé."
+                voie += f" erreur {e.__class__.__name__} : {e}"
         t_cerveau = time.perf_counter() - t
         print(f"  [{voie}] {parole}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
         t_tts = 0.0
