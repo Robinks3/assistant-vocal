@@ -1031,7 +1031,7 @@ class Cerveau:
             return res
         if nom == "lire_etat":
             demande = args.get("entity_id", "")
-            if demande not in self.ha.entites_llm:  # même liste que l'enum du schéma, que le LLM peut contourner
+            if not isinstance(demande, str) or demande not in self.ha.entites_llm:  # même liste que l'enum du schéma, que le LLM peut contourner
                 return {"erreur": f"refusé : {demande} n'est pas dans l'inventaire des appareils permis"}
             return self.ha.etat(demande)
         return dict(INDISPONIBLE)

@@ -16,6 +16,8 @@ def test_lire_etat_refuse_hors_inventaire(monkeypatch):
     assert res["erreur"].startswith("refusé") and lus == []
     assert c.executer_outil("lire_etat", {"entity_id": ENTITE}, "", noms, [], []) == {"etat": "on"}
     assert lus == [ENTITE]
+    for faux in (["lock.porte"], {"a": 1}, None):
+        assert c.executer_outil("lire_etat", {"entity_id": faux}, "", noms, [], [])["erreur"].startswith("refusé")
 
 
 class ClientHA:
@@ -40,6 +42,9 @@ def test_passerelle_essai_ne_transmet_pas_les_services():
     S.passerelle_ha(moteur, {"id": 2, "methode": "GET", "chemin": "/api/states"})
     S.passerelle_ha(moteur, {"id": 3, "methode": "POST", "chemin": "/api/template", "corps": {"template": "{{ 1 }}"}})
     assert [a[0] for a in client.appels] == ["GET", "POST"]
+    r = S.passerelle_ha(moteur, {"id": 5, "methode": "POST", "chemin": "/api/conversation/process",
+                                 "corps": {"text": "éteins le salon"}})
+    assert r["code"] == 200 and len(client.appels) == 2
     refus = S.passerelle_ha(moteur, {"id": 4, "methode": "POST", "chemin": "/api/services/lock/unlock",
                                      "corps": {"entity_id": "lock.porte"}})
     assert refus["code"] == 403 and len(client.appels) == 2

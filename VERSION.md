@@ -7,7 +7,7 @@ satellites.
 ## Serveur 0.29.1 (2026-10-25), deux défauts des routines
 - `lire_etat` refuse toute entité absente de l'inventaire courant, sans appeler Home Assistant : le LLM ne
   peut plus contourner l'enum du schéma.
-- En mode essai, la passerelle Home Assistant ne transmet plus les services (POST `/api/services/...`) :
+- En mode essai (conversation de HA comprise), la passerelle Home Assistant ne transmet plus les services (POST `/api/services/...`) :
   elle répond 200 avec `[]` et le note au journal. Les lectures restent transmises. La vérification d'accès
   passe toujours en premier.
 
