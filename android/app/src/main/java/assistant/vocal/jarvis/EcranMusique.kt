@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.SystemClock
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -230,6 +232,7 @@ internal class EcranMusique(
         val c = d.commande
         if (c == null) {
             l.caseACocher.isChecked = !oui
+            l.caseVoulue = null
             if (d.message != null) montrer(d.message)
             return
         }
@@ -333,12 +336,22 @@ internal class EcranMusique(
         for (l in lignes) {
             val e = enceintes.firstOrNull { it.id == l.id }
             l.caseACocher.isEnabled = e != null
-            l.volume.isEnabled = e != null
+            l.volume.isEnabled = e != null && !e.horsLigne
             l.caseACocher.alpha = if (e == null) 0.4f else 1f
             if (e == null) {
                 l.pourcent.text = "-"
                 continue
             }
+            // Hors ligne : case touchable (pour dire pourquoi), toujours décochée, sans volume.
+            if (e.horsLigne) {
+                l.caseVoulue = null
+                l.caseACocher.isChecked = false
+                l.caseACocher.text = horsLigne(SortieSon.nomCourt(e.id))
+                l.caseACocher.contentDescription = SortieSon.horsLigne(e.id)
+                l.pourcent.text = "-"
+                continue
+            }
+            l.caseACocher.contentDescription = null
             // Choix récent fait au doigt gardé 5 s, le temps que HA le confirme.
             val voulue = l.caseVoulue
             if (voulue != null && t - l.caseLe < ATTENTE_CONFIRMATION_MS) {
@@ -357,6 +370,14 @@ internal class EcranMusique(
                 l.pourcent.text = "$p %"
             }
         }
+    }
+
+    /** Nom estompé et « hors ligne » en teinte d'avertissement, pour ne pas le confondre avec une enceinte absente. */
+    private fun horsLigne(nom: String): CharSequence {
+        val s = SpannableString("$nom\nhors ligne")
+        s.setSpan(ForegroundColorSpan((Palette.musiqueTexte and 0x00FFFFFF) or (0x80 shl 24)), 0, nom.length, 0)
+        s.setSpan(ForegroundColorSpan(Couleur.ORANGE), nom.length + 1, s.length, 0)
+        return s
     }
 
     /** Toutes les secondes : la progression avance entre deux lectures de HA. */

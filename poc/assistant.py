@@ -48,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.28.0"
+VERSION = "0.29.0"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -425,6 +425,8 @@ class HomeAssistant:
             return {"ok": True, "confirme": False,
                     "attention": f"ordre accepté mais état inchangé : {', '.join(muets)}. "
                                  "Dis que l'ordre est parti sans que l'appareil ne réponde."}
+        if self.manquantes:
+            return {"ok": True, "note": phrase_manquantes(self.manquantes) + " Dis-le en une courte phrase."}
         return {"ok": True}
 
     # Musique : section appareils.musique de la configuration de la maison (maison.json).
@@ -442,6 +444,8 @@ class HomeAssistant:
     SOURCE_CONNECT = MUSIQUE_MAISON.get("source_connect", "")
     # Appareil Spotify du moteur Soloist de MA quand MA lit lui-même un titre Spotify.
     SPOTIFY_LECTURE_MA = "Music Assistant Playback"
+    # Enceintes du groupe restées muettes au dernier lancement de musique confirmé, (nom, hors ligne).
+    manquantes = []
     SCRIPTS_MUSIQUE = set(MUSIQUE_MAISON.get("scripts") or [])
     # Échéance d'une commande de musique, recherche comprise (la tablette attend 45 s le LLM).
     DELAI_MUSIQUE = 36.0
@@ -634,7 +638,8 @@ class HomeAssistant:
         # Jusqu'à l'échéance : après une pause de quelques minutes, MA dissout le groupe et met 12 s à le
         # reformer avant le premier son (essai du 22/10/2026 à 21 h 05).
         if self.attendre(lambda: self.lecture_connect(attendu), max(1.0, fin - time.time())):
-            return dict({"ok": True, "confirme": True, "lance": trouve["nom"], "enceinte": groupe_id}, **patience(trouve))
+            return self.signaler(dict({"ok": True, "confirme": True, "lance": trouve["nom"], "enceinte": groupe_id},
+                                      **patience(trouve)), trace, fin)
         return {"ok": False, "confirme": False, "attention": f"les Enceintes ne jouent pas encore {trouve['nom']}. "
                 "Dis que la demande est partie sans dire que c'est lancé."}
 
@@ -678,7 +683,8 @@ class HomeAssistant:
         except Exception:  # MA répond tard quand Spotify le bride, la lecture peut partir ensuite
             pass
         if self.attendre(lambda: self.enceintes_joue(natifs, attendu), max(1.0, fin - time.time())):
-            return dict({"ok": True, "confirme": True, "lance": trouve["nom"], "enceinte": cible}, **patience(trouve))
+            res = dict({"ok": True, "confirme": True, "lance": trouve["nom"], "enceinte": cible}, **patience(trouve))
+            return self.signaler(res, trace, fin) if cible == self.ENCEINTES_MUSIQUE["toutes"] else res
         return {"ok": False, "confirme": False, "attention": f"Music Assistant n'a pas encore démarré {trouve['nom']} "
                 "(Spotify le freine en ce moment). Dis que la demande est partie et que la musique peut mettre "
                 "une minute à venir, sans dire que c'est lancé."}
@@ -710,6 +716,41 @@ class HomeAssistant:
                 return True
         return False
 
+    def absentes(self, delai=8.0):
+        """Enceintes du groupe « toutes » qui ne jouent pas, après un lancement confirmé sur le groupe :
+        [(nom, hors ligne)]. Le 25/10/2026, la cuisine débranchée, la musique partait sur le seul salon
+        sans rien dire (un seul Enceintes suffit à confirmer). Une enceinte hors ligne est signalée tout de
+        suite. Une enceinte en ligne a jusqu'à delai secondes pour se mettre à jouer : MA met jusqu'à 12 s
+        à reformer le groupe après une pause."""
+        groupe = set(self.enceintes_NATIFS.get(self.ENCEINTES_MUSIQUE.get("toutes"), ()))
+        par_natifs = {}  # un synonyme dans maison.json ne fait pas citer deux fois la même enceinte
+        for nom, lecteur in self.ENCEINTES_MUSIQUE.items():
+            natifs = tuple(self.enceintes_NATIFS.get(lecteur) or ())
+            if nom != "toutes" and natifs and set(natifs) <= groupe:
+                par_natifs.setdefault(natifs, nom)
+        dernier = []
+
+        def releve():
+            dernier.clear()
+            for natifs, nom in par_natifs.items():
+                etats = [(self.lire(n) or {}).get("state") for n in natifs]
+                if "playing" not in etats:
+                    dernier.append((nom, all(e in ("unavailable", "unknown") for e in etats)))
+            return not any(not hors_ligne for _, hors_ligne in dernier)
+
+        self.attendre(releve, max(0.5, delai))
+        return list(dernier)
+
+    def signaler(self, res, trace, fin):
+        """Ajoute au résultat confirmé d'un lancement sur le groupe les enceintes qui ne jouent pas, sans
+        dépasser l'échéance de la commande."""
+        manquantes = self.absentes(min(8.0, fin - time.time()))
+        if manquantes:
+            trace["muettes"] = ", ".join(nom for nom, _ in manquantes)
+            res["remarque"] = (phrase_manquantes(manquantes) + " Dis-le en une courte phrase après avoir "
+                               "annoncé ce qui est lancé.")
+        return res
+
     def musique_en_cours(self, delai):
         """Vrai si une enceinte Enceintes joue (ou se met à jouer dans le délai) : sert aux scripts de
         musique du dictionnaire et du LLM, qui rendent la main avant que le son parte. Jugé sur les
@@ -724,14 +765,19 @@ class HomeAssistant:
         transfert vers les Enceintes relance jusqu'à trois fois)."""
         domaine, _, action = service.partition(".")
         scripts = [e for e in securite.cibles(corps.get("entity_id")) if e in self.SCRIPTS_MUSIQUE]
+        self.manquantes = []
         if (domaine == "script" and action == "turn_on" and scripts) or service in self.SCRIPTS_MUSIQUE:
             if not self.ENCEINTES_MUSIQUE.get("toutes"):
                 return []  # sans enceinte « toutes » dans maison.json, aucun groupe à écouter (0.27.3)
             t0 = time.time()
             joue = self.musique_en_cours(max(delai, 12.0))
+            # Seul le script de lancement vise tout le groupe (un transfert peut viser une seule enceinte).
+            lancer = MUSIQUE_MAISON.get("script_lancer")
+            self.manquantes = self.absentes() if joue and lancer and (lancer in scripts or service == lancer) else []
             journaliser_musique({"demande": ", ".join(scripts) or service, "type": "script", "enceinte": "toutes",
                                  "voie": "script", "lecteur": self.ENCEINTES_MUSIQUE["toutes"],
                                  "resultat": "confirmé" if joue else "les Enceintes ne jouent pas",
+                                 **({"muettes": ", ".join(n for n, _ in self.manquantes)} if self.manquantes else {}),
                                  "duree_s": round(time.time() - t0, 1), "essai": self.essai})
             return [] if joue else [self.ENCEINTES_MUSIQUE["toutes"]]
         attendu = {"turn_on": "on", "turn_off": "off"}.get(action)
@@ -757,6 +803,13 @@ def uri_spotify(uri):
     que l'intégration Spotify de HA sait jouer. None pour un élément qui ne vient pas de Spotify."""
     m = re.fullmatch(r"spotify[^:/]*://(track|artist|album|playlist)/([A-Za-z0-9]+)", str(uri or ""))
     return f"spotify:{m.group(1)}:{m.group(2)}" if m else None
+
+
+def phrase_manquantes(manquantes):
+    """« La musique est lancée, mais l'enceinte cuisine est hors ligne. » pour [("cuisine", True)]."""
+    def une(nom, hors_ligne):
+        return f"l'enceinte {nom} " + ("est hors ligne" if hors_ligne else "ne joue pas")
+    return "La musique est lancée, mais " + " et ".join(une(n, h) for n, h in manquantes) + "."
 
 
 def patience(trouve):
@@ -827,7 +880,8 @@ OUTILS = [
             "type": {"type": "string", "enum": ["track", "artist", "album", "playlist"],
                      "description": "track pour un morceau, artist pour « mets du Artiste Fictif », album, playlist"},
             "enceinte": {"type": "string", "enum": list(MUSIQUE_MAISON.get("enceintes") or {"toutes": ""}),
-                         "description": "toutes par défaut"}},
+                         "description": "toutes (le groupe de toutes les enceintes) sauf si une enceinte précise "
+                                        "est nommée dans la demande"}},
             "required": ["recherche", "type"]}}},
     {"type": "function", "function": {
         "name": "lire_etat",
@@ -1344,7 +1398,9 @@ class Assistant:
                     continue
                 if not self.essai:
                     try:
-                        self.executer(a, personne)
+                        remarque = self.executer(a, personne)
+                        if remarque and "refus" not in voie and not refus_personne:
+                            parole = remarque if not reponse_personne else f"{parole} {remarque}"
                     except RefusSecurite as e:
                         parole = f"Je ne le fais pas : {e}."
                         voie += " refus sécurité"
@@ -1443,6 +1499,8 @@ class Assistant:
             raise NonConfirme("les Enceintes", "J'ai demandé la musique, mais les Enceintes ne jouent pas encore.")
         if muets:
             raise NonConfirme(", ".join(muets))
+        # Musique lancée, mais pas sur toutes les enceintes du groupe : phrase toute prête.
+        return phrase_manquantes(self.ha.manquantes) if self.ha.manquantes else None
 
 
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]

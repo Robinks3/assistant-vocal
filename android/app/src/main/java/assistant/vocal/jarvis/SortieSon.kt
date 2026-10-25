@@ -28,6 +28,8 @@ object SortieSon {
         val regroupable: Boolean,
     ) {
         val active: Boolean get() = etat == "playing" || etat == "paused" || etat == "buffering"
+        /** Enceinte injoignable (débranchée, hors Wi-Fi) : un join vers elle échoue sans rien dire (25/10/2026). */
+        val horsLigne: Boolean get() = etat == "unavailable" || etat == "unknown"
     }
 
     /** Service media_player à appeler : [entite] et, pour join, les enceintes à ajouter. */
@@ -81,6 +83,7 @@ object SortieSon {
         val m = meneur(e)
         if (cocher) {
             if (id in actuelles) return Decision(null, null)
+            if (cible.horsLigne) return Decision(null, horsLigne(id))
             if (m == null) return Decision(null, "Aucune musique sur ces enceintes : lance d'abord une musique.")
             if (!m.regroupable) return Decision(null, "${nomCourt(m.id)} ne se regroupe pas avec les autres enceintes.")
             if (!cible.regroupable) return Decision(null, "${nomCourt(id)} ne se regroupe pas avec les autres enceintes.")
@@ -96,6 +99,9 @@ object SortieSon {
         }
         return Decision(Commande("unjoin", id), null)
     }
+
+    /** Message d'une enceinte hors ligne, au féminin comme « enceinte ». */
+    fun horsLigne(id: String): String = "${nomCourt(id)} est hors ligne : vérifie qu'elle est branchée et sur le Wi-Fi."
 
     /** Raison du refus de la sécurité, ou null : à appeler avant tout envoi. */
     fun refus(c: Commande, heure: Int = Securite.heureMaison(), personne: String = ""): String? =

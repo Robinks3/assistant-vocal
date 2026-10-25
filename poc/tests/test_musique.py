@@ -330,3 +330,80 @@ def test_pas_de_second_essai_hors_echeance(horloge):
     with pytest.raises(A.RechercheLente):
         ha.chercher_musique("Thriller", "track", fin=horloge.time() + 20)
     assert len(client.appels) == 1
+
+
+def test_phrase_des_enceintes_manquantes():
+    assert A.phrase_manquantes([("cuisine", True)]) == (
+        "La musique est lancée, mais l'enceinte cuisine est hors ligne.")
+    assert A.phrase_manquantes([("cuisine", False), ("salon", True)]) == (
+        "La musique est lancée, mais l'enceinte cuisine ne joue pas et l'enceinte salon est hors ligne.")
+
+
+def test_absentes_distingue_hors_ligne_et_muette():
+    etats = {SALON: etat("playing"), CUISINE: etat("unavailable")}
+    ha = ha_avec(FauxHA(etats))
+    assert ha.absentes() == [("cuisine", True)]
+    etats[CUISINE] = etat("idle")
+    assert ha.absentes() == [("cuisine", False)]
+    etats[CUISINE] = etat("playing")
+    assert ha.absentes() == []
+
+
+def test_spotify_signale_la_cuisine_hors_ligne(journal_musique_temporaire):
+    """25/10/2026 : la cuisine débranchée, la musique partait sur le seul salon sans rien dire."""
+    etats = etats_session_connect()
+    etats[CUISINE] = etat("unavailable")
+    ha = ha_avec(FauxHA(etats, {"media_player.play_media": lambda e, c: (lecture_connect(e, c), e.update(
+        {CUISINE: etat("unavailable")}))[1]}))
+    ha.chercher_musique = lambda r, t, a="", fin=None: MJ
+    res = ha.musique("Artiste Fictif", "artist")
+    assert res["confirme"] and res["lance"] == "Artiste Fictif"
+    assert res["remarque"].startswith("La musique est lancée, mais l'enceinte cuisine est hors ligne.")
+    ligne = json.loads(journal_musique_temporaire.read_text(encoding="utf-8").splitlines()[-1])
+    assert ligne["muettes"] == "cuisine"
+
+
+def test_enceinte_nommee_sans_remarque(journal_musique_temporaire):
+    """Une enceinte nommée ne fait pas signaler les autres."""
+    etats = {SALON: etat("idle"), CUISINE: etat("unavailable"), "media_player.salon": etat("idle")}
+
+    def lancer(e, c):
+        e[SALON] = etat("playing", media_artist="Artiste Fictif", media_title="Billie Jean")
+
+    ha = ha_avec(FauxHA(etats, {"music_assistant.play_media": lancer}))
+    ha.chercher_musique = lambda r, t, a="", fin=None: MJ
+    res = ha.musique("Artiste Fictif", "artist", enceinte="salon")
+    assert res["confirme"] and "remarque" not in res
+
+
+def test_script_de_musique_signale_la_cuisine(journal_musique_temporaire):
+    etats = {GROUPE: etat("playing"), SALON: etat("playing"), CUISINE: etat("unavailable")}
+    assistant = A.Assistant.__new__(A.Assistant)
+    assistant.ha = ha_avec(FauxHA(etats))
+    remarque = assistant.executer({"service": "script.turn_on", "entity_id": "script.lancer_musique"})
+    assert remarque == "La musique est lancée, mais l'enceinte cuisine est hors ligne."
+    assert "cuisine" in assistant.ha.service("script", "turn_on", "script.lancer_musique")["note"]
+    ligne = json.loads(journal_musique_temporaire.read_text(encoding="utf-8").splitlines()[-1])
+    assert ligne["muettes"] == "cuisine"
+    etats[CUISINE] = etat("playing")
+    assert assistant.executer({"service": "script.turn_on", "entity_id": "script.lancer_musique"}) is None
+
+
+def test_outil_musique_sur_toutes_par_defaut():
+    outil = next(o["function"] for o in A.OUTILS if o["function"]["name"] == "jouer_musique")
+    assert "sauf si une enceinte précise est nommée" in outil["parameters"]["properties"]["enceinte"]["description"]
+
+
+def test_transfert_ne_signale_rien(journal_musique_temporaire):
+    """Seul le script de lancement vise tout le groupe : un transfert peut viser une seule enceinte."""
+    etats = {GROUPE: etat("playing"), SALON: etat("playing"), CUISINE: etat("idle")}
+    ha = ha_avec(FauxHA(etats))
+    assert ha.confirmer("script.turn_on", {"entity_id": "script.exemple33"}) == []
+    assert ha.manquantes == []
+
+
+def test_synonyme_cite_une_seule_fois(monkeypatch):
+    enceintes = dict(A.HomeAssistant.ENCEINTES_MUSIQUE, sejour=A.HomeAssistant.ENCEINTES_MUSIQUE["cuisine"])
+    monkeypatch.setattr(A.HomeAssistant, "ENCEINTES_MUSIQUE", enceintes)
+    ha = ha_avec(FauxHA({SALON: etat("playing"), CUISINE: etat("unavailable")}))
+    assert ha.absentes() == [("cuisine", True)]

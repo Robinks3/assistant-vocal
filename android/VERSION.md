@@ -6,6 +6,16 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.33.0 (2026-10-25)
+- Écran Musique : une enceinte hors ligne (`unavailable` ou `unknown`) ne se coche plus. Sa ligne dit « hors
+  ligne » en orange, la barre de volume est grisée et le pourcentage vaut « - ». Un toucher donne « La cuisine
+  est hors ligne : vérifie qu'elle est branchée et sur le Wi-Fi. » au lieu d'un `media_player.join` qui
+  échouait et d'une case qui revenait seule après 5 s. La ligne redevient normale quand l'enceinte revient.
+- Carte « en cours » de l'accueil : elle suit d'abord une enceinte de la sortie du son qui joue (le meneur
+  d'abord, reconnu en tête de `group_members`, `buffering` compris) au lieu du premier lecteur en lecture. Elle affichait 100 % (volume du compte Spotify) quand les
+  Enceintes étaient à 30 %.
+- Tests `SortieSonTest.enceinteHorsLigneNeSeCochePas` et `CarteEnCoursSuiviTest`. versionCode 61.
+
 ## 0.32.3 (2026-10-25)
 - Écran Santé réservé au propriétaire : le nom du profil se compare sans accents ni casse, comme le nom
   des pièces (`personneNormalisee`). Un profil « Helene » vaut « Hélène ».

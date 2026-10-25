@@ -213,10 +213,7 @@ internal class CarteEnCours(
             if (c.etat != "paused") montrer(c.copy(etat = "paused"))
             return true
         }
-        val l = lecteurs.firstOrNull { it.id == choisi }
-            ?: lecteurs.firstOrNull { it.etat == "playing" }
-            ?: lecteurs.first()
-        montrer(l)
+        montrer(suivi(lecteurs, choisi))
         return true
     }
 
@@ -392,13 +389,35 @@ internal class CarteEnCours(
         const val HAUTEUR = 280f
         const val X_TEXTES = 192f
 
-        /** Pochette en retrait : saturation 0,4 et clarté 0,85 (maquette `AccueilRegimes`). */
-        private val FILTRE_RETRAIT = ColorMatrixColorFilter(
-            ColorMatrix().apply {
-                setSaturation(0.4f)
-                postConcat(ColorMatrix().apply { setScale(0.85f, 0.85f, 0.85f, 1f) })
-            },
-        )
+        /** Pochette en retrait : saturation 0,4 et clarté 0,85 (maquette `AccueilRegimes`). Paresseux : les
+         *  tests de `suivi` chargent le compagnon sans Android. */
+        private val FILTRE_RETRAIT by lazy {
+            ColorMatrixColorFilter(
+                ColorMatrix().apply {
+                    setSaturation(0.4f)
+                    postConcat(ColorMatrix().apply { setScale(0.85f, 0.85f, 0.85f, 1f) })
+                },
+            )
+        }
+
+        /**
+         * Lecteur montré par la carte : celui choisi dans l'écran Musique, sinon une enceinte de la sortie du
+         * son qui joue (le meneur du groupe d'abord), sinon un autre lecteur qui joue, sinon le premier.
+         * Avant le 25/10/2026, le premier qui jouait : le lecteur Spotify, rendu en tête par HA, affichait
+         * le volume du compte Spotify (100 %) au lieu de celui des enceintes (30 %).
+         */
+        fun suivi(lecteurs: List<Etat.Lecteur>, choisi: String = ""): Etat.Lecteur {
+            lecteurs.firstOrNull { it.id == choisi }?.let { return it }
+            val joue = lecteurs.filter { it.etat == "playing" || it.etat == "buffering" }
+            fun enceinte(l: Etat.Lecteur) = SortieSon.ENCEINTES.any { it.first == l.id }
+            // HA donne à chaque membre la même liste group_members, meneur en tête.
+            val enceintes = joue.filter(::enceinte)
+            return enceintes.firstOrNull { it.membres.size > 1 && it.membres.first() == it.id }
+                ?: enceintes.maxByOrNull { it.membres.size }
+                ?: joue.firstOrNull()
+                ?: lecteurs.filter(::enceinte).firstOrNull { it.etat == "paused" }
+                ?: lecteurs.first()
+        }
 
         /** « 2:05 » pour 125 s. */
         fun minutes(s: Double): String {

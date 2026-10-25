@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.29.0 (2026-10-25), musique sur toutes les enceintes
+- Après un lancement confirmé sur le groupe « toutes » (Spotify Connect, Music Assistant ou script de
+  musique), le serveur vérifie que chaque enceinte du groupe joue. Une enceinte hors ligne est signalée tout de
+  suite, une enceinte en ligne a jusqu'à 8 s pour suivre (sans dépasser l'échéance de la commande). Seul le
+  script de lancement (`script_lancer`) est concerné, pas un transfert. Une enceinte absente est
+  signalée dans le résultat de l'outil et dans la réponse du dictionnaire : « La musique est lancée, mais
+  l'enceinte cuisine est hors ligne. » (`HomeAssistant.absentes`, `signaler`, `phrase_manquantes`). Le journal
+  de musique garde `muettes`. Le 25/10/2026, la cuisine débranchée, la musique partait sur le seul salon sans
+  rien dire. La remarque ne remplace pas un refus déjà prononcé dans la même phrase du dictionnaire.
+- Outil `jouer_musique` : l'enceinte vaut « toutes » sauf si une enceinte précise est nommée dans la demande.
+- Tests dans `test_musique.py` (phrase, hors ligne contre muette, voie Spotify, enceinte nommée, script, transfert,
+  synonyme).
+
 ## Serveur 0.28.0 (2026-10-25), socle des routines : aiguillage fermé et requête par appareil
 - Aiguillage fermé des outils du LLM (Qwen et Claude, `Cerveau.executer_outil`) : seul un outil de la
   liste du tour s'exécute, tout autre nom (inventé, ou absent du mode) reçoit « outil indisponible » sans

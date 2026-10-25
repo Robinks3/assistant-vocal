@@ -78,4 +78,15 @@ class SortieSonTest {
         assertTrue(SortieSon.regroupable(8322623))
         assertTrue(!SortieSon.regroupable(7796287))
     }
+
+    @Test
+    fun enceinteHorsLigneNeSeCochePas() {
+        // 25/10/2026 : la cuisine débranchée, un join vers elle échouait sans rien dire.
+        val l = listOf(e(salon, "playing"), e(cuisine, "unavailable"))
+        assertTrue(l[1].horsLigne)
+        val d = SortieSon.basculer(l, cuisine, true)
+        assertNull(d.commande)
+        assertTrue(d.message!!.contains("hors ligne"))
+        assertEquals(SortieSon.horsLigne(cuisine), d.message)
+    }
 }
