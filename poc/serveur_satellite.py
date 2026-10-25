@@ -343,32 +343,27 @@ class Moteur:
         print(f"[{appareil}] note {verdict} : {entendu}" + (f" ({effet})" if effet else ""))
         return effet or "noté"
 
-    def llm_texte(self, texte, essai, personne=None):
+    def llm_texte(self, texte, essai, personne=None, appareil=None):
         """Phrase déjà transcrite et non comprise par le téléphone (mode « Cet appareil », appli 0.10.0) :
-        seulement le LLM du serveur, avec ses garde-fous. Le mode essai est celui du téléphone.
-        personne : qui parle d'après la tablette (règle 3 de securite.py, « ma chambre »), ou rien."""
+        seulement le LLM du serveur, avec ses garde-fous. Essai effectif : celui du serveur ou celui du
+        téléphone (0.28.0, un téléphone en réel ne lève plus l'essai du serveur).
+        personne : qui parle d'après la tablette (règle 3 de securite.py, « ma chambre »), ou rien.
+        appareil : identité de l'appareil appairé, pour l'historique et la leçon à annuler."""
         import securite
+        essai = self.essai or bool(essai)
         refus = securite.phrase_protegee(texte, personne)
         if refus:
             return {"reponse": f"Je ne le fais pas : {refus}.", "actions": [], "cerveau": "sécurité", "ms": 0,
                     "erreur": "", "essai": essai}
         a = self.assistant
-        ancien = (a.essai, a.ha.essai if a.ha else None)
-        a.essai = essai
-        if a.ha:
-            a.ha.essai = essai
         t = time.perf_counter()
         erreur = ""
-        try:
-            with a.pour_personne(personne):
+        with a.requete(essai=essai, personne=personne, appareil=appareil):
+            try:
                 parole, actions = a.cerveau.repondre(texte)
-            a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
-        except Exception as e:
-            parole, actions, erreur = "Le modèle de langage ne répond pas.", [], f"{e.__class__.__name__} : {e}"
-        finally:
-            a.essai = ancien[0]
-            if a.ha:
-                a.ha.essai = ancien[1]
+                a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
+            except Exception as e:
+                parole, actions, erreur = "Le modèle de langage ne répond pas.", [], f"{e.__class__.__name__} : {e}"
         duree = time.perf_counter() - t
         nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
         A.journaliser(texte, f"llm ({nom}, depuis l'appareil" + (f", {personne}" if personne else "") + ")"
@@ -399,7 +394,7 @@ class Moteur:
                 texte, source = transcrire_api(signal_f32), "ha_stp puis api"
         return texte, source
 
-    def traiter(self, signal_f32, personne=None):
+    def traiter(self, signal_f32, personne=None, appareil=None):
         t = time.perf_counter()
         texte, source = self.transcrire(signal_f32)
         t_stt = time.perf_counter() - t
@@ -409,7 +404,7 @@ class Moteur:
             A.journaliser("", f"rien compris ({source})" + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
             return texte, "", "rien compris", None
         voie_avant = A.JOURNAL.stat().st_size if A.JOURNAL.exists() else 0
-        reponse = self.assistant.traiter(texte, t_stt, personne)
+        reponse = self.assistant.traiter(texte, t_stt, personne, appareil=appareil, essai=self.essai)
         voie = derniere_voie(voie_avant)
         if not reponse:
             audio = None
@@ -905,6 +900,13 @@ class Satellite:
     async def envoyer(self, **message):
         await self.ws.send(json.dumps(message, ensure_ascii=False))
 
+    def cle_appareil(self):
+        """Clé de l'historique et de la leçon : l'identité d'un téléphone appairé, unique. Un jeton fixe de
+        poc/.env peut servir à plusieurs appareils, son nom d'appareil les sépare."""
+        if self.identite and self.identite.startswith("appareil:"):
+            return self.identite
+        return f"{self.identite or ''}/{self.nom}"
+
     def reinitialiser_reveil(self):
         if self.reveil:
             self.reveil.reset()
@@ -1000,7 +1002,8 @@ class Satellite:
         signal = np.concatenate(self.capture).astype(np.float32) / 32768.0
         await self.envoyer(etat="reflexion", texte="")
         async with self.moteur.verrou:
-            texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle)
+            texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
+                                                                 self.cle_appareil())
         self.qui_parle = None
         await self.envoyer(etat="reponse", texte=texte, reponse=reponse, voie=voie)
         derniere = lire_journal(1)
@@ -1136,7 +1139,7 @@ class Satellite:
         print(f"[{self.nom}] LLM demandé par l'appareil : {texte}" + (f" (personne : {msg['personne']})" if msg.get("personne") else ""))
         async with self.moteur.verrou:
             res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
-                                          str(msg.get("personne") or "") or None)
+                                          str(msg.get("personne") or "") or None, self.cle_appareil())
         await self.envoyer(etat="llm", **res)
         derniere = lire_journal(1)
         if derniere:

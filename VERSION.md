@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.28.0 (2026-10-25), socle des routines : aiguillage fermé et requête par appareil
+- Aiguillage fermé des outils du LLM (Qwen et Claude, `Cerveau.executer_outil`) : seul un outil de la
+  liste du tour s'exécute, tout autre nom (inventé, ou absent du mode) reçoit « outil indisponible » sans
+  aucun appel à Home Assistant. Arguments illisibles refusés de même.
+- Listes d'outils par mode (`MODES_OUTILS`, « commande » pour l'instant). `outils_avec_entites` retrouve
+  les outils par leur nom et non plus par leur rang. Claude garde une liste en cache par mode.
+- Essai, personne et appareil portés par la commande (`Requete`, variable de contexte) et non plus par
+  les objets partagés : `Assistant.requete(...)` remplace `pour_personne`. Une phrase de la tablette et
+  une commande du client web ne se prennent plus leur essai ni leur personne.
+- Essai effectif côté serveur : celui du serveur ou celui du téléphone (`llm_texte`). Un téléphone en réel
+  ne lève plus l'essai du serveur.
+- Historique du LLM par personne et par appareil, oublié après 2 min. Leçon apprise annulable par « non »
+  seulement depuis l'appareil qui l'a fait apprendre. L'identité de l'appareil appairé est transmise par
+  `traiter` et `repondre_llm`.
+- `acces.DOMAINES_INTERDITS` refusé aussi par `HomeAssistant.service` et par la voie du dictionnaire
+  (`Assistant.executer`), plus seulement par la passerelle.
+- `HomeAssistant.service(..., confirmer=False)` : pas d'attente de l'état, pour les étapes des routines.
+- L'essai du serveur (`ha.essai = True`) est un plancher : aucune requête ne le lève.
+- Clé d'appareil (`Satellite.cle_appareil`) : l'identité d'un téléphone appairé, ou le jeton fixe suivi du
+  nom de l'appareil, pour que deux appareils sur le même jeton de `poc/.env` ne partagent pas leur historique.
+- Tests dans `test_aiguillage.py`.
+
 ## Serveur 0.27.3 (2026-10-25), défauts relevés pendant la documentation
 - Clé Claude : `ANTHROPIC_AUTH_TOKEN` compte comme une clé, comme dans le SDK. Sans clé, la réponse parlée
   dit « Je n'ai pas de clé Anthropic » au lieu de « Le PC est peut-être occupé », et le journal garde le

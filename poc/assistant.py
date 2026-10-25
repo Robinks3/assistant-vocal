@@ -12,12 +12,31 @@ Usage :
   ajouter --essai : affiche ce qui serait fait, sans rien exécuter
   python poc/assistant.py --version
 """
-import argparse, contextlib, difflib, csv, json, os, re, sys, time
+import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, time
 
+import acces
 import maison
 import securite
 from datetime import datetime
 from pathlib import Path
+
+
+class Requete:
+    """Ce qui vaut le temps d'une commande : essai effectif, personne qui parle, appareil d'origine.
+
+    Porté par une variable de contexte et non plus par les objets partagés (0.28.0) : une commande du
+    client web et une phrase de la tablette ne se prennent plus leur essai ni leur personne.
+    asyncio.to_thread copie le contexte, la requête suit donc la commande dans son fil."""
+
+    def __init__(self, essai=False, personne=None, appareil=None, indication=""):
+        self.essai, self.personne, self.appareil, self.indication = bool(essai), personne or None, appareil, indication
+
+
+REQUETE = contextvars.ContextVar("requete", default=None)
+
+
+def requete_en_cours():
+    return REQUETE.get()
 
 # Appareils propres à la maison (section appareils de maison.json) : la télé, sa famille d'entités (même
 # préfixe, pour la présélection du LLM) et la musique. Sans musique configurée (pas d'enceinte « toutes »),
@@ -29,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.27.3"
+VERSION = "0.28.0"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -283,11 +302,30 @@ class HomeAssistant:
         self.essai = False
         self.vue_llm = {}
         # Entités de la liste donnée au LLM (dernier inventaire) : les seules qu'il peut viser.
-        # Idée d'un projet d'inspiration (auteurs inspiration) : la liste part aussi en enum dans le schéma de l'outil.
+        # Idée reprise des auteurs inspiration : la liste part aussi en enum dans le schéma de l'outil.
         self.entites_llm = set()
-        # Qui parle, d'après la tablette (champ « personne », règle 3 de securite.py), le temps
-        # d'une commande : réglé par Assistant.pour_personne, rien sinon.
         self.personne = None
+
+    # Essai de la commande en cours (Requete) ou du serveur : le réglage direct (ha.essai = True) est un
+    # plancher, aucune requête ne le lève.
+    @property
+    def essai(self):
+        r = REQUETE.get()
+        return bool(r and r.essai) or getattr(self, "_essai", False)
+
+    @essai.setter
+    def essai(self, valeur):
+        self._essai = bool(valeur)
+
+    @property
+    def personne(self):
+        """Qui parle, d'après la tablette (champ « personne », règle 3 de securite.py)."""
+        r = REQUETE.get()
+        return r.personne if r else getattr(self, "_personne", None)
+
+    @personne.setter
+    def personne(self, valeur):
+        self._personne = valeur
 
     def conversation(self, texte):
         """Intentions locales de HA (agent intégré, aucun LLM)."""
@@ -353,7 +391,11 @@ class HomeAssistant:
                           "volume_level", "media_title", "media_artist", "source", "unit_of_measurement")}
         return {"etat": e["state"], **attrs}
 
-    def service(self, domaine, service, entity_id=None, donnees=None):
+    def service(self, domaine, service, entity_id=None, donnees=None, confirmer=True):
+        """Service demandé par le LLM ou rejoué par une routine (confirmer=False : pas d'attente
+        de l'état, la routine enchaîne ses étapes)."""
+        if domaine in acces.DOMAINES_INTERDITS:
+            return {"erreur": f"refusé : domaine {domaine} interdit. Ne réessaie pas autrement, dis-le simplement."}
         if service not in SERVICES_PERMIS.get(domaine, set()):
             permis = ", ".join(sorted(SERVICES_PERMIS.get(domaine, set()))) or "aucun"
             return {"erreur": f"service {domaine}.{service} inexistant ou interdit. "
@@ -376,6 +418,8 @@ class HomeAssistant:
         r = self.client.post(f"{self.url}/api/services/{domaine}/{service}", json=corps)
         if r.status_code >= 400:
             return {"erreur": f"HTTP {r.status_code} : {r.text[:200]}"}
+        if not confirmer:
+            return {"ok": True}
         muets = self.confirmer(f"{domaine}.{service}", corps, delai=3.0)
         if muets:  # HA a accepté l'ordre mais l'appareil n'a pas changé d'état
             return {"ok": True, "confirme": False,
@@ -792,21 +836,38 @@ OUTILS = [
             "entity_id": {"type": "string"}}, "required": ["entity_id"]}}},
 ]
 
-def outils_avec_entites(entites):
-    """Outils du LLM, avec les entités permises en enum dans le schéma de appeler_service et lire_etat.
+# Outils proposés au LLM selon le mode du tour (0.28.0). Un appel à un outil absent de la liste du tour
+# n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, note des routines 3.1).
+MODES_OUTILS = {"commande": ("appeler_service", "jouer_musique", "lire_etat")}
+INDISPONIBLE = {"erreur": "outil indisponible"}
+
+
+def nom_outil(o):
+    return o["function"]["name"]
+
+
+def outils_avec_entites(entites, mode="commande"):
+    """Outils du LLM pour ce mode, avec les entités permises en enum dans le schéma de appeler_service
+    et lire_etat (outils retrouvés par leur nom).
 
     Pas de « strict » : l'objet libre « donnees » ne le permet pas (strict exige
     additionalProperties false partout). Le code refuse de toute façon une entité hors liste."""
-    if not entites:
+    noms = MODES_OUTILS[mode]
+    if not entites and mode == "commande":
         return OUTILS
     import copy
+    outils = copy.deepcopy([o for o in OUTILS if nom_outil(o) in noms])
+    if not entites:
+        return outils
     ids = sorted(entites)
-    outils = copy.deepcopy(OUTILS)
-    props = outils[0]["function"]["parameters"]["properties"]
-    props["entity_id"] = {"anyOf": [{"type": "string", "enum": ids},
-                                    {"type": "array", "items": {"type": "string", "enum": ids}}],
-                          "description": props["entity_id"]["description"]}
-    outils[2]["function"]["parameters"]["properties"]["entity_id"] = {"type": "string", "enum": ids}
+    par_nom = {nom_outil(o): o for o in outils}
+    if "appeler_service" in par_nom:
+        props = par_nom["appeler_service"]["function"]["parameters"]["properties"]
+        props["entity_id"] = {"anyOf": [{"type": "string", "enum": ids},
+                                        {"type": "array", "items": {"type": "string", "enum": ids}}],
+                              "description": props["entity_id"]["description"]}
+    if "lire_etat" in par_nom:
+        par_nom["lire_etat"]["function"]["parameters"]["properties"]["entity_id"] = {"type": "string", "enum": ids}
     return outils
 
 
@@ -860,40 +921,85 @@ class Cerveau:
         import httpx
         self.cfg, self.ha = cfg, ha
         self.client = httpx.Client(timeout=60)
-        self.historique = []
-        self.dernier_echange = 0.0
+        # Une conversation par personne et par appareil (0.28.0) : « éteins-la » de l'un ne vise jamais
+        # ce dont parlait l'autre, même quand deux commandes se croisent.
+        self.historiques = {}  # clé -> (heure du dernier échange, messages)
         self.dernieres_actions = []  # actions réussies de la dernière réponse, au format du dictionnaire
-        # Qui parle et ce que désigne « ma chambre », ajouté à la demande (Assistant.pour_personne).
-        self.indication_personne = ""
-        self.personne_precedente = ""
 
-    def oublier_si_autre_personne(self):
-        """Une conversation ne passe pas d'une personne à l'autre (« éteins-la » de l'un après l'autre)."""
-        if self.indication_personne != self.personne_precedente:
-            self.historique = []
-            self.personne_precedente = self.indication_personne
+    @staticmethod
+    def cle_conversation():
+        r = REQUETE.get()
+        return (r.personne, r.appareil) if r else (None, None)
 
-    def repondre(self, texte):
-        if time.time() - self.dernier_echange > 120:
-            self.historique = []  # conversation oubliée après 2 min de silence
-        self.oublier_si_autre_personne()
+    @property
+    def indication_personne(self):
+        """Qui parle et ce que désigne « ma chambre », ajouté à la demande (Assistant.requete)."""
+        r = REQUETE.get()
+        return r.indication if r else ""
+
+    @property
+    def historique(self):
+        t, messages = self.historiques.get(self.cle_conversation(), (0.0, []))
+        return [] if time.time() - t > 120 else messages  # conversation oubliée après 2 min de silence
+
+    @historique.setter
+    def historique(self, messages):
+        self.historiques[self.cle_conversation()] = (time.time(), list(messages)[-6:])
+
+    def executer_outil(self, nom, args, texte, noms, actions, musiques):
+        """Aiguillage fermé : seul un outil de la liste du tour s'exécute, tout autre nom reçoit
+        « outil indisponible » (un appel halluciné ou soufflé par la phrase n'agit jamais)."""
+        if nom not in noms or not self.ha:
+            return dict(INDISPONIBLE)
+        if nom == "appeler_service":
+            refus = garde_fou_volume(texte, args)
+            if refus:
+                return {"erreur": refus}
+            res = self.ha.service(args.get("domaine", ""), args.get("service", ""),
+                                  args.get("entity_id"), args.get("donnees"))
+            actions.append(resume_action(f"{args.get('domaine')}.{args.get('service')}",
+                                         args.get("entity_id"), args.get("donnees"))
+                           + (" (refusé : sécurité)" if "refusé" in str(res.get("erreur", ""))
+                              else " (refusé par HA)" if "erreur" in res else ""))
+            if "erreur" not in res:  # action réussie : candidate à l'apprentissage
+                self.dernieres_actions.append(action_dictionnaire(args))
+            return res
+        if nom == "jouer_musique":
+            res = self.ha.musique(args.get("recherche"), args.get("type", "track"), args.get("enceinte", "toutes"),
+                                  args.get("artiste", ""))
+            musiques.append(res)
+            actions.append(resume_action("music_assistant.play_media",
+                                         self.ha.ENCEINTES_MUSIQUE.get(args.get("enceinte") or "toutes"),
+                                         {"media_id": args.get("recherche"), "media_type": args.get("type", "track")})
+                           + (" (refusé : sécurité)" if str(res.get("erreur", "")).startswith("refusé :")
+                              else " (non joué)" if "erreur" in res
+                              else " (non confirmé)" if res.get("confirme") is False else ""))
+            return res
+        if nom == "lire_etat":
+            return self.ha.etat(args.get("entity_id", ""))
+        return dict(INDISPONIBLE)
+
+    def repondre(self, texte, mode="commande"):
+        historique = self.historique
         liste, etats = self.ha.inventaire() if self.ha else ("(Home Assistant non connecté)", "")
         jour = date_francaise()
         # Tout ce qui change (date, états) va dans le dernier message : le début reste en cache.
         messages = [{"role": "system", "content": CONSIGNE.format(inventaire=liste)}]
         probables = presélection(texte, liste)
         indice = f" Appareils probables pour cette demande : {probables}." if probables else ""
-        messages += self.historique + [{"role": "user", "content":
-                                        f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
+        messages += historique + [{"role": "user", "content":
+                                   f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
         actions, relance = [], False
         self.dernieres_actions = []
         musiques = []  # résultats de jouer_musique, pour garde_fou_musique
+        outils = outils_avec_entites(self.ha.entites_llm, mode) if self.ha else []
+        noms = {nom_outil(o) for o in outils}
         for _ in range(6):
             corps = {"cache_prompt": True, "model": self.cfg["llm_modele"], "messages": messages,
                      "temperature": 0, "max_tokens": 300,
                      "chat_template_kwargs": {"enable_thinking": False}}
-            if self.ha:
-                corps["tools"] = outils_avec_entites(self.ha.entites_llm)
+            if outils:
+                corps["tools"] = outils
             r = self.client.post(f"{self.cfg['llm_url']}/chat/completions", json=corps)
             r.raise_for_status()
             msg = r.json()["choices"][0]["message"]
@@ -903,7 +1009,7 @@ class Cerveau:
                 # Qwen annonce « je vais éteindre », affirme « j'ai allumé » ou refuse à tort
                 # (« déjà allumée » alors qu'elle est éteinte) sans appeler l'outil (vu les 11 et
                 # 12/10). Une relance, une seule, avec l'état réel sous les yeux.
-                if (self.ha and not actions and not relance and re.search(
+                if ("appeler_service" in noms and not actions and not relance and re.search(
                         r"\bje (vais|peux|m'en occupe|lance|allume|éteins|coupe)|\bj'ai (allumé|éteint|lancé|coupé|mis|réglé|baissé|monté)"
                         r"|je ne peux pas|déjà (allumée?|éteinte?)|pas trouvé|n'est pas dans la liste", reponse, re.I)):
                     relance = True
@@ -917,41 +1023,19 @@ class Cerveau:
             messages.append({"role": "assistant", "content": msg.get("content") or "",
                              "tool_calls": appels})
             for a in appels:
-                args = json.loads(a["function"].get("arguments") or "{}")
-                if a["function"]["name"] == "appeler_service":
-                    refus = garde_fou_volume(texte, args)
-                    if refus:
-                        res = {"erreur": refus}
-                    else:
-                        res = self.ha.service(args.get("domaine", ""), args.get("service", ""),
-                                              args.get("entity_id"), args.get("donnees"))
-                        actions.append(resume_action(f"{args.get('domaine')}.{args.get('service')}",
-                                                     args.get("entity_id"), args.get("donnees"))
-                                       + (" (refusé : sécurité)" if "refusé" in str(res.get("erreur", ""))
-                                          else " (refusé par HA)" if "erreur" in res else ""))
-                        if "erreur" not in res:  # action réussie : candidate à l'apprentissage
-                            self.dernieres_actions.append(action_dictionnaire(args))
-                elif a["function"]["name"] == "jouer_musique":
-                    res = self.ha.musique(args.get("recherche"), args.get("type", "track"), args.get("enceinte", "toutes"),
-                                          args.get("artiste", ""))
-                    musiques.append(res)
-                    actions.append(resume_action("music_assistant.play_media",
-                                                 self.ha.ENCEINTES_MUSIQUE.get(args.get("enceinte") or "toutes"),
-                                                 {"media_id": args.get("recherche"), "media_type": args.get("type", "track")})
-                                   + (" (refusé : sécurité)" if str(res.get("erreur", "")).startswith("refusé :")
-                                      else " (non joué)" if "erreur" in res
-                                      else " (non confirmé)" if res.get("confirme") is False else ""))
-                else:
-                    res = self.ha.etat(args.get("entity_id", ""))
+                try:
+                    args = json.loads(a["function"].get("arguments") or "{}")
+                except ValueError:
+                    args = None
+                res = (self.executer_outil(a["function"].get("name"), args, texte, noms, actions, musiques)
+                       if isinstance(args, dict) else {"erreur": "arguments illisibles"})
                 messages.append({"role": "tool", "tool_call_id": a["id"],
                                  "content": json.dumps(res, ensure_ascii=False)})
         else:
             reponse = "Je n'ai pas réussi à terminer cette demande."
         reponse = garde_fou_musique(reponse, musiques)
-        self.historique += [{"role": "user", "content": texte},
-                            {"role": "assistant", "content": reponse}]
-        self.historique = self.historique[-6:]
-        self.dernier_echange = time.time()
+        self.historique = historique + [{"role": "user", "content": texte},
+                                        {"role": "assistant", "content": reponse}]
         return reponse, actions
 
 
@@ -1036,38 +1120,45 @@ class CerveauClaude(Cerveau):
         if self.sans_cle:
             print(f"  ! {MANQUE_CLE_CLAUDE}.")
         self.modele = cfg["claude_modele"]
-        self.outils = self.outils_claude(set())
+        self.outils = {}  # mode -> (entités, liste) : même liste tant que l'inventaire ne change pas
         self.mesures = []  # (durée, tokens entrée, tokens lus en cache, tokens sortie) par appel
 
     @staticmethod
-    def outils_claude(entites):
+    def outils_claude(entites, mode="commande"):
         return [{"name": o["function"]["name"], "description": o["function"]["description"],
-                 "input_schema": o["function"]["parameters"]} for o in outils_avec_entites(entites)]
+                 "input_schema": o["function"]["parameters"]} for o in outils_avec_entites(entites, mode)]
 
-    def repondre(self, texte):
+    def outils_du_mode(self, mode):
+        """Liste du mode, gardée en cache : l'en-tête de la requête reste identique d'un tour à l'autre."""
+        if not self.ha:
+            return []
+        entites = frozenset(self.ha.entites_llm)
+        if mode not in self.outils or self.outils[mode][0] != entites:
+            self.outils[mode] = (entites, self.outils_claude(entites, mode))
+        return self.outils[mode][1]
+
+    def repondre(self, texte, mode="commande"):
         if self.sans_cle:
             raise RuntimeError(MANQUE_CLE_CLAUDE)
-        if time.time() - self.dernier_echange > 120:
-            self.historique = []
-        self.oublier_si_autre_personne()
+        historique = self.historique
         liste, etats = self.ha.inventaire() if self.ha else ("(Home Assistant non connecté)", "")
         jour = date_francaise()
         probables = presélection(texte, liste)
         indice = f" Appareils probables pour cette demande : {probables}." if probables else ""
         systeme = [{"type": "text", "text": CONSIGNE.format(inventaire=liste),
                     "cache_control": {"type": "ephemeral"}}]
-        messages = list(self.historique) + [{"role": "user", "content":
-                                              f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
+        messages = list(historique) + [{"role": "user", "content":
+                                         f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
         actions, reponse = [], ""
         self.dernieres_actions = []
         musiques = []  # résultats de jouer_musique, pour garde_fou_musique
-        if self.ha:  # même liste tant que l'inventaire ne change pas : l'en-tête reste en cache
-            self.outils = self.outils_claude(self.ha.entites_llm)
+        outils = self.outils_du_mode(mode)
+        noms = {o["name"] for o in outils}
         for _ in range(6):
             t = time.perf_counter()
             r = self.client.messages.create(
                 model=self.modele, max_tokens=1024, system=systeme, messages=messages,
-                tools=self.outils if self.ha else [], thinking={"type": "disabled"})
+                tools=outils, thinking={"type": "disabled"})
             u = r.usage
             self.mesures.append((time.perf_counter() - t, u.input_tokens,
                                  getattr(u, "cache_read_input_tokens", 0) or 0, u.output_tokens))
@@ -1081,32 +1172,7 @@ class CerveauClaude(Cerveau):
             messages.append({"role": "assistant", "content": r.content})
             resultats = []
             for b in appels:
-                args = dict(b.input or {})
-                if b.name == "appeler_service":
-                    refus = garde_fou_volume(texte, args)
-                    if refus:
-                        res = {"erreur": refus}
-                    else:
-                        res = self.ha.service(args.get("domaine", ""), args.get("service", ""),
-                                              args.get("entity_id"), args.get("donnees"))
-                        actions.append(resume_action(f"{args.get('domaine')}.{args.get('service')}",
-                                                     args.get("entity_id"), args.get("donnees"))
-                                       + (" (refusé : sécurité)" if "refusé" in str(res.get("erreur", ""))
-                                          else " (refusé par HA)" if "erreur" in res else ""))
-                        if "erreur" not in res:  # action réussie : candidate à l'apprentissage
-                            self.dernieres_actions.append(action_dictionnaire(args))
-                elif b.name == "jouer_musique":
-                    res = self.ha.musique(args.get("recherche"), args.get("type", "track"), args.get("enceinte", "toutes"),
-                                          args.get("artiste", ""))
-                    musiques.append(res)
-                    actions.append(resume_action("music_assistant.play_media",
-                                                 self.ha.ENCEINTES_MUSIQUE.get(args.get("enceinte") or "toutes"),
-                                                 {"media_id": args.get("recherche"), "media_type": args.get("type", "track")})
-                                   + (" (refusé : sécurité)" if str(res.get("erreur", "")).startswith("refusé :")
-                                      else " (non joué)" if "erreur" in res
-                                      else " (non confirmé)" if res.get("confirme") is False else ""))
-                else:
-                    res = self.ha.etat(args.get("entity_id", ""))
+                res = self.executer_outil(b.name, dict(b.input or {}), texte, noms, actions, musiques)
                 resultats.append({"type": "tool_result", "tool_use_id": b.id,
                                   "content": json.dumps(res, ensure_ascii=False),
                                   **({"is_error": True} if "erreur" in res else {})})
@@ -1114,9 +1180,8 @@ class CerveauClaude(Cerveau):
         else:
             reponse = "Je n'ai pas réussi à terminer cette demande."
         reponse = garde_fou_musique(reponse, musiques)
-        self.historique += [{"role": "user", "content": texte}, {"role": "assistant", "content": reponse or "..."}]
-        self.historique = self.historique[-6:]
-        self.dernier_echange = time.time()
+        self.historique = historique + [{"role": "user", "content": texte},
+                                        {"role": "assistant", "content": reponse or "..."}]
         return reponse, actions
 
 
@@ -1173,6 +1238,7 @@ class Assistant:
     def __init__(self, cfg, avec_audio=True, essai=False):
         from dictionnaire import Dictionnaire
         self.cfg, self.essai = cfg, essai
+        self.lecons = {}  # appareil -> (phrase apprise, heure) : « non » n'annule que la leçon de son appareil
         t = time.perf_counter()
         # Dictionnaire écrit à la main dans la configuration de la maison, phrases apprises sur cette machine.
         self.dico = Dictionnaire(maison.chemin("commandes.yaml"), DONNEES / "commandes_apprises.yaml")
@@ -1213,22 +1279,29 @@ class Assistant:
                 "« mes chevets », « mon plafond » ou « ma lumière », ne touche à aucune chambre : explique que tu ne sais "
                 f"pas de quelle chambre il s'agit et propose-lui de dire « la chambre de {maison.NOM_PROPRIETAIRE} » si c'est elle.")
 
+    @property
+    def essai(self):
+        r = REQUETE.get()
+        return r.essai if r else getattr(self, "_essai", False)
+
+    @essai.setter
+    def essai(self, valeur):
+        self._essai = bool(valeur)
+
     @contextlib.contextmanager
-    def pour_personne(self, personne):
-        """Le temps d'une commande : la personne qui parle pour la sécurité, l'inventaire et la consigne."""
-        ancien = (self.ha.personne if self.ha else None, self.cerveau.indication_personne)
-        if self.ha:
-            self.ha.personne = personne or None
-        self.cerveau.indication_personne = self.indication(personne)
+    def requete(self, essai=None, personne=None, appareil=None):
+        """Le temps d'une commande : essai, personne qui parle et appareil, pour la sécurité, l'inventaire,
+        la consigne et l'historique. Rien n'est écrit sur les objets partagés."""
+        if essai is None:
+            essai = getattr(self, "_essai", False)
+        jeton = REQUETE.set(Requete(essai, personne, appareil, self.indication(personne)))
         try:
             yield
         finally:
-            if self.ha:
-                self.ha.personne = ancien[0]
-            self.cerveau.indication_personne = ancien[1]
+            REQUETE.reset(jeton)
 
-    def traiter(self, texte, t_stt=0.0, personne=None):
-        with self.pour_personne(personne):
+    def traiter(self, texte, t_stt=0.0, personne=None, appareil=None, essai=None):
+        with self.requete(essai=essai, personne=personne, appareil=appareil):
             return self._traiter(texte, t_stt, personne)
 
     def _traiter(self, texte, t_stt, personne):
@@ -1237,10 +1310,14 @@ class Assistant:
         voie, actions = "ha", []
         texte = epurer(texte)  # « est-ce que tu peux éteindre » devient « éteindre »
         # Correction vocale de la dernière leçon : « non », « annule »... dans les 30 s.
-        lecon = getattr(self, "derniere_lecon", None)
+        lecons = getattr(self, "lecons", None)
+        if lecons is None:
+            lecons = self.lecons = {}
+        appareil = Cerveau.cle_conversation()[1]
+        lecon = lecons.get(appareil)
         if lecon and CORRECTION.search(texte) and time.time() - lecon[1] < DELAI_CORRECTION:
             self.dico.oublier(lecon[0])
-            self.derniere_lecon = None
+            lecons.pop(appareil, None)
             parole = f"D'accord, j'oublie ce que j'avais retenu pour « {lecon[0]} »."
             print(f"  [apprentissage annulé] {lecon[0]}")
             journaliser(texte, "apprentissage annulé", t_stt, time.perf_counter() - t, 0.0, parole, [])
@@ -1342,13 +1419,17 @@ class Assistant:
         if any(securite.protege(e) for a in actions for e in securite.cibles(a.get("entity_id"))):
             return
         if self.dico.apprendre(texte, actions, parole or "C'est fait.", datetime.now().strftime("%Y-%m-%d %H:%M")):
-            self.derniere_lecon = (texte, time.time())
+            if getattr(self, "lecons", None) is None:
+                self.lecons = {}
+            self.lecons[Cerveau.cle_conversation()[1]] = (texte, time.time())
             print(f"  [appris] « {texte} » sera traité directement la prochaine fois "
                   f"(dis « non » dans les {DELAI_CORRECTION:.0f} s pour l'oublier)")
 
     def executer(self, action, personne=None):
         """Action du dictionnaire : écrite par le propriétaire, donc pas de liste blanche."""
         domaine, service = action["service"].split(".", 1)
+        if domaine in acces.DOMAINES_INTERDITS:  # même sur la voie du dictionnaire (0.28.0)
+            raise RefusSecurite(f"le domaine {domaine} est interdit")
         corps = {k: v for k, v in action.items() if k != "service"}
         refus = securite.verifier(action["service"], corps, personne=personne)
         if refus:
