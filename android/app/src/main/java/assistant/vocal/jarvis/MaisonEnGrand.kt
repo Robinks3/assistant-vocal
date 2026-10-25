@@ -235,13 +235,14 @@ internal object MaisonEnGrand {
 
     /** État que la ligne montre tout de suite après un toucher, avant que HA ne le confirme. */
     fun prevuBascule(a: Appareils.Appareil, c: Appareils.Commande): Appareils.Appareil = when (c.service.substringAfter('.')) {
-        "turn_off" -> a.copy(etat = "off", luminosite = null)
-        "turn_on" -> a.copy(etat = "on")
+        "turn_off" -> a.copy(etat = "off", luminosite = null, mode = "", kelvin = null, teinte = null)
+        "turn_on" -> a.copy(etat = "on", mode = "", kelvin = null, teinte = null)
         else -> a
     }
 
     fun prevuIntensite(a: Appareils.Appareil, pct: Int): Appareils.Appareil =
-        if (pct <= 0) a.copy(etat = "off", luminosite = null) else a.copy(etat = "on", luminosite = pct)
+        if (pct <= 0) a.copy(etat = "off", luminosite = null, mode = "", kelvin = null, teinte = null)
+        else a.copy(etat = "on", luminosite = pct, mode = "", kelvin = null, teinte = null)
 }
 
 /**

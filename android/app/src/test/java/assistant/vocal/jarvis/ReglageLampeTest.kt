@@ -168,4 +168,19 @@ class ReglageLampeTest {
         assertNull(c.bouge(ReglageLampe.kelvinDe(a, 0.1f), 1100L))
         assertEquals(3000, c.fin(3000, 1200L))
     }
+
+    @Test
+    fun intensiteSeuleNeRegardePasLaCouleur() {
+        val lue = lampe(mode = "hs", teinte = 0f, lum = 80)
+        val prevu = MaisonEnGrand.prevuIntensite(lue, 2)
+        // La lampe relit une teinte décalée à très basse intensité : seule la luminosité compte.
+        assertTrue(Attentes.conforme(lampe(mode = "hs", teinte = 40f, lum = 2), prevu))
+    }
+
+    @Test
+    fun bornesDegenereesRestentOrdonnees() {
+        val (k0, k1) = ReglageLampe.bornes(lampe(kmin = 6500, kmax = 0))
+        assertTrue(k1 > k0)
+        assertFalse(ReglageLampe.fractionDe(lampe(kmin = 6500, kmax = 0), 6500).isNaN())
+    }
 }

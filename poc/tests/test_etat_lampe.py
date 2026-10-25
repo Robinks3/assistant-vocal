@@ -1,4 +1,4 @@
-"""0.31.0 : lire_etat expose le mode de couleur et les kelvins d'une lampe."""
+"""0.32.0 : lire_etat expose le mode de couleur et les kelvins d'une lampe."""
 import assistant as A
 
 

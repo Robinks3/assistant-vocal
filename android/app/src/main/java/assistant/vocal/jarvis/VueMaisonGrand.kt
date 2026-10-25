@@ -606,9 +606,11 @@ internal class VueMaisonGrand(private val ctx: Context) {
             // Les deux pistes passent par la Cadence : une valeur toutes les 300 ms pendant le geste, la dernière au lâcher.
             pisteBlanc.surDebut = { surToucher(); surligner(o.entite) }
             pisteBlanc.surBouge = { f -> surToucher(); vu(o)?.let { a -> cadenceBlanc.bouge(ReglageLampe.kelvinDe(a, f), maintenant())?.let { blancK(o, it) } } }
+            pisteBlanc.surAnnule = { cadenceBlanc.fin(0, maintenant()) }
             pisteBlanc.surLacher = { f -> surToucher(); vu(o)?.let { a -> cadenceBlanc.fin(ReglageLampe.kelvinDe(a, f), maintenant())?.let { blancK(o, it) } } }
             pisteTeinte.surDebut = { surToucher(); surligner(o.entite) }
             pisteTeinte.surBouge = { f -> surToucher(); cadenceTeinte.bouge(degresDe(f), maintenant())?.let { teinte(o, it) } }
+            pisteTeinte.surAnnule = { cadenceTeinte.fin(0, maintenant()) }
             pisteTeinte.surLacher = { f -> surToucher(); cadenceTeinte.fin(degresDe(f), maintenant())?.let { teinte(o, it) } }
         }
 
@@ -945,6 +947,7 @@ internal class PisteBlanc(ctx: Context) : View(ctx) {
             }
         }
     var surLacher: (Float) -> Unit = {}
+    var surAnnule: () -> Unit = {}
     /** Le doigt bouge : la valeur part en cours de geste, par la Cadence de l'appelant. */
     var surBouge: (Float) -> Unit = {}
     var surDebut: () -> Unit = {}
@@ -991,7 +994,10 @@ internal class PisteBlanc(ctx: Context) : View(ctx) {
                 glisse = false
                 surLacher(f)
             }
-            android.view.MotionEvent.ACTION_CANCEL -> glisse = false
+            android.view.MotionEvent.ACTION_CANCEL -> {
+                glisse = false
+                surAnnule()
+            }
         }
         return true
     }

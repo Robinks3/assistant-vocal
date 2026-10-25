@@ -916,11 +916,11 @@ class Maison(
         }
 
         /**
-         * Température (100 K) ou teinte (8 degrés, bouclage autour de 0) demandée à une lampe. Le serveur 0.31.0 donne
+         * Température (100 K) ou teinte (8 degrés, bouclage autour de 0) demandée à une lampe. Le serveur 0.32.0 donne
          * color_mode : une lampe restée dans l'autre mode n'a pas obéi. Sans color_mode (ancien serveur), seul ce qui est lu compte.
          */
         private fun reglageConforme(d: Map<String, String>, attr: JSONObject): Boolean {
-            val mode = attr.optString("color_mode")
+            val mode = if (attr.isNull("color_mode")) "" else attr.optString("color_mode")
             d["color_temp_kelvin"]?.toDoubleOrNull()?.let { k ->
                 if (mode.isNotEmpty() && mode != "color_temp") return false
                 val lu = attr.optDouble("color_temp_kelvin")

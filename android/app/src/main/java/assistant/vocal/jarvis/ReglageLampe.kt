@@ -38,7 +38,7 @@ internal object ReglageLampe {
     /** Bornes de la piste : celles de la lampe, sinon 2700 à 6500 K. */
     fun bornes(a: Appareils.Appareil): Pair<Int, Int> {
         val k0 = if (a.kelvinMin > 0) a.kelvinMin else KELVIN_CHAUD
-        val k1 = if (a.kelvinMax > k0) a.kelvinMax else KELVIN_FROID
+        val k1 = if (a.kelvinMax > k0) a.kelvinMax else maxOf(KELVIN_FROID, k0 + 1)
         return k0 to k1
     }
 
