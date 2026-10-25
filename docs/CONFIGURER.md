@@ -83,8 +83,10 @@ git push -u origin main
 Sur un autre poste, il suffit de cloner ce dépôt dans `config/` à la racine du moteur, ou ailleurs avec
 `ASSISTANT_VOCAL_CONFIG` qui pointe dessus.
 
-`genere/android/dictionnaire.json` contient aussi les phrases apprises de la machine qui l'a produit (voir
-[les phrases apprises](#les-phrases-apprises)). Le versionner revient à versionner ces phrases.
+`genere/android/dictionnaire.json` ne contient que ce qui vient de `commandes.yaml` : depuis l'appli 0.32.2,
+les phrases apprises de la machine partent dans un export à part, hors de ce dossier (voir
+[l'export à refaire avant de compiler l'APK](#lexport-à-refaire-avant-de-compiler-lapk)). Le versionner ne
+versionne donc pas ces phrases.
 
 ### Ce qui n'y va pas
 
@@ -610,8 +612,12 @@ qui garde ensuite les siennes dans `/data`.
 ### L'export à refaire avant de compiler l'APK
 
 L'appli n'a pas de lecteur YAML : elle embarque `genere/android/dictionnaire.json`, avec toutes les formes
-développées, la vue du LLM, la section `personnes` et la liste blanche des services. Après chaque
-changement du dictionnaire ou des phrases apprises :
+développées, la vue du LLM, la section `personnes` et la liste blanche des services. Les phrases apprises
+de la machine qui exporte vont dans un second fichier, `genere/android/dictionnaire_appris.json` du dossier
+de données (`JARVIS_DONNEES`, `poc/` par défaut, ignoré par git), que la compilation ajoute aux assets
+quand il existe (`-PdonneesDossier=...` pour en désigner un autre). L'appli les fusionne au dictionnaire,
+sans qu'une phrase apprise remplace une phrase de `commandes.yaml`. Après chaque changement du dictionnaire
+ou des phrases apprises :
 
 ```powershell
 .venv\Scripts\python android/outils/exporter_dictionnaire.py
@@ -621,8 +627,9 @@ Sans ce fichier, la compilation d'une APK échoue avec la commande à lancer.
 
 Pour l'exemple, `.venv\Scripts\python android/outils/exporter_dictionnaire.py --exemple` exporte le dictionnaire de
 `config-exemple/` sans phrase apprise ni date. Le test `test_export_exemple_a_jour` de
-`poc/tests/test_dictionnaire.py` refait cet export et vérifie qu'il n'a pas changé. S'il échoue, l'export
-vient d'être réécrit : il reste à le committer avec le `commandes.yaml` d'exemple modifié. Les tests de
+`poc/tests/test_dictionnaire.py` refait cet export dans un dossier temporaire et le compare au fichier
+suivi par git, sans jamais le réécrire. S'il échoue, relancer l'export `--exemple` à la main et le committer
+avec le `commandes.yaml` d'exemple modifié. Les tests de
 l'appli (`DictionnaireTest.kt`) lisent ce même fichier.
 
 ## 4. Le plan du logement

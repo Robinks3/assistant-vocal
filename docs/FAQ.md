@@ -578,13 +578,12 @@ Sous Windows, Python 5.11 et 5.13 conviennent tous les deux.
 ### Le test de l'export d'exemple échoue
 
 ```text
-export d'exemple périmé, refait par ce test : le committer
+export d'exemple périmé : python android/outils/exporter_dictionnaire.py --exemple, puis le committer
 ```
 
-`test_export_exemple_a_jour` refait lui-même `config-exemple/genere/android/dictionnaire.json` à partir
-de `config-exemple/commandes.yaml` et échoue si le fichier a changé. Le nouvel export est déjà écrit :
-relancez les tests, qui doivent passer, puis committez le fichier avec le dictionnaire d'exemple. L'export
-se refait aussi à la main :
+`test_export_exemple_a_jour` refait l'export de `config-exemple/commandes.yaml` dans un dossier temporaire
+et échoue s'il diffère de `config-exemple/genere/android/dictionnaire.json`. Depuis 0.32.2 il ne réécrit
+plus ce fichier lui-même : refaites l'export à la main, puis committez-le avec le dictionnaire d'exemple :
 
 ```powershell
 .venv\Scripts\python android/outils/exporter_dictionnaire.py --exemple

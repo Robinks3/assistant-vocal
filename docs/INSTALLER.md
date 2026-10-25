@@ -252,7 +252,8 @@ La réponse attendue est `Assistant vocal local v0.25.2 (2026-10-24)`.
 ### Fichiers produits pour l'appli
 
 Le dictionnaire exporté, que l'APK embarque (écrit dans `genere/android/dictionnaire.json` de la
-configuration) :
+configuration, et les phrases apprises de la machine dans `genere/android/dictionnaire_appris.json` du dossier
+de données, `poc/` par défaut) :
 
 ```powershell
 .venv\Scripts\python android/outils/exporter_dictionnaire.py

@@ -8,7 +8,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.32.1"
+val versionApplication = "0.32.2"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -65,6 +65,11 @@ val dossierLu: File = if (File(dossierMaison, "maison.json").exists()) dossierMa
     logger.warn("${dossierMaison.path}/maison.json absent : configuration fictive de config-exemple/ (réservée aux tests unitaires).")
     dossierExemple
 }
+// Données d'usage de cette machine (JARVIS_DONNEES du serveur, poc/ par défaut, -PdonneesDossier=... sinon) :
+// genere/android/dictionnaire_appris.json y porte les phrases apprises, hors du dossier de configuration versionné.
+val dossierDonnees: File = listOf(findProperty("donneesDossier") as String?, System.getenv("JARVIS_DONNEES"))
+    .firstOrNull { !it.isNullOrBlank() }?.let { File(it).takeIf { f -> f.isAbsolute } ?: rootProject.file("../$it") }
+    ?: rootProject.file("../poc")
 if (fabriqueApk && !File(dossierLu, "genere/android/dictionnaire.json").exists()) {
     throw GradleException("${dossierLu.path}/genere/android/dictionnaire.json absent : lancer python android/outils/exporter_dictionnaire.py.")
 }
@@ -132,7 +137,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 58
+        versionCode = 59
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
@@ -167,6 +172,9 @@ android {
     // Fichiers produits à partir de la configuration de la maison : dictionnaire.json, maison3d/vue3d.html et
     // carte/ (trait de côte et terre de la carte du vent mesuré).
     sourceSets["main"].assets.srcDir(File(dossierLu, "genere/android"))
+    // Phrases apprises (dictionnaire_appris.json), jamais avec la configuration fictive.
+    File(dossierDonnees, "genere/android").takeIf { it.isDirectory && dossierLu != dossierExemple }
+        ?.let { sourceSets["main"].assets.srcDir(it) }
 
     // Les tests unitaires tournent sur la configuration fictive de config-exemple/, jamais sur la vraie : propriété
     // système lue par ConfigMaison.kt et DictionnaireTest. `-PmaisonTests=reel` les lance sur le dossier de la

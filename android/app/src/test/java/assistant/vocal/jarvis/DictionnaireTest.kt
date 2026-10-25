@@ -95,4 +95,23 @@ class DictionnaireTest {
         assertTrue(pourCamille.all { Securite.verifier(it, 21, "") != null })
         assertTrue(pourCamille.all { Securite.verifier(it, 21, DictionnaireLocal.INCONNU) != null })
     }
+
+    /** Export à part des phrases apprises (0.32.2) : fusionné après commandes.yaml, sans jamais le remplacer. */
+    @Test
+    fun phrasesApprisesFusionneesSansRemplacerLaConfiguration() {
+        val dossier = System.getProperty("maison.dossier") ?: error("propriété système maison.dossier absente")
+        val config = JSONObject(File(dossier, "genere/android/dictionnaire.json").readText(Charsets.UTF_8))
+        val cleConfig = config.getJSONArray("formes").getJSONArray(0).getString(0)
+        val appris = JSONObject("""{"version":"test","genere_le":"","modeles":[
+            {"actions":[{"service":"light.turn_on","entity_id":"light.essai"}],"reponse":"Appris.","source":"commandes_apprises.yaml","appris":true,"ligne":1,"motif":"x"},
+            {"actions":[{"service":"light.turn_off","entity_id":"light.essai"}],"reponse":"Écrasé.","source":"commandes_apprises.yaml","appris":true,"ligne":2,"motif":"y"}],
+            "formes":[["phrase apprise de test",0],["$cleConfig",1]]}""")
+        val sans = DictionnaireLocal(config)
+        val avec = DictionnaireLocal(config, appris)
+        assertEquals(sans.taille + 1, avec.taille)
+        val t = avec.chercher("phrase apprise de test")
+        assertTrue(t != null && t.forme.appris && t.forme.reponse == "Appris.")
+        val c = avec.chercher(cleConfig)
+        assertTrue(c != null && !c.forme.appris && c.forme.reponse != "Écrasé.")
+    }
 }

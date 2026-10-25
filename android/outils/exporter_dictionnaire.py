@@ -1,18 +1,25 @@
 """Exporte le dictionnaire de Jarvis pour l'appli Android (mode « Cet appareil »).
 
-Lit commandes.yaml du dossier de configuration de la maison (poc/maison.py) et les phrases apprises de
-cette machine (commandes_apprises.yaml du dossier de données), avec le même code que les serveurs
-(poc/dictionnaire.py), développe toutes les formes et écrit genere/android/dictionnaire.json dans le
-dossier de configuration, que build.gradle.kts range dans les assets de l'APK :
+Lit commandes.yaml du dossier de configuration de la maison (poc/maison.py) avec le même code que les
+serveurs (poc/dictionnaire.py), développe toutes les formes et écrit genere/android/dictionnaire.json dans
+le dossier de configuration, que build.gradle.kts range dans les assets de l'APK :
   {"version", "genere_le", "modeles": [{"actions", "reponse", "source", "ligne", "motif"}],
    "formes": [[cle, indice du modèle, {emplacement: valeur}]], "llm", "personnes", "services_permis"}
 « cle » est la phrase normalisée (minuscules, sans accents ni ponctuation), « source » le fichier
 d'origine et « ligne » le numéro de ligne du motif, affichés dans le déroulé de l'appli.
 
+Les phrases apprises de cette machine (commandes_apprises.yaml du dossier de données) sont des données
+d'usage, pas de la configuration : depuis l'appli 0.32.2 elles partent dans un export à part,
+genere/android/dictionnaire_appris.json du dossier de données (JARVIS_DONNEES, poc/ par défaut), au même
+format (« modeles » et « formes », sans « llm » ni « personnes »), sans les phrases déjà couvertes par
+commandes.yaml. build.gradle.kts l'ajoute aux assets s'il existe, DictionnaireLocal.kt le fusionne.
+
 Usage : python android/outils/exporter_dictionnaire.py   (à relancer avant chaque compilation
 quand le dictionnaire ou les phrases apprises ont changé)
         python android/outils/exporter_dictionnaire.py --exemple   (dictionnaire de config-exemple/, sans phrase
 apprise ni date, pour les tests unitaires de l'appli : un test de poc/tests vérifie qu'il est à jour)
+        --sortie FICHIER   écrit le dictionnaire ailleurs que dans genere/android/ (ce test compare ainsi sans
+réécrire l'export d'exemple suivi par git)
 """
 import json, os, re, sys, time
 from pathlib import Path
@@ -28,7 +35,9 @@ import assistant as A  # noqa: E402
 import maison  # noqa: E402
 from dictionnaire import developper, normaliser  # noqa: E402
 
-SORTIE = maison.chemin("genere/android/dictionnaire.json")
+SORTIE = (Path(sys.argv[sys.argv.index("--sortie") + 1]) if "--sortie" in sys.argv
+          else maison.chemin("genere/android/dictionnaire.json"))
+SORTIE_APPRIS = A.DONNEES / "genere" / "android" / "dictionnaire_appris.json"
 
 
 def numero_ligne(lignes, motif, depuis=0):
@@ -72,6 +81,8 @@ def main():
                     if cle not in vus:
                         vus.add(cle)
                         formes.append([cle, indice, valeurs] if valeurs else [cle, indice])
+    # Phrases apprises : export à part dans le dossier de données (0.32.2), jamais pour l'exemple.
+    modeles_appris, formes_appris = [], []
     chemin_appris = A.DONNEES / "commandes_apprises.yaml"
     if chemin_appris.exists() and not EXEMPLE:
         texte_appris = chemin_appris.read_text(encoding="utf-8")
@@ -81,10 +92,10 @@ def main():
             if cle and cle not in vus:
                 vus.add(cle)
                 actions = cmd["action"] if isinstance(cmd["action"], list) else [cmd["action"]]
-                formes.append([cle, len(modeles)])
-                modeles.append({"actions": actions, "reponse": cmd.get("reponse", "C'est fait."),
-                                "source": "commandes_apprises.yaml", "appris": True,
-                                "ligne": numero_ligne(lignes_appris, cmd["phrase"]), "motif": cmd["phrase"]})
+                formes_appris.append([cle, len(modeles_appris)])
+                modeles_appris.append({"actions": actions, "reponse": cmd.get("reponse", "C'est fait."),
+                                       "source": "commandes_apprises.yaml", "appris": True,
+                                       "ligne": numero_ligne(lignes_appris, cmd["phrase"]), "motif": cmd["phrase"]})
     # Pour le LLM sur l'appareil (0.13.0) : même vue que le LLM des serveurs (appareils renommés,
     # masqués, notes) et même liste blanche de services.
     # L'exemple ne porte ni version ni date : il ne change que si son dictionnaire change.
@@ -97,6 +108,14 @@ def main():
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     SORTIE.write_text(json.dumps(sortie, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{len(formes)} formes exportées vers {SORTIE} ({SORTIE.stat().st_size // 1024} Ko)")
+    if EXEMPLE:
+        return
+    # Toujours écrit, même vide, pour qu'une APK ne garde pas d'anciennes phrases oubliées depuis.
+    SORTIE_APPRIS.parent.mkdir(parents=True, exist_ok=True)
+    SORTIE_APPRIS.write_text(json.dumps({"version": A.VERSION, "genere_le": sortie["genere_le"],
+                                         "modeles": modeles_appris, "formes": formes_appris},
+                                        ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"{len(formes_appris)} phrases apprises exportées vers {SORTIE_APPRIS}")
 
 
 if __name__ == "__main__":

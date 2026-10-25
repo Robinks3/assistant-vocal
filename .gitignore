@@ -16,6 +16,8 @@ keystore.properties
 poc/journal/
 journal/
 poc/commandes_apprises.yaml
+# Export des phrases apprises pour l'APK (android/outils/exporter_dictionnaire.py)
+poc/genere/
 *.db
 *.sqlite
 *.sqlite3

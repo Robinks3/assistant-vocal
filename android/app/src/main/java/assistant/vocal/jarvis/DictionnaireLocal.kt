@@ -7,15 +7,20 @@ import java.text.Normalizer
 
 /**
  * Dictionnaire de Jarvis embarqué (assets/dictionnaire.json, produit par
- * android/outils/exporter_dictionnaire.py depuis commandes.yaml (dossier de configuration) et les phrases apprises).
+ * android/outils/exporter_dictionnaire.py depuis commandes.yaml du dossier de configuration), complété par les phrases
+ * apprises de assets/dictionnaire_appris.json quand l'APK en porte (0.32.2, export à part du dossier de données).
+ * Une phrase apprise ne remplace jamais une phrase de commandes.yaml.
  * Reprise de poc/dictionnaire.py : epurer, normaliser, recherche exacte puis tolérance aux
  * fautes (difflib.get_close_matches, n=5, seuil 0,88, mots_compatibles, jamais pour une
  * phrase apprise).
  */
-class DictionnaireLocal(j: JSONObject) {
+class DictionnaireLocal(j: JSONObject, appris: JSONObject? = null) {
 
     constructor(contexte: Context) : this(
         JSONObject(contexte.assets.open("dictionnaire.json").bufferedReader(Charsets.UTF_8).use { it.readText() }),
+        kotlin.runCatching {
+            JSONObject(contexte.assets.open("dictionnaire_appris.json").bufferedReader(Charsets.UTF_8).use { it.readText() })
+        }.getOrNull(),
     )
 
     /** Une phrase du dictionnaire : sa clé, le modèle (motif, actions à trous) et les valeurs des emplacements. */
@@ -52,6 +57,11 @@ class DictionnaireLocal(j: JSONObject) {
     init {
         version = j.optString("version")
         genereLe = j.optString("genere_le")
+        lire(j, remplacer = true)
+        appris?.let { lire(it, remplacer = false) }
+    }
+
+    private fun lire(j: JSONObject, remplacer: Boolean) {
         val modeles = j.getJSONArray("modeles")
         val a = j.getJSONArray("formes")
         for (i in 0 until a.length()) {
@@ -61,7 +71,7 @@ class DictionnaireLocal(j: JSONObject) {
                 o.getString(0), modeles.getJSONObject(o.getInt(1)),
                 v?.let { x -> x.keys().asSequence().associateWith { x.optString(it) } } ?: emptyMap(),
             )
-            formes[f.cle] = f
+            if (remplacer) formes[f.cle] = f else formes.putIfAbsent(f.cle, f)
         }
     }
 

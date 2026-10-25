@@ -1,4 +1,5 @@
 """Dictionnaire de commandes et outils du LLM."""
+import json
 import tempfile
 from pathlib import Path
 
@@ -68,18 +69,49 @@ def test_outil_musique():
     assert "erreur" in ha.musique("", "track")
 
 
-def test_export_exemple_a_jour():
-    """config-exemple/genere/android/dictionnaire.json, lu par les tests de l'appli, suit config-exemple/commandes.yaml.
-    En cas d'échec, l'export vient d'être refait : le committer avec le dictionnaire d'exemple."""
+def _exporter(*args, env=None):
     import subprocess
     import sys
     racine = Path(__file__).resolve().parents[2]
-    export = racine / "config-exemple" / "genere" / "android" / "dictionnaire.json"
-    avant = export.read_bytes() if export.exists() else b""
-    r = subprocess.run([sys.executable, str(racine / "android" / "outils" / "exporter_dictionnaire.py"), "--exemple"],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = subprocess.run([sys.executable, str(racine / "android" / "outils" / "exporter_dictionnaire.py"), *args],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0, r.stderr
-    assert export.read_bytes() == avant, "export d'exemple périmé, refait par ce test : le committer"
+
+
+def test_export_exemple_a_jour(tmp_path):
+    """config-exemple/genere/android/dictionnaire.json, lu par les tests de l'appli, suit config-exemple/commandes.yaml.
+    L'export est refait dans un dossier temporaire, le fichier suivi par git n'est jamais réécrit par le test."""
+    export = Path(__file__).resolve().parents[2] / "config-exemple" / "genere" / "android" / "dictionnaire.json"
+    neuf = tmp_path / "dictionnaire.json"
+    _exporter("--exemple", "--sortie", str(neuf))
+    assert export.exists() and export.read_bytes() == neuf.read_bytes(), \
+        "export d'exemple périmé : python android/outils/exporter_dictionnaire.py --exemple, puis le committer"
+
+
+def test_phrases_apprises_hors_export_de_configuration(tmp_path):
+    """0.32.2 : les phrases apprises partent dans dictionnaire_appris.json du dossier de données, jamais dans
+    genere/android/dictionnaire.json du dossier de configuration, que le dépôt de configuration peut versionner."""
+    import os
+    import shutil
+    racine = Path(__file__).resolve().parents[2]
+    config, donnees = tmp_path / "config", tmp_path / "donnees"
+    shutil.copytree(racine / "config-exemple", config, ignore=shutil.ignore_patterns("genere"))
+    donnees.mkdir()
+    (donnees / "commandes_apprises.yaml").write_text(
+        "apprises:\n- phrase: Phrase apprise de test\n  action: {service: light.turn_on, entity_id: light.essai}\n",
+        encoding="utf-8")
+    env = {**os.environ, "ASSISTANT_VOCAL_CONFIG": str(config), "JARVIS_DONNEES": str(donnees)}
+    _exporter(env=env)
+    dico = json.loads((config / "genere" / "android" / "dictionnaire.json").read_text(encoding="utf-8"))
+    appris = json.loads((donnees / "genere" / "android" / "dictionnaire_appris.json").read_text(encoding="utf-8"))
+    assert "phrase apprise de test" not in {f[0] for f in dico["formes"]}
+    assert not any(m.get("appris") for m in dico["modeles"])
+    assert [f[0] for f in appris["formes"]] == ["phrase apprise de test"]
+    assert appris["modeles"][0]["appris"] and appris["modeles"][0]["source"] == "commandes_apprises.yaml"
+    # Sans phrase apprise, l'export à part est réécrit vide plutôt que laissé périmé.
+    (donnees / "commandes_apprises.yaml").unlink()
+    _exporter(env=env)
+    assert json.loads((donnees / "genere" / "android" / "dictionnaire_appris.json").read_text(encoding="utf-8"))["formes"] == []
 
 
 def test_prenom_mal_entendu_corrige():

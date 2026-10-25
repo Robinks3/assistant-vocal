@@ -6,6 +6,19 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.32.2 (2026-10-25)
+- Phrases apprises sorties de l'export versionnable : `android/outils/exporter_dictionnaire.py` n'écrit plus
+  dans `genere/android/dictionnaire.json` du dossier de configuration que ce qui vient de `commandes.yaml`.
+  Les phrases apprises de la machine partent dans `genere/android/dictionnaire_appris.json` du dossier de
+  données (`JARVIS_DONNEES`, `poc/` par défaut, `poc/genere/` ignoré par git), réécrit même vide pour ne
+  jamais embarquer d'anciennes phrases. `build.gradle.kts` ajoute ce dossier aux assets s'il existe
+  (`-PdonneesDossier=...` pour un autre), jamais avec `config-exemple/`. `DictionnaireLocal` fusionne les
+  deux fichiers, une phrase apprise ne remplace jamais une phrase de `commandes.yaml`.
+- Option `--sortie FICHIER` de l'exporteur : `test_export_exemple_a_jour` compare l'export d'exemple refait
+  dans un dossier temporaire et ne réécrit plus `config-exemple/genere/android/dictionnaire.json` suivi par git.
+- Tests : `test_phrases_apprises_hors_export_de_configuration` (Python) et
+  `phrasesApprisesFusionneesSansRemplacerLaConfiguration` (Kotlin). versionCode 59.
+
 ## 0.32.1 (2026-10-25)
 - Passerelle HA qui ne se remettait pas d'un redémarrage de l'appli Home Assistant : la poignée de main
   WebSocket n'avait aucun délai (`readTimeout(0)` sans `callTimeout`), un serveur qui accepte la connexion
