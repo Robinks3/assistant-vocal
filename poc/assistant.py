@@ -48,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.29.0"
+VERSION = "0.29.1"
 DATE_VERSION = "2026-10-25"
 
 ICI = Path(__file__).resolve().parent
@@ -1030,7 +1030,10 @@ class Cerveau:
                               else " (non confirmé)" if res.get("confirme") is False else ""))
             return res
         if nom == "lire_etat":
-            return self.ha.etat(args.get("entity_id", ""))
+            demande = args.get("entity_id", "")
+            if demande not in self.ha.entites_llm:  # même liste que l'enum du schéma, que le LLM peut contourner
+                return {"erreur": f"refusé : {demande} n'est pas dans l'inventaire des appareils permis"}
+            return self.ha.etat(demande)
         return dict(INDISPONIBLE)
 
     def repondre(self, texte, mode="commande"):

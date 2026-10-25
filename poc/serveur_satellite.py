@@ -858,6 +858,9 @@ def passerelle_ha(moteur, msg):
     refus = acces.verifier_requete_ha(methode, chemin, corps, personne=msg.get("personne"))
     if refus:
         return {"etat": "ha", "id": ident, "code": 403, "corps": f"refusé : {refus}"}
+    if moteur.essai and methode == "POST" and chemin.startswith("/api/services/"):
+        print(f"  passerelle HA [essai] : {chemin} non transmis")
+        return {"etat": "ha", "id": ident, "code": 200, "corps": "[]"}
     try:
         r = ha.client.request(methode, f"{ha.url}{chemin}", json=corps if methode == "POST" else None, timeout=15)
         type_contenu = r.headers.get("content-type", "")
