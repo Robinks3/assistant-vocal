@@ -50,6 +50,8 @@ def test_reseau_local_exclut_le_tailnet_et_le_public():
     assert acces.adresse_locale("192.0.2.1")
     assert acces.adresse_locale("127.0.0.1")
     assert not acces.adresse_locale("192.0.2.1")
+    assert not acces.adresse_locale("fd7a:115c:a1e0::5")
+    assert acces.adresse_locale("fd12:3456::1")
     assert not acces.adresse_locale("8.8.8.8")
     assert not acces.adresse_locale("pas une adresse")
 

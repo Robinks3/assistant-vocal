@@ -954,7 +954,7 @@ class SatelliteService : Service() {
     private fun diagnostiquer(code: Int?, raison: String?, http: Int?, t: Throwable?, cible: String): Decouverte.Diagnostic {
         val d = Decouverte.diagnostic(code, raison, http, t, Decouverte.libelle(cible))
         Log.w(TAG, "Échec de connexion à ${Decouverte.libelle(cible)} : ${d.cause}")
-        if (d.cause == Decouverte.Cause.RESEAU || d.cause == Decouverte.Cause.SERVEUR) essaiCible++
+        if (d.cause != Decouverte.Cause.RESEAU_REFUSE) essaiCible++
         Etat.modifier { it.copy(dernierEchec = d.texte, alerteJeton = if (d.jetonRefuse) d.texte else it.alerteJeton) }
         return d
     }

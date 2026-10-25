@@ -1354,26 +1354,29 @@ async def servir(args):
 
         async def ecouter():
             """Saisies du code d'amorçage envoyées par le téléphone pendant l'attente."""
-            async for brut in ws:
-                try:
-                    msg = json.loads(brut)
-                except (ValueError, RecursionError):
-                    continue
-                if not isinstance(msg, dict) or msg.get("type") != "amorcage":
-                    continue
-                if not amorcage:
-                    await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": 0,
-                                              "message": "amorçage impossible : un administrateur est connecté "
-                                                         "ou l'appareil n'est pas sur le réseau local"},
-                                             ensure_ascii=False))
-                    continue
-                ok, restant = moteur.appareils.amorcage.verifier(msg.get("code"))
-                if ok:
-                    print(f"amorçage accepté pour « {nom} » ({ip})")
-                    moteur.appareils.accepter(ident)
-                    return
-                print(f"amorçage refusé pour « {nom} » ({ip}) : code faux, {restant} essai(s) restant(s)")
-                await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": restant}, ensure_ascii=False))
+            try:
+                async for brut in ws:
+                    try:
+                        msg = json.loads(brut)
+                    except (ValueError, RecursionError):
+                        continue
+                    if not isinstance(msg, dict) or msg.get("type") != "amorcage":
+                        continue
+                    if not amorcage or any(acces.est_administrateur(s.identite) for s in moteur.satellites):
+                        await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": 0,
+                                                  "message": "amorçage impossible : un administrateur est connecté "
+                                                             "ou l'appareil n'est pas sur le réseau local"},
+                                                 ensure_ascii=False))
+                        continue
+                    ok, restant = moteur.appareils.amorcage.verifier(msg.get("code"))
+                    if ok:
+                        print(f"amorçage accepté pour « {nom} » ({ip})")
+                        moteur.appareils.accepter(ident)
+                        return
+                    print(f"amorçage refusé pour « {nom} » ({ip}) : code faux, {restant} essai(s) restant(s)")
+                    await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": restant}, ensure_ascii=False))
+            except Exception:
+                pass  # connexion tombée en cours d'envoi : même issue qu'une fermeture
             moteur.appareils.refuser(ident)  # le téléphone a fermé : inutile d'attendre les 300 s
 
         lecteur = asyncio.create_task(ecouter())

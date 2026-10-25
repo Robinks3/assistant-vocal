@@ -129,7 +129,7 @@ class AppareilsActivity : Activity() {
         if (refus != null) {
             for (i in 0 until refus.length()) {
                 val r = refus.optJSONObject(i) ?: continue
-                lignes += "Serveur, " + r.optString("quand").replace("T", " à ") + " : " + r.optString("cause") + " (" + r.optString("ip") + ")"
+                lignes += "Serveur, " + r.optString("heure").replace("T", " à ") + " : " + r.optString("cause") + " (" + r.optString("ip") + ")"
             }
         }
         texteDiagnostic.text = if (lignes.isEmpty()) "Aucun échec récent." else lignes.joinToString("\n")

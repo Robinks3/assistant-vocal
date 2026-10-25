@@ -88,6 +88,11 @@ RESEAUX_LOCAUX = ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.
 
 def adresse_locale(ip):
     """Vrai si l'homologue est sur le réseau de la maison (privé ou la machine elle-même)."""
+    try:
+        if ipaddress.ip_address(str(ip).split("%")[0]) in ipaddress.ip_network("fd7a:115c:a1e0::/48"):
+            return False  # le tailnet en IPv6 tombe dans fd00::/8 sans être la maison
+    except ValueError:
+        return False
     return adresse_autorisee(ip, [ipaddress.ip_network(r) for r in RESEAUX_LOCAUX])
 
 
