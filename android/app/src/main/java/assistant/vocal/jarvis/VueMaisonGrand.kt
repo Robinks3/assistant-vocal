@@ -539,6 +539,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
         private val onglets = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         private val ongletBlanc = texte(Palette.texte1, 18f)
         private val ongletCoul = texte(Palette.texte1, 18f)
+        private val valeurReglage = texte(Palette.texte2, 18f)
         private val panneauBlanc = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         private val panneauCouleur = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         private val pastillesBlanc = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
@@ -559,7 +560,8 @@ internal class VueMaisonGrand(private val ctx: Context) {
             setPadding(px(10f), 0, 0, 0)
             isClickable = true
             isLongClickable = true
-            setOnClickListener { surToucher(); surligner(o.entite); basculer(o) }
+            // La ligne déplie le volet (lampe réglable) ou bascule (simple marche / arrêt), le rond bascule toujours.
+            setOnClickListener { surToucher(); surligner(o.entite); toucherLigne(o) }
             setOnLongClickListener { surToucher(); ouvrirTeintes(); true }
             addView(rond, LinearLayout.LayoutParams(px(56f), px(56f)).apply { marginEnd = px(16f) })
             addView(LinearLayout(ctx).apply {
@@ -578,7 +580,10 @@ internal class VueMaisonGrand(private val ctx: Context) {
             piste.surDebut = { surToucher(); surligner(o.entite) }
             piste.surBouge = { f -> surToucher(); cadence.bouge(pourcent(f), maintenant())?.let { intensite(o, it) } }
             piste.surLacher = { f -> surToucher(); cadence.fin(pourcent(f), maintenant())?.let { intensite(o, it) } }
-            chevron.setOnClickListener { surToucher(); surligner(o.entite); ouvrirTeintes() }
+            // Le chevron n'est qu'un indice : le toucher passe à la ligne.
+            chevron.isClickable = false
+            roleBouton(rond)
+            roleBouton(vue)
             for (b in ReglageLampe.BLANCS) {
                 pastillesBlanc.addView(pastille(b.rgb, "Blanc ${b.nom.lowercase()}", b.nom) {
                     surToucher(); surligner(o.entite); blancK(o, b.kelvin)
@@ -594,12 +599,15 @@ internal class VueMaisonGrand(private val ctx: Context) {
             ongletCoul.texte = "Couleur"
             ongletBlanc.setOnClickListener { surToucher(); ongletCouleur = false; majLignes(maintenant()) }
             ongletCoul.setOnClickListener { surToucher(); ongletCouleur = true; majLignes(maintenant()) }
-            onglets.addView(ongletBlanc, LinearLayout.LayoutParams(px(110f), px(44f)).apply { marginEnd = px(8f) })
-            onglets.addView(ongletCoul, LinearLayout.LayoutParams(px(110f), px(44f)))
+            ongletBlanc.contentDescription = "Réglage du blanc"
+            ongletCoul.contentDescription = "Réglage de la couleur"
+            onglets.addView(ongletBlanc, LinearLayout.LayoutParams(px(110f), px(48f)).apply { marginEnd = px(8f) })
+            onglets.addView(ongletCoul, LinearLayout.LayoutParams(px(110f), px(48f)).apply { marginEnd = px(16f) })
+            onglets.addView(valeurReglage, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(48f)))
             panneauBlanc.addView(pastillesBlanc)
-            panneauBlanc.addView(pisteBlanc, LinearLayout.LayoutParams(px(380f), px(52f)).apply { topMargin = px(8f) })
+            panneauBlanc.addView(pisteBlanc, LinearLayout.LayoutParams(px(380f), px(56f)).apply { topMargin = px(8f) })
             panneauCouleur.addView(pastillesCouleur)
-            panneauCouleur.addView(pisteTeinte, LinearLayout.LayoutParams(px(380f), px(52f)).apply { topMargin = px(8f) })
+            panneauCouleur.addView(pisteTeinte, LinearLayout.LayoutParams(px(380f), px(56f)).apply { topMargin = px(8f) })
             teintes.addView(onglets)
             teintes.addView(panneauBlanc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
             teintes.addView(panneauCouleur, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
@@ -626,17 +634,38 @@ internal class VueMaisonGrand(private val ctx: Context) {
             setOnClickListener { clic() }
             addView(View(ctx).apply {
                 background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(rgb) }
-            }, LinearLayout.LayoutParams(px(44f), px(44f)))
+            }, LinearLayout.LayoutParams(px(48f), px(48f)))
             addView(texte(Palette.texte3, 14f).apply { texte = nomCourt }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(2f) })
         }
 
         /** Pourcentage d'intensité au doigt : au moins 1 % (une lampe ne s'éteint que par son rond). */
         private fun pourcent(f: Float) = (f * 100).roundToInt().coerceIn(1, 100)
 
+        /** Bouton pour TalkBack, sans changer le reste du comportement de la vue. */
+        private fun roleBouton(v: View) {
+            v.accessibilityDelegate = object : View.AccessibilityDelegate() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    info.className = android.widget.Button::class.java.name
+                }
+            }
+        }
+
+        private fun toucherLigne(o: MaisonEnGrand.Objet) {
+            val a = vu(o)
+            when (ReglageLampe.gesteLigne(a, MaisonEnGrand.horsLigne(a))) {
+                ReglageLampe.Geste.DEPLIER -> ouvrirTeintes()
+                ReglageLampe.Geste.BASCULER -> basculer(o)
+            }
+        }
+
         private fun ouvrirTeintes() {
             val a = vu(objet) ?: return
             if (!a.couleur && !a.blanc) return
-            teinteOuverte = if (teinteOuverte == objet.entite) null else objet.entite
+            val ouvre = teinteOuverte != objet.entite
+            teinteOuverte = if (ouvre) objet.entite else null
+            // À chaque ouverture, l'onglet repart du mode réel de la lampe (Couleur si elle est en couleur).
+            if (ouvre) ongletCouleur = null
             majLignes(maintenant())
         }
 
@@ -682,17 +711,21 @@ internal class VueMaisonGrand(private val ctx: Context) {
             teintes.visibility = if (ouverte) View.VISIBLE else View.GONE
             chevron.visibility = if (!hors && a != null && (a.couleur || a.blanc)) View.VISIBLE else View.INVISIBLE
             chevron.ouvert = ouverte
-            chevron.contentDescription = (if (ouverte) "Replier les réglages de " else "Régler la couleur de ") + n.lowercase()
+            val reglage = !hors && a != null && (a.couleur || a.blanc)
+            vue.contentDescription = if (reglage) {
+                (if (ouverte) "Replier les réglages de " else "Déplier les réglages de ") + n.lowercase() + ", " + e
+            } else {
+                (if (on) "Éteindre " else "Allumer ") + n.lowercase()
+            }
             if (ouverte && a != null) {
                 // Couleur seulement si la lampe sait en faire, Blanc seulement si elle sait régler sa chaleur.
-                val surCouleur = when {
-                    !a.blanc -> true
-                    !a.couleur -> false
-                    else -> ongletCouleur ?: ReglageLampe.enCouleur(a)
-                }
+                val surCouleur = ReglageLampe.surCouleur(a, ongletCouleur)
                 onglets.visibility = if (a.couleur && a.blanc) View.VISIBLE else View.GONE
                 ongletBlanc.couleur(if (!surCouleur) Palette.texte1 else Palette.texte3)
                 ongletCoul.couleur(if (surCouleur) Palette.texte1 else Palette.texte3)
+                // Valeur actuelle à côté des onglets : « 2700 K chaud » ou le nom de la couleur.
+                val v = if (surCouleur) a.teinte?.let { ReglageLampe.nomTeinte(it) } else ReglageLampe.blancAffiche(a)
+                poser(valeurReglage, v.orEmpty())
                 panneauBlanc.visibility = if (!surCouleur) View.VISIBLE else View.GONE
                 panneauCouleur.visibility = if (surCouleur) View.VISIBLE else View.GONE
                 val (k0, k1) = ReglageLampe.bornes(a)

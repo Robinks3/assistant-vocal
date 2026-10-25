@@ -183,4 +183,38 @@ class ReglageLampeTest {
         assertTrue(k1 > k0)
         assertFalse(ReglageLampe.fractionDe(lampe(kmin = 6500, kmax = 0), 6500).isNaN())
     }
+
+    @Test
+    fun toucherLaLigneDeplieSiLaLampeSeRegle() {
+        assertEquals(ReglageLampe.Geste.DEPLIER, ReglageLampe.gesteLigne(lampe(), false))
+        assertEquals(ReglageLampe.Geste.DEPLIER, ReglageLampe.gesteLigne(lampe(modes = listOf("color_temp")), false))
+        assertEquals(ReglageLampe.Geste.DEPLIER, ReglageLampe.gesteLigne(lampe(etat = "off"), false))
+    }
+
+    @Test
+    fun toucherLaLigneBasculeSansReglageOuHorsLigne() {
+        assertEquals(ReglageLampe.Geste.BASCULER, ReglageLampe.gesteLigne(lampe(modes = listOf("onoff")), false))
+        assertEquals(ReglageLampe.Geste.BASCULER, ReglageLampe.gesteLigne(null, false))
+        assertEquals(ReglageLampe.Geste.BASCULER, ReglageLampe.gesteLigne(lampe(), true))
+    }
+
+    @Test
+    fun ongletParDefautSuitLeModeDeLaLampe() {
+        assertTrue(ReglageLampe.surCouleur(lampe(mode = "hs"), null))
+        assertFalse(ReglageLampe.surCouleur(lampe(mode = "color_temp"), null))
+        assertFalse(ReglageLampe.surCouleur(lampe(etat = "off", mode = "hs"), null))
+        // Le choix au doigt prime, mais pas sur une lampe qui ne sait faire qu'un des deux.
+        assertFalse(ReglageLampe.surCouleur(lampe(mode = "hs"), false))
+        assertTrue(ReglageLampe.surCouleur(lampe(mode = "color_temp"), true))
+        assertFalse(ReglageLampe.surCouleur(lampe(modes = listOf("color_temp"), mode = "hs"), true))
+        assertTrue(ReglageLampe.surCouleur(lampe(modes = listOf("hs")), false))
+    }
+
+    @Test
+    fun nomDeLaTeinteLaPlusProche() {
+        assertEquals("Rouge", ReglageLampe.nomTeinte(355f))
+        assertEquals("Orange", ReglageLampe.nomTeinte(35f))
+        assertEquals("Bleu", ReglageLampe.nomTeinte(225f))
+        assertEquals("Rose", ReglageLampe.nomTeinte(335f))
+    }
 }

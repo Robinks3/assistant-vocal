@@ -69,6 +69,25 @@ internal object ReglageLampe {
     /** Une lampe allumée en couleur (sa pastille prend sa teinte). */
     fun enCouleur(a: Appareils.Appareil) = a.allume && modeCouleur(a.mode)
 
+    /** Ce que fait un toucher sur la ligne (hors rond et piste) : déplier le volet si la lampe se règle, sinon bascule. */
+    enum class Geste { DEPLIER, BASCULER }
+
+    fun gesteLigne(a: Appareils.Appareil?, horsLigne: Boolean): Geste =
+        if (!horsLigne && a != null && (a.couleur || a.blanc)) Geste.DEPLIER else Geste.BASCULER
+
+    /**
+     * Onglet montré à l'ouverture du volet : true pour Couleur. Une lampe qui ne fait que l'un des deux n'a pas le choix,
+     * sinon le choix fait au doigt, sinon le mode de la lampe (Couleur si elle est allumée en couleur, Blanc sinon).
+     */
+    fun surCouleur(a: Appareils.Appareil, choix: Boolean?): Boolean = when {
+        !a.blanc -> true
+        !a.couleur -> false
+        else -> choix ?: enCouleur(a)
+    }
+
+    /** Nom de la couleur nommée la plus proche d'une teinte, pour la valeur affichée dans l'onglet Couleur. */
+    fun nomTeinte(degres: Float): String = TEINTES.minBy { ecartTeinte(it.degres.toFloat(), degres) }.nom
+
     /** Teinte en degrés (0 à 360) d'une couleur RVB, ou null pour un gris. */
     fun teinteDeRgb(rgb: List<Int>): Float? {
         if (rgb.size < 3) return null

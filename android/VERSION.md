@@ -6,6 +6,16 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.36.0 (2026-10-25), lampes : l'icône bascule, la ligne déplie
+- Écran des lampes : toucher le rond à gauche allume ou éteint (retour immédiat), toucher le reste de la ligne déplie
+  le volet de réglage et un second toucher le replie. Le volet s'ouvre sur l'onglet du mode réel de la lampe (Couleur
+  si elle est en couleur, Blanc sinon), même après un choix d'onglet fait lors d'une ouverture précédente. Une lampe
+  sans réglage (marche / arrêt seulement) ou hors ligne garde le toucher de ligne qui bascule. Le chevron n'est plus
+  qu'un indice.
+- Volet : onglets, pastilles et pistes à 48 dp au moins, valeur actuelle à côté des onglets (« 2700 K chaud » ou nom
+  de la couleur), descriptions de contenu et rôle bouton pour TalkBack.
+- Tests : `ReglageLampeTest` (geste de la ligne, onglet par défaut, nom de teinte).
+
 ## 0.35.0 (2026-10-25), reconnexion robuste
 - Découverte (`Decouverte.kt`) : l'adresse configurée reste l'identité du serveur (jeton et clé retenus rangés
   dessous), mais la connexion essaie dans l'ordre la dernière cible qui a répondu, les noms d'hôte de
