@@ -80,11 +80,13 @@ SERVICES_PERMIS = {
     "script": {"turn_on"},
     "input_boolean": {"turn_on", "turn_off", "toggle"},
     "button": {"press"},
-    # Réglages fins de la télé téléviseur et des lampes (0.30.0) : hors contexte du LLM, voir DOMAINES_CONTEXTE.
+    # Réglages fins de la télé téléviseur et des lampes (0.30.0) : pour l'appli et la passerelle, jamais pour le LLM
+    # (DOMAINES_HORS_LLM : hors enum de l'outil, hors contexte, refusés à l'appel).
     "domaine_tele": {"launch_app", "send_text_input", "set_picture_setting"},
     "remote": {"send_command"},
     "select": {"select_option"},
 }
+DOMAINES_HORS_LLM = {"domaine_tele", "remote", "select"}
 # Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
 # quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
 if not securite.plafond_actif():
@@ -92,7 +94,7 @@ if not securite.plafond_actif():
 # Les boutons (36 chez aspirateur) gonflent le prompt sans servir à la voix.
 # Ni boutons ni interrupteurs : dans la maison d'origine, ce sont des réglages (enceintes, aspirateur) qui embrouillent
 # Qwen 9B (« Lecture automatique TV » pris pour la télé, banc du 12/10). Le dictionnaire les couvre.
-DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - {"button", "switch", "domaine_tele", "remote", "select"}) | {"sensor", "binary_sensor", "weather"})
+DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - ({"button", "switch"} | DOMAINES_HORS_LLM)) | {"sensor", "binary_sensor", "weather"})
 
 
 def charger_env():
@@ -866,7 +868,7 @@ OUTILS = [
         "name": "appeler_service",
         "description": "Agit sur un appareil de la maison via un service Home Assistant.",
         "parameters": {"type": "object", "properties": {
-            "domaine": {"type": "string", "enum": sorted(SERVICES_PERMIS)},
+            "domaine": {"type": "string", "enum": sorted(set(SERVICES_PERMIS) - DOMAINES_HORS_LLM)},
             "service": {"type": "string", "description": "ex. turn_on, turn_off, volume_set, start. "
                         "La luminosité se règle avec light.turn_on, il n'existe pas de brightness_set."},
             "entity_id": {"type": ["string", "array"], "items": {"type": "string"},
@@ -1011,6 +1013,8 @@ class Cerveau:
         if nom not in noms or not self.ha:
             return dict(INDISPONIBLE)
         if nom == "appeler_service":
+            if args.get("domaine") in DOMAINES_HORS_LLM:
+                return {"erreur": f"domaine {args.get('domaine')} non disponible par la voix. Dis-le simplement."}
             refus = garde_fou_volume(texte, args)
             if refus:
                 return {"erreur": refus}

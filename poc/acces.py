@@ -171,7 +171,7 @@ def verifier_previsions(corps, personne=None):
 
 
 URL_HTTPS = re.compile(r"https://\S+")
-SCHEMA_URL = re.compile(r"\s*[A-Za-z][A-Za-z0-9+.-]*:")
+SCHEMA_URL = re.compile(r"\s*[A-Za-z][^\s:/]*:")
 
 
 def refus_launch_app(service, corps):
@@ -179,10 +179,17 @@ def refus_launch_app(service, corps):
     et aucune autre valeur ne doit commencer par un autre schéma (http:, javascript:, data:...)."""
     if service != "domaine_tele.launch_app":
         return None
-    for cle, valeur in (corps if isinstance(corps, dict) else {}).items():
-        if cle == "url" and not (isinstance(valeur, str) and valeur.isprintable() and URL_HTTPS.fullmatch(valeur)):
-            return "launch_app : l'URL doit commencer par https:// (sécurité)"
-        if cle != "url" and isinstance(valeur, str) and SCHEMA_URL.match(valeur) and not URL_HTTPS.match(valeur):
+    if not isinstance(corps, dict):
+        return "launch_app : corps attendu sous forme d'objet (sécurité)"
+    for cle, valeur in corps.items():
+        if cle == "url":
+            if not (isinstance(valeur, str) and valeur.isprintable() and URL_HTTPS.fullmatch(valeur)):
+                return "launch_app : l'URL doit commencer par https:// (sécurité)"
+        elif cle in ("entity_id", "area_id"):
+            continue
+        elif isinstance(valeur, (dict, list)):
+            return "launch_app : valeur imbriquée refusée (sécurité)"
+        elif isinstance(valeur, str) and (SCHEMA_URL.match(valeur) or valeur.startswith("//") or not valeur.isprintable())                 and not URL_HTTPS.fullmatch(valeur):
             return "launch_app : seule une URL en https:// est permise (sécurité)"
     return None
 

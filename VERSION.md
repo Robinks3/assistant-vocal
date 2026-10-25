@@ -7,7 +7,8 @@ satellites.
 ## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
 - Services ouverts au serveur (`SERVICES_PERMIS`) : `domaine_tele.launch_app`, `domaine_tele.send_text_input`,
   `domaine_tele.set_picture_setting`, `remote.send_command` et `select.select_option`. Ces trois domaines restent
-  hors du contexte du LLM (`DOMAINES_CONTEXTE`), ils servent aux volets de l'appli.
+  hors du contexte du LLM (`DOMAINES_CONTEXTE`) et hors de son outil `appeler_service` (`DOMAINES_HORS_LLM`, absents de
+  l'enum et refusés à l'appel), ils servent aux routines, à la passerelle et aux volets de l'appli.
 - `launch_app` : toute URL qui ne commence pas par `https://` est refusée (http:, javascript:, data:, espaces ou
   caractères de contrôle compris), au serveur (`HomeAssistant.service`) et à la passerelle
   (`acces.refus_launch_app`, appelée par `verifier_requete_ha`).

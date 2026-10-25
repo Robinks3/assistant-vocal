@@ -91,3 +91,19 @@ def test_light_turn_on_flash_et_effect_passent():
     assert V("POST", "/api/services/light/turn_on", corps) is None
     donnees = {"flash": "short", "effect": "colorloop"}
     assert _ha().service("light", "turn_on", "light.exemple6", donnees) == {"ok": True}
+
+
+def test_llm_ne_voit_pas_les_domaines_de_reglage():
+    enum = A.OUTILS[0]["function"]["parameters"]["properties"]["domaine"]["enum"]
+    for domaine in ("domaine_tele", "remote", "select"):
+        assert domaine not in enum
+    assert "light" in enum
+
+
+def test_launch_app_valeur_imbriquee_ou_invisible_refusee():
+    base = {"entity_id": TELE, "url": "https://x.fr/a"}
+    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": {"u": "javascript:1"}})
+    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": ["x"]})
+    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": "\u200bNetflix"})
+    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": "//x.fr"})
+    assert V("POST", "/api/services/domaine_tele/launch_app", None)
