@@ -811,8 +811,8 @@ Pour les éteindre :
 |---|---|
 | Section `mer` absente, ou `"actif": false` | Serveur : ni météo marine ni vent mesuré. Appli : pages Mer et Vent masquées, aperçu de la mer caché, aucune question classée "mer". |
 | Section `vent` absente, ou `"actif": false` | Serveur : vent mesuré éteint, météo marine gardée. Appli : pages Mer et Vent masquées toutes les deux. |
-| `METEO_MER=0` dans `poc/.env` (ou `non`, `false`, `off`) | Le serveur ne sert plus la météo marine. Le vent mesuré reste servi tant que `VENT_MESURE` n'est pas à 0 : mettre les deux à 0 pour tout éteindre. Les pages de l'appli restent si la configuration les active, mais elles ne reçoivent plus rien de ce serveur. |
-| `VENT_MESURE=0` dans `poc/.env` | Le serveur ne sert plus le vent mesuré. |
+| `METEO_MER=0` dans `poc/.env` (ou `non`, `false`, `off`) | Le serveur ne sert plus ni la météo marine ni le vent mesuré, puisque la page Vent fait partie du panneau Mer. Les pages de l'appli restent si la configuration les active, mais elles ne reçoivent plus rien de ce serveur. |
+| `VENT_MESURE=0` dans `poc/.env` | Le serveur ne sert plus le vent mesuré, la météo marine reste servie. |
 
 L'appli demande ces données au serveur du PC s'il les annonce, sinon à l'appli Home Assistant.
 

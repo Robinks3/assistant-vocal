@@ -4,6 +4,13 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.27.2 (2026-10-25), METEO_MER=0 éteint aussi le vent mesuré
+- `METEO_MER=0` (ou `non`, `false`, `off`) éteint désormais la météo marine et le vent mesuré, puisque la page
+  Vent fait partie du panneau Mer. Avant, le vent restait servi et il fallait aussi `VENT_MESURE=0`.
+  `VENT_MESURE=0` éteint toujours le vent seul. Le message de démarrage donne la variable en cause.
+- Nouvelle fonction `meteo_mer.eteinte_par_env()`, lue par `vent_mesure.depuis_env()`. Test dans
+  `test_vent_mesure.py`. Doc : `CONFIGURER.md`, `INSTALLER.md`, `FAQ.md`, `poc/.env.exemple`.
+
 ## Serveur 0.27.1 (2026-10-25), cerveau Claude sans clé Anthropic
 - Avertissement au démarrage quand le cerveau Claude n'a pas de clé (`ANTHROPIC_API_KEY` vide dans
   `poc/.env`, ou option `anthropic_api_key` de l'appli HA). Chaque demande au LLM échoue alors sur une erreur

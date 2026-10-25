@@ -430,8 +430,9 @@ Le serveur dit pourquoi au démarrage :
 ```
 
 La page Mer demande une section `mer` avec `"actif": true` et au moins un point. La page Vent demande
-les deux sections `mer` et `vent` actives. `METEO_MER=0` dans `poc/.env` éteint la météo marine,
-`VENT_MESURE=0` le vent mesuré (le message de démarrage dit alors `METEO_MER=0` ou `VENT_MESURE=0`).
+les deux sections `mer` et `vent` actives. `METEO_MER=0` dans `poc/.env` éteint la météo marine et le vent
+mesuré, `VENT_MESURE=0` le vent mesuré seul (le message de démarrage dit alors `METEO_MER=0` ou
+`VENT_MESURE=0`).
 
 L'appli ne montre ces pages que si le serveur auquel elle parle annonce la capacité. En mode Cet
 appareil, c'est l'appli Home Assistant ou le PC : redéployez l'appli Home Assistant après avoir activé

@@ -318,8 +318,8 @@ compiler dans l'APK.
 | `SANTE_SEUIL_PAS` | Pas d'une journée active | `6000` | Non | Nombre entier. |
 | `SANTE_SEUIL_NUIT_MIN` | Minutes d'une bonne nuit | `420` | Non | Nombre entier. |
 | `SANTE_FC_MAX` | Fréquence cardiaque maximale pour les zones | vide : pas de zones | Non | Entre 100 et 250. |
-| `METEO_MER` | Page Mer de la tablette | `1` | Non | `0` l'éteint. Sans section `mer` active dans `maison.json`, elle reste éteinte. |
-| `VENT_MESURE` | Page Vent mesuré | `1` | Non | `0` l'éteint. Elle demande aussi les sections `mer` et `vent` actives. |
+| `METEO_MER` | Page Mer de la tablette | `1` | Non | `0` l'éteint, avec la page Vent mesuré. Sans section `mer` active dans `maison.json`, elle reste éteinte. |
+| `VENT_MESURE` | Page Vent mesuré | `1` | Non | `0` l'éteint seule. Elle demande aussi les sections `mer` et `vent` actives, et `METEO_MER` différent de `0`. |
 
 Pour inventer un jeton de satellite solide :
 

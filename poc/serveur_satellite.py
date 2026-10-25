@@ -181,10 +181,11 @@ class Moteur:
                                      else "éteinte (" + ("METEO_MER=0" if MM.ACTIF and MM.POINTS
                                                          else "pas de section « mer » active dans maison.json") + ")"))
         # Vent réellement mesuré sur le plan d'eau (section « vent ») (0.24.0) : sources publiques, aucune donnée
-        # personnelle, dans les deux profils. VENT_MESURE=0 l'éteint (voir vent_mesure.py).
+        # personnelle, dans les deux profils. VENT_MESURE=0 ou METEO_MER=0 l'éteint (voir vent_mesure.py).
         self.vent_mesure = VM.depuis_env()
         print("  vent mesuré : " + ("Balises, StationsOfficielles et station" if self.vent_mesure
-                                    else "éteint (" + ("VENT_MESURE=0" if VM.ACTIF and MM.ACTIF
+                                    else "éteint (" + (("METEO_MER=0" if MM.eteinte_par_env() else "VENT_MESURE=0")
+                                                       if VM.ACTIF and MM.ACTIF
                                                        else "pas de sections « mer » et « vent » actives dans maison.json") + ")"))
 
     def refus_sante(self, sat):
