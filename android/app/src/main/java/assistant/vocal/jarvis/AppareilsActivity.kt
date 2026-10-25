@@ -16,7 +16,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -24,7 +23,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 /**
  * Écran Appareils (0.15.0, serveur 0.17.0) : appairer cet appareil avec un serveur Jarvis, gérer
@@ -39,11 +37,7 @@ class AppareilsActivity : Activity() {
 
     private var serveur = "pc"
     private val principal = Handler(Looper.getMainLooper())
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(20, TimeUnit.SECONDS)
-        .build()
+    private val client = Confiance.clientWebSocket()
     @Volatile private var wsGestion: WebSocket? = null
     @Volatile private var wsAppairage: WebSocket? = null
 

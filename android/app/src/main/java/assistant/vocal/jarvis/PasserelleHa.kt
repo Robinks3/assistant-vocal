@@ -2,7 +2,6 @@ package assistant.vocal.jarvis
 
 import android.content.Context
 import android.util.Log
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -39,11 +38,7 @@ class PasserelleHa(
         val ok: Boolean get() = code in 200..299
     }
 
-    private val base = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+    private val base = Confiance.clientWebSocket()
 
     @Volatile private var ws: WebSocket? = null
     /** Capacités reçues et passerelle annoncée par le serveur : les requêtes peuvent partir. */

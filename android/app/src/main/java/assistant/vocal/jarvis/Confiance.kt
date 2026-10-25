@@ -10,6 +10,7 @@ import java.security.MessageDigest
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSession
@@ -33,6 +34,23 @@ object Confiance {
     private const val PREFIXE_JETON = "jeton_"
     const val PORT_CHIFFRE = 8766
     const val PORT_CLAIR = 8765
+    /** Délai de la poignée de main WebSocket (0.32.1), en millisecondes. */
+    const val POIGNEE_DE_MAIN_MS = 15_000L
+
+    /**
+     * Client de base de toutes les liaisons WebSocket de l'appli (0.32.1) : ping toutes les 20 s, lecture sans
+     * limite pour la liaison montée, et [poigneeDeMainMs] pour la poignée de main (TLS, requête, réponse 101).
+     * OkHttp n'applique ce callTimeout qu'à la poignée de main et le lève dès la liaison montée. Sans lui, un
+     * serveur qui accepte la connexion puis se tait (appli HA qui redémarre) bloquait l'appel pour toujours :
+     * ni onOpen ni onFailure, le WebSocket restait attribué et aucune reconnexion ne partait.
+     */
+    fun clientWebSocket(connexionS: Long = 5, poigneeDeMainMs: Long = POIGNEE_DE_MAIN_MS): OkHttpClient =
+        OkHttpClient.Builder()
+            .pingInterval(20, TimeUnit.SECONDS)
+            .connectTimeout(connexionS, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .callTimeout(poigneeDeMainMs, TimeUnit.MILLISECONDS)
+            .build()
 
     /** Refus d'une clé qui n'est pas celle retenue : le message est affiché tel quel. */
     class CleChangee(val adresse: String, val attendue: String, val recue: String) : CertificateException(

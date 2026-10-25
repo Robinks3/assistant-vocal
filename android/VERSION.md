@@ -6,6 +6,15 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.32.1 (2026-10-25)
+- Passerelle HA qui ne se remettait pas d'un redémarrage de l'appli Home Assistant : la poignée de main
+  WebSocket n'avait aucun délai (`readTimeout(0)` sans `callTimeout`), un serveur qui accepte la connexion
+  puis se tait bloquait l'appel pour toujours et la reconnexion n'était jamais tentée. Toutes les liaisons
+  WebSocket de l'appli (passerelle HA, satellite, transcription, vision, appareils) passent par
+  `Confiance.clientWebSocket()` : poignée de main bornée à 15 s, liaison montée sans délai de lecture, ping
+  toutes les 20 s.
+- Test `ConfianceWebSocketTest` : serveur muet après accept, liaison montée qui survit au délai. versionCode 58.
+
 ## 0.32.0 (2026-10-25)
 - Plus de plafond de volume de 50 % : `Securite.VOLUME_MAX` vient de `securite.plafond_volume` de
   `maison.json` (1 sans plafond, le défaut), mêmes règles que le serveur, cas communs compris.

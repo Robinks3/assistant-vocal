@@ -3,7 +3,6 @@ package assistant.vocal.jarvis
 import android.content.Context
 import android.os.SystemClock
 import android.util.Base64
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -110,11 +109,7 @@ class TranscriptionPc(
     private val changement: () -> Unit = {},
 ) : AutoCloseable {
     private val adresse = url.trim().trimEnd('/')
-    private val base = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .connectTimeout(4, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+    private val base = Confiance.clientWebSocket(connexionS = 4)
     @Volatile private var ws: WebSocket? = null
     /** Moteurs annoncés par le PC, null tant qu'il n'a rien annoncé (ou connexion perdue). */
     @Volatile var transcriptions: List<String>? = null

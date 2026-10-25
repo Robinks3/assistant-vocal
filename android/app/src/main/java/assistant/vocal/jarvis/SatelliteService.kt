@@ -42,7 +42,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.min
@@ -522,11 +521,7 @@ class SatelliteService : Service() {
         } catch (e: Exception) {
             Log.w(TAG, "Sons d'écoute indisponibles", e)
         }
-        client = OkHttpClient.Builder()
-            .pingInterval(20, TimeUnit.SECONDS)
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .build()
+        client = Confiance.clientWebSocket()
         dernierBlocLe = SystemClock.elapsedRealtime()
         dernierSonLe = dernierBlocLe
         dernierSonReelLe = dernierBlocLe

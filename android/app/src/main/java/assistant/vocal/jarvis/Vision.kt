@@ -20,7 +20,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -447,11 +446,7 @@ class MoteurVisageLocal(contexte: Context) : AutoCloseable {
  */
 class VisionPc(private val contexte: Context, url: String) : AutoCloseable {
     private val adresse = url.trim().trimEnd('/')
-    private val base = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .connectTimeout(4, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
+    private val base = Confiance.clientWebSocket(connexionS = 4)
     @Volatile private var ws: WebSocket? = null
     @Volatile var disponible = false
         private set
