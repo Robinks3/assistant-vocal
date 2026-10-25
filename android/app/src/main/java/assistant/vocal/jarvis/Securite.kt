@@ -26,22 +26,51 @@ import java.util.TimeZone
  * HEURE_CALME_ACTIVE à false), comme dans poc/securite.py. Reste le refus d'un appareil visé par son
  * identifiant brut. Remettre une règle : son drapeau à true ici ET dans securite.py.
  *
- * Plafond du volume à 50 % (VOLUME_MAX), exigé partout le 22/10/2026 : jamais de
- * media_player.volume_set au-dessus. Ici, les données sont plafonnées là où elles sont construites
- * ([plafonner], appelé par Maison.commandeMedia, Maison.commande, Appareils.regler, CerveauAppareil et
- * MoteurLocal), côté serveur verifier() de securite.py plafonne aussi tout ce qui passe par la passerelle.
+ * Plafond du volume (VOLUME_MAX) : fixe du 22/10/2026, réglable depuis le 25/10/2026 à la demande du
+ * propriétaire par securite.plafond_volume (pourcentage, 100 par défaut : aucun plafond). Quand un plafond est
+ * réglé, jamais de media_player.volume_set au-dessus. Ici, les données sont plafonnées là où elles sont
+ * construites ([plafonner], appelé par Maison.commandeMedia, Maison.commande, Appareils.regler,
+ * CerveauAppareil et MoteurLocal), côté serveur verifier() de securite.py plafonne aussi tout ce qui passe
+ * par la passerelle.
  */
 object Securite {
     const val SECURITE_ACTIVE = true
     const val PROTEGER_OCCUPANT = false
     const val HEURE_CALME_ACTIVE = false
 
-    /** Volume le plus fort permis, de 0 à 1 (même valeur que VOLUME_MAX de poc/securite.py). */
-    const val VOLUME_MAX = 0.5
-
     /** Configuration de la maison (ConfigMaison : maison.json). */
     private val maison: JSONObject = ConfigMaison.json
     private val conf: JSONObject = maison.optJSONObject("securite") ?: JSONObject()
+
+    /**
+     * Plafond gardé quand securite.plafond_volume est illisible (texte, vrai ou faux) : une faute de frappe ne
+     * lève pas un plafond voulu. Même valeur que PLAFOND_SI_ILLISIBLE de poc/securite.py.
+     */
+    const val PLAFOND_SI_ILLISIBLE = 50.0
+
+    /**
+     * Plafond du volume en pourcentage (0 à 100) d'après la valeur de securite.plafond_volume, comme
+     * plafond_configure de securite.py (cas communs « plafonds_configures ») : absente ou null, 100 (aucun
+     * plafond), un nombre borné entre 0 et 100, autre chose [PLAFOND_SI_ILLISIBLE].
+     */
+    fun plafondConfigure(valeur: Any?): Double {
+        if (valeur == null || valeur == JSONObject.NULL) return 100.0
+        // Un booléen n'est pas un Number sur la JVM : vrai et faux sont illisibles, comme dans securite.py.
+        val n = (valeur as? Number)?.toDouble() ?: return PLAFOND_SI_ILLISIBLE
+        return if (n.isNaN()) PLAFOND_SI_ILLISIBLE else n.coerceIn(0.0, 100.0)
+    }
+
+    /** Volume le plus fort permis, de 0 à 1 (même calcul que VOLUME_MAX de poc/securite.py). 1 : aucun plafond. */
+    val VOLUME_MAX: Double = plafondConfigure(conf.opt("plafond_volume")) / 100
+
+    /** Vrai quand la configuration règle un plafond (moins de 100 %) : trait au bout des pistes, refus du volume_up. */
+    val PLAFOND_ACTIF: Boolean get() = VOLUME_MAX < 1.0
+
+    /** 0.5 donne « 50 », 0.725 donne « 72,5 » : un volume de 0 à 1 dit en pourcentage, comme securite.pourcentage. */
+    fun pourcentage(niveau: Double): String {
+        val p = Math.round(niveau * 1000) / 10.0
+        return if (p == Math.floor(p)) p.toLong().toString() else p.toString().replace(".", ",")
+    }
     private fun liste(cle: String): List<String> =
         conf.optJSONArray(cle)?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
 
@@ -106,14 +135,16 @@ object Securite {
     /**
      * Raison du refus, ou null si l'action est permise. [action] : {"service", "entity_id", ...}.
      * [personne] : qui parle d'après la reconnaissance de la tablette (règle 3), vide si on ne sait pas.
+     * [volumeMax] : plafond du volume, celui de la configuration sauf dans les tests.
      */
-    fun verifier(action: JSONObject, heure: Int = heureMaison(), personne: String = ""): String? {
+    fun verifier(action: JSONObject, heure: Int = heureMaison(), personne: String = "", volumeMax: Double = VOLUME_MAX): String? {
         if (!SECURITE_ACTIVE) return null
         val service = action.optString("service")
         val entites = cibles(action.opt("entity_id"))
         val zones = cibles(action.opt("area_id"))
         if (action.has("device_id")) return "viser un appareil par son identifiant est interdit (sécurité)"
-        if (service == "media_player.volume_up") return VOLUME_UP_REFUSE
+        // Avec un plafond, monter le son par pas passerait au-dessus : seul un volume précis (volume_set plafonné) passe.
+        if (service == "media_player.volume_up" && volumeMax < 1.0) return refusVolumeUp(volumeMax)
         if (PROTEGER_OCCUPANT && entites.any { it.equals("all", true) }) return "viser toute la maison est interdit, cela toucherait la chambre de $NOM_OCCUPANT (sécurité)"
         if (PROTEGER_OCCUPANT && zones.any { it.lowercase() in ZONES_PROTEGEES || protege(it) }) return "je ne touche jamais aux pièces de $NOM_OCCUPANT (sécurité)"
         if (protege(service) || entites.any { protege(it) && !permisPour(personne, service, it) }) return "je ne touche jamais à ce qui appartient à $NOM_OCCUPANT (sécurité)"
@@ -127,38 +158,41 @@ object Securite {
         return null
     }
 
-    /** Niveau de volume (0 à 1) borné entre 0 et [VOLUME_MAX]. Un niveau illisible (NaN) donne 0. */
-    /** Monter le son par pas passerait au-dessus de 50 % : refusé quand il n'a pas pu devenir un volume précis. */
-    const val VOLUME_UP_REFUSE = "le volume est plafonné à 50 %, je le règle seulement à une valeur précise (sécurité)"
+    /** Refus d'un volume_up quand un plafond est réglé et qu'il n'a pas pu devenir un volume précis, comme refus_volume_up. */
+    fun refusVolumeUp(volumeMax: Double = VOLUME_MAX): String =
+        "le volume est plafonné à ${pourcentage(volumeMax)} %, je le règle seulement à une valeur précise (sécurité)"
 
-    fun plafonnerVolume(niveau: Double): Double = if (niveau.isNaN()) 0.0 else niveau.coerceIn(0.0, VOLUME_MAX)
+    /** Niveau de volume (0 à 1) borné entre 0 et [volumeMax] (1 sans plafond). Un niveau illisible (NaN) donne 0. */
+    fun plafonnerVolume(niveau: Double, volumeMax: Double = VOLUME_MAX): Double =
+        if (niveau.isNaN()) 0.0 else niveau.coerceIn(0.0, volumeMax)
 
     /**
      * [donnees] d'un appel à [service] (« domaine.service »), volume plafonné : pour media_player.volume_set,
      * une copie dont volume_level est passé par [plafonnerVolume], sinon les mêmes données. Le plafond tient
      * quels que soient les drapeaux ci-dessus, comme dans securite.py.
      */
-    fun plafonner(service: String, donnees: JSONObject): JSONObject {
+    fun plafonner(service: String, donnees: JSONObject, volumeMax: Double = VOLUME_MAX): JSONObject {
         if (service != "media_player.volume_set" || !donnees.has("volume_level")) return donnees
-        return JSONObject(donnees.toString()).put("volume_level", plafonnerVolume(donnees.optDouble("volume_level", 0.0)))
+        return JSONObject(donnees.toString()).put("volume_level", plafonnerVolume(donnees.optDouble("volume_level", 0.0), volumeMax))
     }
 
     /**
      * Volume lu dans Home Assistant pour une enceinte (0.24.0), posé par Maison : sert à changer un
-     * volume_up en volume_set plafonné. Null quand il est inconnu.
+     * volume_up en volume_set borné par le plafond. Null quand il est inconnu.
      */
     @Volatile var volumeLu: (String) -> Double? = { null }
 
     /**
-     * volume_up monterait par pas au-delà du plafond de 50 % (revue de code de la 0.24.0) : il devient un
-     * volume_set 5 points au-dessus du volume lu, plafonné. Volume inconnu : l'action reste un volume_up, que
-     * [verifier] refuse. Rend le service et les données à envoyer.
+     * volume_up monterait par pas au-delà d'un plafond (revue de code de la 0.24.0) : il devient un
+     * volume_set 5 points au-dessus du volume lu, borné par [volumeMax]. Volume inconnu : l'action reste un
+     * volume_up, que [verifier] refuse quand un plafond est réglé et laisse passer sinon. Rend le service et les
+     * données à envoyer.
      */
-    fun monterSansDepasser(service: String, donnees: JSONObject): Pair<String, JSONObject> {
+    fun monterSansDepasser(service: String, donnees: JSONObject, volumeMax: Double = VOLUME_MAX): Pair<String, JSONObject> {
         if (service != "media_player.volume_up") return service to donnees
         val id = donnees.opt("entity_id") as? String ?: return service to donnees
         val lu = volumeLu(id) ?: return service to donnees
-        return "media_player.volume_set" to JSONObject(donnees.toString()).put("volume_level", plafonnerVolume(lu + 0.05))
+        return "media_player.volume_set" to JSONObject(donnees.toString()).put("volume_level", plafonnerVolume(lu + 0.05, volumeMax))
     }
 
     /** Phrase qui parle de l'occupant : refusée avant tout LLM (banc du 13/10/2026 : Gemma allumait

@@ -23,7 +23,8 @@ propre dépôt privé. Tous les écrans de cette page montrent la configuration 
 Une phrase fréquente passe par le dictionnaire : environ 0,1 s pour la comprendre, et la lampe réagit dans la
 foulée. Une phrase inconnue part au LLM avec ses outils, en 2 à 2,5 s avec Claude Haiku, puis elle est apprise et passe ensuite
 par le dictionnaire. Avant chaque action, une sécurité écrite en dur peut refuser : service hors de la liste
-blanche, appareil visé par son identifiant brut, volume au-delà de 50 %. Les durées sont des mesures,
+blanche, appareil visé par son identifiant brut, volume au-delà du plafond quand la configuration en règle
+un. Les durées sont des mesures,
 détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Les machines

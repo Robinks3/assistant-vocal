@@ -95,9 +95,10 @@ internal class SuiviMusique(private val graceMs: Long = 30_000L, private val pau
  * Volume réglé depuis l'accueil (revue du 22/10) : moins et plus changent la valeur visée de 5 points par
  * toucher, cumulés sur la valeur affichée. Glisser sur la piste n'envoie qu'au lâcher. La valeur visée reste
  * affichée jusqu'à la relecture de Home Assistant qui la confirme, ou [dureeMs] au plus. Jamais au-delà de
- * Securite.VOLUME_MAX, plafond de 50 % exigé par le propriétaire.
+ * [max], Securite.VOLUME_MAX par défaut : le plafond réglé dans la configuration (securite.plafond_volume, 1 sans
+ * plafond). Les tests passent un autre plafond.
  */
-internal class VolumeVise(private val dureeMs: Long = 3_000L) {
+internal class VolumeVise(private val dureeMs: Long = 3_000L, private val max: Double = MAX) {
 
     private var vise: Double? = null
     private var viseLe = 0L
@@ -124,14 +125,13 @@ internal class VolumeVise(private val dureeMs: Long = 3_000L) {
      */
     fun pas(lu: Double, sens: Int, maintenant: Long): Double? {
         val base = affiche(lu, maintenant)
-        if (sens > 0 && base >= MAX - 1e-6) return null
+        if (sens > 0 && base >= max - 1e-6) return null
         if (sens < 0 && base <= 1e-6) return null
-        val n = arrondi((base + PAS * sens).coerceIn(0.0, MAX))
-        return viser(n, maintenant)
+        return viser(borne(base + PAS * sens, max), maintenant)
     }
 
     /** Doigt levé sur la piste à [valeur] (0 à 1). */
-    fun glisser(valeur: Double, maintenant: Long): Double = viser(arrondi(valeur.coerceIn(0.0, MAX)), maintenant)
+    fun glisser(valeur: Double, maintenant: Long): Double = viser(borne(valeur, max), maintenant)
 
     private fun viser(v: Double, maintenant: Long): Double {
         vise = v
@@ -143,16 +143,26 @@ internal class VolumeVise(private val dureeMs: Long = 3_000L) {
         const val PAS = 0.05
         val MAX: Double get() = Securite.VOLUME_MAX
 
+        /**
+         * Part de la piste (0 à 1) pour un volume [v] : la piste va de 0 au volume permis ([MAX]). 0 avec un
+         * plafond réglé à 0 % ou un volume illisible, au lieu d'une division par zéro.
+         */
+        fun fraction(v: Double, max: Double = MAX): Double =
+            if (max <= 0.0 || v.isNaN()) 0.0 else (v / max).coerceIn(0.0, 1.0)
+
         private fun arrondi(v: Double): Double = (v * 100).roundToInt() / 100.0
+
+        /** Arrondi au point, puis borné : un plafond de 72,5 % reste à 0,725 au lieu de remonter à 0,73. */
+        private fun borne(v: Double, max: Double): Double = minOf(arrondi(v.coerceIn(0.0, max)), max)
 
         /**
          * Un groupe d'enceintes (salon et cuisine regroupés) : le geste fait passer la valeur affichée (celle de
          * l'enceinte la plus forte) de [avant] à [apres], et ce décalage s'applique à chaque enceinte, plafonnée
          * pour chacune. Rend le volume à envoyer à chaque enceinte (0 à 1).
          */
-        fun groupe(membres: Map<String, Double>, avant: Double, apres: Double): Map<String, Double> {
+        fun groupe(membres: Map<String, Double>, avant: Double, apres: Double, max: Double = MAX): Map<String, Double> {
             val d = apres - avant
-            return membres.mapValues { (_, v) -> arrondi((v + d).coerceIn(0.0, MAX)) }
+            return membres.mapValues { (_, v) -> borne(v + d, max) }
         }
     }
 }

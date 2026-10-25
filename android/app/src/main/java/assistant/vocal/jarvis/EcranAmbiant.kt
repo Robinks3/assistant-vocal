@@ -37,7 +37,7 @@ import kotlin.math.max
  * - Le plan 3D couvre toute la fenêtre et cadre l'appartement dans sa zone (Disposition) : centré en hauteur
  *   sans musique, monté et un peu plus petit avec la musique, dont le bloc prend le bas de la moitié droite.
  *   Jamais deux changements de disposition à la fois, rien ne bouge sous un doigt posé.
- * - Le volume se règle depuis l'accueil (CarteEnCours), jamais au-delà de 50 %. Après l'arrêt de la musique,
+ * - Le volume se règle depuis l'accueil (CarteEnCours), jamais au-delà du plafond réglé. Après l'arrêt de la musique,
  *   30 s sans rien changer, puis le bloc reste en pause, atténué, 10 min (SuiviMusique).
  * - L'orbe revient quand on parle à l'assistant, au centre de la zone du plan atténué à 0,28, avec ses
  *   particules (choix du propriétaire), plus doux le soir. « Je t'écoute » et les points de l'heure prennent sa teinte.

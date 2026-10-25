@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
  * En haut à gauche « La maison » et la consigne, en haut à droite « Tous les appareils » (écran Maison) et Fermer.
  * Une pièce choisie ouvre son panneau à droite (x 812, 436 px de large) : ses lampes (rond mat pour allumer ou
  * éteindre, piste de l'intensité, appui long pour la couleur ou le blanc), la télé, la musique qui y joue et le
- * volume de chaque enceinte, jamais au-delà de 50 %. Toute la ligne est cible.
+ * volume de chaque enceinte, jamais au-delà du plafond s'il y en a un. Toute la ligne est cible.
  *
  * Chaque commande passe par les mêmes contrôles que la voix : Securite.verifier ici pour répondre tout de suite,
  * puis Maison.commande ou Maison.commandeMedia qui plafonnent le volume et revérifient avant l'envoi, la passerelle
@@ -389,8 +389,9 @@ internal class VueMaisonGrand(private val ctx: Context) {
     }
 
     /**
-     * Volume d'une enceinte, comme sur l'accueil : par Etat.actionMedia (Maison.commandeMedia, qui plafonne à 50 % et
-     * revérifie, baisse permise la nuit par volume_down). La valeur est plafonnée ici aussi (VolumeVise.MAX).
+     * Volume d'une enceinte, comme sur l'accueil : par Etat.actionMedia (Maison.commandeMedia, qui applique le
+     * plafond réglé et revérifie, baisse permise la nuit par volume_down). La valeur est bornée ici aussi
+     * (VolumeVise.MAX).
      */
     private fun volume(o: MaisonEnGrand.Objet, sens: Int, fraction: Float?) {
         val a = vu(o) ?: return
@@ -674,7 +675,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
         }
     }
 
-    /** Volume d'une enceinte : nom et valeur, puis moins, la piste jusqu'au plafond de 50 %, plus. */
+    /** Volume d'une enceinte : nom et valeur, puis moins, la piste jusqu'au volume permis (VolumeVise.MAX), plus. */
     private inner class LigneVolume(o: MaisonEnGrand.Objet) : Ligne(o) {
         private val nom = texte(Palette.texte3, 18f)
         private val valeur = texte(Palette.texte1, 20f)
@@ -724,15 +725,15 @@ internal class VueMaisonGrand(private val ctx: Context) {
                 else -> TextesCourts.pourcent(v)
             })
             valeur.couleur(if (fantome != null) Palette.accentLumiere else if (hors) Palette.texte3 else Palette.texte1)
-            val auPlafond = !hors && v >= VolumeVise.MAX - 0.005
+            val auMax = !hors && v >= VolumeVise.MAX - 0.005
             moins.couleur = if (hors) Palette.texteEteint else Palette.texte2
-            plus.couleur = if (hors || auPlafond) Palette.texteEteint else Palette.texte2
+            plus.couleur = if (hors || auMax) Palette.texteEteint else Palette.texte2
             moins.isEnabled = !hors
             plus.isEnabled = !hors
             piste.isEnabled = !hors
             piste.eteinte = hors
             piste.fantome = fantome != null
-            if (!piste.glisse) piste.fraction = ((fantome?.volume ?: v) / VolumeVise.MAX).toFloat().coerceIn(0f, 1f)
+            if (!piste.glisse) piste.fraction = VolumeVise.fraction(fantome?.volume ?: v).toFloat()
             piste.contentDescription = "$n, ${valeur.texte}"
             surlignee(surligne == objet.entite)
         }

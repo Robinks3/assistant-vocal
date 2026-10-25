@@ -4,6 +4,20 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.27.0 (2026-10-25), plafond de volume réglable, aucun par défaut
+- Le plafond fixe de 50 % du volume devient le réglage `securite.plafond_volume` de `maison.json`, en
+  pourcentage : absent, `null` ou `100`, aucun plafond (le défaut). La configuration d'exemple et celle de
+  Alex le règlent à 100. Une valeur illisible (texte, booléen) garde un plafond prudent de 50 %, une valeur
+  hors de 0 à 100 y est ramenée (`securite.plafond_configure`).
+- Avec un plafond, tout se règle sur sa valeur : `volume_level` ramené au plafond, refus de
+  `media_player.volume_up` dont le message dit la valeur, phrase de la consigne du LLM. Sans plafond,
+  `volume_up` est permis, au LLM du serveur compris, et la consigne ne parle plus de plafond.
+- `configurer-ha.py` envoie à Home Assistant les données telles que la sécurité les laisse passer : un
+  volume au-dessus d'un plafond réglé part plafonné dans l'automatisation.
+- Les autres règles de la sécurité en dur sont inchangées.
+- Cas communs `plafonds` étendus (avec et sans plafond, 0, 30, 72,5 et 100 %), nouveaux cas
+  `plafonds_configures` et `pourcentages`, pourcentages arrondis au dixième comme dans l'appli.
+
 ## Serveur 0.26.0 (2026-10-25), nom de l'assistant lu dans la configuration
 - Nouvelle section `assistant` de `maison.json` (`nom`), lue par `maison.NOM_ASSISTANT` : nom de
   l'automatisation du dictionnaire créée par `configurer-ha.py`, journal de démarrage de l'appli Home

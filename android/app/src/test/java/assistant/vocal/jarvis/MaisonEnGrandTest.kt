@@ -83,8 +83,8 @@ class MaisonEnGrandTest {
         assertEquals(0.8, par.getValue("light.exemple6").getDouble("fraction"), 1e-9)
         assertEquals("tele", par.getValue("media_player.exemple20").getString("genre"))
         assertTrue(par.getValue("media_player.exemple20").getBoolean("allume"))
-        // Volume de 30 % sur le plafond de 50 % : 0,6 de l'arc.
-        assertEquals(0.6, par.getValue("media_player.salon").getDouble("fraction"), 1e-9)
+        // Volume de 30 %, sans plafond (config-exemple) : 0,3 de l'arc.
+        assertEquals(0.3, par.getValue("media_player.salon").getDouble("fraction"), 1e-9)
         assertEquals("hors", par.getValue("media_player.chambre").getString("etat"))
         assertTrue(par.getValue("light.exemple7").getBoolean("surligne"))
         // La chambre de Sacha a les siennes, plafond et chevets.
@@ -176,12 +176,16 @@ class MaisonEnGrandTest {
     @Test
     fun volumePlafonneDansLAppli_avantMemeSecurite() {
         val e = media("media_player.salon", "playing", 0.3)
-        // La piste va jusqu'au plafond : la fraction 1 vaut 50 %, jamais plus, même demandée au-delà.
+        // La piste va jusqu'au volume permis : sans plafond (config-exemple, comme celle du propriétaire), la
+        // fraction 1 vaut 100 %.
         val c = Appareils.regler(e, (1f * VolumeVise.MAX).toFloat())!!
-        assertEquals(0.5, c.corps.getDouble("volume_level"), 1e-9)
-        assertEquals(0.5, Appareils.regler(e, 0.9f)!!.corps.getDouble("volume_level"), 1e-9)
-        assertEquals(0.5, VolumeVise().glisser(0.8, 0L), 1e-9)
-        assertEquals(0.5, Securite.plafonnerVolume(0.8), 1e-9)
+        assertEquals(1.0, c.corps.getDouble("volume_level"), 1e-9)
+        assertEquals(0.9, Appareils.regler(e, 0.9f)!!.corps.getDouble("volume_level"), 1e-9)
+        assertEquals(0.8, VolumeVise().glisser(0.8, 0L), 1e-9)
+        assertEquals(0.8, Securite.plafonnerVolume(0.8), 1e-9)
+        // Avec un plafond de 50 % réglé dans la configuration, le volume y est ramené.
+        assertEquals(0.5, Securite.plafonnerVolume(0.8, 0.5), 1e-9)
+        assertEquals(0.5, Securite.plafonner("media_player.volume_set", org.json.JSONObject().put("volume_level", 0.9), 0.5).getDouble("volume_level"), 1e-9)
     }
 
     @Test

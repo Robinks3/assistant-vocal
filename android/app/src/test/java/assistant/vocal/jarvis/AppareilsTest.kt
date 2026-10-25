@@ -92,8 +92,9 @@ class AppareilsTest {
         val enceinte = Appareils.Appareil("media_player.chambre", "Cuisine", "playing", "", "", volume = 0.3)
         assertEquals("media_player.media_pause", Appareils.basculer(enceinte)!!.service)
         assertEquals(0.45, Appareils.regler(enceinte, 0.45f)!!.corps.getDouble("volume_level"), 1e-9)
-        // Plafond de 50 % (Securite.VOLUME_MAX) : au-delà de la moitié de la tuile, le volume reste à 50 %.
-        assertEquals(0.5, Appareils.regler(enceinte, 0.55f)!!.corps.getDouble("volume_level"), 1e-9)
+        // Sans plafond (config-exemple comme celle du propriétaire, 25/10/2026) : toute la tuile, jusqu'à 100 %.
+        assertEquals(0.55, Appareils.regler(enceinte, 0.55f)!!.corps.getDouble("volume_level"), 1e-9)
+        assertEquals(1.0, Appareils.regler(enceinte, 1f)!!.corps.getDouble("volume_level"), 1e-9)
         val tele = Appareils.Appareil("media_player.exemple20", "TV", "on", "", "", classe = "tv")
         assertEquals("media_player.turn_off", Appareils.basculer(tele)!!.service)
         assertEquals("vacuum.start", Appareils.basculer(Appareils.Appareil("vacuum.r", "A", "docked", "", ""))!!.service)

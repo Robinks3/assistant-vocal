@@ -349,13 +349,16 @@ section `securite` de `maison.json`. Les cas communs sont dans `poc/tests/cas_se
 | Pas de son dans le salon (`son_salon`) pendant les heures calmes (`heures_calmes`, de 0 à 9 h par défaut), sauf éteindre, mettre en pause, arrêter, baisser, couper | `HEURE_CALME_ACTIVE` | Levée (`False`) |
 | Exception : la personne reconnue seule par la tablette pilote ses propres lumières (`permis_personne`) | suit la règle 1 | Sans effet tant que la règle 1 est levée |
 | Refus de viser un appareil par `device_id` | `SECURITE_ACTIVE` | Actif |
-| Refus de `media_player.volume_up` | `SECURITE_ACTIVE` | Actif |
-| Volume plafonné à 50 % (`VOLUME_MAX = 0.5`) | aucun | Toujours actif |
+| Refus de `media_player.volume_up` quand un plafond de volume est réglé | `SECURITE_ACTIVE` | Sans effet sans plafond |
+| Volume plafonné à `securite.plafond_volume` de `maison.json` (`VOLUME_MAX`, pourcentage, 100 par défaut, soit aucun plafond) | aucun | Toujours lu, aucun plafond par défaut |
 
 Remettre une règle demande de passer son drapeau à `True` dans les deux fichiers, puis d'adapter les cas
-communs. `securite.verifier` plafonne le volume sur place. Côté Kotlin, le plafond est appliqué par
-`Securite.plafonner` avant l'envoi, et `Securite.monterSansDepasser` change un `volume_up` en `volume_set`
-plafonné quand le volume actuel est connu.
+communs. Le plafond du volume se règle dans la configuration, pas dans le code : `securite.plafond_volume`
+(de 0 à 100, absent ou 100 pour aucun plafond, une valeur illisible garde 50 par prudence). `securite.verifier`
+plafonne le volume sur place. Côté Kotlin, le plafond est appliqué par `Securite.plafonner` avant l'envoi, et
+`Securite.monterSansDepasser` change un `volume_up` en `volume_set` 5 points plus haut, borné par le plafond,
+quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au LLM du serveur
+(`SERVICES_PERMIS`), et les écrans de l'appli ne dessinent ni trait ni mention de plafond.
 
 ### Autres verrous du serveur
 

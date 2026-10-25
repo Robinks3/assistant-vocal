@@ -31,8 +31,9 @@ import java.util.Locale
  * bloc prend le bas de la moitié droite (568 x 280 px de maquette, sous le plan). Pochette de 168 px, lieu,
  * titre sur deux lignes au plus, artiste, filet de progression, puis une rangée de commandes : précédent,
  * lecture ou pause, suivant, et le volume (moins, la piste, plus). Cibles de 60 px de maquette, 48 dp au
- * moins. Le volume se règle par pas de 5 points ou en glissant (envoi au lâcher), jamais au-delà de 50 %
- * (Securite.VOLUME_MAX, marqué par un trait au bout de la piste). Pour un groupe d'enceintes, le geste décale
+ * moins. Le volume se règle par pas de 5 points ou en glissant (envoi au lâcher), jamais au-delà du plafond
+ * quand la configuration en règle un (Securite.VOLUME_MAX, marqué alors par un trait au bout de la piste, la
+ * piste couvre sinon tout le volume). Pour un groupe d'enceintes, le geste décale
  * chaque enceinte du même écart. Après l'arrêt de la musique, le bloc reste en pause, atténué ([pause]). En
  * retrait ([retrait]), pochette désaturée et commandes éteintes.
  */
@@ -319,22 +320,24 @@ internal class CarteEnCours(
         val e = eteint || retrait
         val max = VolumeVise.MAX
         val audessus = v > max + 0.005
-        val auPlafond = !audessus && v >= max - 0.005
+        val auMax = !audessus && v >= max - 0.005
         val libelle = TextesCourts.volume(l)
         if (libelleVolume.texte.toString() != libelle) libelleVolume.texte = libelle
         val valeur = TextesCourts.pourcent(v)
         if (valeurVolume.texte.toString() != valeur) valeurVolume.texte = valeur
         valeurVolume.couleur(if (e) Palette.texte3 else Palette.texte1)
+        // Les mentions du plafond n'existent que si la configuration en règle un (securite.plafond_volume).
         val note = when {
+            !Securite.PLAFOND_ACTIF -> ""
             audessus -> "au-dessus du plafond"
-            auPlafond -> "plafond atteint"
+            auMax -> "plafond atteint"
             else -> ""
         }
         if (noteVolume.texte.toString() != note) noteVolume.texte = note
         noteVolume.visibility = if (note.isEmpty()) View.GONE else View.VISIBLE
-        // Plus au gris éteint au plafond (planche `AccueilSobre`), seul moins agit au-dessus.
-        plus.couleur = if (e || auPlafond || audessus) Palette.texteEteint else Palette.texte2
-        if (!piste.glisse) piste.fraction = (v / max).toFloat().coerceIn(0f, 1f)
+        // Plus au gris éteint au maximum permis (planche `AccueilSobre`), seul moins agit au-dessus.
+        plus.couleur = if (e || auMax || audessus) Palette.texteEteint else Palette.texte2
+        if (!piste.glisse) piste.fraction = VolumeVise.fraction(v).toFloat()
         piste.eteinte = e
         piste.contentDescription = "$libelle, $valeur"
     }
@@ -415,9 +418,9 @@ internal class CarteEnCours(
 
 /**
  * Piste du volume de l'accueil (0.24.0) : trait de 6 px de maquette sur 212, remplissage et curseur de 22 px en
- * `texte2` (gris éteint en retrait ou 30 s après le dernier toucher), petit trait vertical au bout pour le
- * plafond de 50 %. La zone de toucher fait toute la rangée (60 px). Le curseur suit le doigt, la valeur ne part
- * qu'au lâcher ([surLacher], fraction de 0 à 1 du plafond).
+ * `texte2` (gris éteint en retrait ou 30 s après le dernier toucher), petit trait vertical au bout quand un
+ * plafond de volume est réglé. La zone de toucher fait toute la rangée (60 px). Le curseur suit le doigt, la
+ * valeur ne part qu'au lâcher ([surLacher], fraction de 0 à 1 du volume permis).
  *
  * 0.27.0, maison en grand : la même piste règle aussi l'intensité d'une lampe ([plafond] faux : pas de trait au
  * bout, fraction de 0 à 1 de l'intensité), suit le doigt par [surBouge] (l'appelant limite la cadence d'envoi),
@@ -448,8 +451,11 @@ internal class PisteVolume(ctx: Context) : View(ctx) {
     var surLacher: (Float) -> Unit = {}
     /** Le doigt glisse (0.27.0) : fraction courante, à chaque mouvement. */
     var surBouge: (Float) -> Unit = {}
-    /** Trait du plafond de 50 % au bout de la piste (volume), faux pour l'intensité d'une lampe. */
-    var plafond = true
+    /**
+     * Trait du plafond au bout de la piste : vrai pour un volume quand la configuration règle un plafond
+     * (Securite.PLAFOND_ACTIF), faux sans plafond et pour l'intensité d'une lampe.
+     */
+    var plafond = Securite.PLAFOND_ACTIF
         set(v) {
             if (field != v) {
                 field = v

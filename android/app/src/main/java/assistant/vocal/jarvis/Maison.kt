@@ -304,7 +304,7 @@ class Maison(
                     bref("Passerelle Home Assistant indisponible, commande non envoyée")
                     return@garder
                 }
-                // Volume plafonné à 50 % (Securite.VOLUME_MAX) avant la vérification et l'envoi, d'où qu'il vienne,
+                // Volume plafonné (Securite.VOLUME_MAX, si un plafond est réglé) avant la vérification et l'envoi, d'où qu'il vienne,
                 // volume_up compris (changé en volume_set au-dessus du volume lu).
                 val (s0, d0) = Securite.monterSansDepasser("media_player.$service", JSONObject(donnees.toString()).put("entity_id", entite))
                 var nom = s0.removePrefix("media_player.")
@@ -342,7 +342,7 @@ class Maison(
     fun commande(service: String, corps: JSONObject, verification: JSONObject, personne: String = "") {
         lancer {
             garder {
-                // Volume plafonné à 50 % (Securite.VOLUME_MAX), même si l'écran l'a déjà fait, volume_up compris.
+                // Volume plafonné (Securite.VOLUME_MAX, si un plafond est réglé), même si l'écran l'a déjà fait, volume_up compris.
                 val (serviceEnvoye, corpsMonte) = Securite.monterSansDepasser(service, corps)
                 val envoye = Securite.plafonner(serviceEnvoye, corpsMonte)
                 val refus = Securite.verifier(if (serviceEnvoye != service) JSONObject(envoye.toString()).put("service", serviceEnvoye) else verification, personne = personne)

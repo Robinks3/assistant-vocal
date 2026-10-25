@@ -819,7 +819,7 @@ class MoteurLocal(
 
     /** Une action du dictionnaire vers /api/services/<domaine>/<service>, par la passerelle. */
     private fun executer(brute: JSONObject): Pair<Boolean, String> {
-        // Volume plafonné à 50 % (Securite.VOLUME_MAX), pour le dictionnaire comme pour le LLM de l'appareil.
+        // Volume plafonné (Securite.VOLUME_MAX, si un plafond est réglé), pour le dictionnaire comme pour le LLM de l'appareil.
         val (s0, d0) = Securite.monterSansDepasser(brute.optString("service"), brute)
         val a = Securite.plafonner(s0, d0).put("service", s0)
         // La sécurité locale passe avant l'envoi, la passerelle la refait de son côté.

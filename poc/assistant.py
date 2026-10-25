@@ -29,7 +29,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.26.0"
+VERSION = "0.27.0"
 DATE_VERSION = "2026-10-24"
 
 ICI = Path(__file__).resolve().parent
@@ -62,6 +62,10 @@ SERVICES_PERMIS = {
     "input_boolean": {"turn_on", "turn_off", "toggle"},
     "button": {"press"},
 }
+# Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
+# quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
+if not securite.plafond_actif():
+    SERVICES_PERMIS["media_player"].add("volume_up")
 # Les boutons (36 chez aspirateur) gonflent le prompt sans servir à la voix.
 # Ni boutons ni interrupteurs : dans la maison d'origine, ce sont des réglages (enceintes, aspirateur) qui embrouillent
 # Qwen 9B (« Lecture automatique TV » pris pour la télé, banc du 12/10). Le dictionnaire les couvre.
@@ -814,7 +818,7 @@ Couleur : light.turn_on avec donnees {{"color_name": "red"}} (nom de couleur CSS
 orange, purple, pink, yellow, white...), cumulable avec brightness_pct. Blanc chaud ou froid : {{"color_temp_kelvin": 2700}}
 à 6500. La Lampe TV accepte les couleurs, les autres ampoules surtout le blanc réglable.
 « À fond » ou « au maximum » = 100, « tamisé » ou « doucement » = 20, « à moitié » = 50.
-Volume : media_player.volume_set avec donnees {{"volume_level": 0.3}} pour 30 %.
+Volume : media_player.volume_set avec donnees {{"volume_level": 0.3}} pour 30 %.@PLAFOND@
 Un morceau, un artiste, un album ou une playlist précis (« mets Titre Fictif de Artiste Fictif », « mets du Artiste Fictif ») : outil
 jouer_musique, avec le titre et l'artiste tels que dits. Annonce ensuite simplement ce qu'il a lancé (champ lance), sans commenter la recherche.
 Sans champ lance dans le résultat de jouer_musique, ne dis jamais que c'est lancé : dis ce qu'indique le champ attention ou erreur. « Mets de la musique » sans précision : @SCRIPT_LANCER@.
@@ -834,8 +838,18 @@ def _sans_accolades(texte):
     return str(texte).replace("{", "{{").replace("}", "}}")
 
 
+def consigne_plafond():
+    """Phrase de la consigne sur le plafond de volume réglé dans la configuration (securite.plafond_volume),
+    pour que le LLM n'annonce pas plus fort que ce qui part. Vide sans plafond (le défaut)."""
+    if not securite.plafond_actif():
+        return ""
+    return (f" Le volume ne dépasse jamais {securite.pourcentage(securite.VOLUME_MAX)} % "
+            f"(volume_level {securite.VOLUME_MAX:g}) : une valeur plus forte y est ramenée.")
+
+
 CONSIGNE = (CONSIGNE.replace("@LIEU@", _sans_accolades(LLM_MAISON.get("lieu") or "la maison"))
             .replace("@SCRIPT_LANCER@", _sans_accolades(SCRIPT_LANCER))
+            .replace("@PLAFOND@", consigne_plafond())
             .replace("@CONSIGNES@", "".join(_sans_accolades(c) + "\n" for c in LLM_MAISON.get("consignes") or [])))
 
 
@@ -939,12 +953,9 @@ class Cerveau:
         return reponse, actions
 
 
-# Plafond du volume : une seule source, securite.VOLUME_MAX (verifier() le pose aussi avant chaque envoi).
-VOLUME_MAX = securite.VOLUME_MAX
-
-
 def garde_fou_volume(texte, args):
-    """Refuse un changement de volume non demandé et plafonne le volume à 50 % (securite.VOLUME_MAX).
+    """Refuse un changement de volume non demandé, et plafonne le volume quand la configuration règle un
+    plafond (securite.VOLUME_MAX, seule source, que verifier() applique aussi avant chaque envoi).
 
     Le 12/10, « Mets le salon à fond » a allumé la lumière ET mis la Enceintes au maximum (en essai,
     rien n'est parti). Modifie args sur place pour le plafond, renvoie un motif de refus ou None."""

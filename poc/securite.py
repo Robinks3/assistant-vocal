@@ -18,14 +18,15 @@ Ci-dessous, « l'occupant » est la personne nommée par `nom_occupant`.
 Levée le 22/10/2026 à la demande explicite du propriétaire : les règles 1 et 2 sont coupées
 (PROTEGER_OCCUPANT et HEURE_CALME_ACTIVE à False). L'assistant peut piloter ce qui appartient à l'occupant et
 mettre du son à toute heure. Restent actifs : le refus de viser un appareil par son identifiant brut,
-le plafond de volume à 50 % (verifier() le applique sur place, comme Securite.kt) et, dans assistant.py,
-la liste blanche des services du LLM.
+le plafond de volume quand la configuration en règle un (securite.plafond_volume, verifier() l'applique sur
+place, comme Securite.kt) et, dans assistant.py, la liste blanche des services du LLM.
 Remettre une règle : repasser son drapeau à True ici ET dans Securite.kt (les tests communs suivent).
 
 Même règles, mêmes listes, dans l'appli Android (android/app/src/main/java/assistant/vocal/jarvis/Securite.kt).
 Assist de Home Assistant agit sans qu'on puisse vérifier sa cible avant : il est sauté tant que
 SECURITE_ACTIVE est vrai, une phrase inconnue va directement au LLM dont chaque action passe ici.
 """
+import math
 from datetime import datetime
 
 import maison
@@ -60,9 +61,39 @@ SERVICES_SILENCIEUX = {"media_player.turn_off", "media_player.media_pause", "med
 HEURE_CALME_DEBUT = int((maison.SECURITE.get("heures_calmes") or {}).get("debut", 0))
 HEURE_CALME_FIN = int((maison.SECURITE.get("heures_calmes") or {}).get("fin", 9))
 
-# Volume le plus fort permis, de 0 à 1 (même valeur que VOLUME_MAX de Securite.kt). Le 12/10, « Mets le
-# salon à fond » avait mis la Enceintes au maximum (en essai, rien n'est parti).
-VOLUME_MAX = 0.5
+# Plafond du volume, réglé dans la configuration : securite.plafond_volume, en pourcentage, 100 par défaut
+# (aucun plafond). Le 12/10, « Mets le salon à fond » avait mis la Enceintes au maximum (en essai, rien n'est
+# parti), d'où un plafond fixe le 22/10/2026, rendu réglable le 25/10/2026 à la demande du propriétaire.
+# Une valeur illisible garde un plafond prudent (PLAFOND_SI_ILLISIBLE), pour qu'une faute de frappe ne lève
+# pas un plafond voulu. Même lecture dans Securite.kt (cas communs « plafonds_configures »).
+PLAFOND_SI_ILLISIBLE = 50.0
+
+
+def plafond_configure(valeur):
+    """Plafond du volume en pourcentage (0 à 100) d'après la valeur de securite.plafond_volume.
+    Absente (ou null) : 100, aucun plafond. Un nombre est borné entre 0 et 100. Autre chose (texte,
+    vrai ou faux, NaN) : PLAFOND_SI_ILLISIBLE."""
+    if valeur is None:
+        return 100.0
+    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)) or valeur != valeur:
+        return PLAFOND_SI_ILLISIBLE
+    return min(max(float(valeur), 0.0), 100.0)
+
+
+# Volume le plus fort permis, de 0 à 1 (même calcul que VOLUME_MAX de Securite.kt). 1 : aucun plafond.
+VOLUME_MAX = plafond_configure(maison.SECURITE.get("plafond_volume")) / 100
+
+
+def plafond_actif():
+    """Vrai quand la configuration règle un plafond (moins de 100 %)."""
+    return VOLUME_MAX < 1.0
+
+
+def pourcentage(niveau):
+    """0.5 donne « 50 », 0.725 donne « 72,5 » : un volume de 0 à 1 dit en pourcentage."""
+    # Arrondi au dixième, le demi vers le haut comme Math.round de Securite.kt (round() de Python arrondit au pair).
+    p = math.floor(niveau * 1000 + 0.5) / 10
+    return str(int(p)) if p == int(p) else str(p).replace(".", ",")
 
 # Exception de la règle 3 : ce que la personne reconnue peut piloter chez elle, et rien de plus.
 PERMIS_PERSONNE = {
@@ -114,7 +145,7 @@ def protege(entite):
 
 
 def plafonner_volume(niveau):
-    """Niveau de volume (0 à 1) borné entre 0 et VOLUME_MAX. Un niveau illisible donne 0."""
+    """Niveau de volume (0 à 1) borné entre 0 et VOLUME_MAX (1 sans plafond). Un niveau illisible donne 0."""
     try:
         v = float(niveau)
     except (TypeError, ValueError):
@@ -124,7 +155,9 @@ def plafonner_volume(niveau):
     return min(max(v, 0.0), VOLUME_MAX)
 
 
-VOLUME_UP_REFUSE = "le volume est plafonné à 50 %, je le règle seulement à une valeur précise (sécurité)"
+def refus_volume_up():
+    """Refus d'un volume_up quand un plafond est réglé, avec sa valeur."""
+    return f"le volume est plafonné à {pourcentage(VOLUME_MAX)} %, je le règle seulement à une valeur précise (sécurité)"
 
 
 def plafonner(service, donnees):
@@ -149,9 +182,9 @@ def verifier(service, donnees, maintenant=None, personne=None):
     zones = cibles(donnees.get("area_id"))
     if donnees.get("device_id"):
         return "viser un appareil par son identifiant est interdit (sécurité)"
-    # Monter le son par pas passerait au-dessus de 50 % : seul un volume précis (volume_set plafonné) passe.
-    if service == "media_player.volume_up":
-        return VOLUME_UP_REFUSE
+    # Avec un plafond, monter le son par pas passerait au-dessus : seul un volume précis (volume_set plafonné) passe.
+    if service == "media_player.volume_up" and plafond_actif():
+        return refus_volume_up()
     if PROTEGER_OCCUPANT and any(e.lower() == "all" for e in entites):
         return f"viser toute la maison est interdit, cela toucherait la chambre de {NOM_OCCUPANT} (sécurité)"
     if PROTEGER_OCCUPANT and any(z.lower() in ZONES_PROTEGEES or protege(z) for z in zones):

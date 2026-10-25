@@ -94,17 +94,23 @@ def action_ha(a):
 
 
 def sans_refus(liste):
-    """Retire les commandes que la sécurité en dur refuse (occupant protégé, « all »), jugées en plein jour."""
+    """Retire les commandes que la sécurité en dur refuse (occupant protégé, « all »), jugées en plein jour.
+    Les actions gardées reprennent les données telles que la sécurité les laisse passer : un volume au-dessus
+    du plafond réglé (securite.plafond_volume) part plafonné dans l'automatisation."""
     import securite
     from datetime import datetime
     midi = datetime(2026, 1, 1, 14)
     garde = []
     for phrases, actions, reponse in liste:
-        refus = [securite.verifier(a["service"], {k: v for k, v in a.items() if k != "service"}, midi) for a in actions]
+        verifiees, refus = [], []
+        for a in actions:
+            donnees = {k: v for k, v in a.items() if k != "service"}
+            refus.append(securite.verifier(a["service"], donnees, midi))
+            verifiees.append({"service": a["service"], **donnees})
         if any(refus):
             print(f"  retiré (sécurité) : {phrases[0]}")
         else:
-            garde.append((phrases, actions, reponse))
+            garde.append((phrases, verifiees, reponse))
     return garde
 
 

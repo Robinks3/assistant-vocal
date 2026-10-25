@@ -77,16 +77,58 @@ class AccueilDispositionTest {
     }
 
     @Test
-    fun volumeJamaisAuDelaDuPlafond() {
+    fun volumeJamaisAuDelaDuMaximum() {
+        // config-exemple règle plafond_volume à 100, comme la configuration du propriétaire : la piste va jusqu'à 100 %.
+        assertEquals(1.0, Securite.VOLUME_MAX, 1e-9)
+        assertEquals(1.0, VolumeVise.MAX, 1e-9)
         val v = VolumeVise()
-        assertNull(v.pas(0.50, +1, 0L))
-        assertEquals(0.50, v.pas(0.48, +1, 0L)!!, 1e-9)
+        assertNull(v.pas(1.0, +1, 0L))
+        assertEquals(1.0, v.pas(0.98, +1, 0L)!!, 1e-9)
         assertNull(VolumeVise().pas(0.0, -1, 0L))
-        // Une enceinte déjà plus haut (réglée depuis l'appli Enceintes) : seul moins agit, et ramène sous le plafond.
-        assertNull(VolumeVise().pas(0.70, +1, 0L))
-        assertEquals(0.50, VolumeVise().pas(0.70, -1, 0L)!!, 1e-9)
-        assertEquals(0.50, VolumeVise().glisser(0.9, 0L), 1e-9)
-        assertEquals(0.5, Securite.VOLUME_MAX, 1e-9)
+        // Plus de plafond de 50 % : une enceinte à 70 % monte encore.
+        assertEquals(0.75, VolumeVise().pas(0.70, +1, 0L)!!, 1e-9)
+        assertEquals(0.65, VolumeVise().pas(0.70, -1, 0L)!!, 1e-9)
+        assertEquals(0.9, VolumeVise().glisser(0.9, 0L), 1e-9)
+        assertEquals(1.0, VolumeVise().glisser(1.2, 0L), 1e-9)
+    }
+
+    @Test
+    fun volumeSousUnPlafondConfigure() {
+        // Plafond de 50 % : plus s'arrête au plafond, la piste aussi.
+        val v = VolumeVise(max = 0.5)
+        assertNull(v.pas(0.5, +1, 0L))
+        assertEquals(0.5, VolumeVise(max = 0.5).pas(0.48, +1, 0L)!!, 1e-9)
+        assertEquals(0.5, VolumeVise(max = 0.5).glisser(0.9, 0L), 1e-9)
+        assertEquals(0.4, VolumeVise(max = 0.5).pas(0.45, -1, 0L)!!, 1e-9)
+        // Plafond de 72,5 % : borné après l'arrondi, jamais 0,73.
+        assertEquals(0.725, VolumeVise(max = 0.725).pas(0.70, +1, 0L)!!, 1e-9)
+        assertEquals(0.725, VolumeVise(max = 0.725).glisser(0.8, 0L), 1e-9)
+        assertNull(VolumeVise(max = 0.725).pas(0.725, +1, 0L))
+        // Plafond de 0 % : le son reste coupé.
+        assertNull(VolumeVise(max = 0.0).pas(0.0, +1, 0L))
+        assertEquals(0.0, VolumeVise(max = 0.0).glisser(0.6, 0L), 1e-9)
+        // Groupe d'enceintes sous un plafond de 72,5 %.
+        val g = VolumeVise.groupe(mapOf("salon" to 0.70, "cuisine" to 0.60), avant = 0.70, apres = 0.80, max = 0.725)
+        assertEquals(0.725, g.getValue("salon"), 1e-9)
+        assertEquals(0.70, g.getValue("cuisine"), 1e-9)
+    }
+
+    @Test
+    fun fractionSousUnPlafondConfigure() {
+        assertEquals(0.6, VolumeVise.fraction(0.3, 0.5), 1e-9)
+        assertEquals(1.0, VolumeVise.fraction(0.5, 0.5), 1e-9)
+        assertEquals(1.0, VolumeVise.fraction(0.9, 0.5), 1e-9)
+        assertEquals(1.0, VolumeVise.fraction(0.725, 0.725), 1e-9)
+        assertEquals(0.0, VolumeVise.fraction(0.4, 0.0), 1e-9)
+    }
+
+    @Test
+    fun fractionDeLaPiste() {
+        // Sans plafond, la piste couvre tout le volume.
+        assertEquals(0.3, VolumeVise.fraction(0.3), 1e-9)
+        assertEquals(1.0, VolumeVise.fraction(1.4), 1e-9)
+        assertEquals(0.0, VolumeVise.fraction(-0.1), 1e-9)
+        assertEquals(0.0, VolumeVise.fraction(Double.NaN), 1e-9)
     }
 
     @Test
@@ -94,10 +136,10 @@ class AccueilDispositionTest {
         val r = VolumeVise.groupe(mapOf("salon" to 0.30, "cuisine" to 0.20), avant = 0.30, apres = 0.40)
         assertEquals(0.40, r["salon"]!!, 1e-9)
         assertEquals(0.30, r["cuisine"]!!, 1e-9)
-        // Chaque enceinte est plafonnée pour elle-même.
-        val p = VolumeVise.groupe(mapOf("salon" to 0.45, "cuisine" to 0.48), avant = 0.48, apres = 0.50)
-        assertEquals(0.47, p["salon"]!!, 1e-9)
-        assertEquals(0.50, p["cuisine"]!!, 1e-9)
+        // Chaque enceinte est bornée pour elle-même au volume permis (100 % sans plafond).
+        val p = VolumeVise.groupe(mapOf("salon" to 0.95, "cuisine" to 0.98), avant = 0.98, apres = 1.0)
+        assertEquals(0.97, p["salon"]!!, 1e-9)
+        assertEquals(1.0, p["cuisine"]!!, 1e-9)
     }
 
     @Test

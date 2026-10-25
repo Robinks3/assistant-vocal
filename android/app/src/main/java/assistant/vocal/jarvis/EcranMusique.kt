@@ -184,8 +184,9 @@ internal class EcranMusique(
             minWidth = dp(150)
         }
         val volume = SeekBar(ctx).apply {
-            // De 0 à 50 % seulement (Securite.VOLUME_MAX) : toute la piste couvre le volume permis.
-            max = Math.round(Securite.VOLUME_MAX * 100).toInt()
+            // De 0 au volume permis (Securite.VOLUME_MAX, 100 % sans plafond) : toute la piste couvre le volume permis.
+            // Arrondi vers le bas, pour qu'un plafond de 72,5 % n'offre pas un cran à 73.
+            max = Math.floor(Securite.VOLUME_MAX * 100).toInt()
             progressTintList = ColorStateList.valueOf(Couleur.OR)
             thumbTintList = ColorStateList.valueOf(Couleur.OR)
             progressBackgroundTintList = ColorStateList.valueOf(Palette.musiqueRail)

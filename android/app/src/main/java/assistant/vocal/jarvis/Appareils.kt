@@ -168,7 +168,7 @@ object Appareils {
                 val pct = Math.round(f * 100)
                 if (pct <= 0) Commande("light.turn_off", corps) else Commande("light.turn_on", corps.put("brightness_pct", pct))
             }
-            // Volume plafonné à 50 % (Securite.VOLUME_MAX) : au-delà de la moitié de la tuile, il reste à 50 %.
+            // Volume borné par le plafond réglé (Securite.VOLUME_MAX, aucun par défaut) : au-delà, il reste au plafond.
             a.domaine == "media_player" && a.volume != null ->
                 Commande("media_player.volume_set", corps.put("volume_level", Securite.plafonnerVolume(Math.round(f * 100) / 100.0)))
             else -> null

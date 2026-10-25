@@ -158,7 +158,7 @@ internal object MaisonEnGrand {
 
     /**
      * Pastilles de la pièce choisie, une par objet, les mêmes partout (lampes, groupes, télé, enceintes). Fraction :
-     * l'intensité d'une lampe allumée, le volume d'une enceinte sur le plafond de 50 %. [suivis] : demandes restées
+     * l'intensité d'une lampe allumée, le volume d'une enceinte sur le volume permis (Securite.VOLUME_MAX). [suivis] : demandes restées
      * sans réponse. [surligne] : l'entité dont la ligne vient d'être touchée.
      */
     fun pastilles(
@@ -179,7 +179,7 @@ internal object MaisonEnGrand {
             val fraction = when {
                 a == null -> 0.0
                 o.genre == Genre.LAMPE -> if (a.allume) (a.luminosite ?: 100) / 100.0 else 0.0
-                o.genre == Genre.ENCEINTE -> ((a.volume ?: 0.0) / Securite.VOLUME_MAX).coerceIn(0.0, 1.0)
+                o.genre == Genre.ENCEINTE -> VolumeVise.fraction(a.volume ?: 0.0)
                 else -> 0.0
             }
             r.put(

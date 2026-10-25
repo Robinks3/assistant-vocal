@@ -154,7 +154,8 @@ comptent les jours à l'heure de `Europe/Paris`, écrite dans le code, quel que 
 
 Listes appliquées par la sécurité écrite en dur (`poc/securite.py` et sa copie `Securite.kt`). Dans cette
 version, la plupart sont lues mais restent sans effet, parce que les règles qui s'en servent sont coupées
-dans le code. Le détail est à la [section 6](#6-la-sécurité-et-ce-que-la-configuration-en-règle).
+dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le détail est à la
+[section 6](#6-la-sécurité-et-ce-que-la-configuration-en-règle).
 
 | Champ | Type | Effet quand la règle correspondante est active |
 |---|---|---|
@@ -166,6 +167,7 @@ dans le code. Le détail est à la [section 6](#6-la-sécurité-et-ce-que-la-con
 | `son_salon` | liste de textes | Lecteurs et scripts qui font du son dans la pièce de vie : pendant les heures calmes, seuls éteindre, mettre en pause, arrêter, baisser et couper le son passent. Comparaison exacte, casse comprise. |
 | `heures_calmes` | objet `{debut, fin}`, heures entières | Plage des heures calmes, `debut` compris, `fin` exclue, à l'heure de `fuseau`. Par défaut : 0 et 9. |
 | `permis_personne` | objet, clé = prénom en minuscules sans accent | Pour chaque personne reconnue par la tablette : `entites` et `services` qu'elle peut piloter parmi ses affaires protégées. |
+| `plafond_volume` | nombre de 0 à 100 | Toujours actif : volume le plus fort permis, en pourcentage. Absent ou 100 : aucun plafond. Voir [le plafond de volume](#le-plafond-de-volume). |
 
 ```json
 "securite": {
@@ -173,6 +175,7 @@ dans le code. Le détail est à la [section 6](#6-la-sécurité-et-ce-que-la-con
   "mots_proteges": ["camille", "cam"],
   "zones_protegees": ["chambre_camille"],
   "heures_calmes": {"debut": 0, "fin": 9},
+  "plafond_volume": 100,
   "permis_personne": {
     "camille": {"entites": ["light.chambre_camille"], "services": ["light.turn_on", "light.turn_off"]}
   }
@@ -271,7 +274,8 @@ Lu seulement par `python ha-app/configurer-ha.py`, qui pousse le dictionnaire da
 Le même script crée l'automatisation "<nom de l'assistant> : dictionnaire" (id `jarvis_dictionnaire`) avec un
 déclencheur vocal par commande de `commandes.yaml` et par phrase apprise. Les commandes à deux emplacements
 ne sont pas transférées, celles que la sécurité refuse à 14 h non plus (aujourd'hui : celles qui visent un
-`device_id` ou utilisent `media_player.volume_up`). `--essai` écrit seulement l'aperçu dans `genere/ha/`.
+`device_id`, et celles qui utilisent `media_player.volume_up` quand `securite.plafond_volume` règle un
+plafond). `--essai` écrit seulement l'aperçu dans `genere/ha/`.
 
 ### `assistant`
 
@@ -890,6 +894,22 @@ service, est refusé, sauf `media_player.turn_off`, `media_player.media_pause`, 
 Cette liste de services est écrite dans le code. Le message de refus parle de "minuit et 9 h" quelles que
 soient les heures configurées.
 
+### Le plafond de volume
+
+`securite.plafond_volume` fixe le volume le plus fort que l'assistant envoie, en pourcentage du volume de
+l'enceinte. Il est lu au démarrage du serveur et compilé dans l'appli. Après un changement, relancer le
+serveur, régénérer le dictionnaire (`python android/outils/exporter_dictionnaire.py`, qui recalcule les services
+permis au LLM de l'appli, `volume_up` compris) puis reconstruire l'APK.
+
+| Valeur | Effet |
+|---|---|
+| absente, `null` ou `100` | Aucun plafond (défaut). `media_player.volume_up` est permis, au LLM du serveur compris. |
+| de `0` à moins de `100` | Un `volume_level` de `media_player.volume_set` est ramené entre 0 et cette valeur divisée par 100, quelle que soit la voie (voix, LLM, écrans, passerelle). `media_player.volume_up` est refusé quand il n'a pas pu devenir un volume précis (monter par pas passerait au-dessus). Les pistes de volume de l'appli s'arrêtent au plafond, marqué par un trait. |
+| au-dessus de `100`, en dessous de `0` | Ramenée à 100 ou à 0. |
+| autre chose (texte, `true`) | Plafond prudent de 50 %, pour qu'une faute de frappe ne lève pas un plafond voulu. |
+
+Un niveau illisible dans une commande (`NaN`, texte) donne toujours 0.
+
 ### Ce qui ne se règle pas
 
 Ces protections sont actives dans cette version et aucune configuration ne les change :
@@ -897,8 +917,6 @@ Ces protections sont actives dans cette version et aucune configuration ne les c
 | Protection | Où |
 |---|---|
 | Un appareil visé par son identifiant brut (`device_id`) est refusé. | `securite.py`, `Securite.kt` |
-| `media_player.volume_up` est refusé (monter par pas dépasserait le plafond). | `securite.py`, `Securite.kt` |
-| Le volume est plafonné à 50 % : un `volume_level` de `media_player.volume_set` est ramené entre 0 et 0,5 (une valeur illisible donne 0). | `VOLUME_MAX` de `securite.py` et `Securite.kt` |
 | Le LLM ne peut appeler que les services d'une liste blanche (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons), rien qui ouvre une porte ou désarme une alarme. | `SERVICES_PERMIS` de `poc/assistant.py`, exportée dans `dictionnaire.json` pour l'appli |
 | Assist de Home Assistant est sauté (il agit sans qu'on voie sa cible avant) : une phrase hors dictionnaire va directement au LLM. | `SECURITE_ACTIVE` de `securite.py` et `Securite.kt` |
 

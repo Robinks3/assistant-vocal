@@ -1,5 +1,5 @@
 {
-  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure de Marseille. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seul le device_id reste refusé. plafonds : données avant et après le plafond de volume à 50 % (verifier de securite.py, Securite.plafonner), exigé partout le 22/10/2026.",
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure de Marseille. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seul le device_id reste refusé. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages.",
   "actions": [
     {
       "service": "light.turn_on",
@@ -128,8 +128,28 @@
         "entity_id": "media_player.exemple22"
       },
       "heure": 15,
+      "refus": false,
+      "note": "sans plafond de volume (le défaut), monter le son par pas est permis"
+    },
+    {
+      "service": "media_player.volume_up",
+      "donnees": {
+        "entity_id": "media_player.exemple22"
+      },
+      "heure": 15,
+      "plafond_volume": 50,
       "refus": true,
-      "note": "monter le son par pas est refusé : il passerait au-dessus du plafond de 50 %"
+      "note": "avec un plafond de 50 %, monter le son par pas est refusé : il passerait au-dessus"
+    },
+    {
+      "service": "media_player.volume_up",
+      "donnees": {
+        "entity_id": "media_player.exemple22"
+      },
+      "heure": 15,
+      "plafond_volume": 100,
+      "refus": false,
+      "note": "plafond réglé à 100 % : aucun plafond, monter le son par pas est permis"
     },
     {
       "service": "media_player.volume_mute",
@@ -298,6 +318,7 @@
   "plafonds": [
     {
       "service": "media_player.volume_set",
+      "plafond_volume": 50,
       "donnees": {
         "entity_id": "media_player.salon",
         "volume_level": 0.8
@@ -306,7 +327,108 @@
         "entity_id": "media_player.salon",
         "volume_level": 0.5
       },
-      "note": "volume à 80 %, ramené au plafond de 50 %"
+      "note": "plafond de 50 % : volume à 80 % ramené à 50 %"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": 1
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.5
+      },
+      "note": "plafond de 50 % : volume à fond ramené à 50 %"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.5
+      },
+      "attendu": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.5
+      },
+      "note": "plafond de 50 % : pile au plafond, inchangé"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.exemple20",
+        "volume_level": 0.3
+      },
+      "attendu": {
+        "entity_id": "media_player.exemple20",
+        "volume_level": 0.3
+      },
+      "note": "plafond de 50 % : volume de la télé sous le plafond, inchangé"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": "0.9"
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.5
+      },
+      "note": "plafond de 50 % : volume écrit en texte, plafonné aussi"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": -0.2
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0
+      },
+      "note": "plafond de 50 % : volume négatif ramené à 0"
+    },
+    {
+      "service": "media_player.volume_down",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "media_player.salon"
+      },
+      "attendu": {
+        "entity_id": "media_player.salon"
+      },
+      "note": "plafond de 50 % : baisser le volume, rien à plafonner"
+    },
+    {
+      "service": "light.turn_on",
+      "plafond_volume": 50,
+      "donnees": {
+        "entity_id": "light.exemple6",
+        "brightness_pct": 80
+      },
+      "attendu": {
+        "entity_id": "light.exemple6",
+        "brightness_pct": 80
+      },
+      "note": "plafond de 50 % : luminosité à 80 %, pas concernée"
+    },
+    {
+      "service": "media_player.volume_set",
+      "donnees": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.8
+      },
+      "attendu": {
+        "entity_id": "media_player.salon",
+        "volume_level": 0.8
+      },
+      "note": "sans plafond (le défaut) : volume à 80 %, inchangé"
     },
     {
       "service": "media_player.volume_set",
@@ -316,33 +438,21 @@
       },
       "attendu": {
         "entity_id": "media_player.salon",
-        "volume_level": 0.5
+        "volume_level": 1
       },
-      "note": "volume à fond, ramené au plafond"
+      "note": "sans plafond : volume à fond, inchangé"
     },
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.chambre",
-        "volume_level": 0.5
+        "entity_id": "media_player.salon",
+        "volume_level": 1.5
       },
       "attendu": {
-        "entity_id": "media_player.chambre",
-        "volume_level": 0.5
+        "entity_id": "media_player.salon",
+        "volume_level": 1
       },
-      "note": "pile au plafond, inchangé"
-    },
-    {
-      "service": "media_player.volume_set",
-      "donnees": {
-        "entity_id": "media_player.exemple20",
-        "volume_level": 0.3
-      },
-      "attendu": {
-        "entity_id": "media_player.exemple20",
-        "volume_level": 0.3
-      },
-      "note": "volume de la télé sous le plafond, inchangé"
+      "note": "sans plafond : volume au-delà du maximum ramené à 1"
     },
     {
       "service": "media_player.volume_set",
@@ -352,9 +462,9 @@
       },
       "attendu": {
         "entity_id": "media_player.salon",
-        "volume_level": 0.5
+        "volume_level": 0.9
       },
-      "note": "volume écrit en texte, plafonné aussi"
+      "note": "sans plafond : volume écrit en texte, lu en nombre"
     },
     {
       "service": "media_player.volume_set",
@@ -366,29 +476,150 @@
         "entity_id": "media_player.salon",
         "volume_level": 0
       },
-      "note": "volume négatif ramené à 0"
+      "note": "sans plafond : volume négatif ramené à 0"
     },
     {
-      "service": "media_player.volume_down",
+      "service": "media_player.volume_set",
+      "plafond_volume": 100,
       "donnees": {
-        "entity_id": "media_player.salon"
+        "entity_id": "media_player.salon",
+        "volume_level": 0.9
       },
       "attendu": {
-        "entity_id": "media_player.salon"
+        "entity_id": "media_player.salon",
+        "volume_level": 0.9
       },
-      "note": "baisser le volume, rien à plafonner"
+      "note": "plafond réglé à 100 % : volume à 90 %, inchangé"
     },
     {
-      "service": "light.turn_on",
+      "service": "media_player.volume_set",
+      "plafond_volume": 30,
       "donnees": {
-        "entity_id": "light.exemple6",
-        "brightness_pct": 80
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.5
       },
       "attendu": {
-        "entity_id": "light.exemple6",
-        "brightness_pct": 80
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.3
       },
-      "note": "luminosité à 80 %, pas concernée par le plafond"
+      "note": "plafond de 30 % : volume à 50 % ramené à 30 %"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 72.5,
+      "donnees": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.9
+      },
+      "attendu": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.725
+      },
+      "note": "plafond de 72,5 % : volume à 90 % ramené à 72,5 %"
+    },
+    {
+      "service": "media_player.volume_set",
+      "plafond_volume": 0,
+      "donnees": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0.4
+      },
+      "attendu": {
+        "entity_id": "media_player.chambre",
+        "volume_level": 0
+      },
+      "note": "plafond de 0 % : tout volume ramené à 0"
+    }
+  ],
+  "plafonds_configures": [
+    {
+      "attendu": 100,
+      "note": "clé absente : aucun plafond"
+    },
+    {
+      "valeur": null,
+      "attendu": 100,
+      "note": "null : aucun plafond"
+    },
+    {
+      "valeur": 100,
+      "attendu": 100,
+      "note": "100 : aucun plafond"
+    },
+    {
+      "valeur": 50,
+      "attendu": 50,
+      "note": "plafond de 50 %"
+    },
+    {
+      "valeur": 72.5,
+      "attendu": 72.5,
+      "note": "plafond décimal"
+    },
+    {
+      "valeur": 0,
+      "attendu": 0,
+      "note": "plafond de 0 %, le son reste coupé"
+    },
+    {
+      "valeur": 150,
+      "attendu": 100,
+      "note": "au-dessus de 100, ramené à 100"
+    },
+    {
+      "valeur": -5,
+      "attendu": 0,
+      "note": "négatif, ramené à 0"
+    },
+    {
+      "valeur": "70",
+      "attendu": 50,
+      "note": "texte : illisible, plafond prudent de 50 %"
+    },
+    {
+      "valeur": true,
+      "attendu": 50,
+      "note": "vrai : illisible, plafond prudent de 50 %"
+    },
+    {
+      "valeur": false,
+      "attendu": 50,
+      "note": "faux : illisible, plafond prudent de 50 %"
+    },
+    {
+      "valeur": [],
+      "attendu": 50,
+      "note": "liste : illisible, plafond prudent de 50 %"
+    }
+  ],
+  "pourcentages": [
+    {
+      "niveau": 0.5,
+      "attendu": "50"
+    },
+    {
+      "niveau": 0.3,
+      "attendu": "30"
+    },
+    {
+      "niveau": 0.725,
+      "attendu": "72,5"
+    },
+    {
+      "niveau": 1,
+      "attendu": "100"
+    },
+    {
+      "niveau": 0,
+      "attendu": "0"
+    },
+    {
+      "niveau": 0.0125,
+      "attendu": "1,3"
+    },
+    {
+      "niveau": 0.3333,
+      "attendu": "33,3"
     }
   ]
 }

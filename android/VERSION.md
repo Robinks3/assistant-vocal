@@ -6,6 +6,15 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.32.0 (2026-10-25)
+- Plus de plafond de volume de 50 % : `Securite.VOLUME_MAX` vient de `securite.plafond_volume` de
+  `maison.json` (1 sans plafond, le défaut), mêmes règles que le serveur, cas communs compris.
+- Pistes de volume de l'accueil, de la maison en grand et de l'écran Musique de 0 au volume permis, 100 %
+  sans plafond. Trait et mention du plafond seulement quand un plafond est réglé. Les crans restent sous le
+  plafond (borné après l'arrondi), et un plafond de 0 % ne fait plus planter le calcul de la piste.
+- Monter le son par pas reste converti en volume précis, borné au volume permis.
+- Tests avec et sans plafond (`SecuriteTest`, `AccueilDispositionTest`, `MaisonEnGrandTest`). versionCode 57.
+
 ## 0.31.0 (2026-10-25)
 - Nom affiché de l'assistant lu dans la section `assistant` de `maison.json` (`ConfigMaison.NOM_ASSISTANT`) :
   nom de l'appli sous l'icône (`resValue app_name` dans `build.gradle.kts`), textes de l'accueil, des

@@ -162,7 +162,7 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
             }
             val domaine = service.substringBefore(".")
             val nomService = service.substringAfter(".", "")
-            // Volume plafonné à 50 % (Securite.VOLUME_MAX) dès la lecture, pour que le compte rendu dise ce qui part.
+            // Volume plafonné (Securite.VOLUME_MAX, quand la configuration règle un plafond) dès la lecture, pour que le compte rendu dise ce qui part.
             val donnees = Securite.plafonner(service, o.optJSONObject("donnees") ?: JSONObject())
             if (cibles != null) donnees.put("entity_id", cibles)
             val ids = when (cibles) {
