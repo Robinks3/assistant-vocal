@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Respiration de la lumière d'un projet d'inspiration (0.18.0) : mots de la réponse, syllabes, micro, repos. */
+/** Respiration de la lumière de l'assistant (0.18.0) : mots de la réponse, syllabes, micro, repos. */
 class SouffleTest {
 
     /** Avance de [s] secondes par pas de 33 ms et rend la plus forte intensité vue. */

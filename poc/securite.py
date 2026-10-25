@@ -4,19 +4,19 @@ Les noms et les listes propres à la maison (occupant protégé, zones, entités
 viennent de la configuration de la maison (maison.json du dossier de configuration, modèle config-exemple/, voir maison.py).
 Ci-dessous, « l'occupant » est la personne nommée par `nom_occupant`.
 
-1. assistant ne touche JAMAIS à ce qui appartient à l'occupant : sa chambre, sa salle de bain, ses
+1. L'assistant ne touche JAMAIS à ce qui appartient à l'occupant : sa chambre, sa salle de bain, ses
    lumières, ses réveils, ses automatisations, ses scripts, son téléphone. Interdit aussi : viser
    « all », une zone de l'occupant, ou un appareil par son identifiant (on ne sait pas ce qu'il contient).
 2. Aucun son dans le salon (séjour, cuisine ouverte, enceintes de l'appartement) entre minuit et
    9 h : seuls éteindre, mettre en pause, arrêter, baisser et couper le son restent permis.
 
 3. Exception décidée le 21/10/2026 : quand la tablette reconnaît l'occupant, seul devant elle,
-   assistant peut allumer, éteindre et régler ses lumières à lui (`permis_personne` de la configuration),
+   l'assistant peut allumer, éteindre et régler ses lumières à lui (`permis_personne` de la configuration),
    et rien d'autre de ce qui lui appartient (réveil, automatisations, scripts, salle de bain, téléphone).
    Quand c'est quelqu'un d'autre qui parle, ou qu'on ne sait pas qui parle, la règle 1 reste entière.
 
 Levée le 22/10/2026 à la demande explicite du propriétaire : les règles 1 et 2 sont coupées
-(PROTEGER_OCCUPANT et HEURE_CALME_ACTIVE à False). assistant peut piloter ce qui appartient à l'occupant et
+(PROTEGER_OCCUPANT et HEURE_CALME_ACTIVE à False). L'assistant peut piloter ce qui appartient à l'occupant et
 mettre du son à toute heure. Restent actifs : le refus de viser un appareil par son identifiant brut,
 le plafond de volume à 50 % (verifier() le applique sur place, comme Securite.kt) et, dans assistant.py,
 la liste blanche des services du LLM.

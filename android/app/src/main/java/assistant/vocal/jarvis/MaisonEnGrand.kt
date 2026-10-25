@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
  * sur la vue 3D pour modifier des réglages. » Piste « mélange » du canevas (version 29), décisions dans
  * docs/maquettes/revue-accueil-musique.md.
  *
- * Les pièces et leurs objets viennent de la page 3D (assistant.contenu : lampes, groupes, télé et enceintes posées
+ * Les pièces et leurs objets viennent de la page 3D (maison3d.contenu : lampes, groupes, télé et enceintes posées
  * sur un meuble de la pièce), leurs états de Home Assistant (Etat.lumieres et Etat.mediasPlan). Une pièce qui a
  * quelque chose à régler porte son nom au sol. Une pièce protégée (drapeau de l'occupant remis dans Securite)
  * reste nommée, avec un cadenas, mais ne dit rien de ses lampes et ne s'ouvre pas.
@@ -58,7 +58,7 @@ internal object MaisonEnGrand {
     /** États où une lampe, une télé ou une enceinte ne répond pas. */
     private val HORS_LIGNE = setOf("unavailable", "unknown")
 
-    /** Pièces d'un projet d'inspiration.contenu, celles sans rien à régler comprises (elles ne sont pas nommées). */
+    /** Pièces de maison3d.contenu, celles sans rien à régler comprises (elles ne sont pas nommées). */
     fun lireContenu(json: String?): List<Piece> {
         if (json.isNullOrBlank()) return emptyList()
         val a = try { JSONArray(json) } catch (_: Exception) { return emptyList() }

@@ -1,6 +1,6 @@
 # Licences des modèles et du code tiers
 
-Le code de cet assistant (nommé assistant chez Alex, à ne pas confondre avec le projet des auteurs inspiration) est de Alex Exemple1, tous droits réservés tant qu'aucune licence n'est choisie.
+Le code de cet assistant (son nom affiché se règle dans la configuration, section `assistant` de `maison.json`) est de Alex Exemple1, tous droits réservés tant qu'aucune licence n'est choisie.
 Les modèles ci-dessous gardent leur propre licence, et leur fichier de licence est rangé à côté.
 
 | Élément | Où | Licence | Remarque |

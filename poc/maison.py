@@ -68,6 +68,10 @@ if not PROPRIETAIRE.get("nom"):
     import sys
     print(f"maison : section proprietaire absente de {DOSSIER / 'maison.json'}, propriétaire « {NOM_PROPRIETAIRE} » "
           "(santé, jeton principal et correction du prénom en dépendent)", file=sys.stderr)
+# Nom affiché de l'assistant (section assistant) : automatisation du dictionnaire, appli Home Assistant, appli
+# Android. Chaîne non vide de assistant.nom, sinon « Assistant ».
+_nom = (CONFIG.get("assistant") if isinstance(CONFIG.get("assistant"), dict) else {}).get("nom")
+NOM_ASSISTANT = (_nom.strip() if isinstance(_nom, str) else "") or "Assistant"
 
 
 def chemin(nom):

@@ -30,7 +30,7 @@ internal object Accueil {
         else -> Mode.REPOS
     }
 
-    /** assistant travaille : l'écran entier sert à couper (écoute ou réponse). */
+    /** L'assistant travaille : l'écran entier sert à couper (écoute ou réponse). */
     fun occupe(m: Mode): Boolean = m == Mode.ECOUTE || m == Mode.REFLEXION || m == Mode.REPONSE
 
     /**

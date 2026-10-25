@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * restent sur la tablette. Seule la phrase découpée part, si le propriétaire l'a choisi :
  * - « Sur la tablette » : Canary, comme avant ;
  * - « Sur le PC » : Canary du PC fixe, par une connexion wss dédiée (comme la vision sur le PC) ;
- * - « Sur Home Assistant » : Speech-to-Phrase, par la passerelle de l'appli assistant sur HA ;
+ * - « Sur Home Assistant » : Speech-to-Phrase, par la passerelle de l'appli de l'assistant sur HA ;
  * - « En ligne » : le service en ligne du serveur qui l'annonce (HA d'abord, sinon le PC).
  * Un lieu n'est proposé que si le serveur concerné annonce le moteur dans capacites.transcription.
  * Message {"type":"transcrire","id","pcm","moteur"}, réponse {"etat":"transcrit","id","texte","moteur","ms"}

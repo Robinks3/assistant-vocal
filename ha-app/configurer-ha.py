@@ -1,11 +1,11 @@
-"""Transfère le dictionnaire d'un projet d'inspiration dans Home Assistant (accord du 12/10/2026).
+"""Transfère le dictionnaire de l'assistant dans Home Assistant (accord du 12/10/2026).
 
 1. Alias d'appareils (« télé », « lampe de la télé »...), ajoutés à ceux qui existent.
 2. Exposition à Assist des appareils du dictionnaire qui ne l'étaient pas.
-3. Une automatisation « assistant : dictionnaire » (id jarvis_dictionnaire) avec un déclencheur vocal
+3. Une automatisation « <nom de l'assistant> : dictionnaire » (id jarvis_dictionnaire) avec un déclencheur vocal
    par commande de commandes.yaml (dossier de configuration) et par phrase apprise, et les mêmes actions et réponses.
    Speech-to-Phrase apprend les phrases des déclencheurs vocaux : il reconnaît alors toutes les
-   commandes du propriétaire, et l'Assist natif de HA les exécute aussi. Le serveur assistant passe toujours
+   commandes du propriétaire, et l'Assist natif de HA les exécute aussi. Le serveur de l'assistant passe toujours
    par son propre dictionnaire d'abord, donc rien ne s'exécute deux fois.
 Les nombres sont écrits en lettres (Speech-to-Phrase ne sait pas prononcer « 3 »), les variantes
 contenant d'autres signes (« disney+ ») sont retirées des phrases vocales.
@@ -64,7 +64,7 @@ def declencheurs(donnees, apprises):
         if not noms:
             sortie.append(([nettoyer_alternatives(p) for p in cmd["phrases"]], actions, cmd.get("reponse")))
             continue
-        if len(noms) > 1:  # deux emplacements (luminosité) : pas transférés à HA, assistant les traite seul
+        if len(noms) > 1:  # deux emplacements (luminosité) : pas transférés à HA, l'assistant les traite seul
             continue
         nom = noms[0]
         for motif, valeur in emplacements[nom].items():
@@ -117,7 +117,7 @@ def automatisation(liste):
         choix.append({"conditions": [{"condition": "trigger", "id": ident}],
                       "sequence": [action_ha(a) for a in actions]
                       + [{"set_conversation_response": reponse or "C'est fait."}]})
-    return {"alias": "assistant : dictionnaire",
+    return {"alias": f"{A.maison.NOM_ASSISTANT} : dictionnaire",
             "description": "Généré par ASSISTANT-VOCAL/ha-app/configurer-ha.py depuis commandes.yaml et les "
                            "phrases apprises. Ne pas modifier à la main : relancer le script.",
             "mode": "queued", "triggers": triggers, "conditions": [], "actions": [{"choose": choix}]}

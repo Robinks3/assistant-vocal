@@ -6,7 +6,7 @@ package assistant.vocal.jarvis
  * s'use pas, un motif immobile et clair marque l'écran. Trois régimes nets, selon la présence :
  *
  * - VIVANT : quelqu'un est vu par la caméra, ou un toucher, un mot de réveil ou une commande date de
- *   moins de 2 min (ce qui tient lieu de présence quand la vision est désactivée), ou assistant écoute,
+ *   moins de 2 min (ce qui tient lieu de présence quand la vision est désactivée), ou l'assistant écoute,
  *   réfléchit ou répond. Couleurs, bulles et orbe à leur taille, luminosité plafonnée à 40 % (10 % la
  *   nuit). La reprise prend 0,8 s ([DUREE_REPRISE_MS]).
  * - AOD (0.17.2, écran toujours allumé) : personne depuis 2 min, de jour. Luminosité de la fenêtre au
@@ -61,7 +61,7 @@ class Veille {
 
     /**
      * Avance jusqu'à [maintenant]. [presence] : quelqu'un est vu par la caméra (faux sans vision).
-     * [activiteLe] : dernier toucher, mot de réveil ou commande (0 : jamais). [occupe] : assistant
+     * [activiteLe] : dernier toucher, mot de réveil ou commande (0 : jamais). [occupe] : l'assistant
      * écoute, réfléchit ou répond. [musique] : une musique joue (AOD au bout de 10 min au lieu de 2). Rend vrai
      * tant qu'une transition est en cours (images à suivre).
      */

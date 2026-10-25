@@ -23,9 +23,9 @@
     mask-composite: intersect;
   }
   body.fondu #version { display: none; }
-  /* dans l'appli (0.7.1), la version est affichée par l'appli elle-même (assistant.version()) */
+  /* dans l'appli (0.7.1), la version est affichée par l'appli elle-même (maison3d.version()) */
   body.appli #version { display: none; }
-  /* scène atténuée pendant l'écoute d'un projet d'inspiration (écran ambiant) */
+  /* scène atténuée pendant l'écoute de l'assistant (écran ambiant) */
   #scene { position: fixed; inset: 0; transition: opacity .45s ease; }
   /* fond du régime vivant (0.7.0) : dégradé, ombre, flaque, grain et particules, sous la toile 3D
      transparente et hors de #scene, pour rester vivant pendant l'écoute */
@@ -45,7 +45,7 @@
   .actions button { flex: 1 1 auto; padding: 6px 8px; border: 1px solid var(--bord); border-radius: 8px; background: #141416; color: var(--texte-fort); font: inherit; cursor: pointer; }
   .actions button:hover { background: #1E1E22; }
   /* la maison en grand (0.8.0) : voile sur les autres pièces, étiquettes des pièces et pastilles des objets,
-     au-dessus de la scène et sans toucher (l'appli désigne ce qui est sous le doigt par assistant.designer) */
+     au-dessus de la scène et sans toucher (l'appli désigne ce qui est sous le doigt par maison3d.designer) */
   #voile { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   #grand { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, "Segoe UI", Roboto, sans-serif; }
   .etiq { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
@@ -76,8 +76,8 @@
 </div>
 <script>
   // dans l'appli, le panneau de démonstration ne doit jamais apparaître, même avant la fin du chargement
-  if (/[?&]panneau=0/.test(location.search) || window.assistantAndroid) document.getElementById("panneau").classList.add("cache");
-  if (window.assistantAndroid) document.body.classList.add("appli");
+  if (/[?&]panneau=0/.test(location.search) || window.Maison3dAndroid) document.getElementById("panneau").classList.add("cache");
+  if (window.Maison3dAndroid) document.body.classList.add("appli");
 </script>
 <canvas id="fond"></canvas>
 <div id="scene"></div>
@@ -94,7 +94,7 @@ const T = THREE;
 const params = new URLSearchParams(location.search);
 
 // ---------- teintes ----------
-// Teintes de la scène (0.4.1). L'appli envoie sa palette (Palette.kt) par assistant.teintes dès le
+// Teintes de la scène (0.4.1). L'appli envoie sa palette (Palette.kt) par maison3d.teintes dès le
 // chargement : ces valeurs ne servent qu'à la page ouverte seule dans un navigateur. Tout ce qui est
 // éteint est en neutre strict, sans bleu ni saturation, un seul matériau mat.
 // Jeux de teintes (0.5.0) : « neutre » (gris sombres d'origine) et « couleur » (demande du 22/10 :
@@ -533,7 +533,7 @@ function teintes(t) {
 
 // ---------- états ----------
 const doux = t => 1 - Math.pow(1 - t, 3);
-// mode « action » : ce que assistant vient de faire, plus marqué qu'un simple changement d'état
+// mode « action » : ce que l'assistant vient de faire, plus marqué qu'un simple changement d'état
 function changer(lp, on, niveau, couleur, mode) {
   const avant = lp.on, fort = mode === "action";
   lp.attente = 0;
@@ -588,7 +588,7 @@ function etats(o, instant) {
 }
 const poser = o => etats(o, true);
 
-// ---------- action d'un projet d'inspiration sur des lumières ----------
+// ---------- action de l'assistant sur des lumières ----------
 // L'appli appelle action({entité: effet}) dès que la page est prête, l'effet étant « allumer »,
 // « eteindre » ou « regler » (seul ou avec l'état HA lu : {effet, state, attributes}). La lampe repart
 // de son état d'avant, la caméra vole vers elle, un flux de particules bleues (celles de l'orbe)
@@ -624,7 +624,7 @@ function action(effets) {
 // ---------- poussières des pièces allumées (écran d'accueil, 0.4.1) ----------
 // Quelques poussières ambre de 1 à 2 px qui dérivent lentement dans chaque pièce où une lampe est
 // allumée (20 à 40 selon la surface, opacité 0,3 à 0,5), absentes quand tout est éteint. Elles suivent
-// la lumière de la pièce et ne servent que sur l'accueil (assistant.poussieres).
+// la lumière de la pièce et ne servent que sur l'accueil (maison3d.poussieres).
 const POUSSIERE = new T.Color(TEINTES.poussiere);
 let poussieresActives = false;
 const grains = [];
@@ -879,9 +879,9 @@ function toucher(x, y) {
   const t = lanceur.intersectObjects(cibles, false)[0];
   if (!t) return;
   const entite = t.object.userData.entite, lp = lampes.get(entite);
-  const voulu = !lp.on, pont = window.assistantAndroid;
+  const voulu = !lp.on, pont = window.Maison3dAndroid;
   if (pont && pont.basculer) {
-    // l'appli décide (sécurité en dur) et renvoie le vrai état par assistant.etat : en attendant, la lampe palpite
+    // l'appli décide (sécurité en dur) et renvoie le vrai état par maison3d.etat : en attendant, la lampe palpite
     lp.attente = performance.now(); demander();
     pont.basculer(entite, voulu);
   } else if (window.parent !== window) {
@@ -954,7 +954,7 @@ function ensemble(duree) {
 // la planche « Accueil vivant et en retrait » validée le 22/10. Le soir (intensité 0,2 et
 // moins), fond presque noir et effets à 45 %.
 const toileFond = document.getElementById("fond"), cFond = toileFond.getContext("2d");
-const regime = { v: window.assistantAndroid ? 0 : 1, de: 0, vers: 0, t0: -1e9, duree: 1 };
+const regime = { v: window.Maison3dAndroid ? 0 : 1, de: 0, vers: 0, t0: -1e9, duree: 1 };
 regime.de = regime.vers = regime.v;
 const DEGRADE_JOUR = ["#05080F", "#0B1322", "#1A2B44"], DEGRADE_SOIR = ["#000000", "#06060B", "#0D0D17"];
 const TEXTE = new T.Color("#E8EAED"), LUMIERE_PLANCHE = new T.Color("#F7B56A"), FROID = new T.Color("#8CB1F4");
@@ -1050,7 +1050,7 @@ function attenuer(opacite, duree) {
 
 // ---------- boucle : on ne dessine que quand quelque chose bouge ----------
 // Page faite pour tourner en continu sur l'accueil (0.4.1) : cadence plafonnée (cadenceAction pendant une
-// animation, tour.ips au repos), pause qui coupe tout requestAnimationFrame (assistant.pause).
+// animation, tour.ips au repos), pause qui coupe tout requestAnimationFrame (maison3d.pause).
 let cadenceAction = 30;
 let attendu = false, enPause = false, derniereImage = 0, rapide = false;
 function demander() { if (!attendu && !enPause) { attendu = true; requestAnimationFrame(image); } }
@@ -1272,7 +1272,7 @@ document.getElementById("b-murs").onclick = ev => {
   ev.target.textContent = haut ? "Murs bas" : "Murs hauts";
 };
 const panneau = document.getElementById("panneau");
-if (params.get("panneau") === "0" || window.assistantAndroid) panneau.classList.add("cache");
+if (params.get("panneau") === "0" || window.Maison3dAndroid) panneau.classList.add("cache");
 
 // ---------- la maison en grand (0.8.0) ----------
 // Demande du 23/10/2026 : toucher la maison de l'accueil l'ouvre en grand, et on règle la maison dans la
@@ -1507,7 +1507,7 @@ function designer(x, y) {
 }
 
 // ---------- interface pour l'appli ----------
-window.assistant = {
+window.maison3d = {
   // 0.7.1 : version de la page (« 0.7.1 ») et date des données, pour la couche de service de l'appli
   version: () => DONNEES.version,
   dateVersion: () => DONNEES.date,
@@ -1575,10 +1575,10 @@ window.assistant = {
 };
 // Battement toutes les 10 s pour l'appli, qui recrée la vue si la page se tait. Contexte WebGL perdu :
 // l'appli recrée la vue aussi (0.4.1).
-setInterval(() => { if (window.assistantAndroid && window.assistantAndroid.battement) window.assistantAndroid.battement(); }, 10000);
+setInterval(() => { if (window.Maison3dAndroid && window.Maison3dAndroid.battement) window.Maison3dAndroid.battement(); }, 10000);
 toile.addEventListener("webglcontextlost", ev => {
   ev.preventDefault();
-  if (window.assistantAndroid && window.assistantAndroid.contextePerdu) window.assistantAndroid.contextePerdu();
+  if (window.Maison3dAndroid && window.Maison3dAndroid.contextePerdu) window.Maison3dAndroid.contextePerdu();
 });
 addEventListener("message", ev => {
   const d = ev.data || {};
@@ -1588,19 +1588,19 @@ addEventListener("message", ev => {
   else if (d.type === "montrer") montrer(d.cibles || d.entite);
   else if (d.type === "poser") poser(d.etats);
   else if (d.type === "action") action(d.effets);
-  else if (d.type === "rotation") window.assistant.rotation(d.periode, d.ips, d.cadre, d.amplitude, d.angle);
-  else if (d.type === "fondu") window.assistant.fondu(d.actif, d.bord);
-  else if (d.type === "nomsAuSol") window.assistant.nomsAuSol(d.visibles);
+  else if (d.type === "rotation") window.maison3d.rotation(d.periode, d.ips, d.cadre, d.amplitude, d.angle);
+  else if (d.type === "fondu") window.maison3d.fondu(d.actif, d.bord);
+  else if (d.type === "nomsAuSol") window.maison3d.nomsAuSol(d.visibles);
   else if (d.type === "attenuer") attenuer(d.opacite, d.duree);
   else if (d.type === "ensemble") ensemble(d.duree);
   else if (d.type === "teintes") teintes(d.teintes);
   else if (d.type === "palette") teintes(d.teintes);
-  else if (d.type === "poussieres") window.assistant.poussieres(d.actif);
-  else if (d.type === "desaturer") window.assistant.desaturer(d.actif);
-  else if (d.type === "pause") window.assistant.pause(d.actif);
+  else if (d.type === "poussieres") window.maison3d.poussieres(d.actif);
+  else if (d.type === "desaturer") window.maison3d.desaturer(d.actif);
+  else if (d.type === "pause") window.maison3d.pause(d.actif);
   else if (d.type === "disposition") disposition(d);
   else if (d.type === "regime") regler(d.niveau, d.duree_ms);
-  else if (d.type === "grand") window.assistant.grand(d.actif, d.taille, d.police);
+  else if (d.type === "grand") window.maison3d.grand(d.actif, d.taille, d.police);
   else if (d.type === "choisir") choisir(d.id, d.duree);
   else if (d.type === "etiquettes") etiquettes(d.liste);
   else if (d.type === "pastilles") pastilles(d.liste);
@@ -1618,7 +1618,7 @@ appliquerRegime();
 if (params.get("regime") !== null) regler(+params.get("regime"));
 // ?zone=x,y,largeur,hauteur et ?rotation=periode,amplitude,angle : réglages de l'accueil, pour les captures
 if (params.get("zone")) { const [x, y, largeur, hauteur] = params.get("zone").split(",").map(Number); disposition({ x, y, largeur, hauteur }); }
-if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.assistant.rotation(p, 10, 1, a, g); }
+if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.maison3d.rotation(p, 10, 1, a, g); }
 // ?medias=media_player.exemple20:on,media_player.salon:playing:0.5 : télé et enceintes (0.6.0)
 if (params.get("medias")) params.get("medias").split(",").forEach(s => {
   const [e, st, vol] = s.trim().split(":");
@@ -1628,7 +1628,7 @@ if (params.get("medias")) params.get("medias").split(",").forEach(s => {
 if (params.get("allumer")) poser(Object.fromEntries(params.get("allumer").split(",").map(e => [e.trim(), "on"])));
 if (params.get("fondu") === "1") document.body.classList.add("fondu");
 // l'appli peut maintenant envoyer les états initiaux
-if (window.assistantAndroid && window.assistantAndroid.pret) window.assistantAndroid.pret(DONNEES.version);
+if (window.Maison3dAndroid && window.Maison3dAndroid.pret) window.Maison3dAndroid.pret(DONNEES.version);
 else if (window.parent !== window) window.parent.postMessage({ type: "pret", version: DONNEES.version }, "*");
 </script>
 </body>

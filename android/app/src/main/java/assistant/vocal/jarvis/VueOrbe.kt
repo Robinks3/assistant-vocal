@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Orbe animé du centre de l'écran (0.15.0) : l'état d'un projet d'inspiration se lit de loin, par la couleur
+ * Orbe animé du centre de l'écran (0.15.0) : l'état de l'assistant se lit de loin, par la couleur
  * et le mouvement, sans texte.
  *
  * Disque en dégradé radial éclairé en haut à gauche, liseré plus lumineux, halo doux. Le contour
@@ -31,7 +31,7 @@ import kotlin.math.sin
  * la tablette reste allumée en poste fixe, l'animation ne doit pas la chauffer.
  *
  * 0.16.0 : en mode station avec la vision, l'orbe n'est qu'un point minuscule tant que personne
- * n'est là, et grandit jusqu'à sa taille pleine quand quelqu'un arrive (ou dès que assistant écoute).
+ * n'est là, et grandit jusqu'à sa taille pleine quand quelqu'un arrive (ou dès que l'assistant écoute).
  * Réduit, il ne se redessine que 10 fois par seconde.
  *
  * 0.17.0, écran OLED : en protection ([veille] 1), le point est gris bleuté, sans halo. Quand quelqu'un
@@ -45,7 +45,7 @@ import kotlin.math.sin
  * 0.24.0, accueil de la tablette (demande du propriétaire : « quand je lui parle, je mets bien l'orbe qui
  * apparaissait ») : l'orbe revient au centre de la zone du plan, à un rayon imposé ([rayonFixe]), avec des
  * particules discrètes autour ([particules]) et une version douce le soir ([doux]). La réponse passe au bleu
- * d'un projet d'inspiration, l'ambre reste aux lampes.
+ * de l'assistant, l'ambre reste aux lampes.
  */
 internal class VueOrbe(ctx: Context) : View(ctx) {
 
@@ -392,14 +392,14 @@ internal class VueOrbe(ctx: Context) : View(ctx) {
         const val TAILLE_AOD = 0f
 
         /**
-         * Teinte (degrés), saturation et luminosité (0 à 1) de chaque état, charte assistant. Partagées
+         * Teinte (degrés), saturation et luminosité (0 à 1) de chaque état, charte de l'assistant. Partagées
          * avec le champ de particules (0.17.2), qui prend la couleur de l'orbe.
          */
         fun cibleHsl(h: Humeur): FloatArray = when (h) {
             Humeur.REPOS -> floatArrayOf(218f, 0.55f, 0.56f)
             Humeur.ECOUTE -> floatArrayOf(186f, 0.90f, 0.55f)
             Humeur.REFLEXION -> floatArrayOf(268f, 0.62f, 0.62f)
-            // 0.24.0 : bleu d'un projet d'inspiration pour la réponse (revue de l'accueil, l'ambre reste aux lampes).
+            // 0.24.0 : bleu de l'assistant pour la réponse (revue de l'accueil, l'ambre reste aux lampes).
             Humeur.REPONSE -> floatArrayOf(218f, 0.80f, 0.60f)
             Humeur.ERREUR -> floatArrayOf(2f, 0.62f, 0.40f)
             Humeur.DECONNECTE, Humeur.ARRETE -> floatArrayOf(218f, 0.08f, 0.46f)

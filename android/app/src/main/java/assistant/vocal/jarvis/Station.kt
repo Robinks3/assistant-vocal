@@ -11,10 +11,10 @@ import android.util.Log
 import java.util.Calendar
 
 /**
- * Mode station (0.16.0) : la tablette du séjour fait tourner assistant en permanence, sur secteur.
+ * Mode station (0.16.0) : la tablette du séjour fait tourner l'assistant en permanence, sur secteur.
  *
  * Android coupe le micro et la caméra à un service lancé en arrière-plan (démarrage, relance après
- * une mort du processus). Le chemin sûr est donc de remettre l'écran d'un projet d'inspiration devant, qui démarre
+ * une mort du processus). Le chemin sûr est donc de remettre l'écran de l'assistant devant, qui démarre
  * lui-même le service. Ouvrir un écran depuis l'arrière-plan demande l'autorisation « Afficher
  * par-dessus les autres applications », que la carte Station fait accorder.
  */
@@ -28,12 +28,12 @@ object Station {
      */
     fun nuit(heure: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)): Boolean = heure in 0 until 7
 
-    /** L'écran principal d'un projet d'inspiration est affiché (entre onStart et onStop). */
+    /** L'écran principal de l'assistant est affiché (entre onStart et onStop). */
     @Volatile var ecranVisible = false
 
     fun peutOuvrirEcran(ctx: Context): Boolean = Settings.canDrawOverlays(ctx)
 
-    /** Remet l'écran d'un projet d'inspiration devant (il démarre le service s'il ne tourne pas). */
+    /** Remet l'écran de l'assistant devant (il démarre le service s'il ne tourne pas). */
     fun ouvrirEcran(ctx: Context) {
         try {
             ctx.startActivity(
@@ -73,7 +73,7 @@ object Station {
     }
 }
 
-/** Démarrage de la tablette (ou mise à jour de l'appli) : assistant repart seul en mode station. */
+/** Démarrage de la tablette (ou mise à jour de l'appli) : l'assistant repart seul en mode station. */
 class RecepteurDemarrage : BroadcastReceiver() {
     override fun onReceive(contexte: Context, intent: Intent) {
         val action = intent.action ?: return

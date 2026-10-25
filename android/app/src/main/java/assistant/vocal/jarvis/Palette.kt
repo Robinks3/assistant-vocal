@@ -226,9 +226,9 @@ internal object Palette {
 
     // ------------------------------------------------ plan 3D (page assets/maison3d)
     /**
-     * Teintes de la page 3D, envoyées par assistant.teintes au chargement. Tout ce qui est éteint reste neutre
+     * Teintes de la page 3D, envoyées par maison3d.teintes au chargement. Tout ce qui est éteint reste neutre
      * quel que soit le jeu, la lumière, les poussières, le flux d'une action et la pluie suivent le jeu
-     * ([plan3dPalette], aussi envoyé par assistant.palette).
+     * ([plan3dPalette], aussi envoyé par maison3d.palette).
      */
     val plan3d: Map<String, String>
         get() = linkedMapOf(
@@ -282,7 +282,7 @@ internal object Palette {
     val creuxBord = c("#262A31")
     val texteReglages: Int get() = if (sobre) c("#E8EAED") else jeu.texte1
     val texteReglages2: Int get() = if (sobre) c("#9AA0A6") else jeu.texte2
-    /** Accent des réglages : la couleur d'un projet d'inspiration, plafonnée pour qu'un texte blanc s'y lise toujours. */
+    /** Accent des réglages : la couleur de l'assistant, plafonnée pour qu'un texte blanc s'y lise toujours. */
     val accentReglages: Int get() = if (sobre) c("#4C8DFF") else plafonner(jeu.assistant, luminance(c("#4C8DFF")))
     val accentReglagesClair: Int get() = if (sobre) c("#7DB0FF") else jeu.assistant
     val bleuNuitHaut = c("#0F1B30")

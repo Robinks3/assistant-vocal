@@ -281,7 +281,7 @@ internal class PlanAmbiant(private val ctx: Context) {
     private var etiquettesVoulues = JSONArray()
     private var pastillesVoulues = JSONArray()
 
-    /** Objets réglables de chaque pièce (texte JSON d'un projet d'inspiration.contenu), lus quand la page est prête. */
+    /** Objets réglables de chaque pièce (texte JSON de maison3d.contenu), lus quand la page est prête. */
     var contenu: String? = null
         private set
 
@@ -359,7 +359,7 @@ internal class PlanAmbiant(private val ctx: Context) {
         }
     }
 
-    /** Version de la page 3D (assistant.version), affichée dans la couche de service. */
+    /** Version de la page 3D (maison3d.version), affichée dans la couche de service. */
     val versionPage: String get() = vue3d?.versionPage ?: ""
 
     /** Télé et enceintes lues dans Home Assistant (0.24.0) : télé allumée, ondes des enceintes qui jouent. */

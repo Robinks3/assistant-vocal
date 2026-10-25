@@ -1,6 +1,6 @@
-"""Démarrage de l'appli Home Assistant « assistant » : options de l'appli vers variables, puis serveur.
+"""Démarrage de l'appli Home Assistant de l'assistant vocal : options de l'appli vers variables, puis serveur.
 
-Les options (clé Anthropic, jeton des satellites, essai) sont réglées dans l'appli assistant de HA.
+Les options (clé Anthropic, jeton des satellites, essai) sont réglées dans les options de l'appli, dans HA.
 La configuration de la maison (maison.json, dictionnaire) est dans /app/config, remplacée à chaque
 déploiement. Les phrases apprises vivent dans /data, qui survit aux mises à jour."""
 import json, os, shutil, sys
@@ -33,7 +33,13 @@ for k in ("STT_API_URL", "STT_API_MODELE"):  # une option vide garde la valeur p
 # 0.23.1). Les phrases apprises restent propres à ce serveur : copiées seulement au premier démarrage.
 if not os.path.exists("/data/commandes_apprises.yaml") and os.path.exists("/app/commandes_apprises.yaml"):
     shutil.copy("/app/commandes_apprises.yaml", "/data/commandes_apprises.yaml")
-print(f"assistant : clé Anthropic {'présente' if options.get('anthropic_api_key') else 'ABSENTE'}, "
+try:  # nom affiché de l'assistant (section assistant de maison.json), même règle que maison.NOM_ASSISTANT
+    _section = json.loads(Path("/app/config/maison.json").read_text(encoding="utf-8")).get("assistant")
+    _nom = _section.get("nom") if isinstance(_section, dict) else None
+    NOM = (_nom.strip() if isinstance(_nom, str) else "") or "Assistant"
+except (OSError, ValueError, AttributeError):
+    NOM = "Assistant"
+print(f"{NOM} : clé Anthropic {'présente' if options.get('anthropic_api_key') else 'ABSENTE'}, "
       f"jeton satellites {'présent' if len(options.get('satellite_jeton', '')) >= 16 else 'ABSENT'}, "
       f"transcription en ligne {'configurée' if len(options.get('stt_api_cle', '')) > 10 else 'non configurée'}", flush=True)
 arguments = [sys.executable, "/app/serveur_satellite.py"] + (["--essai"] if options.get("essai") else [])

@@ -14,22 +14,22 @@ import java.util.concurrent.Executors
 import kotlin.math.sqrt
 
 /**
- * Mode « Cet appareil » : tout assistant sur le téléphone ou la tablette, sans serveur.
+ * Mode « Cet appareil » : tout l'assistant sur le téléphone ou la tablette, sans serveur.
  * Mot de réveil (ReveilLocal), découpe de la phrase (mêmes règles que poc/serveur_satellite.py),
  * transcription Canary (CanaryLocal), dictionnaire embarqué (DictionnaireLocal), puis réponse
  * lue par la voix française d'Android. Chaque étape est publiée en direct dans Etat.deroule.
  *
  * v0.10.0 : en réel, les actions du dictionnaire partent directement à l'API REST de Home
- * Assistant, une phrase inconnue va à Assist (API conversation), puis au LLM : Haiku par l'app
- * assistant sur HA (message {"type":"llm"}), ou un LLM sur l'appareil (pas encore installé).
+ * Assistant, une phrase inconnue va à Assist (API conversation), puis au LLM : Haiku par l'appli de
+ * l'assistant sur HA (message {"type":"llm"}), ou un LLM sur l'appareil (pas encore installé).
  *
  * v0.15.0 : plus de jeton Home Assistant dans l'APK. Toutes les requêtes HA passent par la
- * passerelle de l'appli assistant sur HA (PasserelleHa), qui a son propre jeton et revérifie la
+ * passerelle de l'appli de l'assistant sur HA (PasserelleHa), qui a son propre jeton et revérifie la
  * sécurité. La fin de phrase est trouvée par Silero VAD (repli sur l'énergie si le modèle ne
- * charge pas), et le mot de réveil est au choix (Hey Jarvis ou assistant).
+ * charge pas), et le mot de réveil est au choix (Hey Jarvis ou celui de la configuration).
  *
  * v0.16.0 : « écoute attentive ». Avec l'option Couper la parole, le micro reste ouvert pendant que
- * assistant répond (source VOICE_COMMUNICATION et annulation d'écho, voir SatelliteService) et seul le
+ * l'assistant répond (source VOICE_COMMUNICATION et annulation d'écho, voir SatelliteService) et seul le
  * mot de réveil, avec un seuil relevé de 0,1 contre l'écho résiduel, arrête la voix et repart en
  * écoute. Une autre voix (la télé, une discussion) ne coupe rien. Toucher l'orbe coupe aussi. La
  * personne reconnue par la caméra accompagne chaque commande (historique, llm, manque, retour).
@@ -47,13 +47,13 @@ class MoteurLocal(
     @Volatile var seuilReveil: Float,
     /** true : Home Assistant est vraiment piloté. false : essai, rien ne part. */
     @Volatile var reel: Boolean,
-    /** LLM de secours : "claude" (Haiku par l'appli assistant sur HA) ou "local" (sur l'appareil). */
+    /** LLM de secours : "claude" (Haiku par l'appli de l'assistant sur HA) ou "local" (sur l'appareil). */
     @Volatile var cerveau: String,
-    /** Adresse WebSocket de l'appli assistant sur HA : passerelle Home Assistant et Haiku. */
+    /** Adresse WebSocket de l'appli de l'assistant sur HA : passerelle Home Assistant et Haiku. */
     urlJarvisHa: String,
-    /** Mot de réveil guetté : "hey_jarvis" ou "assistant". */
+    /** Mot de réveil guetté : ReveilLocal.HEY_JARVIS ou ReveilLocal.PERSO. */
     @Volatile var motReveil: String = ReveilLocal.PERSO,
-    /** Annonces de l'appli assistant sur HA (demande d'appairage). */
+    /** Annonces de l'appli de l'assistant sur HA (demande d'appairage). */
     annonce: (JSONObject) -> Unit = {},
     /** La passerelle devient disponible ou ne l'est plus. */
     changementPasserelle: () -> Unit = {},
@@ -132,7 +132,7 @@ class MoteurLocal(
     // ------------------------------------------------------------ chargement
 
     fun demarrer() {
-        Etat.modifier { it.copy(deroule = emptyList(), derouleTitre = "Démarrage d'un projet d'inspiration sur cet appareil") }
+        Etat.modifier { it.copy(deroule = emptyList(), derouleTitre = "Démarrage de ${ConfigMaison.NOM_ASSISTANT} sur cet appareil") }
         passerelle.ouvrir()
         transcriptionPc?.ouvrir()
         travail.execute {
@@ -257,7 +257,7 @@ class MoteurLocal(
     /**
      * Toucher l'orbe (ou regard soutenu) : au repos, lance l'écoute. Depuis la 0.17.0 (demande du
      * propriétaire), un second toucher coupe l'écoute en cours sans rien transcrire, ou coupe la réponse si
-     * assistant parle, et revient au repos. Le mot de réveil dit pendant la réponse, lui, la coupe et
+     * l'assistant parle, et revient au repos. Le mot de réveil dit pendant la réponse, lui, la coupe et
      * relance l'écoute (guetterPendantReponse).
      */
     fun parler(origine: String = "orbe touché") {
@@ -346,7 +346,7 @@ class MoteurLocal(
         intervallePasses = INTERVALLE_DIRECT_MS
         passes = 0
         synchronized(detailPasses) { detailPasses.setLength(0) }
-        // Comme le serveur : on ignore le son de début et la fin de « assistant », plus longtemps pour un
+        // Comme le serveur : on ignore le son de début et la fin du mot de réveil, plus longtemps pour un
         // son de début qui traîne (Halo, Bronze, 0.23.0).
         sourdJusqua = tEcoute + if (avecSon) maxOf(600L, SonsEcoute.dureeSourdeMs(contexte)) else 600L
         phase = Phase.ECOUTE
@@ -627,7 +627,7 @@ class MoteurLocal(
             val choix = demande.nom ?: Palette.suivant(Etat.courant.palette.ifEmpty { Palette.choix })
             ajouterEtape("Apparence", "palette $choix" + if (demande.nom == null) " (la suivante)" else "", Etat.Statut.OK)
             Etat.modifier { it.copy(palette = choix) }
-            terminer(texteEntendu, "assistant", "palette", listOf("palette $choix"), Apparence.reponse(choix),
+            terminer(texteEntendu, ConfigMaison.NOM_ASSISTANT, "palette", listOf("palette $choix"), Apparence.reponse(choix),
                 SystemClock.elapsedRealtime() - debut)
             return
         }
@@ -691,7 +691,7 @@ class MoteurLocal(
             }
         } else {
             // Assist de Home Assistant : ses intentions intégrées, ses alias et l'automatisation
-            // « assistant : dictionnaire ». Il exécute ce qu'il comprend : jamais en essai.
+            // « <nom de l'assistant> : dictionnaire ». Il exécute ce qu'il comprend : jamais en essai.
             if (Securite.SECURITE_ACTIVE) {
                 // Les règles nommées sont seulement celles en vigueur (0.17.2, règles 1 et 2 levées le 22/10/2026).
                 val regles = listOfNotNull(
@@ -737,7 +737,7 @@ class MoteurLocal(
 
     @Volatile private var dernierChemin: DictionnaireLocal.Chemin? = null
 
-    /** Phrase absente du dictionnaire : gardée sur l'appareil et envoyée à l'appli assistant sur HA. */
+    /** Phrase absente du dictionnaire : gardée sur l'appareil et envoyée à l'appli de l'assistant sur HA. */
     private fun noterManque(c: DictionnaireLocal.Chemin, traitePar: String, detail: String, faits: List<String>, reponse: String) {
         val candidats = JSONArray()
         for (k in c.candidats) {
@@ -756,7 +756,7 @@ class MoteurLocal(
         envoyerJarvisHa(msg)
     }
 
-    /** Note du propriétaire sur une commande : gardée ici et envoyée à l'appli assistant sur HA. */
+    /** Note du propriétaire sur une commande : gardée ici et envoyée à l'appli de l'assistant sur HA. */
     fun retour(e: Etat.EntreeHistorique, verdict: String) {
         val msg = JSONObject().put("type", "retour").put("verdict", verdict).put("date", e.date).put("heure", e.heure)
             .put("entendu", e.entendu).put("compris_par", e.comprisPar).put("detail", e.detailVoie)
@@ -783,7 +783,7 @@ class MoteurLocal(
 
     /** Envoi par la connexion de la passerelle, sans attendre de réponse utile. */
     private fun envoyerJarvisHa(msg: JSONObject) {
-        if (!passerelle.envoyer(msg)) Log.w(TAG, "${msg.optString("type")} non transmis à l'appli assistant sur HA (${passerelle.etat})")
+        if (!passerelle.envoyer(msg)) Log.w(TAG, "${msg.optString("type")} non transmis à l'appli de l'assistant sur HA (${passerelle.etat})")
     }
 
     /** Texte du déroulé pour le chemin parcouru dans le dictionnaire. */
@@ -939,7 +939,7 @@ class MoteurLocal(
             return Llm("sécurité", "refus avant le LLM", "Je ne le fais pas : $refus.", emptyList(), false)
         }
         if (cerveau == "local") return demanderLlmAppareil(texte)
-        val nom = "LLM Haiku (appli assistant sur HA)"
+        val nom = "LLM Haiku (appli ${ConfigMaison.NOM_ASSISTANT} sur HA)"
         ajouterEtape(nom, "phrase « $texte » envoyée" + if (reel) "" else " en essai, rien ne sera exécuté", Etat.Statut.EN_COURS)
         val t0 = SystemClock.elapsedRealtime()
         // Même connexion que la passerelle : jeton en en-tête, port chiffré.
@@ -947,7 +947,7 @@ class MoteurLocal(
         // Qui parle : le serveur s'en sert pour la sécurité (règle 3), l'inventaire et « ma chambre ».
         if (personne.isNotEmpty() && !muet) demande.put("personne", personne)
         // 45 s : une demande de musique peut chercher longtemps (Music Assistant). Pendant l'attente,
-        // l'écran dit que assistant réfléchit, puis qu'il est toujours en cours, plutôt que de conclure trop tôt.
+        // l'écran dit que l'assistant réfléchit, puis qu'il est toujours en cours, plutôt que de conclure trop tôt.
         Etat.modifier { it.copy(aideReflexion = "Je réfléchis...") }
         val rappel = minuteur.schedule({
             Etat.modifier { if (it.aideReflexion.isNotEmpty()) it.copy(aideReflexion = "Toujours en cours...") else it }
@@ -961,7 +961,7 @@ class MoteurLocal(
         }
         val ms = SystemClock.elapsedRealtime() - t0
         if (j == null) {
-            majEtape(nom, "appli assistant sur HA injoignable ou trop lente (${passerelle.etat})", ms, Etat.Statut.ECHEC)
+            majEtape(nom, "appli ${ConfigMaison.NOM_ASSISTANT} sur HA injoignable ou trop lente (${passerelle.etat})", ms, Etat.Statut.ECHEC)
             return Llm("rien", "Haiku injoignable", "Je n'ai pas pu joindre le modèle de langage.", emptyList(), true)
         }
         val actions = j.optJSONArray("actions")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
@@ -974,7 +974,7 @@ class MoteurLocal(
                 if (reel) "" else "\n(essai : rien exécuté)",
             ms, if (erreur.isEmpty()) Etat.Statut.OK else Etat.Statut.ECHEC,
         )
-        return Llm(j.optString("cerveau", "Claude Haiku"), "appli assistant sur HA", j.optString("reponse"), actions, erreur.isNotEmpty())
+        return Llm(j.optString("cerveau", "Claude Haiku"), "appli ${ConfigMaison.NOM_ASSISTANT} sur HA", j.optString("reponse"), actions, erreur.isNotEmpty())
     }
 
     /**
@@ -1020,7 +1020,7 @@ class MoteurLocal(
                 if (vide) Etat.Statut.ECHEC else Etat.Statut.OK)
         }
         Etat.modifier { it.copy(meteoDemandeeLe = SystemClock.elapsedRealtime(), meteoDemande = r) }
-        terminer(texteEntendu, "assistant", "météo", listOf("panneau Météo : ${r.entete}"), r.parle, SystemClock.elapsedRealtime() - debut)
+        terminer(texteEntendu, ConfigMaison.NOM_ASSISTANT, "météo", listOf("panneau Météo : ${r.entete}"), r.parle, SystemClock.elapsedRealtime() - debut)
         return true
     }
 

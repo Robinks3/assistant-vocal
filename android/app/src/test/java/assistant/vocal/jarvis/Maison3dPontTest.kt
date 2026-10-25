@@ -46,8 +46,8 @@ class Maison3dPontTest {
             .put(JSONObject().put("entity_id", "switch.prise").put("state", "on"))
             .put(JSONObject().put("entity_id", "light.exemple17").put("state", "off"))
         val script = Maison3dPont.scriptEtats(brut)
-        assertTrue(script.startsWith("assistant.etats(") && script.endsWith(")"))
-        val l = JSONArray(script.removePrefix("assistant.etats(").removeSuffix(")"))
+        assertTrue(script.startsWith("maison3d.etats(") && script.endsWith(")"))
+        val l = JSONArray(script.removePrefix("maison3d.etats(").removeSuffix(")"))
         assertEquals(2, l.length())
         val cuisine = l.getJSONObject(0)
         assertEquals("light.cuisine", cuisine.getString("entity_id"))
@@ -63,8 +63,8 @@ class Maison3dPontTest {
     @Test
     fun entiteEchappeeDansLeScript() {
         val s = Maison3dPont.scriptEtat("light.a\"b", JSONObject().put("state", "on"))
-        assertEquals("assistant.etat(\"light.a\\\"b\", {\"state\":\"on\"})", s)
-        assertEquals("assistant.montrer([\"light.cuisine\",\"chambre_sacha\"])",
+        assertEquals("maison3d.etat(\"light.a\\\"b\", {\"state\":\"on\"})", s)
+        assertEquals("maison3d.montrer([\"light.cuisine\",\"chambre_sacha\"])",
             Maison3dPont.scriptMontrer(listOf("light.cuisine", "chambre_sacha")))
     }
 
@@ -75,8 +75,8 @@ class Maison3dPontTest {
                 .put("attributes", JSONObject().put("brightness", 102).put("friendly_name", "Salon")))
             .put("light.cuisine", JSONObject().put("effet", "eteindre"))
         val s = Maison3dPont.scriptAction(effets)
-        assertTrue(s.startsWith("assistant.action("))
-        val o = JSONObject(s.removePrefix("assistant.action(").removeSuffix(")"))
+        assertTrue(s.startsWith("maison3d.action("))
+        val o = JSONObject(s.removePrefix("maison3d.action(").removeSuffix(")"))
         val salon = o.getJSONObject("light.exemple6")
         assertEquals("allumer", salon.getString("effet"))
         assertEquals("on", salon.getString("state"))
@@ -89,7 +89,7 @@ class Maison3dPontTest {
     @Test
     fun effetInconnuDevientUnReglage() {
         val s = Maison3dPont.scriptAction(JSONObject().put("light.a", "basculer").put("light.b", JSONObject().put("effet", "alert(1)")))
-        val o = JSONObject(s.removePrefix("assistant.action(").removeSuffix(")"))
+        val o = JSONObject(s.removePrefix("maison3d.action(").removeSuffix(")"))
         assertEquals("regler", o.getJSONObject("light.a").getString("effet"))
         assertEquals("regler", o.getJSONObject("light.b").getString("effet"))
     }
@@ -98,7 +98,7 @@ class Maison3dPontTest {
     fun poserReduitChaqueEtat() {
         val s = Maison3dPont.scriptPoser(JSONObject().put("light.a",
             JSONObject().put("state", "on").put("attributes", JSONObject().put("brightness", 40).put("icon", "x"))))
-        val o = JSONObject(s.removePrefix("assistant.poser(").removeSuffix(")"))
+        val o = JSONObject(s.removePrefix("maison3d.poser(").removeSuffix(")"))
         assertEquals("on", o.getJSONObject("light.a").getString("state"))
         assertFalse(o.getJSONObject("light.a").getJSONObject("attributes").has("icon"))
     }
@@ -106,24 +106,24 @@ class Maison3dPontTest {
     @Test
     fun scriptsDeLAccueil() {
         // Nombres en notation JavaScript, quelle que soit la langue de la tablette.
-        assertEquals("assistant.fondu(true, 0.08)", Maison3dPont.scriptFondu(0.08f))
-        assertEquals("assistant.rotation(600, 10, 1)", Maison3dPont.scriptRotation(600, 10, 1f))
-        assertEquals("assistant.rotation(0, 30, 1.12)", Maison3dPont.scriptRotation(-5, 99, 1.12f))
-        assertEquals("assistant.attenuer(0.28, 450)", Maison3dPont.scriptAttenuer(0.28f, 450))
-        assertEquals("assistant.attenuer(1, 0)", Maison3dPont.scriptAttenuer(3f, -1))
-        assertEquals("assistant.ensemble(1600)", Maison3dPont.scriptEnsemble(1600))
-        assertEquals("assistant.fondu(true, 0)", Maison3dPont.scriptFondu(Float.NaN))
+        assertEquals("maison3d.fondu(true, 0.08)", Maison3dPont.scriptFondu(0.08f))
+        assertEquals("maison3d.rotation(600, 10, 1)", Maison3dPont.scriptRotation(600, 10, 1f))
+        assertEquals("maison3d.rotation(0, 30, 1.12)", Maison3dPont.scriptRotation(-5, 99, 1.12f))
+        assertEquals("maison3d.attenuer(0.28, 450)", Maison3dPont.scriptAttenuer(0.28f, 450))
+        assertEquals("maison3d.attenuer(1, 0)", Maison3dPont.scriptAttenuer(3f, -1))
+        assertEquals("maison3d.ensemble(1600)", Maison3dPont.scriptEnsemble(1600))
+        assertEquals("maison3d.fondu(true, 0)", Maison3dPont.scriptFondu(Float.NaN))
         // 0.18.1 : palette, cadence, pause, poussières, maison en panne, toucher sur le plan.
-        assertEquals("assistant.teintes({\"sol\":\"#141518\"})", Maison3dPont.scriptTeintes(JSONObject().put("sol", "#141518")))
+        assertEquals("maison3d.teintes({\"sol\":\"#141518\"})", Maison3dPont.scriptTeintes(JSONObject().put("sol", "#141518")))
         // 0.19.0 : teintes du jeu de couleurs choisi.
-        assertEquals("assistant.palette({\"flux\":\"#7EF0C9\"})", Maison3dPont.scriptPalette(JSONObject().put("flux", "#7EF0C9")))
-        assertEquals("assistant.cadence(12, 30)", Maison3dPont.scriptCadence(12))
-        assertEquals("assistant.cadence(12, 12)", Maison3dPont.scriptCadence(12, 12))
-        assertEquals("assistant.cadence(30, 30)", Maison3dPont.scriptCadence(120))
-        assertEquals("assistant.pause(true)", Maison3dPont.scriptPause(true))
-        assertEquals("assistant.poussieres(false)", Maison3dPont.scriptPoussieres(false))
-        assertEquals("assistant.desaturer(true)", Maison3dPont.scriptDesaturer(true))
-        assertEquals("assistant.dansLePlan(412.5, 300)", Maison3dPont.scriptDansLePlan(412.5f, 300f))
+        assertEquals("maison3d.palette({\"flux\":\"#7EF0C9\"})", Maison3dPont.scriptPalette(JSONObject().put("flux", "#7EF0C9")))
+        assertEquals("maison3d.cadence(12, 30)", Maison3dPont.scriptCadence(12))
+        assertEquals("maison3d.cadence(12, 12)", Maison3dPont.scriptCadence(12, 12))
+        assertEquals("maison3d.cadence(30, 30)", Maison3dPont.scriptCadence(120))
+        assertEquals("maison3d.pause(true)", Maison3dPont.scriptPause(true))
+        assertEquals("maison3d.poussieres(false)", Maison3dPont.scriptPoussieres(false))
+        assertEquals("maison3d.desaturer(true)", Maison3dPont.scriptDesaturer(true))
+        assertEquals("maison3d.dansLePlan(412.5, 300)", Maison3dPont.scriptDansLePlan(412.5f, 300f))
     }
 
     @Test
@@ -133,7 +133,7 @@ class Maison3dPontTest {
                 .put("attributes", JSONObject().put("friendly_name", "Télé")))
             .put(JSONObject().put("entity_id", "media_player.salon").put("state", "playing")
                 .put("attributes", JSONObject().put("volume_level", 0.3).put("media_title", "Titre")))
-        val l = JSONArray(Maison3dPont.scriptEtats(brut).removePrefix("assistant.etats(").removeSuffix(")"))
+        val l = JSONArray(Maison3dPont.scriptEtats(brut).removePrefix("maison3d.etats(").removeSuffix(")"))
         assertEquals(2, l.length())
         assertEquals("on", l.getJSONObject(0).getString("state"))
         val a = l.getJSONObject(1).getJSONObject("attributes")
@@ -143,30 +143,30 @@ class Maison3dPontTest {
 
     @Test
     fun scriptsDeLaSecondePasse() {
-        assertEquals("assistant.rotation(600, 10, 1, 25, 75)", Maison3dPont.scriptRotation(600, 10, 1f, 25f, 75f))
+        assertEquals("maison3d.rotation(600, 10, 1, 25, 75)", Maison3dPont.scriptRotation(600, 10, 1f, 25f, 75f))
         val d = Maison3dPont.scriptDisposition(Disposition.A, 600)
-        val o = JSONObject(d.removePrefix("assistant.disposition(").removeSuffix(")"))
+        val o = JSONObject(d.removePrefix("maison3d.disposition(").removeSuffix(")"))
         assertEquals(0.5, o.getDouble("x"), 1e-6)
         assertEquals(0.444, o.getDouble("largeur"), 1e-6)
         assertEquals(600, o.getInt("duree_ms"))
-        assertFalse(JSONObject(Maison3dPont.scriptDisposition(Disposition.B, 0).removePrefix("assistant.disposition(").removeSuffix(")")).has("duree_ms"))
-        assertEquals("assistant.teintes({\"jeu\": \"couleur\", \"intensite\": 0.2})", Maison3dPont.scriptJeuCouleur(0.2f))
-        assertEquals("assistant.teintes({\"intensite\": 0.15})", Maison3dPont.scriptIntensite(0.15f))
-        assertEquals("if (typeof assistant.regime === \"function\") assistant.regime(1, 800)", Maison3dPont.scriptRegime(1f, 800))
+        assertFalse(JSONObject(Maison3dPont.scriptDisposition(Disposition.B, 0).removePrefix("maison3d.disposition(").removeSuffix(")")).has("duree_ms"))
+        assertEquals("maison3d.teintes({\"jeu\": \"couleur\", \"intensite\": 0.2})", Maison3dPont.scriptJeuCouleur(0.2f))
+        assertEquals("maison3d.teintes({\"intensite\": 0.15})", Maison3dPont.scriptIntensite(0.15f))
+        assertEquals("if (typeof maison3d.regime === \"function\") maison3d.regime(1, 800)", Maison3dPont.scriptRegime(1f, 800))
     }
 
     @Test
     fun scriptsDeLaMaisonEnGrand() {
-        assertEquals("if (typeof assistant.grand === \"function\") assistant.grand(true, 56, 20)", Maison3dPont.scriptGrand(true, 56f, 20f))
-        assertEquals("if (typeof assistant.choisir === \"function\") assistant.choisir(\"sejour_cuisine\", 600)", Maison3dPont.scriptChoisir("sejour_cuisine", 600))
-        assertEquals("if (typeof assistant.choisir === \"function\") assistant.choisir(null, 600)", Maison3dPont.scriptChoisir(null, 600))
+        assertEquals("if (typeof maison3d.grand === \"function\") maison3d.grand(true, 56, 20)", Maison3dPont.scriptGrand(true, 56f, 20f))
+        assertEquals("if (typeof maison3d.choisir === \"function\") maison3d.choisir(\"sejour_cuisine\", 600)", Maison3dPont.scriptChoisir("sejour_cuisine", 600))
+        assertEquals("if (typeof maison3d.choisir === \"function\") maison3d.choisir(null, 600)", Maison3dPont.scriptChoisir(null, 600))
         // Un identifiant ne sort jamais de sa chaîne.
         assertTrue(Maison3dPont.scriptChoisir("a\"); alert(1); (\"", 0).contains("\"a\\\"); alert(1); (\\\"\""))
-        assertEquals("if (typeof assistant.voile === \"function\") assistant.voile(0.65)", Maison3dPont.scriptVoile(0.65f))
-        assertEquals("if (typeof assistant.voile === \"function\") assistant.voile(0.9)", Maison3dPont.scriptVoile(3f))
+        assertEquals("if (typeof maison3d.voile === \"function\") maison3d.voile(0.65)", Maison3dPont.scriptVoile(0.65f))
+        assertEquals("if (typeof maison3d.voile === \"function\") maison3d.voile(0.9)", Maison3dPont.scriptVoile(3f))
         val e = JSONArray().put(JSONObject().put("piece", "entree_couloir").put("nom", "Entrée").put("etat", "éteinte").put("verrou", false))
-        assertEquals("if (typeof assistant.etiquettes === \"function\") assistant.etiquettes($e)", Maison3dPont.scriptEtiquettes(e))
-        assertTrue(Maison3dPont.scriptDesigner(10.5f, 20f).contains("assistant.designer(10.5, 20)"))
+        assertEquals("if (typeof maison3d.etiquettes === \"function\") maison3d.etiquettes($e)", Maison3dPont.scriptEtiquettes(e))
+        assertTrue(Maison3dPont.scriptDesigner(10.5f, 20f).contains("maison3d.designer(10.5, 20)"))
     }
 
     @Test

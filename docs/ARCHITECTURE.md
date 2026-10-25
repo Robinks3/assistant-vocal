@@ -110,8 +110,8 @@ la tâche `copierReveil` copie `reveil/<mot>.onnx` et sa licence, et `SATELLITE_
 fichiers `pieces.json`, `meubles.json`, `lampes.json`, et écrit `genere/android/maison3d/vue3d.html` dans la
 configuration, plus `carte/modele.glb`. La page tourne hors ligne dans la WebView de l'appli
 (`file:///android_asset/maison3d/vue3d.html`, chargements réseau bloqués). Elle parle à Kotlin par l'objet
-`assistantAndroid` (`pret`, `battement`, `contextePerdu`, `basculer`) et reçoit des appels
-`window.assistant.*` construits par `Maison3dPont`.
+`Maison3dAndroid` (`pret`, `battement`, `contextePerdu`, `basculer`) et reçoit des appels
+`window.maison3d.*` construits par `Maison3dPont`.
 
 ### Les trois modes de fonctionnement
 

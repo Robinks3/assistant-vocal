@@ -58,7 +58,7 @@ import kotlin.math.sqrt
  * Depuis la 0.16.0 : mode station (tablette posée en permanence, relancée si elle est tuée, chien
  * de garde du micro, de la caméra et de la passerelle), vision par la caméra avant (Vision.kt),
  * données de l'écran ambiant (Maison.kt), et micro gardé ouvert avec l'annulation d'écho pendant
- * les réponses du mode « Cet appareil » pour pouvoir couper la parole à assistant.
+ * les réponses du mode « Cet appareil » pour pouvoir couper la parole à l'assistant.
  */
 class SatelliteService : Service() {
 
@@ -74,7 +74,7 @@ class SatelliteService : Service() {
         const val ACTION_APPAIRER = "assistant.vocal.jarvis.APPAIRER"
         const val ACTION_REFUSER = "assistant.vocal.jarvis.REFUSER"
         /**
-         * L'écran d'un projet d'inspiration est de nouveau affiché (0.17.3) : envoyé par l'écran principal quand il
+         * L'écran de l'assistant est de nouveau affiché (0.17.3) : envoyé par l'écran principal quand il
          * reprend, retrouve le focus ou quand l'écran s'allume, seulement si le service tourne déjà.
          */
         const val ACTION_REPRENDRE = "assistant.vocal.jarvis.REPRENDRE"
@@ -84,16 +84,18 @@ class SatelliteService : Service() {
         const val CLE_URL_HA = "url_ha"
         const val CLE_SERVEUR = "serveur"
         const val CLE_CERVEAU = "cerveau"
-        /** Où guetter « assistant » : "appareil" (téléphone, par défaut) ou "serveur". */
+        /** Où guetter le mot de réveil : "appareil" (téléphone, par défaut) ou "serveur". */
         const val CLE_REVEIL = "reveil"
         const val CLE_SEUIL_REVEIL = "seuil_reveil"
         /** 0,4 depuis la 0.10.0 (0,5 avant) : on parle doucement, loin de la tablette. */
         const val SEUIL_REVEIL_DEFAUT = 0.4f
-        /** Mot de réveil guetté sur l'appareil : "hey_jarvis" (par défaut) ou "assistant". */
+        /** Mot de réveil guetté sur l'appareil : ReveilLocal.HEY_JARVIS (par défaut) ou ReveilLocal.PERSO. */
         const val CLE_MOT_REVEIL = "mot_reveil"
-        /** assistant a son propre seuil, 0,5 par défaut comme dans assistant. */
-        private const val CLE_SEUIL_ASSISTANT = "seuil_reveil_assistant"
-        private const val SEUIL_ASSISTANT_DEFAUT = 0.5f
+        /** Le mot de réveil de la configuration a son propre seuil, 0,5 par défaut comme dans le projet assistant (auteurs inspiration). */
+        private const val CLE_SEUIL_PERSO = "seuil_reveil_perso"
+        /** Clé de ce seuil jusqu'à la 0.30.x, recopiée une fois sous CLE_SEUIL_PERSO. */
+        private const val CLE_SEUIL_ANCIENNE = "seuil_reveil_assistant"
+        private const val SEUIL_PERSO_DEFAUT = 0.5f
         /** Adresses ws://...:8765 converties une fois en wss://...:8766 (0.15.0). */
         private const val CLE_MIGRATION_WSS = "migration_wss"
         /** Mode « Cet appareil » : réel ou essai, et LLM de secours, choisis sur l'appareil. */
@@ -105,7 +107,7 @@ class SatelliteService : Service() {
         const val CLE_VISION = "vision"
         /** Regarder la tablette 1,5 s, seul devant, vaut le mot de réveil. Désactivé par défaut. */
         const val CLE_PARLER_REGARD = "parler_regard"
-        /** Couper la parole à assistant par le mot de réveil pendant sa réponse (mode « Cet appareil »). */
+        /** Couper la parole à l'assistant par le mot de réveil pendant sa réponse (mode « Cet appareil »). */
         const val CLE_COUPER_PAROLE = "couper_parole"
         /** Transcription en direct pendant l'écoute (mode « Cet appareil »), activée par défaut. */
         const val CLE_TRANSCRIPTION_DIRECTE = "transcription_directe"
@@ -127,6 +129,10 @@ class SatelliteService : Service() {
             // Migration : l'ancienne adresse unique devient celle du PC fixe.
             if (!p.contains(CLE_URL_PC) && p.contains(CLE_URL)) {
                 p.edit().putString(CLE_URL_PC, p.getString(CLE_URL, null)).remove(CLE_URL).apply()
+            }
+            // Migration : le seuil du mot de réveil de la configuration change de clé.
+            if (!p.contains(CLE_SEUIL_PERSO) && p.contains(CLE_SEUIL_ANCIENNE)) {
+                p.edit().putFloat(CLE_SEUIL_PERSO, p.getFloat(CLE_SEUIL_ANCIENNE, SEUIL_PERSO_DEFAUT)).remove(CLE_SEUIL_ANCIENNE).apply()
             }
             // Migration 0.15.0 : une adresse en clair sur 8765 passe sur le port chiffré. Une seule
             // fois, pour qu'une adresse ws:// saisie exprès ensuite soit respectée.
@@ -176,10 +182,10 @@ class SatelliteService : Service() {
 
         /** Préférence du seuil du mot de réveil choisi. */
         fun cleSeuilReveil(ctx: Context): String =
-            if (motReveilChoisi(ctx) == ReveilLocal.PERSO) CLE_SEUIL_ASSISTANT else CLE_SEUIL_REVEIL
+            if (motReveilChoisi(ctx) == ReveilLocal.PERSO) CLE_SEUIL_PERSO else CLE_SEUIL_REVEIL
 
         fun seuilReveil(ctx: Context): Float =
-            if (motReveilChoisi(ctx) == ReveilLocal.PERSO) preferences(ctx).getFloat(CLE_SEUIL_ASSISTANT, SEUIL_ASSISTANT_DEFAUT)
+            if (motReveilChoisi(ctx) == ReveilLocal.PERSO) preferences(ctx).getFloat(CLE_SEUIL_PERSO, SEUIL_PERSO_DEFAUT)
             else preferences(ctx).getFloat(CLE_SEUIL_REVEIL, SEUIL_REVEIL_DEFAUT)
 
         fun transcriptionDirecte(ctx: Context): Boolean = preferences(ctx).getBoolean(CLE_TRANSCRIPTION_DIRECTE, true)
@@ -310,7 +316,7 @@ class SatelliteService : Service() {
             return START_NOT_STICKY
         }
         if (intent?.action == ACTION_REPRENDRE) {
-            // Jamais de démarrage par cette voie : on a pu arrêter assistant entre-temps.
+            // Jamais de démarrage par cette voie : on a pu arrêter l'assistant entre-temps.
             if (!actif) {
                 stopSelf()
                 return START_NOT_STICKY
@@ -419,10 +425,10 @@ class SatelliteService : Service() {
         Etat.actionSuivreLumieres = { oui -> maison?.suivreLumieres(oui) }
         Etat.actionHoraire = { suite -> maison?.horaire(suite) ?: suite(emptyList(), 0) }
         Etat.actionPrevisions = { suite ->
-            maison?.previsions(suite) ?: suite(Previsions.Lecture(erreur = "assistant arrêté"))
+            maison?.previsions(suite) ?: suite(Previsions.Lecture(erreur = "${ConfigMaison.NOM_ASSISTANT} à l'arrêt"))
         }
         Etat.actionPrevisionsDe = { entite, suite ->
-            maison?.previsions(entite, suite) ?: suite(Previsions.Lecture(erreur = "assistant arrêté"))
+            maison?.previsions(entite, suite) ?: suite(Previsions.Lecture(erreur = "${ConfigMaison.NOM_ASSISTANT} à l'arrêt"))
         }
         // Santé du propriétaire sur l'accueil (0.19.0) : par la connexion au PC de la transcription déportée, sur un
         // fil à part (appel bloquant de 8 s au plus). La réponse n'est ni gardée ni écrite dans le journal.
@@ -443,7 +449,7 @@ class SatelliteService : Service() {
                 principal.post { suite(r) }
             }, "sante").start()
         }
-        // Météo marine (0.25.0, page Mer) : au PC s'il l'annonce, sinon à l'appli assistant sur HA, sur un fil à part
+        // Météo marine (0.25.0, page Mer) : au PC s'il l'annonce, sinon à l'appli de l'assistant sur HA, sur un fil à part
         // (25 s au plus : la première lecture de la source régionale prend une vingtaine de secondes).
         Etat.actionMeteoMer = { suite ->
             val m = moteurLocal
@@ -567,7 +573,7 @@ class SatelliteService : Service() {
             Etat.modifier { it.copy(presence = false, personnes = emptyList(), visionEtat = "", visionNiveau = "") }
         } else if (v == null) {
             if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                Etat.modifier { it.copy(visionEtat = "Caméra non autorisée : ouvre assistant et accepte la caméra", visionNiveau = "erreur") }
+                Etat.modifier { it.copy(visionEtat = "Caméra non autorisée : ouvre ${ConfigMaison.NOM_ASSISTANT} et accepte la caméra", visionNiveau = "erreur") }
                 return
             }
             passerAuPremierPlan()
@@ -597,7 +603,7 @@ class SatelliteService : Service() {
     }
 
     /**
-     * L'écran d'un projet d'inspiration est de nouveau affiché (0.17.3). La demande vient de l'activité visible : le
+     * L'écran de l'assistant est de nouveau affiché (0.17.3). La demande vient de l'activité visible : le
      * passage au premier plan qui la précède (onStartCommand) rend au service le micro et la caméra
      * qu'Android refuse à un service lancé écran éteint. La passerelle, la transcription du PC et la
      * vision sont revues tout de suite, et leur état republié, au lieu d'attendre le chien de garde (15 s).
@@ -631,7 +637,7 @@ class SatelliteService : Service() {
             dernierBlocLe = maintenant
             Etat.modifier { it.copy(bref = "Micro relancé par le chien de garde", brefLe = maintenant) }
             // Écran remis devant seulement si le micro est vraiment mort depuis plus de 60 s et que
-            // l'écran d'un projet d'inspiration n'est pas déjà affiché : jamais à cause d'une réponse (0.16.3).
+            // l'écran de l'assistant n'est pas déjà affiché : jamais à cause d'une réponse (0.16.3).
             if (station(this) && maintenant - dernierSonReelLe > MICRO_MORT_MS && !Station.ecranVisible) Station.ouvrirEcran(this)
         }
         vision?.surveiller()
@@ -801,7 +807,7 @@ class SatelliteService : Service() {
             )
         }
         val p = preferences(this)
-        // Réel mémorisé : rien ne part tant que la passerelle de l'appli assistant sur HA ne répond pas.
+        // Réel mémorisé : rien ne part tant que la passerelle de l'appli de l'assistant sur HA ne répond pas.
         val reel = p.getString(CLE_MODE_LOCAL, "essai") == "reel"
         val cerveau = if (p.getString(CLE_CERVEAU_LOCAL, "claude") == "local") "local" else "claude"
         var moteur: MoteurLocal? = null
@@ -864,7 +870,7 @@ class SatelliteService : Service() {
             it.copy(
                 capTranscription = OuTranscrire.disponibles(capPc, capHa),
                 capLibelles = OuTranscrire.LIEUX.associateWith { l -> OuTranscrire.libelle(l, tablette) } + mapOf(
-                    "claude" to "Haiku (par l'appli assistant sur HA)",
+                    "claude" to "Haiku (par l'appli ${ConfigMaison.NOM_ASSISTANT} sur HA)",
                     "local" to "LLM sur cet appareil",
                 ),
                 transcriptionActif = lieu,
@@ -891,7 +897,7 @@ class SatelliteService : Service() {
                 modeActif = if (m.reel) "reel" else "essai",
                 modeMessage = when {
                     !m.reel -> "Essai : tout est calculé ici, rien n'est envoyé à Home Assistant"
-                    m.passerelle.disponible -> "Réel : Home Assistant piloté par la passerelle de l'appli assistant sur HA"
+                    m.passerelle.disponible -> "Réel : Home Assistant piloté par la passerelle de l'appli ${ConfigMaison.NOM_ASSISTANT} sur HA"
                     else -> "Réel demandé, mais passerelle indisponible (${m.passerelle.etat}) : rien ne part"
                 },
                 passerelle = m.passerelle.etat,
@@ -913,7 +919,7 @@ class SatelliteService : Service() {
             it.copy(
                 cerveauActif = m.cerveau,
                 cerveauPret = m.cerveau == "claude" || ModeleLiteRt.choisir(this) != null,
-                cerveauMessage = if (m.cerveau == "claude") "Haiku, par l'appli assistant sur Home Assistant (${adresse(this, "ha")})"
+                cerveauMessage = if (m.cerveau == "claude") "Haiku, par l'appli ${ConfigMaison.NOM_ASSISTANT} sur Home Assistant (${adresse(this, "ha")})"
                 else ModeleLiteRt.choisir(this)?.let { (f, gpu) ->
                     "${f.nameWithoutExtension} sur cet appareil (" + (if (gpu) "GPU" else "CPU") + "), chargé en arrière-plan, environ 10 s"
                 } ?: "Aucun modèle dans ${ModeleLiteRt.dossier(this)} : à copier par adb",
@@ -1571,7 +1577,7 @@ class SatelliteService : Service() {
         }
     }
 
-    /** Vrai si « assistant » est guetté sur le téléphone : choix appareil et serveur 0.15.0+. */
+    /** Vrai si le mot de réveil est guetté sur le téléphone : choix appareil et serveur 0.15.0+. */
     private fun reveilSurAppareil(): Boolean =
         reveilChoix == "appareil" && Etat.courant.capReveilAppareil && !reveilIndisponible
 
@@ -1589,11 +1595,11 @@ class SatelliteService : Service() {
 
     private fun creerCanal() {
         val canal = NotificationChannel(CANAL, "Satellite vocal", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "État du satellite assistant"
+            description = "État du satellite ${ConfigMaison.NOM_ASSISTANT}"
             setShowBadge(false)
         }
         val appairage = NotificationChannel(CANAL_APPAIRAGE, "Demandes d'appairage", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Un nouvel appareil demande l'accès à assistant"
+            description = "Un nouvel appareil demande l'accès à ${ConfigMaison.NOM_ASSISTANT}"
         }
         getSystemService(NotificationManager::class.java)?.let {
             it.createNotificationChannel(canal)
@@ -1627,7 +1633,7 @@ class SatelliteService : Service() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val texte = "« ${d.nom} » demande l'accès à assistant. Code affiché sur cet appareil : ${d.code}"
+        val texte = "« ${d.nom} » demande l'accès à ${ConfigMaison.NOM_ASSISTANT}. Code affiché sur cet appareil : ${d.code}"
         val notif = Notification.Builder(this, CANAL_APPAIRAGE)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("Demande d'appairage")
@@ -1705,7 +1711,7 @@ class SatelliteService : Service() {
         val texte = e.assistant.ifEmpty { "Démarrage" } + ", " + texteMode(e) + ", " + texteCerveau(e)
         return Notification.Builder(this, CANAL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("assistant, ${nomServeur(e.serveurCible)} : ${e.connexion}")
+            .setContentTitle("${ConfigMaison.NOM_ASSISTANT}, ${nomServeur(e.serveurCible)} : ${e.connexion}")
             .setContentText(texte)
             .setSubText(version)
             .setStyle(Notification.BigTextStyle().bigText("$texte\n$version"))

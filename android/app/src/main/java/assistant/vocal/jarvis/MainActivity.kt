@@ -65,7 +65,7 @@ import java.util.Locale
  * Mode station (carte Station) : plein écran immersif, paysage, écran allumé sur secteur, lumière
  * baissée après 2 min sans présence ni commande, au minimum la nuit.
  *
- * 0.17.0, l'assistant s'appelle assistant : écran OLED protégé (Veille, majVeille), second toucher sur
+ * 0.17.0, l'assistant change de nom : écran OLED protégé (Veille, majVeille), second toucher sur
  * l'orbe qui coupe, bouton Retour qui ferme un panneau sans jamais quitter l'appli, écrans Musique
  * (EcranMusique) et Maison connectée (EcranMaison) ouverts depuis leurs bulles, réglages de la
  * tablette par sections (sections à gauche, contenu à droite, déroulé dans Diagnostic).
@@ -85,7 +85,7 @@ import java.util.Locale
  * la lampe dans la page 3D). Démonstration sans Home Assistant par adb : voir demoLumieres.
  *
  * 0.18.0, accueil typographique de la tablette (EcranAmbiant, piste « la maison ») : le plan 3D au centre,
- * l'heure, la date, la météo en mots, la musique, la lumière d'un projet d'inspiration à la place de l'orbe. Plus de
+ * l'heure, la date, la météo en mots, la musique, la lumière de l'assistant à la place de l'orbe. Plus de
  * bulles, de particules ni d'aperçu 3D séparé : le plan central joue lui-même les actions. Le téléphone
  * garde sa disposition.
  */
@@ -149,11 +149,11 @@ class MainActivity : Activity() {
         /** La réponse dite sous l'orbe s'efface 6 s après la fin de la voix. */
         const val DUREE_PAROLE_MS = 6_000L
         const val REPONSE_SOUS_ORBE = true
-        /** assistant a déjà été démarré une fois : il repart seul à l'ouverture. */
+        /** L'assistant a déjà été démarré une fois : il repart seul à l'ouverture. */
         const val CLE_DEJA_DEMARRE = "deja_demarre"
         /** Largeur à partir de laquelle l'écran passe en panneaux. */
         const val LARGEUR_PANNEAUX_DP = 840
-        /** États où assistant travaille : l'écran reste vivant (Veille). */
+        /** États où l'assistant travaille : l'écran reste vivant (Veille). */
         val ASSISTANT_OCCUPE = setOf("Je t'écoute", "Je réfléchis", "Je réponds")
         /** Journal du cycle de l'écran (0.17.3) : adb logcat -s JarvisEcran. */
         const val JOURNAL = "JarvisEcran"
@@ -177,11 +177,11 @@ class MainActivity : Activity() {
     private lateinit var texteAide: TextView
     private lateinit var orbe: VueOrbe
     private lateinit var texteBref: TextView
-    /** Ce que assistant entend de la phrase en cours (0.16.1), sous l'orbe. */
+    /** Ce que l'assistant entend de la phrase en cours (0.16.1), sous l'orbe. */
     private lateinit var texteDirect: TextView
-    /** Ce que dit assistant, sous l'orbe, au fil de la voix (0.16.3). */
+    /** Ce que dit l'assistant, sous l'orbe, au fil de la voix (0.16.3). */
     private lateinit var texteParole: TextView
-    /** Rangée du bouton Démarrer, cachée tant que assistant tourne. */
+    /** Rangée du bouton Démarrer, cachée tant que l'assistant tourne. */
     private lateinit var ligneMarche: LinearLayout
     private var paroleAffichee = ""
     private var paroleEffacee = false
@@ -201,7 +201,7 @@ class MainActivity : Activity() {
     private lateinit var segmentLocal: TextView
     private lateinit var pointCerveau: GradientDrawable
     private lateinit var segmentHeyJarvis: TextView
-    private lateinit var segmentassistant: TextView
+    private lateinit var segmentPerso: TextView
     private lateinit var segmentReveilAppareil: TextView
     private lateinit var segmentReveilServeur: TextView
     private lateinit var pointReveil: GradientDrawable
@@ -542,7 +542,7 @@ class MainActivity : Activity() {
     /**
      * Palette des écrans (0.19.0) : choisie dans Réglages, Apparence, ou à la voix (Etat.palette), un jeu ou le
      * mode Selon l'heure. Elle est retenue, puis toute l'interface est reconstruite avec les couleurs du jeu :
-     * accueil, plan 3D (teintes et assistant.palette au chargement de la page), écrans Maison, Musique,
+     * accueil, plan 3D (teintes et maison3d.palette au chargement de la page), écrans Maison, Musique,
      * Réglages et AOD. Pas de redémarrage. Pendant 10 s, Réglages propose de revenir au choix d'avant.
      */
     private fun choisirPalette(nom: String, retour: Boolean = true) {
@@ -576,7 +576,7 @@ class MainActivity : Activity() {
 
     /**
      * Mode Selon l'heure : toutes les 30 s, Pastels le jour et Veillée du coucher au lever du soleil. Le
-     * changement attend que assistant ne soit plus en train d'écouter, de réfléchir ou de parler.
+     * changement attend que l'assistant ne soit plus en train d'écouter, de réfléchir ou de parler.
      */
     private fun majPaletteAuto() {
         if (Palette.choix != Palette.AUTO) return
@@ -612,7 +612,7 @@ class MainActivity : Activity() {
     /**
      * Section Apparence des réglages de la tablette (0.19.0, revue design des palettes) : le mode Selon
      * l'heure en tête, puis une ligne par jeu avec un aperçu en contexte écrit dans ses couleurs. Le bouton du
-     * choix en cours prend la couleur d'un projet d'inspiration du jeu. 10 s après un changement, « Revenir à ... ».
+     * choix en cours prend la couleur de l'assistant du jeu. 10 s après un changement, « Revenir à ... ».
      */
     private fun construireApparence(): View {
         val col = LinearLayout(this).apply {
@@ -810,7 +810,7 @@ class MainActivity : Activity() {
         val maintenant = SystemClock.elapsedRealtime()
         val carte = Etat.Carte(
             -maintenant, false, "Démonstration", if (effet == "eteindre") "éteinte" else "allumée",
-            null, "", "", "assistant", false, "", "demo", maintenant, liste, liste.associateWith { effet },
+            null, "", "", "jarvis", false, "", "demo", maintenant, liste, liste.associateWith { effet },
         )
         // Phrase comprise et réponse de l'accueil (0.18.0), sans voix : `--es demo_phrase "Allume le salon"
         // --es demo_reponse "C'est fait, le salon est allumé."`. Elles restent écrites une dizaine de secondes.
@@ -1042,7 +1042,7 @@ class MainActivity : Activity() {
         }
 
     /**
-     * Petit intitulé des cartes (titres de cartes, « Toi », « assistant »). En capitales espacées sur le
+     * Petit intitulé des cartes (titres de cartes, « Toi », nom de l'assistant). En capitales espacées sur le
      * téléphone, en casse normale sur la tablette (0.18.0).
      */
     private fun intitule(libelle: String, couleur: Int = Couleur.TEXTE_2): TextView =
@@ -1176,7 +1176,7 @@ class MainActivity : Activity() {
         }
 
         val corps: View = if (largeEcran) {
-            // Accueil typographique (0.18.0) : plan 3D, heure, météo, musique, lumière d'un projet d'inspiration. Le poste
+            // Accueil typographique (0.18.0) : plan 3D, heure, météo, musique, lumière de l'assistant. Le poste
             // (orbe et textes du téléphone) est construit mais pas affiché : l'accueil lit Etat lui-même.
             val a = EcranAmbiant(this)
             ambiant = a
@@ -1539,7 +1539,7 @@ class MainActivity : Activity() {
 
     /** Carte Appareils et accès : téléphones appairés, demandes d'appairage, clés retenues. */
     private fun construireAcces(): LinearLayout {
-        val c = carte("Appareils et accès", "téléphones et tablettes autorisés à parler à assistant")
+        val c = carte("Appareils et accès", "téléphones et tablettes autorisés à parler à ${ConfigMaison.NOM_ASSISTANT}")
         c.addView(texte(14f, Couleur.TEXTE_2).apply {
             text = "Appairage d'un nouvel appareil par un code à 4 chiffres accepté depuis un appareil connu, " +
                 "révocation qui coupe tout de suite, clés des serveurs retenues à la première connexion."
@@ -1556,7 +1556,7 @@ class MainActivity : Activity() {
         }
         val titres = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titres.addView(texte(taille(32f, 34f), gras = true).apply {
-            text = "assistant"
+            text = ConfigMaison.NOM_ASSISTANT
             letterSpacing = 0.01f
         })
         titres.addView(texte(14.5f, Couleur.TEXTE_2).apply {
@@ -1751,13 +1751,13 @@ class MainActivity : Activity() {
      * guetté (cet appareil ou le serveur), le seuil, et le micro avec le score du réveil.
      */
     private fun construireReveil(): LinearLayout {
-        val c = carte("Mot de réveil", "le mot qui réveille assistant")
+        val c = carte("Mot de réveil", "le mot qui réveille ${ConfigMaison.NOM_ASSISTANT}")
         segmentHeyJarvis = segment("Hey Jarvis\n(anglais)") { choisirMotReveil(ReveilLocal.HEY_JARVIS) }
         // Second mot : celui de la configuration (section reveil de maison.json), absent sans elle.
         val perso = ReveilLocal.nom(ReveilLocal.PERSO) + (ReveilLocal.LANGUE_PERSO.takeIf { it.isNotBlank() }?.let { "\n($it)" } ?: "")
-        segmentassistant = segment(perso) { choisirMotReveil(ReveilLocal.PERSO) }
-        selecteur(c, segmentHeyJarvis, segmentassistant)
-        if (!ReveilLocal.PERSO_DISPONIBLE) segmentassistant.visibility = View.GONE
+        segmentPerso = segment(perso) { choisirMotReveil(ReveilLocal.PERSO) }
+        selecteur(c, segmentHeyJarvis, segmentPerso)
+        if (!ReveilLocal.PERSO_DISPONIBLE) segmentPerso.visibility = View.GONE
         if (ReveilLocal.PERSO_DISPONIBLE && ReveilLocal.LICENCE_PERSO.isNotBlank()) {
             c.addView(texte(13f, Couleur.GRIS).apply { text = ReveilLocal.LICENCE_PERSO }, marge(haut = 8))
         }
@@ -1810,7 +1810,7 @@ class MainActivity : Activity() {
         c.addView(mesures, marge(haut = 8))
 
         // Couper la parole (0.16.0), mode « Cet appareil » : micro ouvert pendant la réponse.
-        c.addView(texte(14f, Couleur.TEXTE_2).apply { text = "Couper la parole à assistant pendant qu'il répond" }, marge(haut = 18, bas = 6))
+        c.addView(texte(14f, Couleur.TEXTE_2).apply { text = "Couper la parole à ${ConfigMaison.NOM_ASSISTANT} pendant sa réponse" }, marge(haut = 18, bas = 6))
         segmentCoupureNon = segment("Désactivé") { choisirCoupure(false) }
         segmentCoupureOui = segment("Activé") { choisirCoupure(true) }
         selecteur(c, segmentCoupureNon, segmentCoupureOui)
@@ -1862,11 +1862,11 @@ class MainActivity : Activity() {
 
     // ---------------------------------------------------------------- station et vision (0.16.0)
 
-    /** Carte Station : la tablette du séjour fait tourner assistant en permanence. */
+    /** Carte Station : la tablette du séjour fait tourner l'assistant en permanence. */
     private fun construireStation(): LinearLayout {
         val c = carte("Station", "tablette posée en permanence, sur secteur")
-        // Arrêter assistant vit ici depuis la 0.16.3 : il ne se démarre qu'une fois.
-        boutonArreter = bouton("Arrêter assistant", Decor.assombrir(Couleur.ROUGE, 0.1f), hauteurDp = 50) { confirmerArret() }
+        // Arrêter l'assistant vit ici depuis la 0.16.3 : il ne se démarre qu'une fois.
+        boutonArreter = bouton("Arrêter ${ConfigMaison.NOM_ASSISTANT}", Decor.assombrir(Couleur.ROUGE, 0.1f), hauteurDp = 50) { confirmerArret() }
         c.addView(boutonArreter, marge(bas = 14))
         segmentStationNon = segment("Désactivée") { choisirStation(false) }
         segmentStationOui = segment("Activée") { choisirStation(true) }
@@ -1881,8 +1881,8 @@ class MainActivity : Activity() {
         c.addView(boutonDiscret("Ouverture automatique au démarrage") { ouvrirSuperposition() }, marge(bas = 10))
         c.addView(boutonDiscret("Exemption d'optimisation de batterie") { expliquerBatterie() }, marge(bas = 10))
         c.addView(texte(13f, Couleur.GRIS).apply {
-            text = "Sur Samsung, sors aussi assistant de la mise en veille : Paramètres, Batterie et maintenance de " +
-                "l'appareil, Batterie, Limites d'utilisation en arrière-plan, Applications jamais en veille, ajouter assistant."
+            text = "Sur Samsung, sors aussi ${ConfigMaison.NOM_ASSISTANT} de la mise en veille : Paramètres, Batterie et maintenance de " +
+                "l'appareil, Batterie, Limites d'utilisation en arrière-plan, Applications jamais en veille, ajouter ${ConfigMaison.NOM_ASSISTANT}."
         }, marge())
         return c
     }
@@ -1931,7 +1931,7 @@ class MainActivity : Activity() {
         )
         texteStation.text = if (!station) "Mode station désactivé" else listOf(
             if (superposition) "Ouverture au démarrage : autorisée" else "Ouverture au démarrage : à autoriser (bouton ci-dessous)",
-            if (batterieLibre) "Optimisation de batterie : désactivée pour assistant" else "Optimisation de batterie : encore active",
+            if (batterieLibre) "Optimisation de batterie : désactivée pour ${ConfigMaison.NOM_ASSISTANT}" else "Optimisation de batterie : encore active",
             if (enCharge) "Sur secteur : écran gardé allumé" else "Sur batterie : l'écran peut s'éteindre",
         ).joinToString("\n")
     }
@@ -1955,13 +1955,13 @@ class MainActivity : Activity() {
             listOf(Triple(segmentRegardNon, "non", Couleur.ACCENT), Triple(segmentRegardOui, "oui", Couleur.ACCENT)),
             if (regard) "oui" else "non", "",
         )
-        // Vision.kt (hors de cette session) écrit encore l'ancien nom dans un de ses messages.
-        val etat = e.visionEtat.replace("Jarvis", "assistant")
+        // Un message de vision peut encore porter l'ancien nom Jarvis : remplacé par le nom de l'assistant.
+        val etat = e.visionEtat.replace("Jarvis", ConfigMaison.NOM_ASSISTANT)
         val (couleur, message) = when {
             mode == "off" -> Couleur.GRIS to "Caméra éteinte"
             checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ->
                 Couleur.ORANGE to "Caméra à autoriser"
-            !e.enMarche -> Couleur.GRIS to "Démarre assistant pour allumer la caméra"
+            !e.enMarche -> Couleur.GRIS to "Démarre ${ConfigMaison.NOM_ASSISTANT} pour allumer la caméra"
             e.visionNiveau == "ok" -> Couleur.VERT to etat
             e.visionNiveau == "erreur" -> Couleur.ROUGE to etat
             else -> Couleur.ORANGE to etat.ifEmpty { "Démarrage de la caméra" }
@@ -1988,10 +1988,10 @@ class MainActivity : Activity() {
             for (v in listOf(segmentCoupureNon, segmentCoupureOui)) activer(v, false)
         }
         texteCoupure.text = when {
-            !dispo -> "Annulation d'écho indisponible sur cet appareil : assistant s'entendrait lui-même, " +
+            !dispo -> "Annulation d'écho indisponible sur cet appareil : ${ConfigMaison.NOM_ASSISTANT} entendrait sa propre voix, " +
                 "le micro reste donc fermé pendant ses réponses. Toucher l'orbe coupe quand même la réponse."
             active -> "Annulation d'écho disponible. Pendant la réponse, seul « ${ReveilLocal.nom(SatelliteService.motReveilChoisi(this))} » " +
-                "(seuil relevé de 0,1) coupe assistant, une autre voix ne coupe rien. Mode « Cet appareil » seulement."
+                "(seuil relevé de 0,1) coupe ${ConfigMaison.NOM_ASSISTANT}, une autre voix ne coupe rien. Mode « Cet appareil » seulement."
             else -> "Annulation d'écho disponible, option désactivée : micro fermé pendant les réponses."
         }
     }
@@ -2024,7 +2024,7 @@ class MainActivity : Activity() {
     }
 
     /**
-     * La réponse d'un projet d'inspiration sous l'orbe, comme si c'était lui qui parlait : elle se remplit au fil de
+     * La réponse de l'assistant sous l'orbe, comme si c'était lui qui parlait : elle se remplit au fil de
      * la voix, puis s'efface en fondu 6 s après la fin. Pas de carte pour la réponse (0.16.3).
      */
     private fun afficherParole(e: Etat.Instantane) {
@@ -2077,9 +2077,9 @@ class MainActivity : Activity() {
             AlertDialog.Builder(this)
                 .setTitle("Mode station")
                 .setMessage(
-                    "Pour tourner en permanence, assistant doit être exempté de l'optimisation de batterie et pouvoir " +
+                    "Pour tourner en permanence, ${ConfigMaison.NOM_ASSISTANT} doit échapper à l'optimisation de batterie et pouvoir " +
                         "rouvrir son écran au démarrage de la tablette (autorisation « Afficher par-dessus les autres " +
-                        "applications »). Sur Samsung, ajoute aussi assistant aux applications jamais en veille."
+                        "applications »). Sur Samsung, ajoute aussi ${ConfigMaison.NOM_ASSISTANT} aux applications jamais en veille."
                 )
                 .setPositiveButton("Continuer") { _, _ -> demanderExemption() }
                 .setNegativeButton("Plus tard", null)
@@ -2128,7 +2128,7 @@ class MainActivity : Activity() {
         try {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         } catch (_: Exception) {
-            message("Réglage introuvable : Paramètres, Applications, assistant, Afficher par-dessus les autres applications")
+            message("Réglage introuvable : Paramètres, Applications, ${ConfigMaison.NOM_ASSISTANT}, Afficher par-dessus les autres applications")
         }
     }
 
@@ -2137,7 +2137,7 @@ class MainActivity : Activity() {
             .setTitle("Optimisation de batterie")
             .setMessage(
                 "Android endort les applications pour économiser la batterie, ce qui couperait le micro et la caméra " +
-                    "d'un projet d'inspiration au bout de quelques minutes. Sur secteur, l'exemption ne coûte rien. " +
+                    "de ${ConfigMaison.NOM_ASSISTANT} au bout de quelques minutes. Sur secteur, l'exemption ne coûte rien. " +
                     "Accepte la demande qui va s'afficher."
             )
             .setPositiveButton("Continuer") { _, _ -> demanderExemption() }
@@ -2329,7 +2329,7 @@ class MainActivity : Activity() {
     }
 
     /**
-     * assistant démarre seul s'il tournait la dernière fois (ou en station), tant qu'on ne l'a pas
+     * L'assistant démarre seul s'il tournait la dernière fois (ou en station), tant qu'on ne l'a pas
      * arrêté lui-même depuis les réglages (0.16.3) : on ne le démarre qu'une fois.
      */
     private fun relancerSiStation() {
@@ -2569,7 +2569,7 @@ class MainActivity : Activity() {
 
     /** Les 5 dernières commandes, et l'accès à l'historique complet. */
     private fun construireHistorique(): LinearLayout {
-        val c = carte("Historique", "ce que assistant a entendu, compris et fait")
+        val c = carte("Historique", "ce que ${ConfigMaison.NOM_ASSISTANT} a entendu, compris et fait")
         conteneurHistorique = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(conteneurHistorique, marge(bas = 14))
         c.addView(
@@ -2735,8 +2735,8 @@ class MainActivity : Activity() {
             !e.enMarche -> Triple(
                 "Arrêté", Couleur.TEXTE_2,
                 if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
-                    "Autorise le micro, puis appuie sur Démarrer : assistant repartira ensuite seul"
-                else "Appuie sur Démarrer : assistant repartira ensuite seul à chaque ouverture",
+                    "Autorise le micro, puis appuie sur Démarrer : ${ConfigMaison.NOM_ASSISTANT} repartira ensuite automatiquement"
+                else "Appuie sur Démarrer : ${ConfigMaison.NOM_ASSISTANT} repartira ensuite automatiquement à chaque ouverture",
             )
             e.lien != Etat.Lien.CONNECTE -> Triple("En attente", Couleur.TEXTE_2, "Recherche du serveur")
             e.assistant == "Repos" || e.assistant.isEmpty() ->
@@ -2850,7 +2850,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Le bouton Démarrer n'apparaît que si assistant est arrêté. L'arrêt se fait dans les réglages (carte Station). */
+    /** Le bouton Démarrer n'apparaît que si l'assistant est arrêté. L'arrêt se fait dans les réglages (carte Station). */
     private fun afficherMarche(e: Etat.Instantane) {
         val cle = e.enMarche.toString()
         if (cle == cleMarche) return
@@ -2865,8 +2865,8 @@ class MainActivity : Activity() {
 
     private fun confirmerArret() {
         AlertDialog.Builder(this)
-            .setTitle("Arrêter assistant")
-            .setMessage("assistant n'écoutera plus et ne redémarrera pas seul, même au démarrage de la tablette, jusqu'à ce que tu appuies sur Démarrer.")
+            .setTitle("Arrêter ${ConfigMaison.NOM_ASSISTANT}")
+            .setMessage("${ConfigMaison.NOM_ASSISTANT} n'écoutera plus et ne redémarrera pas automatiquement, même au démarrage de la tablette, jusqu'à ce que tu appuies sur Démarrer.")
             .setPositiveButton("Arrêter") { _, _ -> arreter() }
             .setNegativeButton("Annuler", null)
             .show()
@@ -2893,7 +2893,7 @@ class MainActivity : Activity() {
         dialogueAppairage = AlertDialog.Builder(this)
             .setTitle("Demande d'appairage")
             .setMessage(
-                "« ${d.nom} » demande l'accès à assistant.\n\nCode : ${d.code}\n\n" +
+                "« ${d.nom} » demande l'accès à ${ConfigMaison.NOM_ASSISTANT}.\n\nCode : ${d.code}\n\n" +
                     "Accepte seulement si le même code s'affiche sur le nouvel appareil."
             )
             .setPositiveButton("Accepter") { _, _ -> Etat.actionAppareil?.invoke("appairer", d.id) }
@@ -3163,7 +3163,7 @@ class MainActivity : Activity() {
     private fun changerSeuil(pas: Float) {
         val actuel = SatelliteService.seuilReveil(this)
         val nouveau = (Math.round((actuel + pas) * 100) / 100f).coerceIn(0.2f, 0.9f)
-        // Chaque mot a son seuil (assistant 0,5 par défaut, Hey Jarvis 0,4).
+        // Chaque mot a son seuil (celui de la configuration 0,5 par défaut, Hey Jarvis 0,4).
         SatelliteService.preferences(this).edit().putFloat(SatelliteService.cleSeuilReveil(this), nouveau).apply()
         Etat.actionSeuilReveil?.invoke(nouveau)
         cleReveil = ""
@@ -3180,7 +3180,7 @@ class MainActivity : Activity() {
         peindreSegments(
             listOf(
                 Triple(segmentHeyJarvis, ReveilLocal.HEY_JARVIS, Couleur.ACCENT),
-                Triple(segmentassistant, ReveilLocal.PERSO, Couleur.ACCENT),
+                Triple(segmentPerso, ReveilLocal.PERSO, Couleur.ACCENT),
             ),
             mot,
             "",
@@ -3277,7 +3277,7 @@ class MainActivity : Activity() {
         cleStation = ""
         afficherStation()
         texteBatterie.text = if (ignoree) {
-            "Optimisation de batterie désactivée pour assistant"
+            "Optimisation de batterie désactivée pour ${ConfigMaison.NOM_ASSISTANT}"
         } else {
             "Optimisation de batterie active : le service risque d'être coupé écran éteint"
         }
@@ -3288,7 +3288,7 @@ class MainActivity : Activity() {
         val dejaFait = pm?.isIgnoringBatteryOptimizations(packageName) == true
         try {
             if (dejaFait) {
-                message("Déjà désactivée pour assistant")
+                message("Déjà désactivée pour ${ConfigMaison.NOM_ASSISTANT}")
                 startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             } else {
                 startActivity(

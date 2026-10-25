@@ -147,16 +147,16 @@ object Etat {
         val capCerveau: List<String>? = null,
         /** Libellés lisibles des choix, fournis par le serveur (identifiant vers libellé). */
         val capLibelles: Map<String, String>? = null,
-        /** Le serveur accepte que le téléphone guette « assistant » lui-même (0.15.0+). */
+        /** Le serveur accepte que le téléphone guette le mot de réveil lui-même (0.15.0+). */
         val capReveilAppareil: Boolean = false,
-        /** Où « assistant » est réellement guetté : "appareil", "serveur", ou vide si inconnu. */
+        /** Où le mot de réveil est réellement guetté : "appareil", "serveur", ou vide si inconnu. */
         val reveilEffectif: String = "",
         /** Historique des commandes, la plus récente en premier. */
         val historique: List<EntreeHistorique> = emptyList(),
         /** Déroulé de la commande en cours ou de la dernière, et son titre. */
         val deroule: List<Etape> = emptyList(),
         val derouleTitre: String = "",
-        /** Mot de réveil guetté par le serveur, d'après ses capacités (« Hey Jarvis », « assistant »). */
+        /** Mot de réveil guetté par le serveur, d'après ses capacités (« Hey Jarvis » ou celui de la configuration). */
         val capMotReveil: String = "",
         /** Nouvel appareil qui attend d'être accepté, ou null. */
         val demandeAppairage: DemandeAppairage? = null,
@@ -181,12 +181,12 @@ object Etat {
         val maison: Maison? = null,
         val cartes: List<Carte> = emptyList(),
         /**
-         * Ce que assistant entend de la phrase en cours (0.16.1) : texte partiel de la transcription en
+         * Ce que l'assistant entend de la phrase en cours (0.16.1) : texte partiel de la transcription en
          * direct ([entenduFinal] faux), puis la transcription finale, jusqu'à la réponse.
          */
         val entendu: String = "",
         /**
-         * Ce que dit assistant, affiché sous l'orbe au fil de la voix (0.16.3), et l'instant où la voix
+         * Ce que dit l'assistant, affiché sous l'orbe au fil de la voix (0.16.3), et l'instant où la voix
          * s'est tue (SystemClock.elapsedRealtime, 0 tant qu'elle parle). Effacé 6 s après.
          */
         val parole: String = "",
@@ -275,7 +275,7 @@ object Etat {
     @Volatile
     var actionHistorique: (() -> Unit)? = null
 
-    /** Choix de l'endroit où guetter « assistant » ("appareil" ou "serveur"), posé par le service. */
+    /** Choix de l'endroit où guetter le mot de réveil ("appareil" ou "serveur"), posé par le service. */
     @Volatile
     var actionReveil: ((String) -> Unit)? = null
 
@@ -291,7 +291,7 @@ object Etat {
     @Volatile
     var actionTesterTexte: ((String) -> Unit)? = null
 
-    /** Choix du mot de réveil ("hey_jarvis" ou "assistant"), rechargé à chaud, posé par le service. */
+    /** Choix du mot de réveil (ReveilLocal.HEY_JARVIS ou ReveilLocal.PERSO), rechargé à chaud, posé par le service. */
     @Volatile
     var actionMotReveil: ((String) -> Unit)? = null
 
@@ -368,13 +368,13 @@ object Etat {
 
     /**
      * Météo marine du golfe de Marseille (0.25.0, page Mer) demandée au serveur (message `meteo_mer`, serveur 0.22.0) :
-     * au PC, sinon à l'appli assistant sur HA. La réponse du serveur, ou null, sur le fil principal. Posé par le service.
+     * au PC, sinon à l'appli de l'assistant sur HA. La réponse du serveur, ou null, sur le fil principal. Posé par le service.
      */
     @Volatile
     var actionMeteoMer: (((org.json.JSONObject?) -> Unit) -> Unit)? = null
 
     /**
-     * Vent mesuré dans le golfe (0.29.0, message `vent_mesure`, serveur 0.24.0) : au PC, sinon à l'appli assistant sur
+     * Vent mesuré dans le golfe (0.29.0, message `vent_mesure`, serveur 0.24.0) : au PC, sinon à l'appli de l'assistant sur
      * HA. La réponse du serveur, ou null, sur le fil principal. Posé par le service.
      */
     @Volatile

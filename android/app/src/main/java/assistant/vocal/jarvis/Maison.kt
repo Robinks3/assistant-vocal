@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Ce que l'écran ambiant de la tablette montre de la maison (0.16.0), lu dans Home Assistant par la
- * passerelle de l'appli assistant sur HA (aucun jeton HA dans l'APK) :
+ * passerelle de l'appli de l'assistant sur HA (aucun jeton HA dans l'APK) :
  * - toutes les 10 min, /api/states : noms lisibles (friendly_name) et météo (entité weather) ;
  * - toutes les 30 s, /api/template : lumières allumées et ce qui joue en ce moment ;
  * - après chaque commande, une carte par action, puis l'état relu dans HA (« confirmé » ou
@@ -148,7 +148,7 @@ class Maison(
 
     /** Prévisions de l'entité [voulue] (0.20.0, deuxième entité météo du panneau), sinon de l'entité de l'accueil. */
     fun previsions(voulue: String?, suite: (Previsions.Lecture) -> Unit) {
-        lancerOuRendre({ suite(Previsions.Lecture(erreur = "assistant arrêté")) }) {
+        lancerOuRendre({ suite(Previsions.Lecture(erreur = "${ConfigMaison.NOM_ASSISTANT} à l'arrêt")) }) {
             val m0 = Etat.courant.meteo
             val m = if (voulue != null && voulue != m0?.entite) Etat.Meteo("", "", "", voulue, 0L) else m0
             var lecture = Previsions.Lecture(erreur = "Aucune entité météo lue dans Home Assistant")
@@ -791,13 +791,17 @@ class Maison(
             return sortie
         }
 
-        /** Voie qui a répondu, d'après « compris par » et son détail (mêmes règles que la carte de réponse). */
-        fun voie(comprisPar: String, detail: String, reponse: String): String {
-            val t = "$comprisPar $detail".lowercase(Locale.FRANCE)
+        /** Voie qui a répondu, d'après « compris par » et son détail (mêmes règles que la carte de réponse). Le nom
+         *  de l'assistant, qui figure dans ces textes, est retiré avant les mots-clés : « Assistant » ou « Hal »
+         *  ne doivent pas passer pour Home Assistant (cherché, lui, dans le texte entier). */
+        fun voie(comprisPar: String, detail: String, reponse: String, nomAssistant: String = ConfigMaison.NOM_ASSISTANT): String {
+            val brut = "$comprisPar $detail".trim().lowercase(Locale.FRANCE)
+            val t = if (nomAssistant.isBlank()) brut else brut.replace(
+                Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(nomAssistant.trim()) + "(?![\\p{L}\\p{N}])", RegexOption.IGNORE_CASE), " ").trim()
             return when {
                 "sécurité" in t || reponse.startsWith("Je ne le fais pas") -> "securite"
                 "dictionnaire" in t -> "dictionnaire"
-                "home assistant" in t || t.startsWith("ha") || "assist" in t -> "ha"
+                "home assistant" in brut || t.startsWith("ha") || "assist" in t -> "ha"
                 "claude" in t || "haiku" in t -> "claude"
                 "llm" in t || "gemma" in t || "qwen" in t || "local" in t || "modèle" in t -> "llm"
                 else -> "jarvis"

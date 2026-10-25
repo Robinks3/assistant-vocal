@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- app_name vient de la section assistant de maison.json (resValue dans build.gradle.kts). -->
 <resources>
-    <string name="app_name">assistant</string>
 </resources>

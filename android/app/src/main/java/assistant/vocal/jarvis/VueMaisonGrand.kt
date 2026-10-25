@@ -345,7 +345,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
         if (c == null) return false
         if (injoignable) { dire("La maison ne répond plus : rien ne peut partir."); return false }
         val action = Etat.actionService
-        if (action == null) { dire("assistant est arrêté : commande non envoyée."); return false }
+        if (action == null) { dire("${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : commande non envoyée."); return false }
         Securite.verifier(c.verification(), personne = Etat.courant.quiParle())?.let { dire("Je ne le fais pas : $it"); return false }
         prevu?.let { attentes.poser(it, maintenant(), volume) }
         action(c.service, c.corps, c.verification())
@@ -397,7 +397,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
         if (MaisonEnGrand.horsLigne(a)) { dire("${MaisonEnGrand.nom(o, a)} est hors ligne."); return }
         if (injoignable) { dire("La maison ne répond plus : rien ne peut partir."); return }
         val action = Etat.actionMedia
-        if (action == null) { dire("assistant est arrêté : commande non envoyée."); return }
+        if (action == null) { dire("${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : commande non envoyée."); return }
         val t = maintenant()
         val lu = lus[a.id]?.volume ?: a.volume ?: 0.0
         val vise = visees.getOrPut(a.id) { VolumeVise(Attentes.DELAI_MS) }
@@ -762,7 +762,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
 
 /**
  * Rond d'une ligne de la maison en grand (56 px de maquette) : mat ambre avec un liseré clair en haut et sombre en bas
- * pour une lampe allumée, bleu d'un projet d'inspiration pour la télé allumée, cerclé de gris quand c'est éteint, en pointillé
+ * pour une lampe allumée, bleu de l'assistant pour la télé allumée, cerclé de gris quand c'est éteint, en pointillé
  * hors ligne. Le glyphe (ampoule ou télé) est au trait de 2 sur une grille de 24, à 26 px.
  */
 internal class RondBascule(ctx: Context, private val glyphe: Glyphe) : View(ctx) {

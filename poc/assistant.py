@@ -29,7 +29,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.25.2"
+VERSION = "0.26.0"
 DATE_VERSION = "2026-10-24"
 
 ICI = Path(__file__).resolve().parent
@@ -38,7 +38,7 @@ ICI = Path(__file__).resolve().parent
 DONNEES = Path(os.getenv("JARVIS_DONNEES", str(ICI)))
 JOURNAL = DONNEES / "journal" / "latences.csv"
 # Demande du 13/10/2026 : retenir chaque phrase que le dictionnaire n'a pas trouvée, et ses
-# notes « bien » ou « pas bien » sur ce que assistant a fait, pour améliorer le dictionnaire.
+# notes « bien » ou « pas bien » sur ce que l'assistant a fait, pour améliorer le dictionnaire.
 MANQUES = DONNEES / "journal" / "manques.jsonl"
 RETOURS = DONNEES / "journal" / "retours.jsonl"
 MUSIQUE = DONNEES / "journal" / "musique.jsonl"

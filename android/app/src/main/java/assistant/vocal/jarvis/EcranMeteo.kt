@@ -37,7 +37,7 @@ import kotlin.math.roundToInt
  * - la température du moment en grand (teinte météo), le ciel, minimum, maximum et ressenti, puis
  *   humidité, indice UV et coucher (ou lever) du soleil ;
  * - en haut à droite, la phrase de synthèse calculée ([MeteoTexte.synthese]), ou la réponse à la question posée
- *   à la voix (0.23.0, maquettes `MeteoQuestion*`) : ce que assistant a compris, puis la phrase qu'il dit ;
+ *   à la voix (0.23.0, maquettes `MeteoQuestion*`) : ce que l'assistant a compris, puis la phrase qu'il dit ;
  * - la frise horaire défilante ([FriseMeteo]) sur toute la durée fournie, la plage demandée surlignée en bande et
  *   la ligne du sujet mise en avant, et la ligne de détail de l'heure touchée ou de la plage ;
  * - les jours en sept colonnes ([JoursMeteo]) : toucher un jour fait défiler la frise sur ce jour ;
@@ -296,8 +296,8 @@ internal class EcranMeteo(private val ctx: Context, private val surFermer: () ->
         val t = ++tour
         val suite: (Previsions.Lecture) -> Unit = { l -> if (t == tour && ouvert) montrer(l) }
         val e = entite
-        if (e != null) Etat.actionPrevisionsDe?.invoke(e, suite) ?: suite(Previsions.Lecture(erreur = "assistant arrêté"))
-        else Etat.actionPrevisions?.invoke(suite) ?: suite(Previsions.Lecture(erreur = "assistant arrêté"))
+        if (e != null) Etat.actionPrevisionsDe?.invoke(e, suite) ?: suite(Previsions.Lecture(erreur = "${ConfigMaison.NOM_ASSISTANT} à l'arrêt"))
+        else Etat.actionPrevisions?.invoke(suite) ?: suite(Previsions.Lecture(erreur = "${ConfigMaison.NOM_ASSISTANT} à l'arrêt"))
     }
 
     /** Données de la mer (0.23.0), demandées au serveur à chaque ouverture : page Mer et aperçu. */

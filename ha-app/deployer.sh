@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Déploie l'appli « assistant » dans le Home Assistant de la maison, alias SSH reseau.ssh_ha de la configuration (dossier /local_apps/jarvis depuis que HA appelle les add-ons « apps », appli locale local_jarvis).
+# Déploie l'appli de l'assistant vocal dans le Home Assistant de la maison, alias SSH reseau.ssh_ha de la configuration (dossier /local_apps/jarvis depuis que HA appelle les add-ons « apps », appli locale local_jarvis).
 # Copie le code du POC, la configuration de la maison (maison.json et dictionnaire) et les phrases apprises du
 # PC comme graines. Aucun secret ici :
 # la clé et le jeton se règlent dans les options de l'appli (voir configurer-options.py).
@@ -23,6 +23,17 @@ for f in maison.json commandes.yaml; do
 done
 SSH_HA="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["reseau"]["ssh_ha"])' "$MAISON/maison.json")"
 cp -r "$ICI/jarvis/." "$ETAPE/"
+# Nom affiché de l'appli dans HA : section assistant de maison.json, sinon « Assistant ».
+python - "$MAISON/maison.json" "$ETAPE/config.yaml" <<'PY'
+import json, re, sys
+section = json.load(open(sys.argv[1], encoding="utf-8")).get("assistant")
+nom = section.get("nom") if isinstance(section, dict) else None
+nom = (nom.strip() if isinstance(nom, str) else "") or "Assistant"
+texte = open(sys.argv[2], encoding="utf-8").read()
+texte, n = re.subn(r"(?m)^name:.*$", lambda _: "name: " + json.dumps(nom, ensure_ascii=False), texte, count=1)
+assert n == 1, "ligne name: absente de config.yaml"
+open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(texte)
+PY
 cp "$POC/assistant.py" "$POC/dictionnaire.py" "$POC/serveur_satellite.py" "$POC/securite.py" "$POC/acces.py" "$POC/vad.py" "$POC/vision.py" "$POC/sante.py" "$POC/sante_hist.py" "$POC/meteo_mer.py" "$POC/vent_mesure.py" "$POC/maison.py" "$ETAPE/app/"
 mkdir -p "$ETAPE/app/config" && cp "$MAISON/maison.json" "$MAISON/commandes.yaml" "$ETAPE/app/config/"
 mkdir -p "$ETAPE/app/modeles" && cp "$POC/modeles/silero_vad.onnx" "$ETAPE/app/modeles/"

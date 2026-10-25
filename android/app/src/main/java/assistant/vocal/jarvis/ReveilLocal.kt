@@ -158,8 +158,9 @@ class ReveilLocal(
     companion object {
         const val HEY_JARVIS = "hey_jarvis"
         /** Mot de réveil de la configuration (section reveil de maison.json, modèle reveil/<mot>.onnx rangé dans les
-         *  assets par build.gradle.kts). La valeur « assistant » est gardée pour les réglages enregistrés depuis la 0.17.0. */
-        const val PERSO = "assistant"
+         *  assets par build.gradle.kts). Une valeur enregistrée
+         *  par une version précédente, autre que HEY_JARVIS, est lue comme PERSO (SatelliteService.motReveilChoisi). */
+        const val PERSO = "perso"
         const val BLOC = 1280
 
         private val REVEIL = ConfigMaison.section("reveil")

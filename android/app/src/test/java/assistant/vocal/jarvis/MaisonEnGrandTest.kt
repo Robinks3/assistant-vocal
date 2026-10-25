@@ -10,7 +10,7 @@ import org.junit.Test
 /** La maison en grand (0.27.0) : contenu des pièces, étiquettes, pastilles, attentes, cadence d'envoi. */
 class MaisonEnGrandTest {
 
-    /** Ce que rend assistant.contenu() pour la page 0.8.0 (pièces de l'appartement d'origine). */
+    /** Ce que rend maison3d.contenu() pour la page 0.8.0 (pièces de l'appartement d'origine). */
     private val contenu = """
         [{"id":"sejour_cuisine","nom":"Séjour et cuisine","lampes":[{"entite":"light.cuisine","nom":""},{"entite":"light.exemple6","nom":"Salon"},{"entite":"light.exemple7","nom":"Lampe TV"}],
           "medias":[{"entite":"media_player.exemple20","nom":"Télévision","type":"tele","alias":[]},{"entite":"media_player.salon","nom":"Barre de son du salon","type":"enceinte","alias":["media_player.exemple21"]},{"entite":"media_player.chambre","nom":"Enceinte de la cuisine","type":"enceinte","alias":[]}]},

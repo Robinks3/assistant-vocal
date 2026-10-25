@@ -7,7 +7,7 @@ sinon config/ à la racine du dépôt, voir poc/maison.py). Sorties :
   avec `extras.haEntity`. Repère glTF : y vers le haut, x et -z = x et y du plan.
 - genere/android/maison3d/vue3d.html de la configuration : page autonome (three.js inclus, aucune
   connexion requise) qui affiche la scène et anime les lampes, rangée dans les assets de l'APK par
-  build.gradle.kts. Voir README.md pour l'interface `window.assistant`.
+  build.gradle.kts. Voir README.md pour l'interface `window.maison3d`.
 Le modèle de page (vue3d_modele.html) et three.js restent ici, dans le moteur.
 
 Usage : python carte/3d/generer_3d.py
@@ -225,7 +225,7 @@ def ecrire_glb(objets, chemin, version):
         noeuds.append(noeud)
     while len(binaire) % 4:
         binaire.append(0)
-    gltf = {"asset": {"version": "2.0", "generator": f"assistant generer_3d.py {version}"},
+    gltf = {"asset": {"version": "2.0", "generator": f"assistant-vocal generer_3d.py {version}"},
             "scene": 0, "scenes": [{"name": "appartement", "nodes": list(range(len(noeuds)))}],
             "nodes": noeuds, "meshes": maillages, "materials": materiaux, "accessors": accesseurs,
             "bufferViews": vues, "buffers": [{"byteLength": len(binaire)}]}

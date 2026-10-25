@@ -42,7 +42,7 @@ class AccueilTest {
         assertEquals("", panne(vision = "attente"))
         // Ordre : le serveur d'abord, puis Home Assistant, puis la caméra.
         assertEquals("Serveur injoignable", panne(connecte = false, passerelle = false, vision = "erreur"))
-        // assistant arrêté : l'arrêt se lit à gauche (Démarrer), pas en panne.
+        // Assistant à l'arrêt : l'arrêt se lit à gauche (Démarrer), pas en panne.
         assertEquals("", panne(enMarche = false, connecte = false))
         // La clé refusée passe avant tout.
         assertEquals("Clé du serveur refusée, voir l'écran Appareils", panne(cle = "La clé a changé", connecte = false))

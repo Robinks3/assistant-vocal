@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
  */
 internal object Disposition {
 
-    /** Zone du plan en fractions de la fenêtre (assistant.disposition), centre et diamètre de l'orbe en pixels de maquette. */
+    /** Zone du plan en fractions de la fenêtre (maison3d.disposition), centre et diamètre de l'orbe en pixels de maquette. */
     data class Zone(val x: Float, val y: Float, val largeur: Float, val hauteur: Float) {
         val centreX: Float get() = (x + largeur / 2f) * CadreMaquette.LARGEUR
         val centreY: Float get() = (y + hauteur / 2f) * CadreMaquette.HAUTEUR

@@ -6,7 +6,7 @@ import kotlin.math.max
 import kotlin.math.sin
 
 /**
- * Respiration de la lumière d'un projet d'inspiration sur l'accueil de la tablette (0.18.0), logique pure testée sur la
+ * Respiration de la lumière de l'assistant sur l'accueil de la tablette (0.18.0), logique pure testée sur la
  * machine (SouffleTest). Elle reprend le rythme des particules de la 0.17.2 en plus sobre, sur le seul
  * point bleu : pendant la réponse, une impulsion à chaque mot qui s'ajoute à la réponse écrite (rythme de
  * la voix), et un rythme de syllabes quand aucun mot n'arrive depuis [SILENCE_S] (mode serveur, texte d'un

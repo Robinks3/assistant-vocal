@@ -16,18 +16,18 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Passerelle Home Assistant du mode « Cet appareil » (0.15.0, serveur 0.17.0).
  *
- * L'APK n'embarque plus de jeton Home Assistant : toutes les requêtes passent par l'appli assistant
+ * L'APK n'embarque plus de jeton Home Assistant : toutes les requêtes passent par l'appli de l'assistant
  * sur HA, qui a son propre jeton, ne permet que quelques chemins et refait la vérification de
  * sécurité. Une seule connexion WebSocket reste ouverte vers ce serveur. Chaque requête porte un
  * identifiant croissant et attend sa réponse {"etat":"ha","id"} avec un délai, ce qui permet de
  * l'appeler de façon bloquante depuis le fil de travail du moteur local.
  *
- * Les messages llm, manque et retour vers l'appli assistant sur HA passent aussi par cette connexion.
+ * Les messages llm, manque et retour vers l'appli de l'assistant sur HA passent aussi par cette connexion.
  * Les annonces du serveur (demande d'appairage) sont remises à [annonce].
  */
 class PasserelleHa(
     private val contexte: Context,
-    /** Adresse du serveur assistant sur HA (wss://hôte:8766 en principe). */
+    /** Adresse du serveur de l'assistant sur HA (wss://hôte:8766 en principe). */
     private val url: String,
     private val annonce: (JSONObject) -> Unit = {},
     /** Appelé quand la passerelle devient disponible ou ne l'est plus. */
@@ -111,15 +111,15 @@ class PasserelleHa(
     /** Vrai si le dernier serveur joint a envoyé ses capacités (même sans passerelle). */
     @Volatile private var capacitesRecues = false
 
-    /** Capacité `meteo_mer` de l'appli assistant sur HA (0.25.0, serveur 0.22.0) : page Mer sans le PC. */
+    /** Capacité `meteo_mer` de l'appli de l'assistant sur HA (0.25.0, serveur 0.22.0) : page Mer sans le PC. */
     @Volatile var meteoMerDispo = false
         private set
 
-    /** Capacité `vent_mesure` de l'appli assistant sur HA (0.29.0, serveur 0.24.0) : vent mesuré sans le PC. */
+    /** Capacité `vent_mesure` de l'appli de l'assistant sur HA (0.29.0, serveur 0.24.0) : vent mesuré sans le PC. */
     @Volatile var ventMesureDispo = false
         private set
 
-    /** Moteurs de transcription annoncés par l'appli assistant sur HA (0.17.0), null tant que rien n'est reçu. */
+    /** Moteurs de transcription annoncés par l'appli de l'assistant sur HA (0.17.0), null tant que rien n'est reçu. */
     @Volatile var transcriptions: List<String>? = null
         private set
 
@@ -240,7 +240,7 @@ class PasserelleHa(
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
             if (webSocket !== ws) return
-            etat = if (repli) "connectée en clair ($adresse), appli assistant sur HA à mettre à jour pour le port chiffré"
+            etat = if (repli) "connectée en clair ($adresse), appli ${ConfigMaison.NOM_ASSISTANT} sur HA à mettre à jour pour le port chiffré"
             else "connectée, en attente des capacités"
         }
 
@@ -272,11 +272,11 @@ class PasserelleHa(
                         (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }
                     }
                     etat = if (disponible) {
-                        "prête (appli assistant sur HA v${j.optString("version")}" + (if (repli) ", en clair)" else ", chiffrée)")
+                        "prête (appli ${ConfigMaison.NOM_ASSISTANT} sur HA v${j.optString("version")}" + (if (repli) ", en clair)" else ", chiffrée)")
                     } else if (j.has("passerelle_ha")) {
-                        "l'appli assistant sur HA n'a pas de jeton Home Assistant configuré"
+                        "l'appli ${ConfigMaison.NOM_ASSISTANT} sur HA n'a pas de jeton Home Assistant configuré"
                     } else {
-                        "appli assistant sur HA trop ancienne (v${j.optString("version")}, 0.17.0 requise)"
+                        "appli ${ConfigMaison.NOM_ASSISTANT} sur HA trop ancienne (v${j.optString("version")}, 0.17.0 requise)"
                     }
                     capacitesRecues = true
                     pret.complete(true)
@@ -297,7 +297,7 @@ class PasserelleHa(
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            val raison = if (code == 4001) "jeton refusé par l'appli assistant sur HA : appaire cet appareil (écran Appareils)"
+            val raison = if (code == 4001) "jeton refusé par l'appli ${ConfigMaison.NOM_ASSISTANT} sur HA : appaire cet appareil (écran Appareils)"
             else "connexion fermée ($code)"
             perdu(webSocket, raison)
         }

@@ -242,7 +242,7 @@ internal class EcranMusique(
         val action = Etat.actionService
         if (action == null) {
             l.caseACocher.isChecked = !oui
-            montrer("assistant est arrêté : commande non envoyée")
+            montrer("${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : commande non envoyée")
             return
         }
         l.caseVoulue = oui

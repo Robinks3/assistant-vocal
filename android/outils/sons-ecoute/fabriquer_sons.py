@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Fabrique les sons de début et de fin d'écoute d'un projet d'inspiration (série 2).
+"""Fabrique les sons de début et de fin d'écoute de l'assistant (série 2).
 
 Tout est synthétisé ici, aucun son tiers n'est chargé. Sortie mono 48 kHz 16 bits.
 Quatre paires : bronze (bol de bronze tenu à la main), corde (corde pincée sur
@@ -176,7 +176,7 @@ def finir(x, wet_db, rt60, graine, fondu=0.045):
 
 # Modes d'un bol : les quatre modes d'anneau (1, 2,83, 5,41, 8,7) et trois modes
 # secondaires plus faibles (flexion de la paroi), qui donnent la matière.
-RAPPORTS_BOL = [1.000, 5.828, 5.405, 8.700, 1.531, 5.054, 5.912]
+RAPPORTS_BOL = [1.000, 2.828, 5.405, 8.700, 1.531, 2.054, 3.912]
 GAINS_BOL = [1.0, 1.00, 0.40, 0.18, 0.13, 0.10, 0.08]
 TAUS_BOL = [0.70, 0.30, 0.08, 0.035, 0.12, 0.10, 0.04]
 TAUS_E_BOL = [0.060, 0.045, 0.030, 0.020, 0.040, 0.035, 0.020]
@@ -259,7 +259,7 @@ def cran(n, t0, k, amp, f_reflet, graine, t_amorti=0.14):
         (1460 * k, 0.30, 0.010, None), (2180 * k, 0.12, 0.006, None),
     ]
     reflet = [(f_reflet, 0.34, 0.16, 0.030), (f_reflet + 2.2, 0.22, 0.13, 0.030),
-              (f_reflet * 5.32, 0.05, 0.03, 0.015)]
+              (f_reflet * 2.32, 0.05, 0.03, 0.015)]
     # le reflet part 0,6 ms après le choc : l'onde met ce temps à atteindre la pièce qui sonne
     y = modes(n, specs, t0=t0, t_etouffe=t0 + t_amorti, rampe=0.04) + modes(n, reflet, t0=t0 + 0.0006, t_etouffe=t0 + t_amorti, rampe=0.04)
     y = frapper(y, 2800)
@@ -331,7 +331,7 @@ PAIRES = [
 # ---------------------------------------------------------------- mesures
 
 K_SOS = np.array([
-    [1.53512485958697, 5.69169618940638, 1.19839281085285, 1.0, -1.69065929318241, 0.73248077421585],
+    [1.53512485958697, -2.69169618940638, 1.19839281085285, 1.0, -1.69065929318241, 0.73248077421585],
     [1.0, -2.0, 1.0, 1.0, -1.99004745483398, 0.99007225036621],
 ])
 
@@ -535,7 +535,7 @@ def ecrire_wav(chemin, x, titre):
         return s.encode("utf-8") + b"\x00"
 
     info = (b"INFO" + bloc(b"INAM", texte(titre))
-            + bloc(b"ICMT", texte(f"assistant, sons d'écoute v{VERSION} du {DATE}, synthèse maison"))
+            + bloc(b"ICMT", texte(f"Sons d'écoute v{VERSION} du {DATE}, synthèse maison"))
             + bloc(b"ISFT", texte(f"fabriquer_sons.py {VERSION}")))
     fmt = struct.pack("<HHIIHH", 1, 1, SR, SR * 2, 2, 16)
     corps = b"WAVE" + bloc(b"fmt ", fmt) + bloc(b"data", pcm) + bloc(b"LIST", info)

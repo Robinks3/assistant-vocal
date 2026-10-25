@@ -540,7 +540,7 @@ adb install -r C:\Dev\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debu
 
 ### Premier lancement et permissions
 
-Ouvrez l'appli (nom affiché : assistant), à la main ou par adb :
+Ouvrez l'appli (nom affiché : celui de la section `assistant` de la configuration), à la main ou par adb :
 
 ```powershell
 adb shell am start -n assistant.vocal.jarvis/.MainActivity
@@ -709,7 +709,7 @@ essais :
 
 ## 9. Appli Home Assistant
 
-L'appli Home Assistant (dossier `ha-app/`, nom affiché assistant, identifiant `local_jarvis`) est le même
+L'appli Home Assistant (dossier `ha-app/`, nom affiché pris dans la section `assistant` de la configuration, identifiant `local_jarvis`) est le même
 serveur, sans modèle local lourd : elle transcrit par Speech-to-Phrase, parle par Piper et guette le mot
 de réveil par openWakeWord, trois applis Wyoming de Home Assistant, et répond par Claude. Elle sert de
 passerelle Home Assistant au mode Cet appareil. Elle ne sait faire ni la vision ni la santé.
@@ -757,7 +757,7 @@ Les libellés exacts dépendent de la version de Home Assistant :
 
 1. Paramètres, Applis (anciennement Modules complémentaires), Boutique.
 2. Menu en haut à droite, Rechercher des mises à jour, pour faire apparaître les applis locales.
-3. Ouvrez assistant dans la section des applis locales, puis Installer. L'image est construite sur place
+3. Ouvrez l'appli (nom de la section `assistant`) dans la section des applis locales, puis Installer. L'image est construite sur place
    (`python:5.12-slim`), ce qui prend quelques minutes.
 4. Dans l'onglet de configuration, réglez les options, puis Démarrer.
 
@@ -782,8 +782,10 @@ L'appli n'a pas besoin de jeton Home Assistant : elle utilise celui du supervise
 Au démarrage, le journal de l'appli doit montrer :
 
 ```text
-assistant : clé Anthropic présente, jeton satellites présent, transcription en ligne non configurée
+Iris : clé Anthropic présente, jeton satellites présent, transcription en ligne non configurée
 ```
+
+La ligne commence par le nom de la section `assistant` (ici celui de la configuration d'exemple).
 
 puis les mêmes lignes que le serveur du PC, avec `profil ha : Speech-to-Phrase, Piper et openWakeWord des
 applis de Home Assistant`. L'appli publie les ports 8765 et 8766 de la machine Home Assistant.
@@ -791,7 +793,7 @@ applis de Home Assistant`. L'appli publie les ports 8765 et 8766 de la machine H
 ### Transférer le dictionnaire à Home Assistant
 
 `ha-app/configurer-ha.py` ajoute les alias de `ha.alias`, expose à Assist les entités de `ha.exposer`,
-et crée l'automatisation « assistant : dictionnaire » avec un déclencheur vocal par commande, pour que
+et crée l'automatisation « <nom de l'assistant> : dictionnaire » avec un déclencheur vocal par commande, pour que
 Speech-to-Phrase apprenne vos phrases. Il utilise `HA_URL` et `HA_TOKEN` de `poc/.env`. Aperçu sans
 rien envoyer (écrit dans `genere/ha/` de la configuration) :
 

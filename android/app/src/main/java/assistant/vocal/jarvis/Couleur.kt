@@ -41,7 +41,7 @@ internal object Couleur {
     val NUIT_HAUT: Int get() = Palette.bleuNuitHaut
     val NUIT: Int get() = Palette.bleuNuit
     val NUIT_BAS: Int get() = Palette.bleuNuitBas
-    /** Bleu assistant, du clair au soutenu. */
+    /** Bleu de l'assistant, du clair au soutenu. */
     val BLEU_CLAIR: Int get() = Palette.accentAssistant
     val BLEU: Int get() = Palette.accentReglages
     /** Trait discret (rail du déroulé, séparateurs). */

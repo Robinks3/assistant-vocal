@@ -148,7 +148,7 @@ class VisagesActivity : Activity(), LifecycleOwner {
         }
         colonne.addView(texte(30f, gras = true).apply { text = "Visages" })
         colonne.addView(texte(15f, Couleur.TEXTE_2).apply {
-            text = "assistant reconnaît les personnes enregistrées ici. Seule une empreinte de 128 nombres est gardée, " +
+            text = "${ConfigMaison.NOM_ASSISTANT} reconnaît les personnes enregistrées ici. Seule une empreinte de 128 nombres est gardée, " +
                 "dans un fichier privé de cette tablette, jamais une image. N'enregistre quelqu'un qu'avec son accord."
         }, marge(haut = 6, bas = 18))
 
@@ -242,7 +242,7 @@ class VisagesActivity : Activity(), LifecycleOwner {
     private fun supprimer(p: Profil) {
         AlertDialog.Builder(this)
             .setTitle("Supprimer ${p.nom}")
-            .setMessage("L'empreinte de ${p.nom} sera effacée de cette tablette. assistant ne le reconnaîtra plus.")
+            .setMessage("L'empreinte de ${p.nom} sera effacée de cette tablette. ${ConfigMaison.NOM_ASSISTANT} ne le reconnaîtra plus.")
             .setPositiveButton("Supprimer") { _, _ ->
                 ProfilsVisages.supprimer(this, p.id)
                 Etat.actionVisionRecharger?.invoke()

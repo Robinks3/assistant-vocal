@@ -25,6 +25,14 @@ object ConfigMaison {
     val NOM_PROPRIETAIRE: String = section("proprietaire").optString("nom").trim().ifEmpty { "Moi" }
     val CLE_PROPRIETAIRE: String = section("proprietaire").optString("cle").ifEmpty { NOM_PROPRIETAIRE }.trim().lowercase()
 
+    /** Nom affiché de l'assistant (section assistant), « Assistant » sans elle. */
+    val NOM_ASSISTANT: String = nomAssistant(json)
+
+    /** Règle du nom de l'assistant : chaîne non vide de assistant.nom, sinon « Assistant » (section absente,
+     *  vide ou mal formée). Même règle que poc/maison.py et build.gradle.kts. */
+    fun nomAssistant(racine: JSONObject): String =
+        ((racine.opt("assistant") as? JSONObject)?.opt("nom") as? String)?.trim()?.ifEmpty { null } ?: "Assistant"
+
     /** Section [cle] de maison.json, vide si absente. */
     fun section(cle: String): JSONObject = json.optJSONObject(cle) ?: JSONObject()
 

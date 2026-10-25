@@ -102,7 +102,7 @@ class Vision(
     private fun lier() {
         if (ferme || suspendue || mode == "off") return
         if (contexte.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            publier("Caméra non autorisée : ouvre assistant et accepte la caméra", "erreur")
+            publier("Caméra non autorisée : ouvre ${ConfigMaison.NOM_ASSISTANT} et accepte la caméra", "erreur")
             return
         }
         liaisonLe = SystemClock.elapsedRealtime()

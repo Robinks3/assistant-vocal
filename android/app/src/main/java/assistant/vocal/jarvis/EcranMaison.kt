@@ -156,7 +156,7 @@ internal class EcranMaison(private val ctx: Context, private val fermer: () -> U
         maj3d(montres)
         val allumees = Appareils.lumieresAllumees(e.appareils.map { prevu(it) }, personne)
         resume.text = when {
-            e.appareils.isEmpty() && !e.enMarche -> "assistant est arrêté : appareils indisponibles"
+            e.appareils.isEmpty() && !e.enMarche -> "${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : appareils indisponibles"
             e.appareils.isEmpty() -> "Lecture des appareils dans Home Assistant..."
             else -> Appareils.resume(allumees)
         }
@@ -364,7 +364,7 @@ internal class EcranMaison(private val ctx: Context, private val fermer: () -> U
         if (c == null) return
         val action = Etat.actionService
         if (action == null) {
-            montrer("assistant est arrêté : commande non envoyée")
+            montrer("${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : commande non envoyée")
             return
         }
         // Réponse immédiate si la sécurité refuse (elle revérifie avant l'envoi, dans Maison.commande).
@@ -485,7 +485,7 @@ internal class EcranMaison(private val ctx: Context, private val fermer: () -> U
             .setTitle("Tout éteindre (pièces communes)")
             .setMessage("Éteindre " + (if (noms.size == 1) "1 lumière" else "${noms.size} lumières") + " : " + noms.joinToString(", ") + " ?")
             .setPositiveButton("Éteindre") { _, _ ->
-                val action = Etat.actionService ?: return@setPositiveButton montrer("assistant est arrêté : commande non envoyée")
+                val action = Etat.actionService ?: return@setPositiveButton montrer("${ConfigMaison.NOM_ASSISTANT} est à l'arrêt : commande non envoyée")
                 Securite.verifier(c.verification(), personne = Etat.courant.quiParle())?.let {
                     montrer("Je ne le fais pas : $it")
                     return@setPositiveButton

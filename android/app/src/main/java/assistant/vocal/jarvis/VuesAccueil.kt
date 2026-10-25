@@ -181,8 +181,8 @@ internal class CadreMaquette(ctx: Context) : ViewGroup(ctx) {
  * Chaque chiffre est centré dans une cellule de largeur fixe (la police n'a pas de chiffres tabulaires) :
  * les deux points ne sautent pas quand l'heure change.
  *
- * Les deux points sont le seul signe d'un projet d'inspiration : au repos de la teinte de l'heure, sans halo. À l'écoute
- * de la couleur d'un projet d'inspiration, 14 px de maquette qui pulsent avec la voix (jusqu'à 17 px au plus fort du
+ * Les deux points sont le seul signe de l'assistant : au repos de la teinte de l'heure, sans halo. À l'écoute
+ * de la couleur de l'assistant, 14 px de maquette qui pulsent avec la voix (jusqu'à 17 px au plus fort du
  * micro, revue des palettes du 22/10). En réflexion, ils clignotent lentement.
  * Pendant la réponse bleus, ils respirent au fil de la voix (Souffle), et redeviennent gris à la fin.
  */

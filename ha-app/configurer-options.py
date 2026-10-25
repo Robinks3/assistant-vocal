@@ -1,4 +1,4 @@
-"""Envoie les options de l'appli assistant de HA (clé Anthropic, jeton des satellites) depuis poc/.env.
+"""Envoie les options de l'appli de l'assistant dans HA (clé Anthropic, jeton des satellites) depuis poc/.env.
 
 Les secrets passent par l'entrée standard d'une session SSH vers l'API du superviseur : ils ne
 s'affichent jamais et n'apparaissent dans aucune ligne de commande. Usage : python ha-app/configurer-options.py [--essai] [--sans-ancien-acces]"""

@@ -81,7 +81,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
                 return true
             }
         }
-        web.addJavascriptInterface(PontJs(), "assistantAndroid")
+        web.addJavascriptInterface(PontJs(), "Maison3dAndroid")
         addView(web, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         // Résolution de la page réglable une fois au chargement (?pr=1.25), 1,5 par défaut.
         web.loadUrl(if (resolution > 0f) "$PAGE?pr=${String.format(java.util.Locale.ROOT, "%.2f", resolution)}" else PAGE)
@@ -145,7 +145,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
         }
     }
 
-    /** Objets réglables de chaque pièce (texte JSON d'un projet d'inspiration.contenu), null si la page ne le connaît pas. */
+    /** Objets réglables de chaque pièce (texte JSON de maison3d.contenu), null si la page ne le connaît pas. */
     fun contenu(suite: (String?) -> Unit) {
         if (liberee || !pont.prete) { suite(null); return }
         web.evaluateJavascript(Maison3dPont.SCRIPT_CONTENU) { r ->
@@ -163,7 +163,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
     /** Vol de caméra vers des lumières, des groupes ou des pièces (`chambre_sacha`). */
     fun montrer(entites: List<String>) = appeler(Maison3dPont.scriptMontrer(entites))
 
-    /** Action d'un projet d'inspiration (0.17.5) : `{entité: {effet, state, attributes}}`, chorégraphie jouée par la page. */
+    /** Action de l'assistant (0.17.5) : `{entité: {effet, state, attributes}}`, chorégraphie jouée par la page. */
     fun action(effets: JSONObject) = appeler(Maison3dPont.scriptAction(effets))
 
     /** États posés sans animation (0.17.5), `{entité: état HA}`. */
@@ -189,7 +189,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
         appeler(Maison3dPont.scriptPoussieres(true))
     }
 
-    /** Scène atténuée pendant l'écoute d'un projet d'inspiration. */
+    /** Scène atténuée pendant l'écoute de l'assistant. */
     fun attenuer(opacite: Float, dureeMs: Int) = appeler(Maison3dPont.scriptAttenuer(opacite, dureeMs))
 
     /** Retour animé à la vue large et reprise de la rotation, après une action. */
@@ -198,7 +198,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
     /**
      * Page masquée (AOD, écran noir, panneau ouvert, activité cachée) : plus aucune image, la rotation
      * reprend où elle en était au retour. La page garde sa dernière image, la vue doit donc être cachée.
-     * Depuis la 0.18.1, la page coupe aussi son requestAnimationFrame (assistant.pause), WebView.onPause
+     * Depuis la 0.18.1, la page coupe aussi son requestAnimationFrame (maison3d.pause), WebView.onPause
      * ne mettant pas le JavaScript en pause.
      */
     fun suspendre(oui: Boolean) {
@@ -226,7 +226,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
         surPerdue = null
         pont.reinitialiser()
         principal.removeCallbacksAndMessages(null)
-        web.removeJavascriptInterface("assistantAndroid")
+        web.removeJavascriptInterface("Maison3dAndroid")
         web.stopLoading()
         removeView(web)
         web.destroy()

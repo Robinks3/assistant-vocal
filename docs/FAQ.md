@@ -464,7 +464,7 @@ les applis locales ailleurs, adaptez le chemin dans `ha-app/deployer.sh`. L'appl
 ### Le journal de l'appli dit ABSENT
 
 ```text
-assistant : clé Anthropic ABSENTE, jeton satellites ABSENT, transcription en ligne non configurée
+Iris : clé Anthropic ABSENTE, jeton satellites ABSENT, transcription en ligne non configurée
 ```
 
 Réglez les options `anthropic_api_key` et `satellite_jeton` (au moins 16 caractères) dans l'onglet de

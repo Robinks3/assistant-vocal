@@ -110,6 +110,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `appareils` | `poc/assistant.py`, `SortieSon.kt`, `Appareils.kt`, `MaisonEnGrand.kt`, outils de banc | Musique refusée proprement, écran Musique sans enceinte. |
 | `llm` | `poc/assistant.py`, `CerveauAppareil.kt` | Consignes génériques. |
 | `ha` | `ha-app/configurer-ha.py` | Aucun alias ajouté, rien d'exposé en plus. |
+| `assistant` | `poc/maison.py`, `ha-app/deployer.sh`, `ha-app/configurer-ha.py`, `ha-app/jarvis/app/demarrage.py`, `ConfigMaison.kt`, `build.gradle.kts` | Assistant nommé `Assistant`. |
 | `proprietaire` | `poc/maison.py`, `poc/dictionnaire.py`, `poc/sante.py`, `poc/serveur_satellite.py`, `ConfigMaison.kt`, `DictionnaireLocal.kt`, `Sante.kt`, `build.gradle.kts` | Propriétaire nommé `Moi`, avertissement au démarrage et à la compilation. |
 | `mer` | `poc/meteo_mer.py`, `MeteoMer.kt`, `MeteoQuestion.kt`, `EcranMeteo.kt` | Météo marine éteinte. |
 | `vent` | `poc/vent_mesure.py`, `MeteoVent.kt`, `EcranVent.kt`, `build.gradle.kts` | Vent mesuré éteint. Dans l'appli, la page Mer disparaît aussi. |
@@ -267,10 +268,28 @@ Lu seulement par `python ha-app/configurer-ha.py`, qui pousse le dictionnaire da
 }
 ```
 
-Le même script crée l'automatisation "assistant : dictionnaire" (id `jarvis_dictionnaire`) avec un
+Le même script crée l'automatisation "<nom de l'assistant> : dictionnaire" (id `jarvis_dictionnaire`) avec un
 déclencheur vocal par commande de `commandes.yaml` et par phrase apprise. Les commandes à deux emplacements
 ne sont pas transférées, celles que la sécurité refuse à 14 h non plus (aujourd'hui : celles qui visent un
 `device_id` ou utilisent `media_player.volume_up`). `--essai` écrit seulement l'aperçu dans `genere/ha/`.
+
+### `assistant`
+
+Le nom de l'assistant, tel qu'il s'affiche : nom de l'appli Android sur l'écran d'accueil et dans ses
+messages, nom de l'appli Home Assistant et de son automatisation de dictionnaire, première ligne du
+journal de l'appli HA.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `nom` | texte | Nom affiché. Par défaut : `Assistant`. |
+
+```json
+"assistant": {"nom": "Iris"}
+```
+
+Le nom affiché ne change pas le mot qui réveille l'assistant, réglé à part dans la section `reveil`. Les
+deux peuvent différer. Après un changement : nouvel APK pour l'appli Android, nouveau déploiement
+(`ha-app/deployer.sh`) pour l'appli HA, et `ha-app/configurer-ha.py` pour renommer l'automatisation.
 
 ### `proprietaire`
 

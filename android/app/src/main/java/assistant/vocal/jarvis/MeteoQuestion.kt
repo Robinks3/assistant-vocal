@@ -15,7 +15,7 @@ import kotlin.math.sin
 /**
  * Question de météo posée à la voix (0.23.0, maquettes `MeteoQuestion*` et `MeteoMerQuestion` relues le 22/10) :
  * comprise sans LLM, puis la réponse calculée sur les prévisions lues, écrite dans le panneau Météo et dite par
- * assistant. Logique pure, testée sur la machine (MeteoQuestionTest). Note : `docs/maquettes/reflexion-meteo-question-mer.md`.
+ * l'assistant. Logique pure, testée sur la machine (MeteoQuestionTest). Note : `docs/maquettes/reflexion-meteo-question-mer.md`.
  *
  * Rien n'est inventé : une valeur absente des prévisions n'est ni écrite ni dite. La phrase écrite est la phrase
  * dite, moins le rappel de la question que porte l'en-tête du bloc, et avec les unités abrégées.
@@ -45,7 +45,7 @@ object MeteoQuestion {
     )
 
     /**
-     * Ce que montre le panneau et ce que dit assistant. [lignes] : la réponse écrite, la dernière en texte secondaire
+     * Ce que montre le panneau et ce que dit l'assistant. [lignes] : la réponse écrite, la dernière en texte secondaire
      * quand il y en a plusieurs. Bande en instants (fin exclue), [choisi] : l'heure à choisir dans la frise.
      * [detail] : début en texte principal, reste en texte secondaire, la ligne sous la frise.
      */

@@ -19,7 +19,7 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * Écran ambiant de la tablette posée en paysage, pour voir de loin ce que fait assistant.
+ * Écran ambiant de la tablette posée en paysage, pour voir de loin ce que fait l'assistant.
  *
  * 0.16.0 à 0.17.6 : bulles organiques autour d'un orbe, particules, aperçu 3D après une action. Le propriétaire le
  * trouvait « trop made by AI ».
@@ -39,7 +39,7 @@ import kotlin.math.max
  *   Jamais deux changements de disposition à la fois, rien ne bouge sous un doigt posé.
  * - Le volume se règle depuis l'accueil (CarteEnCours), jamais au-delà de 50 %. Après l'arrêt de la musique,
  *   30 s sans rien changer, puis le bloc reste en pause, atténué, 10 min (SuiviMusique).
- * - L'orbe revient quand on parle à assistant, au centre de la zone du plan atténué à 0,28, avec ses
+ * - L'orbe revient quand on parle à l'assistant, au centre de la zone du plan atténué à 0,28, avec ses
  *   particules (choix du propriétaire), plus doux le soir. « Je t'écoute » et les points de l'heure prennent sa teinte.
  * - Deux régimes (Veille.eclat) : vivant (visage, toucher, voix), couleurs pleines et fond de la page en bleu
  *   de nuit, puis en retrait 30 s après, couleurs à 40 %, noir pur, commandes éteintes.
@@ -48,7 +48,7 @@ import kotlin.math.max
  * plan au repos, en vivant plein, l'agrandit à tout l'écran (VueMaisonGrand). Chaque pièce qui a quelque chose à
  * régler porte son nom au sol, une pièce touchée est cadrée à gauche sous un voile et son panneau s'ouvre à droite,
  * des pastilles sur ses objets. Retour par Fermer, le vide (de la pièce à la maison, puis à l'accueil), 45 s sans
- * toucher, et d'office en retrait, en AOD, écran éteint, panneau ouvert ou dès que assistant écoute. Ni santé, ni
+ * toucher, et d'office en retrait, en AOD, écran éteint, panneau ouvert ou dès que l'assistant écoute. Ni santé, ni
  * musique, ni colonne pendant ce temps.
  * Couleurs : Palette.
  */
@@ -79,10 +79,10 @@ internal class EcranAmbiant(private val ctx: Context) {
      * la nuit (0,15) dans une pièce sombre plutôt que de minuit à 7 h.
      */
     var sombre: () -> Boolean? = { null }
-    /** Le micro est autorisé (sinon, assistant arrêté dit de l'autoriser). */
+    /** Le micro est autorisé (sinon, l'assistant à l'arrêt dit de l'autoriser). */
     var microAutorise = true
     /** Mot de réveil affiché dans la consigne de la couche de service. */
-    var motReveil = "assistant"
+    var motReveil = ReveilLocal.nom(ReveilLocal.PERSO)
     /** Dernier toucher sur l'écran (SystemClock.elapsedRealtime) : la musique s'éteint 30 s après. */
     var dernierToucherLe = 0L
 
@@ -118,7 +118,7 @@ internal class EcranAmbiant(private val ctx: Context) {
     private val heure = VueHeure(ctx)
     private val zoneHeure = View(ctx).apply {
         isClickable = true
-        contentDescription = "Heure, toucher pour parler à assistant"
+        contentDescription = "Heure, toucher pour parler à ${ConfigMaison.NOM_ASSISTANT}"
         setOnClickListener { surParler() }
     }
 
@@ -167,9 +167,9 @@ internal class EcranAmbiant(private val ctx: Context) {
     private val principal = texte(Palette.texte1, lignes = 6).apply { interligne = INTERLIGNE }
     private val aide = texte(Palette.texte3)
     private val demarrer = texte(Palette.texte1).apply {
-        texte = "Démarrer assistant"
+        texte = "Démarrer ${ConfigMaison.NOM_ASSISTANT}"
         isClickable = true
-        contentDescription = "Démarrer assistant"
+        contentDescription = "Démarrer ${ConfigMaison.NOM_ASSISTANT}"
         setOnClickListener { surDemarrer() }
     }
     private val colEchange = lignes().apply {
@@ -541,7 +541,7 @@ internal class EcranAmbiant(private val ctx: Context) {
 
     /**
      * Zone du plan (0.24.0) : A sans le bloc, B avec, resserrée pendant l'écoute autour du même centre. Une seule
-     * transition à la fois, rien sous un doigt posé, d'un coup quand l'écran n'est pas vivant. Tant que assistant
+     * transition à la fois, rien sous un doigt posé, d'un coup quand l'écran n'est pas vivant. Tant que l'assistant
      * répond, le plan garde la place qu'il avait à l'ouverture de l'orbe (pas de détour par A).
      */
     private fun majPlan(maintenant: Long) {
@@ -832,7 +832,7 @@ internal class EcranAmbiant(private val ctx: Context) {
         bref.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
     }
 
-    /** Colonne de l'échange : écoute, réflexion, réponse, échec d'une action, assistant arrêté. */
+    /** Colonne de l'échange : écoute, réflexion, réponse, échec d'une action, assistant à l'arrêt. */
     private fun majEchange(e: Etat.Instantane, rate: Etat.Carte?) {
         var tete = ""
         var couleurTete = Palette.texte3
@@ -865,7 +865,7 @@ internal class EcranAmbiant(private val ctx: Context) {
                 corps = e.parole.trim()
             }
             mode == Accueil.Mode.ARRETE -> {
-                corps = if (microAutorise) "assistant est arrêté." else "Autorise le micro, puis démarre assistant."
+                corps = if (microAutorise) "${ConfigMaison.NOM_ASSISTANT} est à l'arrêt." else "Autorise le micro, puis démarre ${ConfigMaison.NOM_ASSISTANT}."
                 couleurCorps = Palette.texte2
                 bouton = true
             }
@@ -990,7 +990,7 @@ internal class EcranAmbiant(private val ctx: Context) {
 
     /**
      * Toucher l'appartement : au repos, en vivant plein, la maison en grand. En retrait, le toucher ne fait que
-     * réveiller l'écran. assistant arrêté ou page pas encore prête : l'écran Maison, comme avant.
+     * réveiller l'écran. Assistant à l'arrêt ou page pas encore prête : l'écran Maison, comme avant.
      */
     private fun toucherPlan() {
         if (!vivantAccueil || !actif) return
@@ -998,7 +998,7 @@ internal class EcranAmbiant(private val ctx: Context) {
         else surMaison()
     }
 
-    /** Pièces de la page 3D (assistant.contenu), relues quand la page change de version. */
+    /** Pièces de la page 3D (maison3d.contenu), relues quand la page change de version. */
     private fun piecesConnues(): List<MaisonEnGrand.Piece> {
         val c = plan.contenu
         if (c != contenuLu) {
@@ -1163,7 +1163,7 @@ internal class EcranAmbiant(private val ctx: Context) {
             "ha" -> "Home Assistant" to Couleur.VERT
             "claude" -> "Claude" to Couleur.ORANGE
             "llm" -> "LLM local" to COULEUR_LLM
-            else -> "assistant" to Couleur.TEXTE_2
+            else -> ConfigMaison.NOM_ASSISTANT to Couleur.TEXTE_2
         }
     }
 }

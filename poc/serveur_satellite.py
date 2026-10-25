@@ -1,7 +1,7 @@
 """Serveur des satellites vocaux (téléphone téléphone posé dans un coin).
 
 Le téléphone envoie le son de son micro en continu (PCM 16 bits, 16 kHz, mono) par WebSocket.
-Le serveur guette « assistant » (openWakeWord, modèle hey_jarvis), découpe la phrase qui suit,
+Le serveur guette le mot de réveil (openWakeWord, section reveil, sinon modèle hey_jarvis), découpe la phrase qui suit,
 la passe dans la chaîne du POC (Canary, dictionnaire, HA, LLM) et renvoie la réponse en WAV
 (voix Piper). Le téléphone la joue, puis signale la fin de lecture pour que le serveur se
 remette à écouter sans se déclencher sur sa propre voix.
@@ -21,7 +21,7 @@ Messages texte reçus du téléphone :
   {"type": "retour", "verdict": "bien"|"mauvais", "entendu", "compris_par", ...}  note du propriétaire,
                               journal/retours.jsonl, phrase apprise oubliée si mauvaise
   {"type": "manques", "n"}    lecture des deux journaux (poc/outils/manques.py)
-  {"type": "reveil", "score"} « assistant » détecté sur le téléphone (appli 0.9.0+) : le téléphone
+  {"type": "reveil", "score"} mot de réveil détecté sur le téléphone (appli 0.9.0+) : le téléphone
                               n'envoie alors le son que pendant l'écoute d'une phrase
 
 Depuis 0.17.0 (idées d'un projet d'inspiration, voir acces.py) :
@@ -404,7 +404,7 @@ def profil():
 
 
 # Applis vocales de Home Assistant (petite machine, petit serveur à l'origine), par leur nom d'hôte sur le réseau interne de HA.
-# Depuis l'appli assistant dans HA : connexion directe. Depuis le PC : elles ne sont pas ouvertes sur
+# Depuis l'appli de l'assistant dans HA : connexion directe. Depuis le PC : elles ne sont pas ouvertes sur
 # le LAN et le SSH de HA interdit les tunnels, le protocole Wyoming passe donc par
 # `ssh <alias de HA> nc <hôte> <port>` (environ 0,5 s de plus par phrase). Mesures du 12/10/2026.
 SERVICES_STT_HA = {
@@ -907,7 +907,7 @@ class Satellite:
         # Le téléphone bipe en recevant « ecoute » et son micro capte ce bip : sans cette pause,
         # le bip passait pour le début de la phrase, qui se terminait avant qu'on parle
         # (transcrit « Merci. » le 12/10). On ignore le son pendant le bip, latence réseau comprise.
-        # Après le mot de réveil, la fin de « assistant » traîne encore : on ignore 0,3 s de plus,
+        # Après le mot de réveil, la fin du mot traîne encore : on ignore 0,3 s de plus,
         # sinon Speech-to-Phrase la colle au début de la phrase et ne reconnaît plus rien.
         self.sourd_jusqua = time.time() + (0.6 if origine == "bouton Parler" or origine.startswith("téléphone") else 0.9)
         self.tampon = np.zeros(0, dtype=np.int16)
@@ -1137,7 +1137,7 @@ class Satellite:
             await self.commencer_ecoute("bouton Parler")
         elif msg.get("type") == "reveil" and self.etat == "repos" and time.time() >= self.sourd_jusqua:
             self.ecoute_reveil = True
-            # Le téléphone a entendu « assistant » lui-même et n'envoie le son qu'à partir de maintenant :
+            # Le téléphone a entendu le mot de réveil lui-même et n'envoie le son qu'à partir de maintenant :
             # même pause que pour le bouton (bip du téléphone). Arbitrage si plusieurs l'ont entendu.
             try:
                 score = float(msg.get("score") or 0.5)

@@ -129,7 +129,8 @@ famille des auteurs inspiration (un projet voisin, chaîne YouTube
 [Les auteurs inspiration](https://www.exemple.invalid projet voisin)). Leur code est sous licence PolyForm
 Noncommercial 1.0.0, leur modèle de mot de réveil sous CC BY-NC-SA 4.0.
 
-- Le nom que l'appli donne encore à l'assistant, assistant, vient de chez eux.
+- Le nom assistant, que l'auteur donne à son assistant dans sa configuration, vient de chez eux. Le moteur, lui,
+  lit le nom affiché dans la section `assistant` de la configuration.
 - Leur mot de réveil "assistant", fabriqué par leur
   [générateur de mots de réveil](https://github.com/projet-voisin/wakeword-generator), n'est pas dans ce dépôt :
   chacun range le sien dans sa configuration (voir [docs/CONFIGURER.md](docs/CONFIGURER.md)).

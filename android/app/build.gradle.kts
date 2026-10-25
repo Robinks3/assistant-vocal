@@ -8,7 +8,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.30.1"
+val versionApplication = "0.31.0"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -71,6 +71,10 @@ if (fabriqueApk && !File(dossierLu, "genere/android/dictionnaire.json").exists()
 if (fabriqueApk && !File(dossierLu, "genere/android/maison3d/vue3d.html").exists()) {
     throw GradleException("${dossierLu.path}/genere/android/maison3d/vue3d.html absent : lancer python carte/3d/generer_3d.py.")
 }
+// Page d'avant la 0.31.0 (ancien nom du pont JavaScript) : la vue 3D ne parlerait plus à l'appli.
+if (fabriqueApk && "Maison3dAndroid" !in File(dossierLu, "genere/android/maison3d/vue3d.html").readText(Charsets.UTF_8)) {
+    throw GradleException("${dossierLu.path}/genere/android/maison3d/vue3d.html périmée (pont d'avant la 0.31.0) : relancer python carte/3d/generer_3d.py.")
+}
 val maison: Map<*, *> = try {
     groovy.json.JsonSlurper().parseText(File(dossierLu, "maison.json").readText(Charsets.UTF_8)) as Map<*, *>
 } catch (e: Exception) {
@@ -106,6 +110,11 @@ if (nomProprietaire == null) {
 if (utilisateur.isEmpty()) {
     nomUtilisateur = nomProprietaire ?: "Moi"
 }
+// Nom affiché de l'assistant (section assistant) : nom de l'appli sous l'icône et dans les réglages.
+val nomAssistant = ((maison["assistant"] as? Map<*, *>)?.get("nom") as? String)?.trim()?.ifEmpty { null } ?: "Assistant"
+// Échappement d'une ressource chaîne Android : barre oblique inverse, apostrophe, guillemet, et @ ou ? en tête.
+fun ressourceChaine(s: String): String =
+    s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").let { if (it.startsWith("@") || it.startsWith("?")) "\\$it" else it }
 fun reseauMaison(cle: String): String = ((maison["reseau"] as? Map<*, *>)?.get(cle) as? String)?.trim().orEmpty()
 // Plus de jeton Home Assistant dans l'APK depuis la 0.15.0 : le mode « Cet appareil » passe par
 // la passerelle de l'app Jarvis sur HA, qui garde son propre jeton (voir PasserelleHa.kt).
@@ -123,7 +132,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 55
+        versionCode = 56
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
@@ -135,6 +144,7 @@ android {
         // Configuration de la maison en JSON compact, ASCII (groovy échappe les accents).
         buildConfigField("String", "MAISON_JSON", chaineJava(groovy.json.JsonOutput.toJson(maison)))
         buildConfigField("String", "JETON_DEFAUT", chaineJava(jetonSatellite))
+        resValue("string", "app_name", ressourceChaine(nomAssistant))
 
         // ONNX Runtime et OpenCV embarquent leur moteur natif par architecture : seuls les ARM
         // des téléphones (téléphone, tablette, téléphone) sont gardés pour limiter la taille de l'APK.
@@ -151,6 +161,7 @@ android {
 
     buildFeatures {
         buildConfig = true
+        resValues = true
     }
 
     // Fichiers produits à partir de la configuration de la maison : dictionnaire.json, maison3d/vue3d.html et
