@@ -287,6 +287,11 @@ et dans le journal du serveur :
 connexion refusée (jeton invalide) depuis <adresse>
 ```
 
+Le journal distingue trois causes : jeton absent, jeton invalide (avec les 8 premiers caractères de son
+empreinte) et appareil révoqué. L'appli affiche la cause (révoqué, absent, inconnu), ralentit sa reconnexion
+à 15 s et relance le réappairage dès que l'écran Appareils s'ouvre. Les derniers refus (cause, adresse,
+heure) s'affichent dans cet écran pour un administrateur.
+
 L'APK porte un jeton que le serveur ne connaît pas : APK compilée avant un changement de
 `SATELLITE_JETON`, compilée sans jeton, ou jeton différent dans l'appli Home Assistant
 (`satellite_jeton`). Corrigez `poc/.env`, recompilez et réinstallez l'APK, ou appairez l'appareil depuis
@@ -317,12 +322,27 @@ répond peut-être à cette adresse. L'appli ne se replie jamais en clair après
 Pour éviter ce cas, sauvegardez le dossier `tls/` des données et remettez-le en place lors d'une
 réinstallation.
 
+### Connexion fermée avec le code 4003
+
+Le serveur ferme la connexion avec « réseau non autorisé » : l'adresse de l'appareil n'est dans aucun réseau
+de `acces.reseaux_autorises` (`maison.json`). Sans liste, passent le bouclage, les réseaux privés, le lien
+local, le tailnet et les IPv6 locales. Ajoutez le réseau en CIDR (par exemple `203.0.113.0/24`), puis
+redémarrez le serveur. La règle vaut aussi pour l'appairage. L'écran Appareils et accès range ce cas sous
+« réseau refusé ».
+
 ### L'appairage n'aboutit pas
 
 Le nouvel appareil affiche un code, puis rien. L'appairage n'existe que sur le port chiffré : l'adresse
-doit être `wss://...:8766`. Un appareil déjà connecté doit accepter la demande dans son écran Appareils
-et accès, en moins de 5 minutes, faute de quoi le serveur répond `appairage_refuse`. Le premier appareil
-ne peut pas s'appairer seul : il doit porter le jeton fixe compilé dans son APK.
+doit être `wss://...:8766`. Un administrateur connecté (le propriétaire, ou une identité de
+`acces.administrateurs`) doit accepter la demande dans son écran Appareils et accès, en moins de 5 minutes,
+faute de quoi le serveur répond `appairage_refuse`. Un appareil qui n'est pas administrateur ne voit ni la
+demande ni le code.
+
+Sans administrateur connecté, personne ne peut accepter : c'est le cas de l'amorçage. Si la demande vient du
+réseau local, le serveur écrit dans son journal « CODE D'AMORÇAGE pour ... » avec un code à 8 chiffres, et
+l'appareil affiche un champ pour le saisir. Le code sert une fois, dure 10 minutes et tolère 5 essais (la 5e
+erreur le détruit). Un nouveau code ne sort qu'une fois par minute. Depuis le tailnet, l'amorçage n'est pas
+proposé : appairez d'abord depuis le réseau local, ou portez le jeton fixe dans l'APK.
 
 ### Le serveur ne voit jamais l'appareil
 
@@ -661,6 +681,8 @@ panne : la configuration doit en tenir compte.
   le LLM. Seule la santé exige la liaison chiffrée (8766). Gardez le port en clair fermé hors du réseau
   local, ou coupez-le par `--port 0`. L'appli Home Assistant n'a pas cette option : retirez plutôt la
   redirection du port 8765 dans ses réglages réseau.
+  Deux verrous s'ajoutent : `acces.reseaux_autorises` refuse toute adresse hors des réseaux listés (code 4003),
+  et `acces.ancien_acces` à `false` (ou l'option `ancien_acces` décochée) ferme le `?jeton=` sur ce port.
 - L'appli autorise le trafic en clair (`usesCleartextTraffic`). Ses options de lancement de test
   `test_reveil`, `test_llm` et `test_canary` restent actives dans toute APK. `test_previsions`,
   `test_sante` et `test_sante_historique` ne marchent qu'en compilation de débogage, celle que décrit

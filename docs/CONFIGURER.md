@@ -1,7 +1,7 @@
 # Configurer l'assistant vocal
 
-Référence de la configuration d'une maison, écrite pour le serveur 0.25.2 et l'appli Android 0.30.1
-(24/10/2026). Le moteur ne contient aucune donnée réelle : tout ce qui décrit un logement vit dans un
+Référence de la configuration d'une maison, écrite pour le serveur 0.33.0 et l'appli Android 0.35.0
+(25/10/2026). Le moteur ne contient aucune donnée réelle : tout ce qui décrit un logement vit dans un
 dossier de configuration à part. Les exemples ci-dessous viennent de `config-exemple/` (valeurs fictives)
 ou sont inventés.
 
@@ -109,6 +109,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 |---|---|---|
 | `_lisez_moi` | Personne | Texte d'aide, ignoré par le code. |
 | `reseau` | `poc/maison.py`, `poc/assistant.py`, `poc/sante.py`, `poc/sante_hist.py`, `poc/serveur_satellite.py`, `ha-app/*`, `build.gradle.kts` | Adresses vides. `deployer.sh` s'arrête. |
+| `acces` | `poc/acces.py`, `poc/maison.py`, `poc/serveur_satellite.py` | Écoute sur `0.0.0.0`, réseaux privés et tailnet autorisés, ancien accès permis, propriétaire seul administrateur. |
 | `fuseau` | `poc/securite.py`, `poc/assistant.py`, `Securite.kt` | `UTC`. |
 | `securite` | `poc/securite.py`, `Securite.kt` | Listes vides. |
 | `appareils` | `poc/assistant.py`, `SortieSon.kt`, `Appareils.kt`, `MaisonEnGrand.kt`, outils de banc | Musique refusée proprement, écran Musique sans enceinte. |
@@ -150,6 +151,31 @@ Adresses des services de la maison.
 
 Un champ absent vaut une chaîne vide. Sans `ha_url` ni `HA_URL`, Home Assistant n'est pas joignable. Sans
 `ssh_ha`, `deployer.sh` s'arrête sur une erreur Python.
+
+### `acces`
+
+Qui peut se connecter au serveur du PC et qui peut le gouverner. Chaque champ est facultatif.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `ecoute` | liste de textes | Adresses sur lesquelles les ports 8765 et 8766 s'ouvrent. Défaut : `["0.0.0.0"]` (toutes). Le filtre par réseau ci-dessous s'applique dans tous les cas. |
+| `reseaux_autorises` | liste de CIDR | Réseaux dont une connexion est acceptée. `"*"` ou `0.0.0.0/0` ouvre à tous. Absente, la liste vaut `127.0.0.0/8`, `::1/128`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10` (tailnet), `fe80::/10` et `fd00::/8`. Une entrée illisible est ignorée avec un message au démarrage. Une connexion refusée est fermée avec le code 4003, y compris sur `/appairage`. |
+| `ancien_acces` | booléen | Accepte `ws://...:8765/?jeton=` sur le port en clair. Permis par défaut. `JARVIS_ANCIEN_ACCES` de `poc/.env` (ou l'option `ancien_acces` de l'appli Home Assistant), quand il est réglé, passe devant. Le jeton en en-tête `Authorization: Bearer` marche toujours. |
+| `administrateurs` | liste de textes | Identités administrateurs en plus du propriétaire (`proprietaire.cle`), par exemple `appareil:ab12cd34` pour un appareil appairé (l'identifiant s'affiche dans l'écran Appareils et accès). |
+
+```json
+"acces": {
+  "ecoute": ["0.0.0.0"],
+  "reseaux_autorises": ["127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"],
+  "ancien_acces": true,
+  "administrateurs": []
+}
+```
+
+Seuls les administrateurs voient le code d'appairage, acceptent ou révoquent un appareil, changent le mode,
+le cerveau ou la transcription et lisent la liste des manques. Un appareil appairé ou amorcé n'est donc pas
+administrateur tant qu'il n'est pas listé ici. Le déroulé de l'appairage et de l'amorçage est dans
+[INSTALLER.md](INSTALLER.md#6-liaison-chiffrée-et-appairage).
 
 ### `fuseau`
 
@@ -932,8 +958,8 @@ Ces protections sont actives dans cette version et aucune configuration ne les c
 
 | Protection | Où |
 |---|---|
-| Un appareil visé par son identifiant brut (`device_id`) est refusé. | `securite.py`, `Securite.kt` |
-| Le LLM ne peut appeler que les services d'une liste blanche (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons), rien qui ouvre une porte ou désarme une alarme. | `SERVICES_PERMIS` de `poc/assistant.py`, exportée dans `dictionnaire.json` pour l'appli |
+| Un appareil visé par son identifiant brut (`device_id`), un étage (`floor_id`) ou une étiquette (`label_id`) est refusé. | `securite.py`, `Securite.kt` |
+| Le LLM ne peut appeler que les services d'une liste blanche (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons, et pour une télé téléviseur VIDAA ou une télécommande : `domaine_tele.launch_app` (adresse `https://` seulement), `domaine_tele.send_text_input`, `domaine_tele.set_picture_setting`, `remote.send_command`, `select.select_option`), rien qui ouvre une porte ou désarme une alarme. Les trois derniers domaines (`domaine_tele`, `remote`, `select`) sont réservés au dictionnaire : le LLM ne les voit pas et ne peut pas les appeler (`DOMAINES_HORS_LLM`). | `SERVICES_PERMIS` de `poc/assistant.py`, exportée dans `dictionnaire.json` pour l'appli |
 | Assist de Home Assistant est sauté (il agit sans qu'on voie sa cible avant) : une phrase hors dictionnaire va directement au LLM. | `SECURITE_ACTIVE` de `securite.py` et `Securite.kt` |
 
 Les actions du dictionnaire échappent à la liste blanche, mais pas à ces vérifications : chacune passe par

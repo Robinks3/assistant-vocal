@@ -6,8 +6,8 @@ Python, la configuration de la maison, les secrets, la liaison chiffrée, l'appl
 PC, l'appli Home Assistant, les vérifications, puis la mise à jour. Une variante sans PC puissant est
 décrite à la fin.
 
-Versions décrites : serveur 0.25.2 (`poc/assistant.py`, `ha-app/jarvis/config.yaml`), appli Android
-0.30.1 (`android/app/build.gradle.kts`). Le détail de chaque fichier de configuration est dans
+Versions décrites : serveur 0.33.0 (`poc/assistant.py`, `ha-app/jarvis/config.yaml`), appli Android
+0.35.0 (`android/app/build.gradle.kts`). Le détail de chaque fichier de configuration est dans
 [`CONFIGURER.md`](CONFIGURER.md), le dépannage dans [`FAQ.md`](FAQ.md).
 
 Toutes les commandes se lancent depuis la racine du dépôt, sauf mention contraire. Les commandes Windows
@@ -247,7 +247,7 @@ Vérifiez que la configuration se lit (le programme s'arrête avec un message ex
 .venv\Scripts\python poc/assistant.py --version
 ```
 
-La réponse attendue est `Assistant vocal local v0.25.2 (2026-10-24)`.
+La réponse attendue est `Assistant vocal local v0.33.0`.
 
 ### Fichiers produits pour l'appli
 
@@ -341,7 +341,7 @@ l'étape 7). Supprimer la ligne d'une personne lui coupe l'accès au prochain d�
 | `SEUIL_REVEIL` | Score du mot de réveil, de 0 à 1 | `0.5` | `poc/.env`. Écrit par le calibrage guidé. |
 | `STT_API_URL` | Adresse de la transcription en ligne | `https://api.mistral.ai/v1/audio/transcriptions` | `poc/.env` |
 | `STT_API_MODELE` | Modèle de la transcription en ligne | `voxtral-mini-latest` | `poc/.env` |
-| `JARVIS_ANCIEN_ACCES` | Accepte l'ancienne forme `ws://...:8765/?jeton=` sur le port en clair | `1` | `poc/.env`. Mettre `0` quand tous les appareils sont en wss. |
+| `JARVIS_ANCIEN_ACCES` | Accepte l'ancienne forme `ws://...:8765/?jeton=` sur le port en clair. Réglé et non vide, il l'emporte sur `acces.ancien_acces` de `maison.json` | absent (alors `acces.ancien_acces`, permis par défaut) | `poc/.env`. Mettre `0` quand tous les appareils sont en wss. |
 | `JARVIS_PROFIL` | `pc` ou `ha` (sans modèle local, réglé par l'appli Home Assistant) | `pc` | `poc/.env` |
 | `JARVIS_WYOMING_SSH` | Essai du profil `ha` depuis le PC, par SSH | vide | `poc/.env` |
 | `ASSISTANT_VOCAL_CONFIG` | Dossier de configuration | `config/` | Environnement du terminal seulement |
@@ -390,20 +390,42 @@ Un appareil est accepté par l'un de ces deux moyens :
 - un jeton fixe de `poc/.env` (`SATELLITE_JETON` ou `SATELLITE_JETON_<NOM>`), compilé dans son APK.
 - Un jeton propre obtenu par appairage, sur le port chiffré seulement.
 
+Avant tout jeton, la connexion doit venir d'un réseau autorisé. La section `acces` de `maison.json` règle
+`ecoute` (adresses sur lesquelles le serveur écoute, `0.0.0.0` par défaut) et `reseaux_autorises` (liste de
+CIDR). Sans liste, passent le bouclage, les réseaux privés, le lien local, le tailnet (`100.64.0.0/10`) et les
+IPv6 locales. Une connexion venue d'ailleurs est fermée avec le code 4003, y compris sur `/appairage`.
+`"*"` ou `0.0.0.0/0` ouvre à tous, à éviter.
+
 Le protocole, décrit en tête de `poc/serveur_satellite.py` et dans `poc/acces.py` :
 
 1. Le nouvel appareil se connecte sans jeton à `wss://<hôte>:8766/appairage?nom=<nom>` (l'appli envoie le
    modèle de l'appareil comme nom).
 2. Le serveur répond `{"etat":"appairage","code"}` avec un code à 4 chiffres, que l'appareil affiche, et
    prévient les appareils déjà connectés.
-3. Sur un appareil déjà connu, l'écran Appareils et accès montre la demande et son code. Vérifiez que
-   le code est le même, puis acceptez.
+3. Sur un appareil administrateur déjà connu, l'écran Appareils et accès montre la demande et son code.
+   Vérifiez que le code est le même, puis acceptez. Les autres appareils ne reçoivent ni la demande ni le
+   code : seuls le propriétaire et les identités de `acces.administrateurs` (par exemple `appareil:ab12cd34`)
+   gèrent les appareils, le mode, le cerveau et la transcription.
 4. Le serveur crée alors un jeton, l'envoie une seule fois au nouvel appareil (`{"etat":"appaire","jeton"}`)
    et n'en garde que l'empreinte dans `appareils.json` des données.
 5. Sans réponse en 5 minutes, la demande est refusée (`{"etat":"appairage_refuse"}`).
 
-Le premier appareil doit donc porter un jeton fixe : c'est l'APK du propriétaire, compilée avec
-`SATELLITE_JETON`. Un appareil appairé se révoque depuis le même écran. Sa clé pour `SANTE_PERSONNES`
+Le premier appareil peut porter un jeton fixe : c'est l'APK du propriétaire, compilée avec
+`SATELLITE_JETON`. Le serveur exige toujours un `SATELLITE_JETON` à son démarrage, mais l'APK n'a pas besoin de le porter : l'amorçage permet un premier appairage. Tant qu'aucun administrateur
+n'est connecté et que la demande vient du réseau local (jamais du tailnet), le serveur écrit dans son
+journal un code à 8 chiffres (« CODE D'AMORÇAGE pour ... »). L'écran Appareils et accès affiche alors un
+champ où le saisir. Le code sert une fois, dure 10 minutes, tolère 5 essais (la 5e erreur le détruit) et ne
+se renouvelle qu'une fois par minute. Il est refusé dès qu'un administrateur est connecté. L'appareil
+amorcé n'est pas administrateur, sauf s'il figure dans `acces.administrateurs`. Un appareil appairé se
+révoque depuis le même écran.
+
+Si une connexion échoue, l'écran Appareils et accès dit pourquoi (réseau, certificat, jeton, réseau refusé,
+réponse inattendue) et affiche les derniers refus notés par le serveur (jeton absent ou invalide, appareil
+révoqué, réseau non autorisé, avec l'adresse et l'heure). Un jeton refusé relance le réappairage à
+l'ouverture de l'écran. Pour retrouver le serveur après un changement d'adresse, l'appli essaie dans
+l'ordre la dernière cible qui a répondu, puis les noms de `reseau.android_hotes_pc` et
+`reseau.android_hotes_ha` de `maison.json` (par exemple des noms mDNS), puis l'adresse enregistrée. La clé du
+serveur reste épinglée par identité : une autre cible doit présenter la même clé. Sa clé pour `SANTE_PERSONNES`
 est `appareil:<id>`.
 
 Quand tous les appareils passent par le port chiffré, coupez l'ancien accès en clair avec
@@ -686,7 +708,7 @@ Les lignes sont dans cet ordre, les valeurs varient :
   vent mesuré : Balises, StationsOfficielles et station
   appareils appairés : aucun
   port chiffré 8766, empreinte de la clé sha256/<empreinte>
-Serveur satellite v0.25.2, port 8765 (ancien accès ?jeton= permis) et port chiffré 8766, seuil du mot de réveil 0.50, cerveau claude (actions réelles). Ctrl+C pour arrêter.
+Serveur satellite v0.33.0, port 8765 (ancien accès ?jeton= permis, ou « jeton en en-tête seulement »), port chiffré 8766, écoute sur les adresses de `acces.ecoute`, réseaux autorisés listés, seuil du mot de réveil 0.50, cerveau claude (actions réelles). Ctrl+C pour arrêter.
 ```
 
 À surveiller : une ligne `! HA_TOKEN absent`, une détection de parole par `seuil d énergie`, l'absence
@@ -768,7 +790,7 @@ Les libellés exacts dépendent de la version de Home Assistant :
 | `anthropic_api_key` | Clé de l'API d'Anthropic. Le profil Home Assistant répond toujours par Claude. |
 | `satellite_jeton` | Jeton fixe du propriétaire, le même que `SATELLITE_JETON` de `poc/.env`, au moins 16 caractères. |
 | `essai` | Rien n'est exécuté dans la maison. |
-| `ancien_acces` | Accepte `ws://...:8765/?jeton=` en clair. À décocher quand tous les appareils sont en wss. |
+| `ancien_acces` | Accepte `ws://...:8765/?jeton=` en clair (remplace `acces.ancien_acces` de `maison.json`, comme `JARVIS_ANCIEN_ACCES`). À décocher quand tous les appareils sont en wss. |
 | `stt_api_cle`, `stt_api_url`, `stt_api_modele`, `stt_api_nom` | Transcription en ligne facultative, voir l'étape 12. |
 
 Les options peuvent aussi être envoyées depuis `poc/.env`, sans qu'aucun secret ne s'affiche ni

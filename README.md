@@ -23,7 +23,7 @@ propre dépôt privé. Tous les écrans de cette page montrent la configuration 
 Une phrase fréquente passe par le dictionnaire : environ 0,1 s pour la comprendre, et la lampe réagit dans la
 foulée. Une phrase inconnue part au LLM avec ses outils, en 2 à 2,5 s avec Claude Haiku, puis elle est apprise et passe ensuite
 par le dictionnaire. Avant chaque action, une sécurité écrite en dur peut refuser : service hors de la liste
-blanche, appareil visé par son identifiant brut, volume au-delà du plafond quand la configuration en règle
+blanche, appareil visé par son identifiant brut (`device_id`, `floor_id`, `label_id`), volume au-delà du plafond quand la configuration en règle
 un. Les durées sont des mesures,
 détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -40,8 +40,10 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Serveur du PC | `poc/serveur_satellite.py` en profil pc | Les appareils servent de micros, le PC transcrit et décide. LLM local possible. |
 | Appli Home Assistant | Le même serveur en profil ha, dans Home Assistant | Quand le PC est éteint, ou sans PC du tout. |
 
-Les appareils parlent au serveur en WebSocket chiffré, après un appairage qui épingle la clé du serveur. Tailscale ne
-sert qu'au relais facultatif des données de santé.
+Les appareils parlent au serveur en WebSocket chiffré, après un appairage qui épingle la clé du serveur. Le serveur
+ne répond qu'aux réseaux listés dans la section `acces` de la configuration (réseaux privés et tailnet par défaut), et
+seuls les administrateurs gèrent les appareils. Une appli qui perd le serveur le retrouve par les noms d'hôte de la
+configuration, sans nouvel appairage. Tailscale ne sert qu'au relais facultatif des données de santé.
 
 ## Ce qui tourne où
 

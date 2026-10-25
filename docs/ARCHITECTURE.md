@@ -2,7 +2,7 @@
 
 Ce document s'adresse au développeur qui reprend le projet. Il décrit les blocs du moteur, le trajet d'une
 phrase, le protocole entre les appareils et le serveur, la sécurité, la façon d'étendre l'ensemble, puis les
-tests, les versions et le garde-fou git. Il correspond au serveur 0.25.2 et à l'appli 0.30.1. L'inventaire des
+tests, les versions et le garde-fou git. Il correspond au serveur 0.33.0 et à l'appli 0.35.0. L'inventaire des
 modèles, machine par machine, est dans `QUOI-TOURNE-OU.md`.
 
 Le moteur ne contient aucune donnée réelle. Tout ce qui décrit un logement est lu dans le dossier de
@@ -42,7 +42,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 | `dictionnaire.py` | Phrases de `commandes.yaml` développées en formes exactes, recherche tolérante, phrases apprises | `normaliser`, `epurer`, `developper`, `Personnes`, `Dictionnaire` (`chercher`, `apprendre`, `oublier`), `SEUIL_FLOU = 0.88` |
 | `securite.py` | Sécurité écrite en dur, copiée dans `Securite.kt` | `SECURITE_ACTIVE`, `PROTEGER_OCCUPANT`, `HEURE_CALME_ACTIVE`, `VOLUME_MAX`, `verifier`, `phrase_protegee`, `entites_permises` |
 | `serveur_satellite.py` | Serveur WebSocket des satellites, les deux profils | `Moteur` (ressources partagées, capacités, bascules), `Satellite` (machine à états d'une connexion), `Arbitre`, `Calibration`, `passerelle_ha`, `CanalWyoming`, `ReveilWyoming`, `transcrire_api`, `transcrire_ha`, `synthetiser_ha`, `servir` |
-| `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `jeton_de_la_requete`, `certificat`, `verifier_requete_ha`, `DOMAINES_INTERDITS` |
+| `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `refus_launch_app`, `DOMAINES_INTERDITS` |
 | `maison.py` | Lecture du dossier de configuration | `DOSSIER`, `CONFIG`, `reseau()`, `liste()`, `NOM_PROPRIETAIRE`, `CLE_PROPRIETAIRE` |
 | `vad.py` | Silero VAD v5 | `creer()`, `Vad.parole()` |
 | `vision.py` | Visages pour la tablette (YuNet, SFace) | `Vision.analyser`, `traiter_message`, `regard` |
@@ -64,7 +64,7 @@ Variables lues par le serveur, en plus de celles de `poc/.env.exemple` :
 | `JARVIS_PROFIL` | `pc` ou `ha` | `pc` |
 | `JARVIS_DONNEES` | Dossier des données vivantes | `poc/` |
 | `JARVIS_PORT_TLS` | Port chiffré | `8766` |
-| `JARVIS_ANCIEN_ACCES` | `?jeton=` accepté sur le port en clair tant qu'il vaut autre chose que `0` | `1` |
+| `JARVIS_ANCIEN_ACCES` | `?jeton=` accepté sur le port en clair tant qu'il vaut autre chose que `0`. Réglé et non vide, il l'emporte sur `acces.ancien_acces` | absent (alors `acces.ancien_acces`, permis par défaut) |
 | `JARVIS_WYOMING_SSH` | Profil `ha` testé depuis le PC, Wyoming par SSH | absent |
 | `SEUIL_REVEIL` | Score du mot de réveil côté serveur | `0.5` |
 | `VAD_MODELE` | Chemin du modèle Silero | `poc/modeles/silero_vad.onnx` |
@@ -78,11 +78,11 @@ construite en code, sans XML de mise en page.
 
 | Famille | Fichiers |
 |---|---|
-| Activités | `MainActivity` (lanceur, réglages, panneaux), `VisagesActivity` (enrôlement des visages), `HistoriqueActivity`, `AppareilsActivity` (appairage) |
-| Service et réseau | `SatelliteService` (service au premier plan de type micro et caméra : micro, connexion, lecture des WAV, chien de garde), `Confiance` (wss, épinglage, jeton), `PasserelleHa` (connexion vers l'appli Home Assistant), `Transcription.kt` (`OuTranscrire`, `TranscriptionPc`), `Etat` (état partagé et rappels `Etat.action*`), `Maison` (lecture de Home Assistant pour l'écran), `Station` et `RecepteurDemarrage` (démarrage avec la tablette), `RecepteurBanc` (essais par adb, permission `DUMP`) |
+| Activités | `MainActivity` (lanceur, réglages, panneaux), `VisagesActivity` (enrôlement des visages), `HistoriqueActivity`, `AppareilsActivity` (appairage, amorçage, diagnostic) |
+| Service et réseau | `SatelliteService` (service au premier plan de type micro et caméra : micro, connexion, lecture des WAV, chien de garde), `Confiance` (wss, épinglage, jeton), `Decouverte` (ordre d'essai des cibles), `PasserelleHa` (connexion vers l'appli Home Assistant), `Transcription.kt` (`OuTranscrire`, `TranscriptionPc`), `Etat` (état partagé et rappels `Etat.action*`), `Maison` (lecture de Home Assistant pour l'écran), `Station` et `RecepteurDemarrage` (démarrage avec la tablette), `RecepteurBanc` (essais par adb, permission `DUMP`) |
 | Moteur local | `MoteurLocal` (chaîne complète du mode Cet appareil), `ReveilLocal`, `VadSilero`, `CanaryLocal`, `DictionnaireLocal`, `CerveauAppareil` et `ModeleLiteRt`, `MeteoQuestion`, `Securite`, `ConfigMaison` |
 | Écran ambiant | `EcranAmbiant`, `Accueil`, `AccueilDisposition`, `PlanAmbiant`, `Veille`, `VueAod`, `LumiereAmbiante`, `Souffle`, `VueOrbe`, `VuesAccueil`, `CarteEnCours` |
-| Panneaux | Météo (`EcranMeteo` avec les pages Terre, Vent et Mer, `EcranMer`, `EcranVent`, `MeteoTexte`, `MeteoMer`, `MeteoVent`, `Previsions`, `PictosMeteo`, `CheminSvg`), Santé (`EcranSante`, `OngletsSante`, `GraphesSante`, `Sante`, `SanteAccueil`, `SanteDetail`, `SanteHisto`, `SanteDemo`), Musique (`EcranMusique`, `SortieSon`), Maison (`EcranMaison`, `Appareils`, `MaisonEnGrand`, `VueMaisonGrand`) |
+| Panneaux | Météo (`EcranMeteo` avec les pages Terre, Vent et Mer, `EcranMer`, `EcranVent`, `MeteoTexte`, `MeteoMer`, `MeteoVent`, `Previsions`, `PictosMeteo`, `CheminSvg`), Santé (`EcranSante`, `OngletsSante`, `GraphesSante`, `Sante`, `SanteAccueil`, `SanteDetail`, `SanteHisto`, `SanteDemo`), Musique (`EcranMusique`, `SortieSon`), Maison (`EcranMaison`, `ReglageLampe` (volet Blanc et Couleur, `Cadence`), `Appareils`, `MaisonEnGrand`, `VueMaisonGrand`) |
 | Page 3D | `Maison3dView` (WebView), `Maison3dPont` (scripts vers la page), `Maison3d` (état des lampes) |
 | Vision | `Vision.kt` (`MoteurVisageLocal`, `VisionPc`, `ProfilsVisages`), `Reconnaissance` (logique pure : seuils, votes, regard) |
 | Outils et apparence | `TestReveil`, `TestCanary`, `TestLlm`, `Palette`, `Couleur`, `Apparence`, `Decor`, `Polices`, `SonsEcoute`, `HistoriqueLisible`, `VueHistorique` |
@@ -228,13 +228,16 @@ Le journal `latences.csv` donne les vraies valeurs de chaque commande (`stt_s`, 
 |---|---|---|
 | Ports | 8765 en clair (`--port`, 0 le coupe), 8766 chiffré (`--port-tls` ou `JARVIS_PORT_TLS`) | `serveur_satellite.main` |
 | Taille et vie | Messages de 4 Mio au plus (`max_size=2**22`), ping toutes les 20 s | `servir` |
-| Jeton | En-tête `Authorization: Bearer <jeton>`. L'ancienne forme `?jeton=` n'est acceptée que sur le port en clair et tant que `JARVIS_ANCIEN_ACCES` ne vaut pas `0` | `acces.jeton_de_la_requete` |
+| Jeton | En-tête `Authorization: Bearer <jeton>`. L'ancienne forme `?jeton=` n'est acceptée que sur le port en clair et tant que l'ancien accès est permis (`JARVIS_ANCIEN_ACCES`, sinon `acces.ancien_acces`). Le jeton passe de préférence par l'en-tête | `acces.jeton_de_la_requete` |
 | Jetons valables | `SATELLITE_JETON` (le propriétaire, clé `proprietaire.cle`), `SATELLITE_JETON_<NOM>` (16 caractères au moins), et les appareils appairés. Le serveur ne garde que l'empreinte SHA-256, comparée à temps constant | `acces.Appareils.identite` |
-| Refus | Fermeture avec le code 4001 ("jeton invalide", ou "appareil révoqué") | `servir.accueil` |
+| Réseaux autorisés | Section `acces` de `maison.json` : `ecoute` (adresses d'écoute, `0.0.0.0` par défaut) et `reseaux_autorises` (liste de CIDR, `*` ou `0.0.0.0/0` pour ouvrir à tous). Sans liste, seuls passent le bouclage, les réseaux privés, le lien local, le tailnet (`100.64.0.0/10`) et les IPv6 locales. Une entrée illisible est ignorée avec un message, une IPv4 mappée en IPv6 est ramenée à l'IPv4 | `acces.reseaux_autorises`, `acces.adresse_autorisee` |
+| Refus | Fermeture avec le code 4003 (réseau non autorisé, y compris sur `/appairage`) ou 4001 ("jeton absent", "jeton invalide" ou "appareil révoqué"). Le journal note la cause et les 8 premiers caractères de l'empreinte. `Appareils.refus` garde les 20 derniers refus (cause, adresse, heure) | `servir.accueil` |
+| Rôles | Les types `appareils`, `appairer`, `refuser_appareil`, `revoquer`, `transcription`, `mode`, `cerveau` et `manques` sont réservés aux administrateurs : le propriétaire (`proprietaire.cle`) et les identités de `acces.administrateurs` (par exemple `appareil:ab12cd34`). Un autre appareil reçoit `{"etat":"refuse","type":...,"message":"réservé à un administrateur"}` | `acces.est_administrateur`, `serveur_satellite.TYPES_ADMINISTRATEUR` |
 | Certificat | Auto-signé, clé EC P-256, valable 10 ans, créé au premier démarrage dans `tls/` | `acces.certificat` |
 | Épinglage | L'appli retient l'empreinte SHA-256 de la clé publique à la première connexion (`empreinte_<hôte:port>`), refuse ensuite toute autre clé et coupe si l'empreinte annoncée dans `capacites` diffère | `Confiance.kt`, `SatelliteService.traiterTexte` |
 | Repli en clair | `ws://hôte:8765` n'est tenté que si aucune clé n'a encore été retenue pour l'adresse chiffrée | `Confiance.repli` |
-| Appairage | `wss://<hôte>:8766/appairage?nom=<nom>`, sans jeton, port chiffré seulement. Code à 4 chiffres, accepté depuis un appareil déjà connu, 300 s au plus. Le jeton n'est envoyé qu'une fois | `servir.appairage`, `AppareilsActivity` |
+| Appairage | `wss://<hôte>:8766/appairage?nom=<nom>`, sans jeton, port chiffré seulement. Code à 4 chiffres, accepté par un administrateur, 300 s au plus. Le jeton n'est envoyé qu'une fois | `servir.appairage`, `AppareilsActivity` |
+| Amorçage | Premier appairage sans jeton fixe : tant qu'aucun administrateur n'est connecté et que la demande vient du réseau local (privé ou bouclage, jamais le tailnet), le serveur écrit dans son journal un code à 8 chiffres (« CODE D'AMORÇAGE pour <nom> ») et le message `appairage` porte `"amorcage": true`. L'appareil renvoie `{"type":"amorcage","code":...}`. Code à usage unique, valable 600 s, 5 essais (la 5e erreur le détruit), un nouveau code au plus par minute. Un échec répond `{"etat":"amorcage_refuse","restant":...}`. Un administrateur qui se connecte ferme l'amorçage | `acces.Amorcage`, `servir.appairage` |
 
 À l'ouverture, le serveur envoie dans l'ordre `repos` (avec `version`), `cerveau`, `mode`, `transcription` et
 `capacites`. Un message texte qui n'est pas un objet JSON, ou dont le type est inconnu, est ignoré sans
@@ -312,12 +315,13 @@ interdits, après `securite.verifier`.
 
 | Message | Sens | Champs | Réponse |
 |---|---|---|---|
-| `appareils` | Appareil vers serveur | aucun | `{"etat":"appareils","attente","appareils","jetons_fixes"}` |
-| `appairer`, `refuser_appareil`, `revoquer` | Appareil vers serveur | `id` | `appareils`. Une révocation ferme aussitôt les connexions de cet appareil (code 4001) |
-| `appairage_demande` | Serveur vers tous | `id`, `nom`, `code` | L'appli affiche une notification |
+| `appareils` | Administrateur vers serveur | aucun | `{"etat":"appareils","attente","appareils","jetons_fixes","refus"}`, `refus` donnant les 10 derniers refus. Le code d'appairage n'y figure que pour un administrateur |
+| `appairer`, `refuser_appareil`, `revoquer` | Administrateur vers serveur | `id` | `appareils`. Une révocation ferme aussitôt les connexions de cet appareil (code 4001) |
+| `appairage_demande` | Serveur vers les administrateurs | `id`, `nom`, `code` | L'appli affiche une notification |
 | `appairage` | Serveur vers le nouvel appareil, sur `/appairage` | `code`, `id`, `message` | |
 | `appaire` | Idem | `jeton`, `nom` | Connexion fermée ensuite |
 | `appairage_refuse` | Idem | aucun | Connexion fermée |
+| `amorcage` | Nouvel appareil vers serveur, sur `/appairage` | `code` (8 chiffres) | `appaire`, ou `amorcage_refuse` avec `restant` |
 
 ### Vision, santé, météo
 
@@ -349,7 +353,7 @@ section `securite` de `maison.json`. Les cas communs sont dans `poc/tests/cas_se
 | Ne jamais toucher à ce qui appartient à l'occupant protégé (`nom_occupant`, `mots_proteges`, `zones_protegees`, `entites_protegees`), ni viser `all` ou une de ses zones | `PROTEGER_OCCUPANT` | Levée (`False`) |
 | Pas de son dans le salon (`son_salon`) pendant les heures calmes (`heures_calmes`, de 0 à 9 h par défaut), sauf éteindre, mettre en pause, arrêter, baisser, couper | `HEURE_CALME_ACTIVE` | Levée (`False`) |
 | Exception : la personne reconnue seule par la tablette pilote ses propres lumières (`permis_personne`) | suit la règle 1 | Sans effet tant que la règle 1 est levée |
-| Refus de viser un appareil par `device_id` | `SECURITE_ACTIVE` | Actif |
+| Refus de viser un appareil par `device_id`, un étage par `floor_id` ou une étiquette par `label_id` | `SECURITE_ACTIVE` | Actif |
 | Refus de `media_player.volume_up` quand un plafond de volume est réglé | `SECURITE_ACTIVE` | Sans effet sans plafond |
 | Volume plafonné à `securite.plafond_volume` de `maison.json` (`VOLUME_MAX`, pourcentage, 100 par défaut, soit aucun plafond) | aucun | Toujours lu, aucun plafond par défaut |
 
@@ -365,7 +369,7 @@ quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au 
 
 | Verrou | Où |
 |---|---|
-| Liste blanche des services du LLM (`light`, `switch`, `fan`, `cover`, `climate`, `media_player`, `music_assistant.play_media`, `vacuum`, `scene`, `script`, `input_boolean`, `button.press`). Ni serrure, ni alarme | `SERVICES_PERMIS`, `HomeAssistant.service` |
+| Liste blanche des services du LLM (`light`, `switch`, `fan`, `cover`, `climate`, `media_player`, `music_assistant.play_media`, `vacuum`, `scene`, `script`, `input_boolean`, `button.press`, plus `domaine_tele.launch_app`, `domaine_tele.send_text_input`, `domaine_tele.set_picture_setting`, `remote.send_command` et `select.select_option`). Ni serrure, ni alarme. `domaine_tele`, `remote` et `select` sont dans `DOMAINES_HORS_LLM` : hors du contexte du LLM et de son outil `appeler_service`, réservés au dictionnaire. `launch_app` n'accepte qu'une URL `https://` | `SERVICES_PERMIS`, `HomeAssistant.service` |
 | Le LLM ne voit que les domaines de `DOMAINES_CONTEXTE` (ceux de la liste blanche sans `button` ni `switch`, plus les capteurs de température, d'humidité, de porte, de fenêtre et la météo), sans les entités masquées par `llm.masquer` ni les entités protégées | `HomeAssistant.inventaire` |
 | Les entités permises partent en `enum` dans le schéma des outils, et toute entité hors de la liste est refusée par le code | `outils_avec_entites`, `HomeAssistant.service` |
 | Un changement de volume non demandé dans la phrase est refusé | `garde_fou_volume` |

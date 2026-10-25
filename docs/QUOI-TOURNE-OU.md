@@ -3,7 +3,7 @@
 Inventaire de chaque modèle et de chaque composant du moteur : la machine qui le fait tourner, le
 processeur ou la carte graphique qu'il occupe, la taille de son fichier, sa licence, ce qu'il envoie sur le
 réseau, ce qui peut le remplacer en ligne et le matériel sur lequel il a été vu tourner. Tout est tiré du
-code du serveur (version 0.25.2) et de l'appli Android (version 0.30.1). Les durées viennent des docstrings
+code du serveur (version 0.33.0) et de l'appli Android (version 0.35.0). Les durées viennent des docstrings
 et des journaux de versions du projet d'origine, elles sont citées comme mesures et non comme garanties.
 
 Les trois façons de faire tourner l'assistant reviennent dans la colonne Machine :
@@ -92,3 +92,5 @@ les appareils et le serveur, en wss pour les images et la santé. Le son ne sort
 transcription en ligne, choisie explicitement. Le texte de la demande ne sort que vers Claude, quand le
 dictionnaire ne l'a pas compris. Les pochettes d'album en `https://` sont téléchargées directement par l'appli
 (`Maison.pochette`), les autres passent par la passerelle.
+
+Le serveur n'accepte de connexion que depuis les réseaux de `acces.reseaux_autorises` (réseaux privés et tailnet par défaut). Les noms d'hôte de `reseau.android_hotes_pc` et `android_hotes_ha` ne servent qu'à retrouver le serveur sur le réseau, avec la même clé épinglée.
