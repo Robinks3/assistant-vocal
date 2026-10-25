@@ -77,7 +77,9 @@ Depuis 0.24.0 (deux profils, capacité "vent_mesure", avec les sections « mer �
                               connexion. Forme détaillée de donnees dans vent_mesure.py.
 Appairage d'un nouveau téléphone : wss://<hôte>:8766/appairage?nom=<nom>, sans jeton. Le serveur
 envoie {"etat":"appairage","code"}, puis {"etat":"appaire","jeton"} quand un téléphone connu accepte,
-ou {"etat":"appairage_refuse"}.
+ou {"etat":"appairage_refuse"}. Sans administrateur connecté et depuis le réseau local, le message `appairage`
+porte "amorcage": true : le téléphone envoie {"type":"amorcage","code"} avec le code à 8 chiffres du journal du
+serveur, réponse {"etat":"amorcage_refuse","restant"} si le code est faux.
 
 Usage : python poc/serveur_satellite.py [--essai] [--port 8765] [--port-tls 8766] [--seuil 0.5]
 Connexion : wss://<IP>:8766/ avec l'en-tête « Authorization: Bearer <jeton> » (ou, tant que
@@ -1322,22 +1324,67 @@ async def servir(args):
         print("Calibrage terminé, le serveur reprend son fonctionnement normal.\n")
 
     async def appairage(ws, chemin):
-        """Nouveau téléphone sans jeton, seulement sur le port chiffré : un téléphone connu doit accepter."""
+        """Nouveau téléphone sans jeton, seulement sur le port chiffré : un administrateur connecté accepte la
+        demande, ou, quand il n'y en a aucun (amorçage), le code à 8 chiffres écrit dans le journal du serveur."""
         ip = ws.remote_address[0]
         demande = parse_qs(urlparse(chemin).query).get("nom", [""])[0]
         futur = asyncio.get_running_loop().create_future()
         ident, code, nom = moteur.appareils.demande(demande, ip, futur)
-        print(f"demande d'appairage de « {nom} » ({ip}), code {code}")
-        await ws.send(json.dumps({"etat": "appairage", "code": code, "id": ident,
-                                  "message": "Accepte cette demande depuis un appareil déjà connecté"},
-                                 ensure_ascii=False))
+        sans_admin = not any(acces.est_administrateur(s.identite) for s in moteur.satellites)
+        amorcage = sans_admin and acces.adresse_locale(ip)
+        print(f"demande d'appairage de « {nom} » ({ip}), code {code}"
+              + (", aucun administrateur connecté" if sans_admin else ""))
+        message = "Accepte cette demande depuis un appareil déjà connecté"
+        if amorcage:
+            code_amorcage, nouveau = moteur.appareils.amorcage.ouvrir()
+            if code_amorcage and nouveau:
+                print(f"CODE D'AMORÇAGE pour « {nom} » ({ip}) : {code_amorcage} "
+                      f"(à saisir sur le téléphone, valable {acces.Amorcage.DUREE // 60} min, "
+                      f"{acces.Amorcage.ESSAIS} essais, une seule fois)")
+            elif code_amorcage:
+                print("code d'amorçage déjà affiché plus haut dans ce journal, toujours valable")
+            message = ("Aucun appareil administrateur n'est connecté : saisis le code d'amorçage écrit dans le "
+                       "journal du serveur" if code_amorcage else
+                       "Aucun appareil administrateur n'est connecté. Un code d'amorçage vient d'être refusé "
+                       "ou expiré, réessaie dans une minute")
+        await ws.send(json.dumps({"etat": "appairage", "code": code, "id": ident, "message": message,
+                                  "amorcage": bool(amorcage)}, ensure_ascii=False))
         # Le code n'est dit qu'aux administrateurs, qui seuls peuvent accepter la demande.
         await moteur.diffuser({"etat": "appairage_demande", "id": ident, "nom": nom, "code": code}, administrateurs=True)
+
+        async def ecouter():
+            """Saisies du code d'amorçage envoyées par le téléphone pendant l'attente."""
+            async for brut in ws:
+                try:
+                    msg = json.loads(brut)
+                except (ValueError, RecursionError):
+                    continue
+                if not isinstance(msg, dict) or msg.get("type") != "amorcage":
+                    continue
+                if not amorcage:
+                    await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": 0,
+                                              "message": "amorçage impossible : un administrateur est connecté "
+                                                         "ou l'appareil n'est pas sur le réseau local"},
+                                             ensure_ascii=False))
+                    continue
+                ok, restant = moteur.appareils.amorcage.verifier(msg.get("code"))
+                if ok:
+                    print(f"amorçage accepté pour « {nom} » ({ip})")
+                    moteur.appareils.accepter(ident)
+                    return
+                print(f"amorçage refusé pour « {nom} » ({ip}) : code faux, {restant} essai(s) restant(s)")
+                await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": restant}, ensure_ascii=False))
+            moteur.appareils.refuser(ident)  # le téléphone a fermé : inutile d'attendre les 300 s
+
+        lecteur = asyncio.create_task(ecouter())
         try:
             jeton = await asyncio.wait_for(futur, 300)
         except asyncio.TimeoutError:
             jeton = None
             moteur.appareils.refuser(ident)
+        finally:
+            lecteur.cancel()
+            moteur.appareils.refuser(ident)  # sans effet si déjà accepté ou refusé
         if jeton:
             await ws.send(json.dumps({"etat": "appaire", "jeton": jeton, "nom": nom}, ensure_ascii=False))
             print(f"« {nom} » appairé")
@@ -1349,7 +1396,9 @@ async def servir(args):
         requete = getattr(ws, "request", None)
         chemin = requete.path if requete is not None else ws.path
         if not acces.adresse_autorisee(ws.remote_address[0], reseaux):
-            print(f"connexion refusée (réseau non autorisé) depuis {ws.remote_address[0]}")
+            print(f"connexion refusée (réseau non autorisé) depuis {ws.remote_address[0]} : "
+                  f"hors des réseaux {', '.join(str(r) for r in reseaux)}")
+            moteur.appareils.noter_refus("réseau non autorisé", ws.remote_address[0])
             await ws.close(code=4003, reason="réseau non autorisé")
             return
         if chiffre and urlparse(chemin).path.rstrip("/") == "/appairage":
@@ -1359,8 +1408,16 @@ async def servir(args):
         jeton = acces.jeton_de_la_requete(requete, chemin, ancien_acces and not chiffre)
         personne, identite = moteur.appareils.identite(jeton)
         if not personne:
-            print(f"connexion refusée (jeton invalide) depuis {ws.remote_address[0]}")
-            await ws.close(code=4001, reason="jeton invalide")
+            if not jeton:
+                cause = "jeton absent"
+                detail = "aucun jeton dans la requête"
+            else:
+                cause = "jeton invalide"
+                detail = f"jeton inconnu du serveur (empreinte {acces.empreinte(jeton)[:8]}), appairage à refaire"
+            print(f"connexion refusée ({cause}) depuis {ws.remote_address[0]}"
+                  f"{' (chiffré)' if chiffre else ''} : {detail}")
+            moteur.appareils.noter_refus(cause, ws.remote_address[0])
+            await ws.close(code=4001, reason=cause)
             return
         nom = f"{personne} {ws.remote_address[0]}" + (" (chiffré)" if chiffre else "")
         print(f"[{nom}] satellite connecté")

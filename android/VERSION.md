@@ -6,6 +6,19 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.35.0 (2026-10-25), reconnexion robuste
+- Découverte (`Decouverte.kt`) : l'adresse configurée reste l'identité du serveur (jeton et clé retenus rangés
+  dessous), mais la connexion essaie dans l'ordre la dernière cible qui a répondu, les noms d'hôte de
+  `android_hotes_pc` et `android_hotes_ha` (`maison.json`, par exemple un nom mDNS), puis l'adresse enregistrée. Une
+  clé de serveur reste épinglée par identité : une autre cible doit présenter la même clé.
+- Jeton refusé (4001) : la cause est affichée (révoqué, absent, inconnu), sur l'accueil, l'écran ambiant et l'orbe, avec
+  une reconnexion ralentie à 15 s, et l'écran Appareils lance tout seul le réappairage à son ouverture.
+- Amorçage : quand le serveur annonce qu'aucun administrateur n'est connecté, l'écran Appareils affiche un champ pour
+  le code à 8 chiffres écrit dans le journal du serveur.
+- Diagnostic : l'écran Appareils dit pourquoi une connexion échoue (réseau, certificat, jeton, réseau refusé, réponse
+  inattendue), avec en plus les derniers refus notés par le serveur.
+- Tests : `DecouverteTest`.
+
 ## 0.34.0 (2026-10-25), volet de réglage des lampes
 - Chaque ligne de lampe de l'écran Maison a un chevron qui ouvre deux onglets. Blanc : quatre pastilles (Bougie, Chaud, Neutre, Froid) et une piste de kelvins bornée à la plage réelle de la lampe. Couleur : huit pastilles et une piste de teinte.
 - Les pistes passent par `Cadence` (un ordre toutes les 300 ms, valeur finale au relâchement). L'état affiché sous le nom ajoute le blanc (« 2700 K chaud ») ou « couleur ».

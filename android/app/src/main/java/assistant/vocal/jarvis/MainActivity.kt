@@ -2773,8 +2773,9 @@ class MainActivity : Activity() {
         val niveau = ((e.niveauDb + 50f) / 40f).coerceIn(0f, 1f)
         orbe.regler(humeur(e), if (e.enMarche) niveau else 0f)
         afficherBref(e)
-        texteAlerte.text = e.alerteCle
-        texteAlerte.visibility = if (e.alerteCle.isEmpty()) View.GONE else View.VISIBLE
+        val alerte = e.alerteCle.ifEmpty { e.alerteJeton }
+        texteAlerte.text = alerte
+        texteAlerte.visibility = if (alerte.isEmpty()) View.GONE else View.VISIBLE
         afficherMarche(e)
         afficherDemande(e)
         afficherStation()
@@ -2818,7 +2819,7 @@ class MainActivity : Activity() {
     private fun humeur(e: Etat.Instantane): VueOrbe.Humeur = when {
         !e.enMarche -> VueOrbe.Humeur.ARRETE
         e.lien != Etat.Lien.CONNECTE -> VueOrbe.Humeur.DECONNECTE
-        e.alerteCle.isNotEmpty() -> VueOrbe.Humeur.ERREUR
+        e.alerteCle.isNotEmpty() || e.alerteJeton.isNotEmpty() -> VueOrbe.Humeur.ERREUR
         e.assistant == "Je t'écoute" -> VueOrbe.Humeur.ECOUTE
         e.assistant == "Je réfléchis" -> VueOrbe.Humeur.REFLEXION
         e.assistant == "Je réponds" ->

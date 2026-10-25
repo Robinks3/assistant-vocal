@@ -4,6 +4,20 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.33.0 (2026-10-25), reconnexion après une coupure, amorçage de l'appairage, diagnostic
+Contexte : après une coupure de courant, une tablette dont le jeton n'était plus connu du serveur ne pouvait plus
+se reconnecter, et l'appairage demande un administrateur connecté pour accepter, donc personne.
+- Amorçage (`acces.Amorcage`) : quand aucun administrateur n'est connecté et que la demande vient du réseau local
+  (privé ou loopback, pas le tailnet), le serveur écrit dans son journal un code à 8 chiffres, à usage unique, valable
+  10 minutes, 5 essais, un nouveau code au plus par minute. Le téléphone le saisit (`{"type":"amorcage","code"}`).
+  Le code n'apparaît nulle part ailleurs que dans le journal. Un appareil amorcé n'est pas administrateur, sauf si
+  `acces.administrateurs` le dit. Le message `appairage` annonce `"amorcage": true`, un code faux renvoie
+  `{"etat":"amorcage_refuse","restant"}`.
+- Diagnostic : le serveur journalise et retient (`Appareils.refus`, 20 derniers) la cause de chaque refus, réseau non
+  autorisé (4003), jeton absent ou invalide avec les 8 premiers caractères de son empreinte (4001). La liste est
+  envoyée aux administrateurs dans le message `appareils` (clé `refus`).
+- Tests : `poc/tests/test_amorcage.py`.
+
 ## Serveur 0.32.0 (2026-10-25), état des lampes pour le volet de réglage
 - `etat()` renvoie pour une lampe `color_mode`, `color_temp_kelvin`, `hs_color`, `rgb_color`, `min_color_temp_kelvin` et
   `max_color_temp_kelvin` (les valeurs absentes sont omises), pour que l'appli confirme un blanc ou une couleur demandés.

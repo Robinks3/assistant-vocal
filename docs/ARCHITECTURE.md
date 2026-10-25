@@ -91,7 +91,7 @@ construite en code, sans XML de mise en page.
 `BuildConfig.MAISON_JSON`, `genere/android/` devient un dossier d'assets (dictionnaire, page 3D, trait de côte),
 la tâche `copierReveil` copie `reveil/<mot>.onnx` et sa licence, et `SATELLITE_JETON` est lu dans
 `poc/.env` pour devenir `BuildConfig.JETON_DEFAUT`. Les adresses par défaut viennent de
-`reseau.android_serveur_pc` et `reseau.android_serveur_ha`. Il n'y a aucune découverte automatique du serveur.
+`reseau.android_serveur_pc` et `reseau.android_serveur_ha`. Si l'IP change, l'appli essaie aussi les noms d'hôte de `android_hotes_pc` et `android_hotes_ha` (voir `Decouverte.kt`).
 
 ### Appli Home Assistant, `ha-app/`
 

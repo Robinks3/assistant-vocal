@@ -8,6 +8,10 @@ assistant (auteurs inspiration), réécrites ici.
 - Un nouveau téléphone s'appaire : il se connecte sans jeton sur le port chiffré, affiche un code à
   4 chiffres, et un téléphone déjà connu accepte la demande. Le jeton est créé à ce moment-là et
   n'est envoyé qu'une fois, chiffré.
+- Amorçage (0.32.0) : si aucun administrateur n'est connecté, personne ne peut accepter la demande
+  (coupure de courant, jeton de l'APK que le serveur ne reconnaît plus). Le serveur écrit alors dans son
+  journal un code d'amorçage à 8 chiffres, à usage unique, valable 10 minutes, 5 essais, que le
+  téléphone du réseau local saisit pour obtenir son jeton. Voir Amorcage.
 - Port chiffré (wss) avec un certificat auto-signé créé au premier démarrage. Le téléphone retient
   l'empreinte de sa clé publique à la première connexion et refuse ensuite toute autre clé.
 - Passerelle Home Assistant : le mode « Cet appareil » passe par ce serveur, qui a son propre jeton
@@ -77,6 +81,16 @@ def ancien_acces_permis(env=None):
     return v if isinstance(v, bool) else True
 
 
+# Réseaux où l'amorçage est permis : la maison seulement (ni le tailnet ni un autre réseau autorisé).
+RESEAUX_LOCAUX = ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+                  "169.254.0.0/16", "fe80::/10", "fd00::/8")
+
+
+def adresse_locale(ip):
+    """Vrai si l'homologue est sur le réseau de la maison (privé ou la machine elle-même)."""
+    return adresse_autorisee(ip, [ipaddress.ip_network(r) for r in RESEAUX_LOCAUX])
+
+
 def administrateurs():
     """Identités autorisées à gérer les appareils et les réglages : le propriétaire, plus acces.administrateurs
     (identités telles que renvoyées par Appareils.identite, par exemple « appareil:ab12cd34 »)."""
@@ -102,6 +116,8 @@ class Appareils:
         except (OSError, ValueError):
             self.liste = []
         self.attente = {}  # id -> {"nom", "code", "ip", "futur", "t"}
+        self.amorcage = Amorcage()
+        self.refus = []  # derniers refus de connexion (cause, adresse, heure), pour le diagnostic
 
     def enregistrer(self):
         self.fichier.parent.mkdir(parents=True, exist_ok=True)
@@ -131,6 +147,11 @@ class Appareils:
                 self.enregistrer()
                 return a["nom"], f"appareil:{a['id']}"
         return None, None
+
+    def noter_refus(self, cause, ip):
+        """Garde les 20 derniers refus de connexion, vus par les administrateurs dans l'écran Appareils."""
+        self.refus.append({"cause": cause, "ip": str(ip), "heure": datetime.now().isoformat(timespec="seconds")})
+        del self.refus[:-20]
 
     def demande(self, nom, ip, futur):
         ident = secrets.token_hex(4)
@@ -171,7 +192,61 @@ class Appareils:
                             for i, d in self.attente.items() if not d["futur"].done()],
                 "appareils": [{"id": a["id"], "nom": a["nom"], "cree": a["cree"], "dernier": a["dernier"]}
                               for a in self.liste],
-                "jetons_fixes": sorted(set(self.env.values()))}
+                "jetons_fixes": sorted(set(self.env.values())),
+                "refus": list(self.refus[-10:]) if avec_code else []}
+
+
+class Amorcage:
+    """Code d'amorçage de l'appairage, pour le cas où aucun administrateur n'est là pour accepter.
+
+    Le code n'est dit qu'au journal du serveur (accès à la machine ou à ses journaux). Il a 8 chiffres, ne sert
+    qu'une fois, vit DUREE secondes et meurt après ESSAIS saisies fausses, tous téléphones confondus. Un nouveau
+    code ne sort pas plus d'une fois par PAUSE secondes. Comparaison à temps constant."""
+    DUREE = 600
+    ESSAIS = 5
+    PAUSE = 60
+
+    def __init__(self):
+        self.code = None
+        self.expire = 0.0
+        self.essais = 0
+        self.dernier = -1e9
+
+    def valide(self, maintenant=None):
+        maintenant = time.time() if maintenant is None else maintenant
+        return self.code is not None and maintenant < self.expire
+
+    def ouvrir(self, maintenant=None):
+        """(code, nouveau) : le code en cours, ou un nouveau. (None, False) si un nouveau est trop proche du dernier."""
+        maintenant = time.time() if maintenant is None else maintenant
+        if self.valide(maintenant):
+            return self.code, False
+        if maintenant - self.dernier < self.PAUSE:
+            return None, False
+        self.code = f"{secrets.randbelow(10 ** 8):08d}"
+        self.expire = maintenant + self.DUREE
+        self.essais = 0
+        self.dernier = maintenant
+        return self.code, True
+
+    def fermer(self):
+        self.code, self.expire = None, 0.0
+
+    def verifier(self, saisi, maintenant=None):
+        """(accepté, essais restants). Un code juste est consommé, la 5e erreur détruit le code."""
+        maintenant = time.time() if maintenant is None else maintenant
+        if not self.valide(maintenant):
+            self.fermer()
+            return False, 0
+        self.essais += 1
+        saisi = re.sub(r"\D", "", str(saisi or ""))
+        if len(saisi) == len(self.code) and hmac.compare_digest(saisi, self.code):
+            self.fermer()
+            return True, 0
+        restant = max(0, self.ESSAIS - self.essais)
+        if restant == 0:
+            self.fermer()
+        return False, restant
 
 
 def jeton_de_la_requete(requete, chemin, ancien_acces):

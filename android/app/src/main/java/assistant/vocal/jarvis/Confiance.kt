@@ -125,17 +125,34 @@ object Confiance {
     fun spki(cert: X509Certificate): String =
         Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(cert.publicKey.encoded))
 
-    /** Requête WebSocket vers [url] + [chemin], jeton en en-tête si [avecJeton]. */
-    fun requete(ctx: Context, url: String, chemin: String = "/", avecJeton: Boolean = true): Request {
+    private const val PREFIXE_DERNIERE = "derniere_cible_"
+
+    /** Dernière cible qui a répondu pour l'adresse configurée [identite] (0.34.0), ou null. */
+    fun derniereCible(ctx: Context, identite: String): String? =
+        prefs(ctx).getString(PREFIXE_DERNIERE + cleAdresse(identite), null)
+
+    fun retenirCible(ctx: Context, identite: String, cible: String) {
+        prefs(ctx).edit().putString(PREFIXE_DERNIERE + cleAdresse(identite), cible).apply()
+    }
+
+    /**
+     * Requête WebSocket vers [url] + [chemin], jeton en en-tête si [avecJeton]. [identite] (0.34.0) est l'adresse
+     * configurée du serveur : le jeton est celui de cette identité, même quand [url] est une autre cible
+     * (nom d'hôte, dernière adresse connue) qui mène au même serveur.
+     */
+    fun requete(ctx: Context, url: String, chemin: String = "/", avecJeton: Boolean = true, identite: String = url): Request {
         val b = Request.Builder().url(url.trim().trimEnd('/') + chemin)
-        if (avecJeton) b.header("Authorization", "Bearer " + jeton(ctx, url))
+        if (avecJeton) b.header("Authorization", "Bearer " + jeton(ctx, identite))
         return b.build()
     }
 
-    /** Client dérivé de [base] qui épingle la clé de [url] (adresse wss), ou [base] pour ws. */
-    fun client(base: OkHttpClient, ctx: Context, url: String): OkHttpClient {
+    /**
+     * Client dérivé de [base] qui épingle la clé de [identite] (adresse wss, [url] par défaut), ou [base] pour ws.
+     * Une cible alternative présente donc la même clé que l'adresse configurée, sinon elle est refusée.
+     */
+    fun client(base: OkHttpClient, ctx: Context, url: String, identite: String = url): OkHttpClient {
         if (!chiffree(url)) return base
-        val gardien = Gardien(ctx.applicationContext, url)
+        val gardien = Gardien(ctx.applicationContext, identite)
         val tls = SSLContext.getInstance("TLS").apply { init(null, arrayOf(gardien), null) }
         return base.newBuilder()
             .sslSocketFactory(tls.socketFactory, gardien)

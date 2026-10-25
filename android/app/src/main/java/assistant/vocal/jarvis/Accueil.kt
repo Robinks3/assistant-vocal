@@ -39,9 +39,10 @@ internal object Accueil {
      */
     fun panne(
         enMarche: Boolean, connecte: Boolean, serveurLocal: Boolean, passerelleDispo: Boolean, maisonLue: Boolean,
-        visionNiveau: String, alerteCle: String,
+        visionNiveau: String, alerteCle: String, alerteJeton: String = "",
     ): String = when {
         alerteCle.isNotBlank() -> "Clé du serveur refusée, voir l'écran Appareils"
+        alerteJeton.isNotBlank() -> "Appareil refusé par le serveur, voir l'écran Appareils"
         !enMarche -> ""
         !connecte -> "Serveur injoignable"
         !(passerelleDispo || (!serveurLocal && maisonLue)) -> "Home Assistant ne répond plus"

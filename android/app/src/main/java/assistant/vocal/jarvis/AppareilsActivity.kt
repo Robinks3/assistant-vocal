@@ -12,6 +12,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
+import android.text.InputType
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -54,6 +56,13 @@ class AppareilsActivity : Activity() {
     private lateinit var listeAppareils: LinearLayout
     private lateinit var texteFixes: TextView
     private lateinit var boutonOublierJeton: TextView
+    private lateinit var texteDiagnostic: TextView
+    private lateinit var champAmorcage: EditText
+    private lateinit var boutonAmorcage: TextView
+    /** Réappairage lancé tout seul à l'ouverture quand le jeton est refusé : une seule fois par ouverture. */
+    private var reappairageAuto = false
+    /** Numéro de la tentative de connexion, pour tourner sur les cibles de [cibles]. */
+    private var essaiCible = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +79,12 @@ class AppareilsActivity : Activity() {
     override fun onStart() {
         super.onStart()
         connecterGestion(repli = false)
+        val refus = Etat.courant.alerteJeton
+        if (refus.isNotEmpty() && !reappairageAuto && Confiance.chiffree(adresse())) {
+            reappairageAuto = true
+            appairer()
+        }
+        majDiagnostic(null)
     }
 
     override fun onStop() {
@@ -97,6 +112,28 @@ class AppareilsActivity : Activity() {
     }
 
     private fun adresse(): String = SatelliteService.adresse(this, serveur).trim().trimEnd('/')
+
+    /** Cibles à essayer pour joindre le serveur choisi (0.34.0), voir [Decouverte.candidats]. */
+    private fun cibles(): List<String> {
+        val principale = adresse()
+        return Decouverte.candidats(principale, Decouverte.hotes(SatelliteService.hotesDe(serveur)), Confiance.derniereCible(this, principale))
+    }
+
+    /**
+     * Panneau de diagnostic : cause du dernier échec de connexion de cet appareil, et les derniers refus que le
+     * serveur a notés (réseau, jeton, rôle), envoyés seulement aux administrateurs. [refus] vient du serveur.
+     */
+    private fun majDiagnostic(refus: JSONArray?) {
+        val lignes = mutableListOf<String>()
+        Etat.courant.dernierEchec.takeIf { it.isNotEmpty() }?.let { lignes += "Cet appareil : $it" }
+        if (refus != null) {
+            for (i in 0 until refus.length()) {
+                val r = refus.optJSONObject(i) ?: continue
+                lignes += "Serveur, " + r.optString("quand").replace("T", " à ") + " : " + r.optString("cause") + " (" + r.optString("ip") + ")"
+            }
+        }
+        texteDiagnostic.text = if (lignes.isEmpty()) "Aucun échec récent." else lignes.joinToString("\n")
+    }
 
     // ---------------------------------------------------------------- briques graphiques
 
@@ -238,7 +275,24 @@ class AppareilsActivity : Activity() {
         carteCode.addView(texteCodeAide, marge(haut = 4, bas = 10))
         carteCode.addView(bouton("Annuler", Couleur.CHAMP) { annulerAppairage() })
         cAppareil.addView(carteCode, marge(haut = 14))
+        champAmorcage = EditText(this).apply {
+            hint = "Code d'amorçage à 8 chiffres"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setTextColor(Couleur.TEXTE)
+            setHintTextColor(Couleur.GRIS)
+            textSize = 20f
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+        }
+        carteCode.addView(champAmorcage, marge(bas = 8))
+        boutonAmorcage = bouton("Valider le code", Couleur.ACCENT) { envoyerAmorcage() }.apply { visibility = View.GONE }
+        carteCode.addView(boutonAmorcage, marge(bas = 8))
         colonne.addView(cAppareil, marge(bas = 16))
+
+        val cDiag = carte("Diagnostic de connexion")
+        texteDiagnostic = texte(14f, Couleur.TEXTE_2)
+        cDiag.addView(texteDiagnostic, marge())
+        colonne.addView(cDiag, marge(bas = 16))
 
         val cAttente = carte("Demandes en attente")
         listeAttente = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -321,13 +375,15 @@ class AppareilsActivity : Activity() {
         fermer(wsGestion)
         val principale = adresse()
         val ancienne = Confiance.repli(this, principale)
-        val url = if (repli && ancienne != null) ancienne else principale
-        etat("Connexion à $url...", Couleur.TEXTE_2)
+        val url = if (repli && ancienne != null) ancienne else (Decouverte.cibleDe(cibles(), essaiCible) ?: principale)
+        etat("Connexion à ${Decouverte.libelle(url)}...", Couleur.TEXTE_2)
         val ws = try {
-            Confiance.client(client, this, url).newWebSocket(Confiance.requete(this, url), object : WebSocketListener() {
+            Confiance.client(client, this, url, principale).newWebSocket(Confiance.requete(this, url, identite = principale), object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     if (webSocket !== wsGestion) return
                     webSocket.send(JSONObject().put("type", "appareils").toString())
+                    essaiCible = 0
+                    if (!repli) Confiance.retenirCible(this@AppareilsActivity, principale, url)
                     ui {
                         etat(if (Confiance.chiffree(url)) "Connecté, liaison chiffrée" else "Connecté en clair (ancien port)", Couleur.VERT)
                         majServeur()
@@ -342,7 +398,7 @@ class AppareilsActivity : Activity() {
                         return
                     }
                     when (j.optString("etat")) {
-                        "appareils" -> ui { remplir(j) }
+                        "appareils" -> ui { remplir(j); majDiagnostic(j.optJSONArray("refus")) }
                         "appairage_demande" -> webSocket.send(JSONObject().put("type", "appareils").toString())
                         "capacites" -> if (!j.optBoolean("appairage", false)) {
                             ui { etat("Ce serveur ne propose pas l'appairage (port chiffré absent ou version antérieure à 0.17.0)", Couleur.ORANGE) }
@@ -352,8 +408,9 @@ class AppareilsActivity : Activity() {
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     if (webSocket !== wsGestion) return
+                    val d = Decouverte.diagnostic(code, reason, null, null, Decouverte.libelle(url))
                     ui {
-                        if (code == 4001) etat("Jeton refusé par ce serveur : appaire cet appareil", Couleur.ORANGE)
+                        if (code == 4001 || code == 4003) etat(d.texte, Couleur.ORANGE)
                         else etat("Connexion fermée ($code)", Couleur.TEXTE_2)
                     }
                 }
@@ -361,11 +418,15 @@ class AppareilsActivity : Activity() {
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     if (webSocket !== wsGestion) return
                     val cle = Confiance.cleChangee(t)
+                    val d = Decouverte.diagnostic(null, null, response?.code, t, Decouverte.libelle(url))
                     ui {
                         when {
                             cle != null -> etat(cle.message ?: "La clé du serveur a changé", Couleur.ROUGE)
                             response == null && !repli && ancienne != null -> connecterGestion(repli = true)
-                            else -> etat("Serveur injoignable (${response?.code ?: t.javaClass.simpleName})", Couleur.ORANGE)
+                            else -> {
+                                essaiCible++
+                                etat(d.texte, Couleur.ORANGE)
+                            }
                         }
                         majServeur()
                     }
@@ -472,7 +533,8 @@ class AppareilsActivity : Activity() {
     // ---------------------------------------------------------------- appairage
 
     private fun appairer() {
-        val url = adresse()
+        val principale = adresse()
+        val url = Decouverte.cibleDe(cibles(), essaiCible) ?: principale
         if (!Confiance.chiffree(url)) {
             Toast.makeText(this, "L'appairage passe par le port chiffré : l'adresse doit commencer par wss://", Toast.LENGTH_LONG).show()
             return
@@ -481,9 +543,12 @@ class AppareilsActivity : Activity() {
         carteCode.visibility = View.VISIBLE
         texteCode.text = "----"
         texteCodeAide.text = "Demande envoyée au serveur..."
+        champAmorcage.visibility = View.GONE
+        champAmorcage.text.clear()
+        boutonAmorcage.visibility = View.GONE
         // Sans jeton : c'est justement ce que l'appairage doit fournir.
-        val requete = Confiance.requete(this, url, "/appairage?nom=" + URLEncoder.encode(Build.MODEL, "UTF-8"), avecJeton = false)
-        wsAppairage = Confiance.client(client, this, url).newWebSocket(requete, object : WebSocketListener() {
+        val requete = Confiance.requete(this, url, "/appairage?nom=" + URLEncoder.encode(Build.MODEL, "UTF-8"), avecJeton = false, identite = principale)
+        wsAppairage = Confiance.client(client, this, url, principale).newWebSocket(requete, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 if (webSocket !== wsAppairage) return
                 val j = try {
@@ -494,12 +559,20 @@ class AppareilsActivity : Activity() {
                 when (j.optString("etat")) {
                     "appairage" -> ui {
                         texteCode.text = j.optString("code")
-                        texteCodeAide.text = "Accepte la demande sur un appareil déjà connecté : le même code doit s'y afficher. " +
-                            "La demande expire au bout de 5 minutes."
+                        if (j.optBoolean("amorcage", false)) {
+                            texteCodeAide.text = j.optString("message") + ". Le code a 8 chiffres et n'est valable que 10 minutes."
+                            champAmorcage.visibility = View.VISIBLE
+                            boutonAmorcage.visibility = View.VISIBLE
+                        } else {
+                            texteCodeAide.text = "Accepte la demande sur un appareil déjà connecté : le même code doit s'y afficher. " +
+                                "La demande expire au bout de 5 minutes."
+                        }
                     }
                     "appaire" -> {
                         val jeton = j.optString("jeton")
-                        if (jeton.length >= 16) Confiance.enregistrerJeton(this@AppareilsActivity, url, jeton)
+                        if (jeton.length >= 16) Confiance.enregistrerJeton(this@AppareilsActivity, principale, jeton)
+                        Confiance.retenirCible(this@AppareilsActivity, principale, url)
+                        Etat.modifier { it.copy(alerteJeton = "", dernierEchec = "") }
                         ui {
                             texteCode.text = "OK"
                             texteCodeAide.text = "Appairé sous le nom « ${j.optString("nom")} ». Le satellite se reconnecte avec son propre jeton."
@@ -508,9 +581,21 @@ class AppareilsActivity : Activity() {
                             connecterGestion(repli = false)
                         }
                     }
+                    "amorcage_refuse" -> ui {
+                        val restant = j.optInt("restant", 0)
+                        val detail = j.optString("message")
+                        texteCodeAide.text = when {
+                            detail.isNotEmpty() -> detail
+                            restant > 0 -> "Code d'amorçage faux, $restant essai(s) restant(s)."
+                            else -> "Code d'amorçage refusé, plus d'essai. Relance la demande pour obtenir un nouveau code."
+                        }
+                        champAmorcage.text.clear()
+                    }
                     "appairage_refuse" -> ui {
                         texteCode.text = "----"
                         texteCodeAide.text = "Demande refusée ou expirée."
+                        champAmorcage.visibility = View.GONE
+                        boutonAmorcage.visibility = View.GONE
                     }
                 }
             }
@@ -518,13 +603,27 @@ class AppareilsActivity : Activity() {
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 if (webSocket !== wsAppairage) return
                 val cle = Confiance.cleChangee(t)
+                val d = Decouverte.diagnostic(null, null, response?.code, t, Decouverte.libelle(url))
                 ui {
-                    texteCodeAide.text = cle?.message
-                        ?: "Appairage impossible (${response?.code ?: t.javaClass.simpleName}) : serveur 0.17.0 avec port chiffré requis."
+                    essaiCible++
+                    texteCodeAide.text = cle?.message ?: ("Appairage impossible : " + d.texte)
                     majServeur()
                 }
             }
         })
+    }
+
+    /** Envoie le code d'amorçage saisi (8 chiffres) sur la demande d'appairage en cours. */
+    private fun envoyerAmorcage() {
+        val code = champAmorcage.text.toString().filter { it.isDigit() }
+        if (code.length != 8) {
+            Toast.makeText(this, "Le code d'amorçage a 8 chiffres", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val ws = wsAppairage
+        if (ws == null || !ws.send(JSONObject().put("type", "amorcage").put("code", code).toString())) {
+            Toast.makeText(this, "Demande d'appairage fermée : relance-la", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun annulerAppairage() {

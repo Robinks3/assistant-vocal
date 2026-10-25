@@ -683,9 +683,9 @@ internal class EcranAmbiant(private val ctx: Context) {
     private fun majPanne(e: Etat.Instantane, maintenant: Long) {
         val texte = Accueil.panne(
             e.enMarche, e.lien == Etat.Lien.CONNECTE, e.capServeur == "local", e.passerelleDispo, e.maison != null,
-            e.visionNiveau, e.alerteCle,
+            e.visionNiveau, e.alerteCle, e.alerteJeton,
         )
-        alerteCle = e.alerteCle.isNotBlank()
+        alerteCle = e.alerteCle.isNotBlank() || e.alerteJeton.isNotBlank()
         // Début de la panne de la maison (serveur ou Home Assistant), pour « depuis 10 h 02 ».
         val maisonEnPanne = texte == "Home Assistant ne répond plus" || texte == "Serveur injoignable"
         if (maisonEnPanne && panneMaisonDepuis == null) panneMaisonDepuis = LocalTime.now()

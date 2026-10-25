@@ -162,6 +162,10 @@ object Etat {
         val demandeAppairage: DemandeAppairage? = null,
         /** Clé d'un serveur refusée par l'épinglage : message à afficher, vide sinon. */
         val alerteCle: String = "",
+        /** Jeton refusé par le serveur (4001) : cause à afficher, vide sinon. L'écran Appareils relance alors l'appairage. */
+        val alerteJeton: String = "",
+        /** Cause du dernier échec de connexion (réseau, certificat, jeton, rôle), pour l'écran Appareils. */
+        val dernierEchec: String = "",
         /** Message bref affiché quelques secondes sous l'orbe (arbitre), et son horodatage. */
         val bref: String = "",
         val brefLe: Long = 0L,

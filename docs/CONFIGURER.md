@@ -134,13 +134,17 @@ Adresses des services de la maison.
 | `ssh_ha` | texte | Alias SSH de la machine Home Assistant. Sert à `ha-app/deployer.sh`, à `ha-app/configurer-options.py`, et au serveur du PC pour joindre les applis Wyoming de Home Assistant (`ssh <alias> nc <hôte> <port>`). |
 | `android_serveur_pc` | texte | Adresse wss par défaut du serveur du PC, compilée dans l'APK (`BuildConfig.SERVEUR_PC_DEFAUT`) et modifiable dans les réglages de l'appli. |
 | `android_serveur_ha` | texte | Adresse wss par défaut de l'appli Home Assistant, compilée de la même façon (`SERVEUR_HA_DEFAUT`). |
+| `android_hotes_pc` | texte | Noms d'hôte séparés par des virgules (par exemple un nom mDNS en `.local`) essayés avant l'adresse enregistrée pour joindre le serveur du PC, si son IP a changé. Vide : aucune découverte. |
+| `android_hotes_ha` | texte | Même chose pour l'appli Home Assistant. |
 
 ```json
 "reseau": {
   "ha_url": "http://homeassistant.local:8123",
   "ssh_ha": "ha",
   "android_serveur_pc": "wss://192.168.0.10:8766",
-  "android_serveur_ha": "wss://192.168.0.20:8766"
+  "android_serveur_ha": "wss://192.168.0.20:8766",
+  "android_hotes_pc": "pc-maison.local",
+  "android_hotes_ha": "homeassistant.local"
 }
 ```
 

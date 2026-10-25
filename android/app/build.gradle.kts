@@ -8,7 +8,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.34.0"
+val versionApplication = "0.35.0"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -137,7 +137,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 63
+        versionCode = 64
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
@@ -146,6 +146,9 @@ android {
         // Port chiffré (wss, clé épinglée à la première connexion) depuis la 0.15.0.
         buildConfigField("String", "SERVEUR_PC_DEFAUT", chaineJava(reseauMaison("android_serveur_pc")))
         buildConfigField("String", "SERVEUR_HA_DEFAUT", chaineJava(reseauMaison("android_serveur_ha")))
+        // Noms d'hôte de repli (virgules), essayés avant l'IP si elle a changé (0.34.0).
+        buildConfigField("String", "HOTES_PC_DEFAUT", chaineJava(reseauMaison("android_hotes_pc")))
+        buildConfigField("String", "HOTES_HA_DEFAUT", chaineJava(reseauMaison("android_hotes_ha")))
         // Configuration de la maison en JSON compact, ASCII (groovy échappe les accents).
         buildConfigField("String", "MAISON_JSON", chaineJava(groovy.json.JsonOutput.toJson(maison)))
         buildConfigField("String", "JETON_DEFAUT", chaineJava(jetonSatellite))

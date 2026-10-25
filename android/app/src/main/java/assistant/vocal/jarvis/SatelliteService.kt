@@ -121,6 +121,7 @@ class SatelliteService : Service() {
         private const val TAUX = 16000
         private const val BLOC = 1280
         private const val DELAI_RECONNEXION_MS = 3000L
+        private const val DELAI_JETON_REFUSE_MS = 15_000L
         private const val TAG = "JarvisSatellite"
 
         fun preferences(ctx: Context): SharedPreferences {
@@ -162,6 +163,10 @@ class SatelliteService : Service() {
                 p.getString(CLE_URL_PC, null) ?: BuildConfig.SERVEUR_PC_DEFAUT
             }
         }
+
+        /** Noms d'hôte de repli du serveur (0.34.0), séparés par des virgules, issus de la configuration. */
+        fun hotesDe(serveur: String): String =
+            if (serveur == "ha") BuildConfig.HOTES_HA_DEFAUT else BuildConfig.HOTES_PC_DEFAUT
 
         fun nomServeur(serveur: String): String = when (serveur) {
             "ha" -> "Home Assistant"
@@ -242,6 +247,8 @@ class SatelliteService : Service() {
     @Volatile private var reveilARecharger = false
     /** Prochaine connexion sur l'ancienne adresse en clair (port chiffré muet). */
     @Volatile private var essaiRepli = false
+    /** Numéro de la tentative en cours dans la liste de cibles (0.34.0), remis à zéro à chaque connexion réussie. */
+    @Volatile private var essaiCible = 0
     /** Adresse de la connexion en cours, pour vérifier l'empreinte annoncée par le serveur. */
     @Volatile private var adresseCourante = ""
 
@@ -769,11 +776,14 @@ class SatelliteService : Service() {
         val principale = adresse(this, serveur).trim().trimEnd('/')
         // Port chiffré muet au dernier essai : ancienne adresse en clair, si aucune clé n'est retenue.
         val repli = Confiance.repli(this, principale)
-        val base = if (essaiRepli && repli != null) repli else principale
+        // Cibles à tour de rôle (0.34.0) : dernière qui a répondu, noms d'hôte, puis l'adresse enregistrée.
+        val cibles = Decouverte.candidats(principale, Decouverte.hotes(hotesDe(serveur)), Confiance.derniereCible(this, principale))
+        val base = if (essaiRepli && repli != null) repli else (Decouverte.cibleDe(cibles, essaiCible) ?: principale)
         val surRepli = base == repli
         val requete = try {
             // Le jeton part dans l'en-tête Authorization, jamais dans l'adresse ni à l'écran.
-            Confiance.requete(this, base)
+            // Il est celui de l'adresse enregistrée, quelle que soit la cible essayée.
+            Confiance.requete(this, base, identite = principale)
         } catch (e: IllegalArgumentException) {
             changer(connexion = "Adresse invalide : $base")
             planifierReconnexion()
@@ -782,7 +792,7 @@ class SatelliteService : Service() {
         adresseCourante = base
         changer(connexion = if (surRepli) "Port chiffré muet, essai de l'ancienne adresse $base..." else "Connexion à $base...")
         try {
-            ws = Confiance.client(c, this, base).newWebSocket(requete, Ecouteur(base, surRepli, repli != null))
+            ws = Confiance.client(c, this, base, principale).newWebSocket(requete, Ecouteur(base, surRepli, repli != null, principale))
         } catch (e: Exception) {
             Log.w(TAG, "Ouverture du WebSocket impossible", e)
             changer(connexion = "Échec de connexion, nouvel essai dans 3 s")
@@ -935,7 +945,18 @@ class SatelliteService : Service() {
 
     private fun planifierReconnexion() {
         reseau.removeCallbacks(reconnexion)
-        if (actif) reseau.postDelayed(reconnexion, DELAI_RECONNEXION_MS)
+        // Jeton refusé : réessayer toutes les 3 s ne sert à rien tant que l'appairage n'est pas refait.
+        val delai = if (Etat.courant.alerteJeton.isNotEmpty()) DELAI_JETON_REFUSE_MS else DELAI_RECONNEXION_MS
+        if (actif) reseau.postDelayed(reconnexion, delai)
+    }
+
+    /** Enregistre la cause d'un échec et fait passer la prochaine tentative à la cible suivante. */
+    private fun diagnostiquer(code: Int?, raison: String?, http: Int?, t: Throwable?, cible: String): Decouverte.Diagnostic {
+        val d = Decouverte.diagnostic(code, raison, http, t, Decouverte.libelle(cible))
+        Log.w(TAG, "Échec de connexion à ${Decouverte.libelle(cible)} : ${d.cause}")
+        if (d.cause == Decouverte.Cause.RESEAU || d.cause == Decouverte.Cause.SERVEUR) essaiCible++
+        Etat.modifier { it.copy(dernierEchec = d.texte, alerteJeton = if (d.jetonRefuse) d.texte else it.alerteJeton) }
+        return d
     }
 
     /** Tout ce que le serveur avait confirmé est oublié jusqu'à ce qu'il le redise. */
@@ -957,7 +978,8 @@ class SatelliteService : Service() {
         reseau.removeCallbacks(envoiCerveauDiffere)
         ecouteServeur = false
         oublierConfirmations()
-        changer(connexion = "$raison, nouvel essai dans 3 s", assistant = "", lien = Etat.Lien.RECONNEXION)
+        val delaiS = if (Etat.courant.alerteJeton.isNotEmpty()) DELAI_JETON_REFUSE_MS / 1000 else 3L
+        changer(connexion = "$raison, nouvel essai dans $delaiS s", assistant = "", lien = Etat.Lien.RECONNEXION)
         planifierReconnexion()
     }
 
@@ -1033,11 +1055,15 @@ class SatelliteService : Service() {
         /** Connexion sur l'ancienne adresse en clair. */
         private val repli: Boolean,
         private val repliPossible: Boolean,
+        /** Adresse enregistrée du serveur : jeton et clé retenus sont rangés dessous. */
+        private val identite: String,
     ) : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             if (webSocket !== ws) return
             connecte = true
-            Etat.modifier { it.copy(alerteCle = "") }
+            essaiCible = 0
+            if (!repli) Confiance.retenirCible(this@SatelliteService, identite, adresse)
+            Etat.modifier { it.copy(alerteCle = "", alerteJeton = "", dernierEchec = "") }
             changer(
                 connexion = if (repli) "Connecté en clair sur l'ancien port 8765 : serveur à mettre à jour (0.17.0) pour le port chiffré"
                 else if (Confiance.chiffree(adresse)) "Connecté (chiffré)" else "Connecté",
@@ -1079,11 +1105,13 @@ class SatelliteService : Service() {
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             // Après une connexion en clair qui tombe, on retente d'abord le port chiffré.
             if (repli) essaiRepli = false
+            if (webSocket !== ws) return
+            val d = diagnostiquer(code, reason, null, null, adresse)
             perdu(
                 webSocket,
                 when {
                     code == 4001 && repli -> "Jeton refusé (serveur antérieur à 0.17.0 ? il attend l'ancien accès)"
-                    code == 4001 -> "Jeton refusé par le serveur : appaire cet appareil (écran Appareils)"
+                    code == 4001 || code == 4003 -> d.texte
                     else -> "Connexion fermée ($code)"
                 },
             )
@@ -1102,12 +1130,9 @@ class SatelliteService : Service() {
             } else if (repli) {
                 essaiRepli = false
             }
-            val raison = when (val code = response?.code) {
-                null -> if (repli) "Ancienne adresse injoignable aussi (${t.javaClass.simpleName})"
-                else "Déconnecté (${t.javaClass.simpleName})"
-                401, 403 -> "Refusé par le serveur ($code), jeton à vérifier ou appairage à faire"
-                else -> "Réponse inattendue du serveur ($code)"
-            }
+            if (webSocket !== ws) return
+            val d = diagnostiquer(null, null, response?.code, t, adresse)
+            val raison = if (response == null && repli) "Ancienne adresse injoignable aussi" else d.texte
             perdu(webSocket, raison)
         }
     }
