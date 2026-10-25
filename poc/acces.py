@@ -22,6 +22,7 @@ import base64, hashlib, hmac, json, re, secrets, time
 from datetime import datetime, timedelta, timezone
 
 import ipaddress
+from urllib.parse import urlparse
 
 import maison
 import securite
@@ -106,6 +107,71 @@ def est_administrateur(identite):
     return bool(identite) and str(identite).lower() in administrateurs()
 
 
+# Home Assistant Ingress (0.34.0) : le superviseur relaie les requêtes de la page d'administration depuis cette
+# adresse et pose lui-même X-Remote-User-Id, -Name et -Display-Name (il retire ceux que le client enverrait).
+# https://contributors.home-assistant.io/apps/guides/ingress/
+SUPERVISEUR = "172.30.32.2"
+
+# Rôles d'un appareil appairé. Aucun ne change de droit pour l'instant : seul l'administrateur agit, par
+# acces.administrateurs. Le rôle prépare la liste blanche des messages par rôle (conception du client web,
+# étape 0a). « administrateur » ne s'attribue ni depuis la page d'administration ni par une invitation.
+ROLES = ("administrateur", "habitant", "partage", "invite")
+ROLES_ATTRIBUABLES = ("habitant", "partage", "invite")
+ROLE_PAR_DEFAUT = "habitant"
+
+
+def role_de(entree):
+    """Rôle d'une entrée d'appareils.json. Une entrée sans champ (d'avant 0.34.0) ou au rôle inconnu vaut
+    « habitant », sans que le fichier soit réécrit."""
+    role = entree.get("role") if isinstance(entree, dict) else None
+    return role if role in ROLES else ROLE_PAR_DEFAUT
+
+
+def utilisateurs_ha():
+    """Identifiants Home Assistant (X-Remote-User-Id) admis dans la page d'administration. Liste absente ou
+    vide : personne n'entre."""
+    v = maison.ADMINISTRATION.get("utilisateurs_ha")
+    return {str(x).strip().lower() for x in v if str(x).strip()} if isinstance(v, list) else set()
+
+
+def url_client():
+    """Adresse du client web, pour le QR code d'invitation. Vide tant que le client web n'existe pas."""
+    v = maison.ADMINISTRATION.get("url_client")
+    return v.strip() if isinstance(v, str) else ""
+
+
+def controle_ingress(ip, entetes):
+    """((identifiant, nom affiché), None) si la requête vient du superviseur et d'un compte de la liste blanche,
+    sinon (None, raison du refus). Barrières : adresse du superviseur, identifiant présent, identifiant dans
+    administration.utilisateurs_ha (panel_admin: true, dans config.yaml, en est une autre)."""
+    if str(ip).split("%")[0] != SUPERVISEUR:
+        return None, "adresse source hors superviseur"
+    try:
+        ident = (entetes.get("X-Remote-User-Id") or "").strip()
+        nom = (entetes.get("X-Remote-User-Display-Name") or entetes.get("X-Remote-User-Name") or "").strip()
+    except LookupError:
+        return None, "en-tête d'identité en double"
+    if not ident:
+        return None, "utilisateur Home Assistant absent"
+    if ident.lower() not in utilisateurs_ha():
+        return None, f"utilisateur {ident} hors de administration.utilisateurs_ha"
+    return (ident, nom or ident), None
+
+
+def origine_acceptee(entetes):
+    """Vrai si l'en-tête Origin d'une WebSocket est présent et d'un hôte égal à Host (ou X-Forwarded-Host) :
+    une page d'un autre site ne peut pas ouvrir la connexion avec les droits de l'utilisateur."""
+    try:
+        origine = entetes.get("Origin")
+        if not origine:
+            return False
+        hote = urlparse(origine).netloc.lower()
+        hotes = {(entetes.get(h) or "").split(",")[0].strip().lower() for h in ("Host", "X-Forwarded-Host")}
+    except (ValueError, LookupError):
+        return False
+    return bool(hote) and hote in hotes
+
+
 def empreinte(jeton):
     return hashlib.sha256(jeton.encode("utf-8")).hexdigest()
 
@@ -122,6 +188,7 @@ class Appareils:
             self.liste = []
         self.attente = {}  # id -> {"nom", "code", "ip", "futur", "t"}
         self.amorcage = Amorcage()
+        self.invitation = Invitation()
         self.refus = []  # derniers refus de connexion (cause, adresse, heure), pour le diagnostic
 
     def enregistrer(self):
@@ -165,13 +232,13 @@ class Appareils:
         self.attente[ident] = {"nom": nom, "code": code, "ip": ip, "futur": futur, "t": time.time()}
         return ident, code, nom
 
-    def accepter(self, ident):
+    def accepter(self, ident, role=ROLE_PAR_DEFAUT):
         """Crée le jeton de l'appareil en attente, le remet à sa connexion, et ne garde que l'empreinte."""
         d = self.attente.pop(ident, None)
         if not d or d["futur"].done():
             return None
         jeton = secrets.token_urlsafe(32)
-        self.liste.append({"id": ident, "nom": d["nom"], "empreinte": empreinte(jeton),
+        self.liste.append({"id": ident, "nom": d["nom"], "empreinte": empreinte(jeton), "role": role,
                            "cree": datetime.now().isoformat(timespec="seconds"), "dernier": ""})
         self.enregistrer()
         d["futur"].set_result(jeton)
@@ -189,14 +256,29 @@ class Appareils:
         self.enregistrer()
         return len(self.liste) < avant
 
+    def changer_role(self, ident, role):
+        """(nom, avant, après), ou None si l'appareil est inconnu ou le rôle non attribuable."""
+        if role not in ROLES_ATTRIBUABLES:
+            return None
+        for a in self.liste:
+            if a["id"] == ident:
+                avant = role_de(a)
+                if avant == "administrateur":
+                    return None
+                a["role"] = role
+                self.enregistrer()
+                return a["nom"], avant, role
+        return None
+
     def vue(self, avec_code=False):
         """Liste des appareils. Le code d'appairage n'y figure que sur demande expresse (avec_code), pour
         l'écran d'un administrateur : sans lui, une vue ne permet pas de deviner le code d'une demande."""
         return {"etat": "appareils",
                 "attente": [dict({"id": i, "nom": d["nom"], "ip": d["ip"]}, **({"code": d["code"]} if avec_code else {}))
                             for i, d in self.attente.items() if not d["futur"].done()],
-                "appareils": [{"id": a["id"], "nom": a["nom"], "cree": a["cree"], "dernier": a["dernier"]}
-                              for a in self.liste],
+                "appareils": [{"id": a["id"], "nom": a["nom"], "role": role_de(a), "cree": a["cree"],
+                               "dernier": a["dernier"]} for a in self.liste],
+                "invitation": self.invitation.vue(),
                 "jetons_fixes": sorted(set(self.env.values())),
                 "refus": list(self.refus[-10:]) if avec_code else []}
 
@@ -244,7 +326,7 @@ class Amorcage:
             self.fermer()
             return False, 0
         self.essais += 1
-        saisi = re.sub(r"\D", "", str(saisi or ""))
+        saisi = re.sub(r"[^0-9]", "", str(saisi or ""))
         if len(saisi) == len(self.code) and hmac.compare_digest(saisi, self.code):
             self.fermer()
             return True, 0
@@ -252,6 +334,68 @@ class Amorcage:
         if restant == 0:
             self.fermer()
         return False, restant
+
+
+class Invitation:
+    """Code d'invitation d'un appareil, affiché dans la page d'administration de Home Assistant (0.34.0).
+
+    6 chiffres, DUREE secondes, usage unique, ESSAIS saisies fausses (tous appareils confondus) avant destruction.
+    Une seule invitation ouverte à la fois : en créer une annule la précédente. Elle porte le rôle de l'appareil
+    qui l'utilisera, jamais administrateur. Le code n'est remis qu'à l'appelant d'ouvrir() : il n'entre ni dans
+    le journal, ni dans vue(), ni dans un message diffusé. Comparaison à temps constant."""
+    DUREE = 120
+    ESSAIS = 3
+    LONGUEUR = 6
+
+    def __init__(self):
+        self.code = None
+        self.role = ROLE_PAR_DEFAUT
+        self.expire = 0.0
+        self.essais = 0
+
+    def valide(self, maintenant=None):
+        maintenant = time.time() if maintenant is None else maintenant
+        return self.code is not None and maintenant < self.expire
+
+    def ouvrir(self, role=ROLE_PAR_DEFAUT, maintenant=None):
+        """Nouveau code (l'ancien est détruit). ValueError si le rôle n'est pas attribuable."""
+        if role not in ROLES_ATTRIBUABLES:
+            raise ValueError(f"rôle non attribuable par invitation : {role}")
+        maintenant = time.time() if maintenant is None else maintenant
+        self.code = f"{secrets.randbelow(10 ** self.LONGUEUR):0{self.LONGUEUR}d}"
+        self.role, self.expire, self.essais = role, maintenant + self.DUREE, 0
+        return self.code
+
+    def annuler(self):
+        """Vrai si une invitation était ouverte."""
+        ouverte = self.code is not None
+        self.code, self.expire = None, 0.0
+        return ouverte
+
+    def restant(self, maintenant=None):
+        maintenant = time.time() if maintenant is None else maintenant
+        return max(0, int(self.expire - maintenant + 0.999)) if self.valide(maintenant) else 0
+
+    def vue(self, maintenant=None):
+        """État sans le code : None sans invitation, sinon secondes restantes et rôle."""
+        return {"restant": self.restant(maintenant), "role": self.role} if self.valide(maintenant) else None
+
+    def verifier(self, saisi, maintenant=None):
+        """(rôle, essais restants). Rôle None si refus. Un code juste est consommé, la dernière erreur détruit le code."""
+        maintenant = time.time() if maintenant is None else maintenant
+        if not self.valide(maintenant):
+            self.annuler()
+            return None, 0
+        self.essais += 1
+        saisi = re.sub(r"[^0-9]", "", str(saisi or ""))
+        if len(saisi) == len(self.code) and hmac.compare_digest(saisi, self.code):
+            role = self.role
+            self.annuler()
+            return role, 0
+        restant = max(0, self.ESSAIS - self.essais)
+        if restant == 0:
+            self.annuler()
+        return None, restant
 
 
 def jeton_de_la_requete(requete, chemin, ancien_acces):

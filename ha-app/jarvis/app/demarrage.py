@@ -10,6 +10,8 @@ options = json.loads(Path("/data/options.json").read_text(encoding="utf-8"))
 os.environ.update({
     "JARVIS_PROFIL": "ha",
     "JARVIS_DONNEES": "/data",
+    # Page d'administration (Ingress) : port interne égal à ingress_port de config.yaml, non publié.
+    "JARVIS_ADMIN_PORT": "8099",
     # Configuration de la maison (maison.json, commandes.yaml), copiée par deployer.sh à chaque déploiement.
     "ASSISTANT_VOCAL_CONFIG": "/app/config",
     "HA_URL": "http://supervisor/core",

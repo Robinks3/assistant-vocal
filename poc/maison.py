@@ -68,6 +68,7 @@ SECURITE = CONFIG.get("securite") or {}
 # connexion est acceptée), ancien_acces (jeton dans l'adresse sur le port en clair), administrateurs (identités
 # autorisées à gérer les appareils et les réglages, en plus du propriétaire). Voir acces.py.
 ACCES = CONFIG.get("acces") if isinstance(CONFIG.get("acces"), dict) else {}
+ADMINISTRATION = CONFIG.get("administration") if isinstance(CONFIG.get("administration"), dict) else {}
 FUSEAU = CONFIG.get("fuseau") or "UTC"
 # Propriétaire de la maison (section proprietaire) : prénom affiché, clé de son jeton SATELLITE_JETON et de ses
 # droits santé, transcriptions erronées de son prénom à corriger.

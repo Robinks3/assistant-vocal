@@ -16,6 +16,9 @@ import java.util.Locale
  */
 object Appareils {
 
+    /** Code saisi pour l'appairage : 6 chiffres (invitation affichée dans Home Assistant) ou 8 (amorçage du journal). */
+    fun codeAmorcageValide(code: String): Boolean = code.length == 6 || code.length == 8
+
     data class Appareil(
         val id: String,
         val nom: String,
@@ -246,7 +249,7 @@ object Appareils {
         val id = o.optString("id")
         if (id.isEmpty()) return null
         fun liste(nom: String) = o.optJSONArray(nom)?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList()
-        val lum = if (o.isNull("lum") || !o.has("lum")) null else Math.round(o.optDouble("lum", 0.0) / 5.55).toInt().coerceIn(0, 100)
+        val lum = if (o.isNull("lum") || !o.has("lum")) null else Math.round(o.optDouble("lum", 0.0) / 2.55).toInt().coerceIn(0, 100)
         val volume = if (o.isNull("volume") || !o.has("volume")) null else o.optDouble("volume", 0.0)
         // Les enceintes gardent leur nom court (Salon, Cuisine, Bureau), comme dans l'écran Musique.
         val nom = if (id in ENCEINTES) SortieSon.nomCourt(id) else o.optString("nom").ifBlank { Maison.nomBrut(id) }

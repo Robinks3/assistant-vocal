@@ -87,5 +87,6 @@ def test_appairage_diffuse_aux_seuls_administrateurs():
     proprio, autre = Faux(maison.CLE_PROPRIETAIRE), Faux("appareil:ab12cd34")
     moteur = object.__new__(S.Moteur)
     moteur.satellites = {proprio, autre}
+    moteur.pages_admin = set()
     asyncio.run(moteur.diffuser({"etat": "appairage_demande", "code": "1234"}, administrateurs=True))
     assert proprio.recus and not autre.recus

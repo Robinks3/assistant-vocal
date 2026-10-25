@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Administration de l'assistant</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header class="entete">
+  <div>
+    <h1 id="titre">Administration</h1>
+    <p class="discret" id="sous-titre">Connexion en cours...</p>
+  </div>
+  <p class="discret droite" id="infos"></p>
+</header>
+
+<p id="bandeau" class="bandeau" role="status" hidden></p>
+
+<main>
+  <section aria-labelledby="h-demandes" id="bloc-demandes" hidden>
+    <h2 id="h-demandes">Demandes en attente</h2>
+    <p class="discret">Compare le code avec celui affiché sur le téléphone avant d'accepter.</p>
+    <ul class="cartes" id="demandes"></ul>
+  </section>
+
+  <section aria-labelledby="h-appareils">
+    <h2 id="h-appareils">Appareils</h2>
+    <p class="discret">Pour l'instant, tous les rôles ont les mêmes droits. Le rôle prépare les droits à venir.</p>
+    <p class="vide" id="aucun-appareil" hidden>Aucun appareil appairé.</p>
+    <ul class="cartes" id="appareils"></ul>
+  </section>
+
+  <section aria-labelledby="h-ajout">
+    <h2 id="h-ajout">Ajouter un appareil</h2>
+    <div id="formulaire-ajout" class="ligne">
+      <label for="role-invitation">Rôle du nouvel appareil</label>
+      <select id="role-invitation">
+        <option value="habitant">Habitant</option>
+        <option value="partage">Partage</option>
+        <option value="invite">Invité</option>
+      </select>
+      <button type="button" id="creer-code" class="principal">Créer un code</button>
+    </div>
+    <div id="invitation" class="invitation" hidden>
+      <p class="discret">Saisis ce code dans l'appli, ou scanne le QR code. Il sert une seule fois.</p>
+      <p class="code-grand" id="code-invitation" aria-live="off"></p>
+      <img id="qr" class="qr" alt="QR code d'invitation" width="192" height="192" hidden>
+      <p class="discret" id="explication-qr" hidden>Le QR code arrivera avec le client web. En attendant, saisis le code dans l'appli Android.</p>
+      <p id="compte-a-rebours" class="compte" role="timer"></p>
+      <button type="button" id="annuler-code" class="secondaire">Annuler le code</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-fixes">
+    <h2 id="h-fixes">Jetons fixes</h2>
+    <p class="discret">Accès définis dans la configuration du serveur. Lecture seule.</p>
+    <ul class="simple" id="jetons"></ul>
+    <p class="vide" id="aucun-jeton" hidden>Aucun jeton fixe.</p>
+  </section>
+
+  <section aria-labelledby="h-refus">
+    <h2 id="h-refus">Derniers refus de connexion</h2>
+    <ul class="simple" id="refus"></ul>
+    <p class="vide" id="aucun-refus" hidden>Aucun refus récent.</p>
+  </section>
+</main>
+
+<script src="admin.js"></script>
+</body>
+</html>

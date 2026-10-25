@@ -4,6 +4,40 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.34.0 (2026-10-25), administration dans Home Assistant (Ingress), invitation par code
+Lot : une page d'administration dans la barre latérale de Home Assistant, réservée aux administrateurs de HA de
+la liste blanche. Doc HA : https://contributors.home-assistant.io/apps/guides/ingress/. Appli Android 0.37.0
+(saisie du code).
+- Service (`poc/administration.py`) : HTTP et WebSocket sur `0.0.0.0:JARVIS_ADMIN_PORT` (8099 dans l'appli HA, port
+  non publié dans `ports:`), actif seulement si la variable est posée. Sans framework ni npm. Table de chemins
+  fermée vers `poc/admin/` (index.html, admin.js, admin.css), 404 pour le reste. En-têtes de sécurité sur toutes les
+  réponses (CSP sans script ni style en ligne, nosniff, no-referrer, no-store).
+- Barrières d'entrée : adresse source `172.30.32.2` (le superviseur), `X-Remote-User-Id` dans
+  `administration.utilisateurs_ha` (liste vide : personne n'entre, la page 403 affiche l'identifiant à ajouter),
+  WebSocket fermée en 4003 si l'en-tête Origin est absent ou différent de l'hôte (le refus journalise Origin, Host et
+  X-Forwarded-Host, pour diagnostiquer un Ingress réel). Le canal de la page n'accepte que `TYPES_PAGE`.
+- Page : demandes en attente (nom, adresse, code à 4 chiffres, Accepter ou Refuser avec choix du rôle), appareils
+  (rôle modifiable sauf administrateur, révocation avec confirmation dans la page), ajout d'appareil (rôle, code à
+  6 chiffres en grand, QR code, compte à rebours, annulation), jetons fixes en lecture seule, derniers refus.
+- Invitation (`acces.Invitation`) : 6 chiffres, 120 s, usage unique, 3 essais, une seule à la fois, rôle
+  administrateur refusé. Le code n'apparaît que dans la page (ni journal, ni `vue()`, ni diffusion). Indépendante de
+  l'amorçage à 8 chiffres. L'appli Android accepte 6 ou 8 chiffres.
+- QR code : `<administration.url_client>#code=<6 chiffres>`, généré localement par `segno`. Sans `url_client`
+  (le client web n'existe pas encore), la page affiche le code en grand et explique que le QR code arrivera avec le
+  client web.
+- Relectures (sécurité, accessibilité) intégrées : chiffres saisis limités à 0-9, en-têtes malformés ou en double
+  refusés proprement, un administrateur ne se rétrograde pas par la page, focus et libellés de la page. Limite
+  connue, non traitée : le compteur de 3 essais de l'invitation est global, un client du réseau qui joint
+  `/appairage` peut donc la détruire (déni de service, sans contournement du code). À limiter par adresse plus tard.
+- Rôles : champ `role` dans `appareils.json` (`administrateur`, `habitant`, `partage`, `invite`, défaut
+  `habitant`, aucun rôle n'ouvre ni ne ferme de droit pour l'instant). Révocation par identité (`appareil:<id>`).
+- À poser dans la vraie configuration (`config/maison.json`) : `administration.utilisateurs_ha` (identifiants HA,
+  visibles sur la page 403) et plus tard `administration.url_client`. Déploiement : `ha-app/deployer.sh`, puis
+  redémarrer l'appli HA. Le serveur du PC n'est pas concerné par la page.
+- Non vérifié ici : le vrai Ingress. Le superviseur copie Host et Origin tels quels, la comparaison Origin et Host
+  peut échouer derrière lui, auquel cas le journal donne les valeurs reçues.
+- Tests : `poc/tests/test_administration.py`.
+
 ## Serveur 0.33.0 (2026-10-25), reconnexion après une coupure, amorçage de l'appairage, diagnostic
 Contexte : après une coupure de courant, une tablette dont le jeton n'était plus connu du serveur ne pouvait plus
 se reconnecter, et l'appairage demande un administrateur connecté pour accepter, donc personne.

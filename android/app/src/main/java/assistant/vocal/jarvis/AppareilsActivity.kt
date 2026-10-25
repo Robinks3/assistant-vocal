@@ -276,7 +276,7 @@ class AppareilsActivity : Activity() {
         carteCode.addView(bouton("Annuler", Couleur.CHAMP) { annulerAppairage() })
         cAppareil.addView(carteCode, marge(haut = 14))
         champAmorcage = EditText(this).apply {
-            hint = "Code d'amorçage à 8 chiffres"
+            hint = "Code à 6 ou 8 chiffres"
             inputType = InputType.TYPE_CLASS_NUMBER
             setTextColor(Couleur.TEXTE)
             setHintTextColor(Couleur.GRIS)
@@ -560,7 +560,7 @@ class AppareilsActivity : Activity() {
                     "appairage" -> ui {
                         texteCode.text = j.optString("code")
                         if (j.optBoolean("amorcage", false)) {
-                            texteCodeAide.text = j.optString("message") + ". Le code a 8 chiffres et n'est valable que 10 minutes."
+                            texteCodeAide.text = j.optString("message") + ". Le code a 6 chiffres (affiché dans Home Assistant, valable 2 minutes) ou 8 chiffres (journal du serveur, valable 10 minutes)."
                             champAmorcage.visibility = View.VISIBLE
                             boutonAmorcage.visibility = View.VISIBLE
                         } else {
@@ -613,11 +613,11 @@ class AppareilsActivity : Activity() {
         })
     }
 
-    /** Envoie le code d'amorçage saisi (8 chiffres) sur la demande d'appairage en cours. */
+    /** Envoie le code saisi (6 chiffres d'invitation ou 8 d'amorçage) sur la demande d'appairage en cours. */
     private fun envoyerAmorcage() {
         val code = champAmorcage.text.toString().filter { it.isDigit() }
-        if (code.length != 8) {
-            Toast.makeText(this, "Le code d'amorçage a 8 chiffres", Toast.LENGTH_SHORT).show()
+        if (!Appareils.codeAmorcageValide(code)) {
+            Toast.makeText(this, "Le code a 6 ou 8 chiffres", Toast.LENGTH_SHORT).show()
             return
         }
         val ws = wsAppairage

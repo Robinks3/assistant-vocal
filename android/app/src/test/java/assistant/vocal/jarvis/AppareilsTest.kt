@@ -163,4 +163,13 @@ class AppareilsTest {
         assertFalse("light.exemple11" in allumees || "light.cuisine" in allumees)
         assertTrue("light.exemple15" in allumees)
     }
+
+    @Test
+    fun `le code d'appairage a 6 chiffres (invitation) ou 8 (amorcage)`() {
+        assertTrue(Appareils.codeAmorcageValide("123456"))
+        assertTrue(Appareils.codeAmorcageValide("12345678"))
+        assertFalse(Appareils.codeAmorcageValide("1234567"))
+        assertFalse(Appareils.codeAmorcageValide("12345"))
+        assertFalse(Appareils.codeAmorcageValide(""))
+    }
 }

@@ -29,7 +29,8 @@ Depuis 0.17.0 (idées d'un projet d'inspiration, voir acces.py) :
                               « Cet appareil », réponse {"etat":"ha","id","code","corps"} (texte brut), ou
                               pour une image (pochette, GET /api/media_player_proxy/...) {"type","base64"}
   {"type": "appareils"}       liste des téléphones et des demandes d'appairage {"etat":"appareils",...}
-  {"type": "appairer"|"refuser_appareil"|"revoquer", "id"}   gestion des appareils
+  {"type": "appairer"|"refuser_appareil"|"revoquer", "id"}   gestion des appareils ("appairer" accepte "role",
+                              "changer_role" {"id","role"} ; "inviter" et "annuler_invitation" : page d'administration seule)
   {"etat": "appairage_demande", "id", "nom", "code"}  diffusé aux téléphones connus quand un nouveau
                               téléphone demande l'accès
   {"etat": "repos", "raison": "arbitre"}  un autre téléphone a mieux entendu le mot de réveil
@@ -94,6 +95,7 @@ import websockets
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import assistant as A  # noqa: E402
 import acces  # noqa: E402
+import administration  # noqa: E402
 import maison  # noqa: E402
 import vad as V  # noqa: E402
 import vision as VI  # noqa: E402
@@ -150,6 +152,7 @@ class Moteur:
         self.verrou = asyncio.Lock()  # une commande à la fois, l'assistant n'est pas réentrant
         self.calibration = None
         self.satellites = set()
+        self.pages_admin = set()  # pages d'administration ouvertes (Ingress), voir administration.py
         self.cerveau_actif = "claude" if cfg.get("llm_fournisseur") == "claude" else "local"
         self.cerveau_pret, self.cerveau_message = True, ""
         self.essai = essai
@@ -282,6 +285,16 @@ class Moteur:
                 await sat.envoyer(**message)
             except Exception:
                 pass
+        if administrateurs:  # les pages d'administration sont administratrices le temps de leur connexion
+            for page in list(self.pages_admin):
+                try:
+                    await page.envoyer(**message)
+                except Exception:
+                    pass
+
+    def admin_connecte(self):
+        """Vrai si un administrateur (téléphone ou page d'administration) est connecté : ferme l'amorçage."""
+        return bool(self.pages_admin) or any(acces.est_administrateur(s.identite) for s in self.satellites)
 
     async def changer_cerveau(self, choix):
         """Bascule demandée depuis le téléphone : « claude » (en ligne) ou « local » (carte graphique).
@@ -884,8 +897,8 @@ def passerelle_ha(moteur, msg):
 
 # Messages réservés au propriétaire et aux administrateurs de acces.administrateurs : gestion des appareils et de
 # l'appairage, réglages communs à tous (transcription, mode, cerveau), lecture des phrases ratées et des retours.
-TYPES_ADMINISTRATEUR = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer",
-                                  "transcription", "mode", "cerveau", "manques"})
+TYPES_ADMINISTRATEUR = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
+                                  "inviter", "annuler_invitation", "transcription", "mode", "cerveau", "manques"})
 
 
 class Satellite:
@@ -1214,21 +1227,12 @@ class Satellite:
             async def repondre_ha():
                 await self.envoyer(**await asyncio.to_thread(passerelle_ha, self.moteur, msg))
             asyncio.create_task(repondre_ha())
-        elif msg.get("type") in ("appareils", "appairer", "refuser_appareil", "revoquer"):
-            app = self.moteur.appareils
-            ident = str(msg.get("id", ""))
-            if msg["type"] == "appairer":
-                nom = app.accepter(ident)
-                print(f"[{self.nom}] appairage accepté : {nom}" if nom else f"[{self.nom}] appairage introuvable : {ident}")
-            elif msg["type"] == "refuser_appareil":
-                app.refuser(ident)
-            elif msg["type"] == "revoquer":
-                nom = next((a["nom"] for a in app.liste if a["id"] == ident), None)
-                print(f"[{self.nom}] appareil révoqué : {ident} ({app.revoquer(ident)})")
-                for sat in list(self.moteur.satellites):  # coupé tout de suite, pas à sa prochaine connexion
-                    if nom and getattr(sat, "personne", None) == nom and sat is not self:
-                        asyncio.create_task(sat.ws.close(code=4001, reason="appareil révoqué"))
-            await self.envoyer(**app.vue(avec_code=True))
+        elif msg.get("type") in ("appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
+                                 "inviter", "annuler_invitation"):
+            # Traitement commun avec la page d'administration (administration.py). Le code d'invitation n'est
+            # montré que dans la page : un satellite qui demande « inviter » est refusé.
+            for rep in await administration.gerer_appareils(self.moteur, msg, self.nom, courant=self):
+                await self.envoyer(**rep)
         elif msg.get("type") == "llm":
             asyncio.create_task(self.repondre_llm(msg))
         elif msg.get("type") == "manque":
@@ -1330,12 +1334,15 @@ async def servir(args):
         demande = parse_qs(urlparse(chemin).query).get("nom", [""])[0]
         futur = asyncio.get_running_loop().create_future()
         ident, code, nom = moteur.appareils.demande(demande, ip, futur)
-        sans_admin = not any(acces.est_administrateur(s.identite) for s in moteur.satellites)
+        sans_admin = not moteur.admin_connecte()
         amorcage = sans_admin and acces.adresse_locale(ip)
         print(f"demande d'appairage de « {nom} » ({ip}), code {code}"
               + (", aucun administrateur connecté" if sans_admin else ""))
         message = "Accepte cette demande depuis un appareil déjà connecté"
-        if amorcage:
+        invitation = moteur.appareils.invitation.valide()
+        if invitation:  # code à 6 chiffres affiché dans Home Assistant : prime, même avec un administrateur connecté
+            message = "Saisis le code affiché dans Home Assistant"
+        if amorcage and not invitation:
             code_amorcage, nouveau = moteur.appareils.amorcage.ouvrir()
             if code_amorcage and nouveau:
                 print(f"CODE D'AMORÇAGE pour « {nom} » ({ip}) : {code_amorcage} "
@@ -1348,7 +1355,7 @@ async def servir(args):
                        "Aucun appareil administrateur n'est connecté. Un code d'amorçage vient d'être refusé "
                        "ou expiré, réessaie dans une minute")
         await ws.send(json.dumps({"etat": "appairage", "code": code, "id": ident, "message": message,
-                                  "amorcage": bool(amorcage)}, ensure_ascii=False))
+                                  "amorcage": bool(amorcage or invitation)}, ensure_ascii=False))
         # Le code n'est dit qu'aux administrateurs, qui seuls peuvent accepter la demande.
         await moteur.diffuser({"etat": "appairage_demande", "id": ident, "nom": nom, "code": code}, administrateurs=True)
 
@@ -1362,7 +1369,19 @@ async def servir(args):
                         continue
                     if not isinstance(msg, dict) or msg.get("type") != "amorcage":
                         continue
-                    if not amorcage or any(acces.est_administrateur(s.identite) for s in moteur.satellites):
+                    chiffres = re.sub(r"[^0-9]", "", str(msg.get("code") or ""))
+                    if len(chiffres) == acces.Invitation.LONGUEUR:  # code d'invitation, jamais écrit dans le journal
+                        role, restant = moteur.appareils.invitation.verifier(chiffres)
+                        if role:
+                            print(f"invitation acceptée pour « {nom} » ({ip}), rôle {role}")
+                            moteur.appareils.accepter(ident, role)
+                            await administration.notifier_pages(moteur)
+                            return
+                        print(f"invitation refusée pour « {nom} » ({ip}) : code faux ou expiré, "
+                              f"{restant} essai(s) restant(s)")
+                        await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": restant}, ensure_ascii=False))
+                        continue
+                    if not amorcage or moteur.admin_connecte():
                         await ws.send(json.dumps({"etat": "amorcage_refuse", "restant": 0,
                                                   "message": "amorçage impossible : un administrateur est connecté "
                                                              "ou l'appareil n'est pas sur le réseau local"},
@@ -1441,6 +1460,10 @@ async def servir(args):
     if contexte_tls:
         serveurs.append(await websockets.serve(accueil_chiffre, adresses, args.port_tls, ssl=contexte_tls,
                                                max_size=2 ** 22, ping_interval=20))
+    port_admin = os.getenv("JARVIS_ADMIN_PORT", "").strip()
+    if port_admin.isdigit() and int(port_admin) > 0:  # appli HA : administration par Ingress, port non publié
+        serveurs.append(await administration.demarrer(moteur, int(port_admin), A.VERSION))
+        print(f"Administration (Ingress) sur le port {port_admin}, réservée à administration.utilisateurs_ha")
     print(f"Serveur satellite v{A.VERSION}, port {args.port}"
           + (" (ancien accès ?jeton= permis)" if ancien_acces else " (jeton en en-tête seulement)")
           + (f" et port chiffré {args.port_tls}" if contexte_tls else "")

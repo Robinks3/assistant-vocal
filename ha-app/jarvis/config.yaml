@@ -1,6 +1,6 @@
 # Nom affiché remplacé au déploiement par la section assistant de maison.json (deployer.sh).
 name: Assistant vocal
-version: "0.33.0"
+version: "0.34.0"
 slug: jarvis
 description: Serveur de l'assistant vocal local (téléphones satellites), sans PC fixe.
 arch:
@@ -9,6 +9,14 @@ init: false
 startup: application
 boot: auto
 homeassistant_api: true
+# 0.34.0 : administration dans Home Assistant (barre latérale), servie par Ingress. Le port 8099 n'est pas publié :
+# seul le superviseur (172.30.32.2) y accède. Réservée aux administrateurs de HA de administration.utilisateurs_ha.
+# https://contributors.home-assistant.io/apps/guides/ingress/
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:account-key
+panel_title: Assistant vocal
+panel_admin: true
 ports:
   8765/tcp: 8765
   8766/tcp: 8766

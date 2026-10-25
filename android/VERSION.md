@@ -6,6 +6,12 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.0 (2026-10-25), code d'invitation à 6 chiffres
+- Écran Appareils : le champ de saisie accepte un code à 6 chiffres (invitation affichée dans la page d'administration
+  de Home Assistant, valable 2 minutes) en plus du code à 8 chiffres du journal du serveur (amorçage). Seul le nombre de
+  chiffres accepté change, le serveur départage les deux codes.
+- Tests : `AppareilsTest` (longueurs de code acceptées).
+
 ## 0.36.0 (2026-10-25), lampes : l'icône bascule, la ligne déplie
 - Écran des lampes : toucher le rond à gauche allume ou éteint (retour immédiat), toucher le reste de la ligne déplie
   le volet de réglage et un second toucher le replie. Le volet s'ouvre sur l'onglet du mode réel de la lampe (Couleur

@@ -9,3 +9,5 @@ tzdata
 # 0.17.0 : Silero VAD, certificat du port chiffré
 onnxruntime
 cryptography
+# 0.34.0 : QR code d'invitation de la page d'administration, généré localement
+segno
