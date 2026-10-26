@@ -537,14 +537,14 @@ button.rangee:active,button.rangee.is-actif{background:rgba(var(--ombre-rgb),.12
 .declencheurs{margin:0;padding:var(--e2) var(--e4) var(--e3);list-style:none}
 .declencheurs li{padding:var(--e1) 0;font-size:1.0625rem;font-weight:500}
 .declencheurs .variantes{display:block;margin-top:var(--e1);font-size:.875rem;font-weight:400;color:var(--texte-2)}
-.etapes{counter-reset:etape;margin:0;padding:0;list-style:none}
-.etapes li{counter-increment:etape;display:flex;gap:var(--e3);align-items:flex-start;padding:var(--e3) var(--e4);border-top:1px solid var(--filet)}
-.etapes li:first-child{border-top:0}
-.etapes li::before{content:counter(etape);display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;border-radius:50%;font:400 1rem/1 var(--police-chiffres);color:var(--assistant);background:var(--assistant-doux);border:1px solid var(--assistant)}
-.etapes .texte{flex:1;min-width:0}
-.etapes .texte b{display:block;font-weight:500}
-.etapes .texte span{display:block;color:var(--texte-2);font-size:.9375rem}
-.etapes .technique{margin-top:2px;font:400 .8125rem/1.5 ui-monospace,Consolas,"Courier New",monospace;color:var(--texte-3)}
+.etapes-routine{counter-reset:etape;margin:0;padding:0;list-style:none}
+.etapes-routine li{counter-increment:etape;display:flex;gap:var(--e3);align-items:flex-start;padding:var(--e3) var(--e4);border-top:1px solid var(--filet)}
+.etapes-routine li:first-child{border-top:0}
+.etapes-routine li::before{content:counter(etape);display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;border-radius:50%;font:400 1rem/1 var(--police-chiffres);color:var(--assistant);background:var(--assistant-doux);border:1px solid var(--assistant)}
+.etapes-routine .texte{flex:1;min-width:0}
+.etapes-routine .texte b{display:block;font-weight:500}
+.etapes-routine .texte span{display:block;color:var(--texte-2);font-size:.9375rem}
+.etapes-routine .technique{margin-top:2px;font:400 .8125rem/1.5 ui-monospace,Consolas,"Courier New",monospace;color:var(--texte-3)}
 .routine-fiche{padding:var(--e1) var(--e4) var(--e3)}
 .routine-fiche .fiche{margin-top:0}
 .routine-fiche .fiche>div:first-child{border-top:0}
@@ -562,7 +562,7 @@ button.rangee:active,button.rangee.is-actif{background:rgba(var(--ombre-rgb),.12
 <main class="scene">
 <figure class="vue"><figcaption><b>17a. Confirmation de suppression, le soir.</b> Feuille sur le détail voilé. Le titre nomme la routine, le texte dit ce qui change et ce qui reste. Le bouton rouge dit l'action en toutes lettres, l'autre garde la routine.</figcaption><div class="telephone" role="group" aria-label="Écran du client web">
 <div class="clair-fond" aria-hidden="true" style="display:flex;flex-direction:column;flex:1;min-height:0">
-<div class="contenu"><div class="barre-haut"><button type="button" class="retour" aria-label="Retour"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-retour"/></svg></button><h1 style="flex:1">Arrivée</h1><span class="avatar" aria-hidden="true">S</span></div><div class="entete-routine"><span class="pastille pastille--ok">Active</span><span class="discret">3 étapes</span></div><h2 class="titre-section">Déclencheurs</h2><section class="carte carte--vide"><ul class="declencheurs"><li>"J'arrive"<span class="variantes">Aussi : "je viens d'arriver", "je suis arrivé", "me voilà", "je suis là"</span></li></ul></section><h2 class="titre-section">Étapes</h2><section class="carte carte--vide"><ol class="etapes"><li><span class="texte"><b>Allumer le salon à 70 %</b><span>Lumière du séjour</span><span class="technique">light.turn_on sur light.exemple6</span></span></li><li><span class="texte"><b>Poser une question</b><span>"Quel temps fera-t-il demain"</span></span></li><li><span class="texte"><b>Lancer la musique</b><span>Playlist du soir, sur toutes les enceintes</span></span></li></ol></section></div>
+<div class="contenu"><div class="barre-haut"><button type="button" class="retour" aria-label="Retour"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-retour"/></svg></button><h1 style="flex:1">Arrivée</h1><span class="avatar" aria-hidden="true">S</span></div><div class="entete-routine"><span class="pastille pastille--ok">Active</span><span class="discret">3 étapes</span></div><h2 class="titre-section">Déclencheurs</h2><section class="carte carte--vide"><ul class="declencheurs"><li>"J'arrive"<span class="variantes">Aussi : "je viens d'arriver", "je suis arrivé", "me voilà", "je suis là"</span></li></ul></section><h2 class="titre-section">Étapes</h2><section class="carte carte--vide"><ol class="etapes-routine"><li><span class="texte"><b>Allumer le salon à 70 %</b><span>Lumière du séjour</span><span class="technique">light.turn_on sur light.exemple6</span></span></li><li><span class="texte"><b>Poser une question</b><span>"Quel temps fera-t-il demain"</span></span></li><li><span class="texte"><b>Lancer la musique</b><span>Playlist du soir, sur toutes les enceintes</span></span></li></ol></section></div>
 <nav class="onglets" aria-label="Navigation principale"><button type="button" class="onglet" aria-current="page"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-accueil"/></svg><span>Accueil</span></button><button type="button" class="onglet"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-journal"/></svg><span>Journal</span></button><button type="button" class="onglet onglet--orbe" aria-label="Demander à Iris"><span class="orbe"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-micro"/></svg></span><span>Demander</span></button><button type="button" class="onglet"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-maison"/></svg><span>Maison</span></button><button type="button" class="onglet"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-meteo"/></svg><span>Météo</span></button></nav>
 </div>
 <div class="voile"></div>
