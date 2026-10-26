@@ -147,7 +147,7 @@ def test_liste_blanche_du_canal(reglage):
         return sortie
     for r in avec_service(reglage, scenario):
         assert r["message"] == "message non permis"
-    assert set(adm.TYPES_PAGE) == {"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
+    assert set(adm.TYPES_PAGE) == {"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role", "changer_personne",
                                    "inviter", "annuler_invitation"}
 
 

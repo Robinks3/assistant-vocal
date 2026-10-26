@@ -870,15 +870,17 @@ class Arbitre:
         return gagnant is sat
 
 
-def passerelle_ha(moteur, msg):
-    """Requête Home Assistant demandée par un téléphone en mode « Cet appareil » (voir acces.py)."""
+def passerelle_ha(moteur, msg, identite=None):
+    """Requête Home Assistant demandée par un téléphone en mode « Cet appareil » (voir acces.py).
+    identite : clé du téléphone, qui borne la personne reconnue (acces.personne_effective). Sans elle, aucune."""
     ha = moteur.assistant.ha
     ident = msg.get("id")
     if not ha:
         return {"etat": "ha", "id": ident, "code": 503, "corps": "Home Assistant non configuré sur ce serveur"}
     methode, chemin, corps = str(msg.get("methode", "GET")).upper(), str(msg.get("chemin", "")), msg.get("corps")
     # La personne reconnue par la tablette (règle 3) : seule exception à la règle 1, vérifiée par securite.py.
-    refus = acces.verifier_requete_ha(methode, chemin, corps, personne=msg.get("personne"))
+    personne = acces.personne_effective(identite, msg.get("personne"), getattr(moteur, "appareils", None))
+    refus = acces.verifier_requete_ha(methode, chemin, corps, personne=personne)
     if refus:
         return {"etat": "ha", "id": ident, "code": 403, "corps": f"refusé : {refus}"}
     if moteur.essai and methode == "POST" and (chemin.startswith("/api/services/")
@@ -902,7 +904,8 @@ def passerelle_ha(moteur, msg):
 # Messages réservés au propriétaire et aux administrateurs de acces.administrateurs : gestion des appareils et de
 # l'appairage, réglages communs à tous (transcription, mode, cerveau), lecture des phrases ratées et des retours.
 TYPES_ADMINISTRATEUR = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
-                                  "inviter", "annuler_invitation", "transcription", "mode", "cerveau", "manques"})
+                                  "changer_personne", "inviter", "annuler_invitation", "transcription", "mode",
+                                  "cerveau", "manques"})
 
 
 class Satellite:
@@ -932,6 +935,11 @@ class Satellite:
 
     async def envoyer(self, **message):
         await self.ws.send(json.dumps(message, ensure_ascii=False))
+
+    def personne_du_message(self, msg):
+        """Personne dont les droits valent pour ce message (llm, parler, reveil, ha), jamais celle que le
+        message déclare sans contrôle : voir acces.personne_effective."""
+        return acces.personne_effective(self.identite, msg.get("personne"), getattr(self.moteur, "appareils", None))
 
     def cle_appareil(self):
         """Clé de l'historique et de la leçon : l'identité d'un téléphone appairé, unique. Un jeton fixe de
@@ -1169,10 +1177,11 @@ class Satellite:
         if not texte:
             await self.envoyer(etat="llm", reponse="", actions=[], erreur="texte vide")
             return
-        print(f"[{self.nom}] LLM demandé par l'appareil : {texte}" + (f" (personne : {msg['personne']})" if msg.get("personne") else ""))
+        personne = self.personne_du_message(msg)
+        print(f"[{self.nom}] LLM demandé par l'appareil : {texte}" + (f" (personne : {personne})" if personne else ""))
         async with self.moteur.verrou:
             res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
-                                          str(msg.get("personne") or "") or None, self.cle_appareil())
+                                          personne, self.cle_appareil())
         await self.envoyer(etat="llm", **res)
         derniere = lire_journal(1)
         if derniere:
@@ -1187,7 +1196,8 @@ class Satellite:
         if not isinstance(msg, dict):  # [], "x", 3 : rien à faire, sans lever d'exception
             return
         genre = msg.get("type")
-        if isinstance(genre, str) and genre in TYPES_ADMINISTRATEUR and not acces.est_administrateur(self.identite):
+        if (isinstance(genre, str) and genre in TYPES_ADMINISTRATEUR
+                and acces.role_effectif(self.identite, getattr(self.moteur, "appareils", None)) != "administrateur"):
             print(f"[{self.nom}] message « {genre} » refusé : réservé à un administrateur")
             await self.envoyer(etat="refuse", type=genre, message="réservé à un administrateur")
             return
@@ -1196,7 +1206,7 @@ class Satellite:
             self.tampon = np.zeros(0, dtype=np.int16)
             self.reinitialiser_reveil()
         elif msg.get("type") == "parler" and self.etat == "repos":
-            self.qui_parle = str(msg.get("personne") or "") or None
+            self.qui_parle = self.personne_du_message(msg)
             await self.commencer_ecoute("bouton Parler")
         elif msg.get("type") == "reveil" and self.etat == "repos" and time.time() >= self.sourd_jusqua:
             self.ecoute_reveil = True
@@ -1207,7 +1217,7 @@ class Satellite:
             except (TypeError, ValueError):
                 score = 0.5
             if await self.moteur.arbitre.demander(self, score):
-                self.qui_parle = str(msg.get("personne") or "") or None
+                self.qui_parle = self.personne_du_message(msg)
                 await self.commencer_ecoute(f"téléphone, score {msg.get('score')}")
             else:
                 await self.perdu_arbitrage()
@@ -1229,10 +1239,10 @@ class Satellite:
             asyncio.create_task(self.repondre_vent_mesure(msg))
         elif msg.get("type") == "ha":
             async def repondre_ha():
-                await self.envoyer(**await asyncio.to_thread(passerelle_ha, self.moteur, msg))
+                await self.envoyer(**await asyncio.to_thread(passerelle_ha, self.moteur, msg, self.identite))
             asyncio.create_task(repondre_ha())
         elif msg.get("type") in ("appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
-                                 "inviter", "annuler_invitation"):
+                                 "changer_personne", "inviter", "annuler_invitation"):
             # Traitement commun avec la page d'administration (administration.py). Le code d'invitation n'est
             # montré que dans la page : un satellite qui demande « inviter » est refusé.
             for rep in await administration.gerer_appareils(self.moteur, msg, self.nom, courant=self):
@@ -1314,9 +1324,12 @@ async def servir(args):
               for k, v in os.environ.items() if k.startswith("SATELLITE_JETON") and len(v.strip()) >= 16}
     if not jetons:
         sys.exit("SATELLITE_JETON absent ou trop court dans poc/.env")
-    print(f"  jetons fixes acceptés : {', '.join(sorted(jetons.values()))}")
     moteur = Moteur(args.essai)
     moteur.appareils = acces.Appareils(A.DONNEES, jetons)
+    print("  jetons fixes acceptés : "
+          + ", ".join(f"{n} ({acces.role_effectif(n, moteur.appareils)})" for n in sorted(set(jetons.values()))))
+    for phrase in acces.avertissements_roles():
+        print(f"  attention, {phrase}")
     print(f"  appareils appairés : {', '.join(a['nom'] for a in moteur.appareils.liste) or 'aucun'}")
     ancien_acces = acces.ancien_acces_permis(os.getenv("JARVIS_ANCIEN_ACCES"))
     reseaux = acces.reseaux_autorises()

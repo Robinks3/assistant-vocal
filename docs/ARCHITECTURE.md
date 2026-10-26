@@ -317,8 +317,9 @@ interdits, après `securite.verifier`.
 
 | Message | Sens | Champs | Réponse |
 |---|---|---|---|
-| `appareils` | Administrateur vers serveur | aucun | `{"etat":"appareils","attente","appareils","jetons_fixes","refus"}`, `refus` donnant les 10 derniers refus. Le code d'appairage n'y figure que pour un administrateur |
-| `appairer`, `refuser_appareil`, `revoquer` | Administrateur vers serveur | `id` | `appareils`. Une révocation ferme aussitôt les connexions de cet appareil (code 4001) |
+| `appareils` | Administrateur vers serveur | aucun | `{"etat":"appareils","attente","appareils","jetons_fixes","roles_jetons_fixes","refus"}`, `refus` donnant les 10 derniers refus, chaque appareil portant son `role` effectif et sa `personne` (0.38.0). Le code d'appairage n'y figure que pour un administrateur |
+| `appairer`, `refuser_appareil`, `revoquer` | Administrateur vers serveur | `id` (`appairer` accepte `role` parmi `habitant`, `partage`, `invite` et `personne`) | `appareils`. Une révocation ferme aussitôt les connexions de cet appareil (code 4001). `administrateur` n'est jamais attribuable (refus) |
+| `changer_role`, `changer_personne` | Administrateur vers serveur | `id`, `role` ou `personne` | `appareils`, ou un refus. La personne doit être un habitant connu. Tout message réservé à un administrateur est refusé aux autres rôles (rôle effectif, `acces.role_effectif`) |
 | `appairage_demande` | Serveur vers les administrateurs | `id`, `nom`, `code` | L'appli affiche une notification |
 | `appairage` | Serveur vers le nouvel appareil, sur `/appairage` | `code`, `id`, `message` | |
 | `appaire` | Idem | `jeton`, `nom` | Connexion fermée ensuite |

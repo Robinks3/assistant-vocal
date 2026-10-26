@@ -242,6 +242,8 @@ def test_identite_transmise_par_repondre_llm(monkeypatch):
     class Moteur:
         verrou = None
         essai = False
+        # Appareil au rôle « partage » : seul un tel rôle (ou administrateur) peut déclarer la personne (acces.personne_effective).
+        appareils = type("Appareils", (), {"liste": [{"id": "a1", "role": "partage"}]})()
 
         def llm_texte(self, *a):
             recus.append(a)

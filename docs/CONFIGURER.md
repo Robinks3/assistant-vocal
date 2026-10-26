@@ -162,13 +162,15 @@ Qui peut se connecter au serveur du PC et qui peut le gouverner. Chaque champ es
 | `reseaux_autorises` | liste de CIDR | Réseaux dont une connexion est acceptée. `"*"` ou `0.0.0.0/0` ouvre à tous. Absente, la liste vaut `127.0.0.0/8`, `::1/128`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10` (tailnet), `fe80::/10` et `fd00::/8`. Une entrée illisible est ignorée avec un message au démarrage. Une connexion refusée est fermée avec le code 4003, y compris sur `/appairage`. |
 | `ancien_acces` | booléen | Accepte `ws://...:8765/?jeton=` sur le port en clair. Permis par défaut. `JARVIS_ANCIEN_ACCES` de `poc/.env` (ou l'option `ancien_acces` de l'appli Home Assistant), quand il est réglé, passe devant. Le jeton en en-tête `Authorization: Bearer` marche toujours. |
 | `administrateurs` | liste de textes | Identités administrateurs en plus du propriétaire (`proprietaire.cle`), par exemple `appareil:ab12cd34` pour un appareil appairé (l'identifiant s'affiche dans l'écran Appareils et accès). |
+| `roles` | objet | Rôle de chaque jeton fixe de `poc/.env` : clé de l'identité (le nom du jeton, en minuscules) vers `habitant`, `partage` ou `invite`. Un jeton absent de la liste est `habitant`. Une valeur inconnue vaut `invite`. La clé du propriétaire reste `administrateur` quoi qu'on écrive ici (la valeur contraire est ignorée, avec un avertissement au démarrage), et `administrateur` n'est pas une valeur permise ici. |
 
 ```json
 "acces": {
   "ecoute": ["0.0.0.0"],
   "reseaux_autorises": ["127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"],
   "ancien_acces": true,
-  "administrateurs": []
+  "administrateurs": [],
+  "roles": {"camille": "habitant", "tablette": "partage"}
 }
 ```
 
@@ -176,6 +178,37 @@ Seuls les administrateurs voient le code d'appairage, acceptent ou révoquent un
 le cerveau ou la transcription et lisent la liste des manques. Un appareil appairé ou amorcé n'est donc pas
 administrateur tant qu'il n'est pas listé ici. Le déroulé de l'appairage et de l'amorçage est dans
 [INSTALLER.md](INSTALLER.md#6-liaison-chiffrée-et-appairage).
+
+#### Les rôles (0.38.0)
+
+Le rôle d'une identité borne ses droits. Il y en a quatre. Le rôle « propriétaire » de la conception s'appelle
+`administrateur` dans le code et dans les fichiers : c'est le même.
+
+| Rôle | Qui l'a | Ce qu'il permet |
+|---|---|---|
+| `administrateur` | La clé `proprietaire.cle` et les clés de `acces.administrateurs`, rien d'autre. | Tous les messages de gestion : appareils, appairage, invitation, rôles et personnes, mode, cerveau, transcription, manques. Peut déclarer la personne qui parle. |
+| `habitant` | Un jeton fixe absent de `acces.roles`, ou listé en `habitant`. Un appareil appairé au rôle `habitant`. | Parler à l'assistant. La personne reconnue n'est jamais celle que le message déclare : un jeton fixe vaut sa clé (si c'est un habitant connu), un appareil appairé vaut le champ `personne` de son entrée, sinon aucune. |
+| `partage` | Un jeton fixe listé en `partage`, un appareil appairé à ce rôle. | Comme `habitant`, mais la personne déclarée est acceptée si c'est un habitant connu (tablette partagée dont la caméra dit qui parle). |
+| `invite` | Un appareil dont l'entrée d'`appareils.json` n'a pas de champ `role` ou un rôle inconnu, un jeton fixe à la valeur inconnue. | Parler à l'assistant, sans aucune personne reconnue. |
+
+Règles qui ne bougent pas :
+
+- `administrateur` ne s'attribue jamais depuis l'écran Appareils et accès, ni par une invitation, ni à
+  l'appairage, ni par `changer_role`. Le rôle d'un administrateur ne se change pas d'ici non plus.
+- Un appareil appairé garde le rôle écrit dans `appareils.json`. Sans champ `role` ou avec un rôle inconnu, il
+  vaut `invite`, et le fichier n'est pas réécrit. Une acceptation ou une invitation sans précision donne `habitant`.
+- Le champ `personne` d'un appareil appairé se fixe à l'acceptation ou avec le message `changer_personne`
+  (réservé aux administrateurs, comme `changer_role`). La personne doit être un habitant connu (le
+  propriétaire, une clé de la liste `habitants` de `maison.json` ou une clé de `securite.permis_personne`),
+  sinon le message est refusé.
+- L'export `appareils` donne le rôle effectif et la personne de chaque appareil, et le rôle effectif de
+  chaque jeton fixe (`roles_jetons_fixes`). Aucun jeton ni aucune empreinte n'y figure.
+
+La liste des habitants se déclare à la racine de `maison.json` :
+
+```json
+"habitants": ["sacha", "camille"]
+```
 
 ### `fuseau`
 

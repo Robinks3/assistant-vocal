@@ -17,6 +17,13 @@ projet d'inspiration, réécrites ici.
 - Passerelle Home Assistant : le mode « Cet appareil » passe par ce serveur, qui a son propre jeton
   HA, au lieu d'embarquer un jeton administrateur dans l'APK. Seuls quelques chemins sont permis, et
   chaque action passe par la sécurité en dur.
+- Rôles (0.38.0) : chaque identité a un rôle effectif (role_effectif), qui borne ses droits. Le « propriétaire » de la
+  conception du client web s'appelle « administrateur » dans le code et dans appareils.json (les fichiers
+  existants restent valables). Il est réservé à la clé du propriétaire (proprietaire.cle de maison.json) et aux
+  clés de acces.administrateurs : ni changer_role, ni une invitation, ni l'appairage ne l'attribuent. Un jeton
+  fixe de poc/.env prend le rôle de acces.roles, sinon « habitant ». Un appareil appairé prend le champ « role »
+  de son entrée, sinon « invite ». La personne qui parle (champ « personne » d'un message) n'ajoute jamais un
+  droit : voir personne_effective.
 """
 import base64, hashlib, hmac, json, re, secrets, time
 from datetime import datetime, timedelta, timezone
@@ -103,8 +110,9 @@ def administrateurs():
     return {maison.CLE_PROPRIETAIRE} | {a.lower() for a in (_liste_acces("administrateurs") or [])}
 
 
-def est_administrateur(identite):
-    return bool(identite) and str(identite).lower() in administrateurs()
+def est_administrateur(identite, appareils=None):
+    """Vrai si le rôle effectif de l'identité est « administrateur » (voir role_effectif plus bas)."""
+    return role_effectif(identite, appareils) == "administrateur"
 
 
 # Home Assistant Ingress (0.34.0) : le superviseur relaie les requêtes de la page d'administration depuis cette
@@ -112,19 +120,127 @@ def est_administrateur(identite):
 # https://contributors.home-assistant.io/apps/guides/ingress/
 SUPERVISEUR = "172.30.32.2"
 
-# Rôles d'un appareil appairé. Aucun ne change de droit pour l'instant : seul l'administrateur agit, par
-# acces.administrateurs. Le rôle prépare la liste blanche des messages par rôle (conception du client web,
-# étape 0a). « administrateur » ne s'attribue ni depuis la page d'administration ni par une invitation.
+# Rôles (0.38.0). Le rôle effectif d'une identité (role_effectif) borne ses droits : seul l'administrateur gère les
+# appareils et les réglages (serveur_satellite.TYPES_ADMINISTRATEUR). La liste blanche des autres messages par
+# rôle viendra ensuite (conception du client web, étape 0a). « administrateur » ne s'attribue ni depuis la page
+# d'administration, ni par une invitation, ni à l'appairage : il vient de proprietaire.cle et de acces.administrateurs.
 ROLES = ("administrateur", "habitant", "partage", "invite")
 ROLES_ATTRIBUABLES = ("habitant", "partage", "invite")
+# Rôle d'une acceptation ou d'une invitation sans précision, et d'un jeton fixe absent de acces.roles.
 ROLE_PAR_DEFAUT = "habitant"
+# Rôle d'une entrée d'appareils.json sans champ « role » (d'avant 0.34.0) ou au rôle inconnu : le moins de droits.
+ROLE_SANS_CHAMP = "invite"
 
 
 def role_de(entree):
-    """Rôle d'une entrée d'appareils.json. Une entrée sans champ (d'avant 0.34.0) ou au rôle inconnu vaut
-    « habitant », sans que le fichier soit réécrit."""
+    """Rôle inscrit dans une entrée d'appareils.json. Une entrée sans champ ou au rôle inconnu vaut « invite »,
+    sans que le fichier soit réécrit. Ce n'est pas le rôle effectif (voir role_effectif)."""
     role = entree.get("role") if isinstance(entree, dict) else None
-    return role if role in ROLES else ROLE_PAR_DEFAUT
+    return role if role in ROLES else ROLE_SANS_CHAMP
+
+
+def roles_configures():
+    """acces.roles de maison.json : clé d'identité (minuscules) vers rôle (minuscules). Section absente : vide."""
+    v = maison.ACCES.get("roles")
+    if not isinstance(v, dict):
+        return {}
+    return {str(k).strip().lower(): str(r).strip().lower() for k, r in v.items()}
+
+
+def avertissements_roles():
+    """Phrases pour le journal au démarrage : acces.roles qui donne à un administrateur un autre rôle (ignoré),
+    « administrateur » à une clé qui ne l'est pas (réservé, le jeton vaut « invite ») ou un rôle inconnu (le jeton
+    vaut « invite »)."""
+    res = []
+    for cle, role in sorted(roles_configures().items()):
+        if cle in administrateurs():
+            if role != "administrateur":
+                res.append(f"acces.roles : « {cle} » est administrateur (proprietaire.cle ou acces.administrateurs), "
+                           f"la valeur « {role} » est ignorée")
+        elif role == "administrateur":
+            res.append(f"acces.roles : « administrateur » est réservé à proprietaire.cle et à acces.administrateurs, "
+                       f"« {cle} » vaut « invite »")
+        elif role not in ROLES_ATTRIBUABLES:
+            res.append(f"acces.roles : rôle inconnu « {role} » pour « {cle} », il vaut « invite »")
+    return res
+
+
+def _entree_appareil(appareils, ident):
+    for a in getattr(appareils, "liste", None) or []:
+        if isinstance(a, dict) and str(a.get("id", "")).lower() == ident:
+            return a
+    return None
+
+
+def role_effectif(identite, appareils=None):
+    """Rôle qui borne les droits d'une identité (clé telle que renvoyée par Appareils.identite).
+
+    - le propriétaire et les clés de acces.administrateurs : « administrateur », quoi que disent acces.roles et
+      appareils.json ;
+    - un jeton fixe de poc/.env (clé sans « : ») : sa valeur dans acces.roles, « habitant » s'il n'y figure pas,
+      « invite » si la valeur est inconnue ou vaut « administrateur » (réservé) ;
+    - un appareil appairé (« appareil:<id> ») : le champ « role » de son entrée, « invite » si le champ manque, est
+      inconnu ou vaut « administrateur » hors de acces.administrateurs, ou si l'entrée n'existe plus
+      (appareils : l'objet Appareils, sans lui « invite ») ;
+    - tout le reste (aucune identité, « ha:<id> » des pages, forme inconnue) : « invite »."""
+    if not identite:
+        return "invite"
+    cle = str(identite).strip().lower()
+    if cle in administrateurs():
+        return "administrateur"
+    if cle.startswith("appareil:"):
+        entree = _entree_appareil(appareils, cle[len("appareil:"):])
+        role = role_de(entree) if entree is not None else ROLE_SANS_CHAMP
+        return role if role in ROLES_ATTRIBUABLES else "invite"
+    if ":" in cle:
+        return "invite"
+    role = roles_configures().get(cle)
+    if role is None:
+        return ROLE_PAR_DEFAUT
+    return role if role in ROLES_ATTRIBUABLES else "invite"
+
+
+def cle_habitant(valeur):
+    """Clé d'habitant (minuscules sans accent) d'une personne déclarée, ou None si ce n'est pas un habitant connu.
+
+    Habitants connus : le propriétaire (sa clé, son nom, ses variantes de prononciation, toutes ramenées à
+    proprietaire.cle), les clés de la liste « habitants » de maison.json et celles de securite.permis_personne."""
+    p = securite.personne_normalisee(valeur)
+    if not p:
+        return None
+    proprio = {securite.personne_normalisee(x) for x in
+               [maison.CLE_PROPRIETAIRE, maison.NOM_PROPRIETAIRE] + list(maison.PROPRIETAIRE.get("variantes") or [])}
+    if p in proprio:
+        return maison.CLE_PROPRIETAIRE
+    liste = maison.CONFIG.get("habitants")
+    autres = {securite.personne_normalisee(x) for x in liste} if isinstance(liste, (list, dict)) else set()
+    autres |= set(securite.PERMIS_PERSONNE)
+    return p if p in autres else None
+
+
+def personne_effective(identite, declaree, appareils=None):
+    """Personne dont les droits « personnels » valent pour ce message (règle 3 de securite.py, « ma chambre »), ou
+    None. Seule fonction qui décide de la personne des messages llm, parler, reveil et ha. Les droits sont bornés
+    par le rôle de l'identité, jamais par la personne déclarée :
+
+    - administrateur ou partage : la personne déclarée est acceptée si c'est un habitant connu (cle_habitant), sinon
+      aucune. Exception : « inconnu », la tablette qui voit quelqu'un sans le reconnaître, passe telle quelle (elle
+      ne donne aucun droit, elle fait seulement refuser « ma chambre »). Transitoire : la tablette du salon porte
+      le jeton du propriétaire et sa caméra dit qui parle, jusqu'à ce qu'elle ait son propre jeton « partage » ;
+    - habitant ou invite : la personne déclarée est ignorée. Un jeton fixe vaut sa clé (si c'est un habitant connu),
+      un appareil appairé le champ « personne » de son entrée, sinon aucune."""
+    role = role_effectif(identite, appareils)
+    if role in ("administrateur", "partage"):
+        from dictionnaire import INCONNU, normaliser
+        d = str(declaree or "").strip()
+        if d and normaliser(d) == INCONNU:
+            return INCONNU
+        return cle_habitant(d)
+    cle = str(identite or "").strip().lower()
+    if cle.startswith("appareil:"):
+        entree = _entree_appareil(appareils, cle[len("appareil:"):])
+        return cle_habitant(entree.get("personne")) if entree is not None else None
+    return cle_habitant(cle) if cle and ":" not in cle else None
 
 
 def utilisateurs_ha():
@@ -232,14 +348,25 @@ class Appareils:
         self.attente[ident] = {"nom": nom, "code": code, "ip": ip, "futur": futur, "t": time.time()}
         return ident, code, nom
 
-    def accepter(self, ident, role=ROLE_PAR_DEFAUT):
-        """Crée le jeton de l'appareil en attente, le remet à sa connexion, et ne garde que l'empreinte."""
+    def accepter(self, ident, role=ROLE_PAR_DEFAUT, personne=None):
+        """Crée le jeton de l'appareil en attente, le remet à sa connexion, et ne garde que l'empreinte.
+
+        None, sans rien consommer, si le rôle n'est pas attribuable (« administrateur » jamais) ou si la personne
+        n'est pas un habitant connu (cle_habitant). personne : l'habitant qui porte cet appareil, ou rien."""
+        if role not in ROLES_ATTRIBUABLES:
+            return None
+        cle = cle_habitant(personne) if personne else None
+        if personne and not cle:
+            return None
         d = self.attente.pop(ident, None)
         if not d or d["futur"].done():
             return None
         jeton = secrets.token_urlsafe(32)
-        self.liste.append({"id": ident, "nom": d["nom"], "empreinte": empreinte(jeton), "role": role,
-                           "cree": maison.maintenant().strftime(maison.FORMAT_HORODATAGE), "dernier": ""})
+        entree = {"id": ident, "nom": d["nom"], "empreinte": empreinte(jeton), "role": role}
+        if cle:
+            entree["personne"] = cle
+        entree.update({"cree": maison.maintenant().strftime(maison.FORMAT_HORODATAGE), "dernier": ""})
+        self.liste.append(entree)
         self.enregistrer()
         d["futur"].set_result(jeton)
         return d["nom"]
@@ -258,8 +385,8 @@ class Appareils:
 
     def changer_role(self, ident, role):
         """(nom, avant, après), ou None si l'appareil est inconnu ou le rôle non attribuable."""
-        if role not in ROLES_ATTRIBUABLES:
-            return None
+        if role not in ROLES_ATTRIBUABLES or role_effectif(f"appareil:{ident}", self) == "administrateur":
+            return None  # le rôle d'un administrateur (acces.administrateurs) ne se change pas d'ici
         for a in self.liste:
             if a["id"] == ident:
                 avant = role_de(a)
@@ -270,16 +397,36 @@ class Appareils:
                 return a["nom"], avant, role
         return None
 
+    def changer_personne(self, ident, personne):
+        """(nom, avant, après), ou None si l'appareil est inconnu ou si la personne n'est pas un habitant connu
+        (cle_habitant). Une personne vide retire le champ : l'appareil n'a plus de personne."""
+        cle = cle_habitant(personne) if personne else None
+        if personne and not cle:
+            return None
+        for a in self.liste:
+            if a["id"] == ident:
+                avant = a.get("personne")
+                if cle:
+                    a["personne"] = cle
+                else:
+                    a.pop("personne", None)
+                self.enregistrer()
+                return a["nom"], avant, cle
+        return None
+
     def vue(self, avec_code=False):
         """Liste des appareils. Le code d'appairage n'y figure que sur demande expresse (avec_code), pour
         l'écran d'un administrateur : sans lui, une vue ne permet pas de deviner le code d'une demande."""
         return {"etat": "appareils",
                 "attente": [dict({"id": i, "nom": d["nom"], "ip": d["ip"]}, **({"code": d["code"]} if avec_code else {}))
                             for i, d in self.attente.items() if not d["futur"].done()],
-                "appareils": [{"id": a["id"], "nom": a["nom"], "role": role_de(a), "cree": a["cree"],
+                "appareils": [{"id": a["id"], "nom": a["nom"], "role": role_effectif(f"appareil:{a['id']}", self),
+                               "personne": a.get("personne") or None, "cree": a["cree"],
                                "dernier": a["dernier"]} for a in self.liste],
                 "invitation": self.invitation.vue(),
                 "jetons_fixes": sorted(set(self.env.values())),
+                # Rôle effectif de chaque jeton fixe (jetons_fixes reste la liste des noms, lue telle quelle par l'appli).
+                "roles_jetons_fixes": {n: role_effectif(n, self) for n in sorted(set(self.env.values()))},
                 "refus": list(self.refus[-10:]) if avec_code else []}
 
 

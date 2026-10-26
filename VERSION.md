@@ -4,6 +4,40 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.38.0 (2026-10-26), rôles réels
+Session S-F2 du plan 1.2.0. Le champ `role` d'`appareils.json` ne changeait aucun droit, les jetons fixes n'avaient
+pas de rôle et la personne des messages `llm`, `parler` et `reveil` était reprise telle que déclarée. Désormais le
+rôle de l'identité borne ses droits. Appli Android inchangée (0.38.0, versionCode 72).
+- Rôle propriétaire : le rôle « propriétaire » de la conception s'appelle `administrateur` dans le code et les
+  fichiers (aucun renommage de champ). Il est réservé à `proprietaire.cle` et aux clés de `acces.administrateurs`.
+  Ni `changer_role`, ni une invitation, ni `appairer` ne l'attribuent (refus explicite).
+- Nouvelle clé `acces.roles` (`maison.json`) : rôle de chaque jeton fixe de `poc/.env`. Un jeton absent vaut
+  `habitant`, une valeur inconnue `invite`. La clé du propriétaire reste `administrateur` (valeur contraire ignorée,
+  avertissement au démarrage). Le démarrage affiche le rôle de chaque jeton fixe.
+- Appareils appairés : le champ `role` est effectif. Une entrée sans `role` ou au rôle inconnu vaut `invite`, sans
+  réécrire le fichier. `ROLE_PAR_DEFAUT` reste `habitant` pour une acceptation ou une invitation explicites, la
+  constante `ROLE_SANS_CHAMP` couvre l'absence de champ. Une entrée qui porte `administrateur` dans le fichier ne
+  donne pas ce rôle.
+- Nouveau champ `personne` d'un appareil : fixé par `Appareils.accepter(ident, role, personne)` ou par le message
+  `changer_personne` (même garde que `changer_role`). La personne doit être un habitant connu (propriétaire, liste
+  `habitants` de `maison.json`, clés de `securite.permis_personne`), sinon refus. Nouvelle liste `habitants` à la
+  racine de `maison.json` et de `config-exemple/maison.json`.
+- `acces.personne_effective(identite, declaree)` est l'unique décideur de la personne des messages `llm`, `parler`,
+  `reveil` et `ha` (passerelle). Administrateur ou `partage` : la personne déclarée est acceptée si c'est un
+  habitant connu (la valeur « inconnu » de la tablette passe, elle ne donne aucun droit). `habitant` ou `invite` :
+  la déclaration est ignorée, un jeton fixe vaut sa clé, un appareil appairé vaut le champ `personne` de son
+  entrée, sinon aucune. Un invité qui se déclare propriétaire n'obtient rien.
+- Tous les messages de `TYPES_ADMINISTRATEUR`, plus `changer_personne`, sont refusés à toute identité dont le rôle
+  effectif n'est pas `administrateur` (`acces.role_effectif`), à l'endroit unique de `recevoir_texte`. Le
+  traitement commun `administration.gerer_appareils` refuse aussi, en seconde barrière.
+- Export `appareils` : chaque appareil expose son `role` effectif et sa `personne`, et `roles_jetons_fixes` donne le
+  rôle effectif de chaque jeton fixe. Aucun jeton ni empreinte en clair.
+- Tests : `poc/tests/test_roles.py` (149 cas), `test_administration.py` et `test_aiguillage.py` adaptés.
+- Hors périmètre, pour S-F3 et après : liste blanche des messages par rôle, expiration des invités à 7 jours,
+  interface Android et Home Assistant des rôles.
+- Transitoire : la tablette du salon porte encore le jeton du propriétaire, sa personne déclarée est donc acceptée
+  jusqu'à ce qu'elle ait son propre jeton `partage`.
+
 ## Serveur 0.37.0 (2026-10-26), liste blanche des services élargie
 Session S-F1 du plan 1.2.0, décision D6 du 26/10/2026 : tout ce que Home Assistant expose est permis, sauf les
 cibles par `device_id`, `floor_id` et `label_id`, les domaines interdits et ce qui exige déjà une confirmation.
