@@ -53,7 +53,9 @@ Les tailles sont mesurées avec `ls -l` sur les fichiers du dépôt, ou sur la c
 
 Le README annonce "Parakeet sur le PC". Le code transcrit sur le PC avec Canary 1B v2 (`Transcripteur` de
 `poc/assistant.py`). Parakeet v3 n'apparaît que dans les outils de mesure (`poc/outils/mesure_parakeet.py`) et
-a été écarté parce qu'il devine la langue à chaque phrase.
+a été écarté parce qu'il devine la langue à chaque phrase. Les mesures du 26/10/2026 (`poc/outils/mesure_stt_locale.py`,
+résultats dans `docs/ARCHITECTURE.md`, section « Reconnaissance de la voix sur le PC ») confirment qu'il va 2 à 3 fois plus vite
+sans être plus juste de façon nette, Canary int8 est resté le moteur du profil `pc`.
 
 En profil `pc`, `Moteur.__init__` charge toujours Canary et Piper au démarrage. La transcription en ligne n'est
 qu'un choix fait depuis l'appli (message `transcription`, `Moteur.changer_stt`), Canary restant en repli. En
