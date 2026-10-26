@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.43.3 (2026-10-26), demandes de routine dites naturellement
+Correctif court. Appli Android inchangée (0.38.1, elle devra appliquer le même motif), appli Home Assistant 0.43.3.
+- `INTENTION_ROUTINE` (`poc/assistant.py`) ne reconnaissait que « crée une routine », « nouvelle routine », « quand je
+  dis ... » et « désormais ». Une phrase comme « Crée-moi une routine qui ... » (le « -moi » cassait l'espace
+  attendue) ou « Je voudrais une routine » partait au LLM ordinaire, qui n'a pas l'outil de création.
+- Formes ajoutées : crée, fais, ajoute, programme, mets en place, enregistre, configure, prépare, avec « -moi » ou
+  « -nous » facultatif et « une (nouvelle, petite) routine », puis « je voudrais / je veux / je souhaite /
+  j'aimerais (créer) une routine ». Le mot « routine » reste exigé, « fais la routine du matin » reste un
+  lancement, « je fais une routine » est ignoré, « scénario » n'est pas reconnu. Liste détaillée dans la note de
+  conception des routines, 4.1.
+- Chaque phrase de `cas_routines.json` est testée brute et après `epurer` (celle que reçoit `routines_avant`).
+  22 phrases positives et 15 négatives ajoutées, soit 101 cas de test de plus.
+
 ## Serveur 0.43.1 (2026-10-26), boucle d'outils commune et commentaires
 Session S-D6 du plan 1.2.0 (correctif, aucun changement de comportement). Appli Android inchangée (0.38.1), appli
 Home Assistant 0.43.1.
