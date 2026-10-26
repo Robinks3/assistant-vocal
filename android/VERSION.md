@@ -6,6 +6,16 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.38.0 (2026-10-26), liste blanche des services élargie
+Session S-F1 du plan 1.2.0 (versionCode 72), décision D6. L'appli reçoit la table élargie dans `services_permis`
+du `dictionnaire.json` exporté par le serveur 0.37.0, sans changement de code de `CerveauAppareil.kt` : son
+périmètre LLM (`DOMAINES`) reste le même, le complément dynamique pris à Home Assistant reste côté serveur.
+- `Securite.kt` : aucune règle ne change (`device_id`, `floor_id`, `label_id`, plafond de volume, `volume_up`,
+  drapeaux). Les nouveaux cas d'action de `poc/tests/cas_securite.json` (par domaine ajouté un cas accepté et un
+  refusé) sont lus par `SecuriteTest.actions`.
+- `SecuriteTest.servicesDeLaListeBlanche` : le bloc `services` de `cas_securite.json` (101 cas) est vérifié
+  contre le dictionnaire exporté.
+
 ## 0.37.5 (2026-10-26), dossier de compilation par système, signature facultative
 Session S-D4 du plan 1.2.0 (versionCode 71). Le numéro 0.37.4 est réservé à S-D1, menée en parallèle. Aucun
 changement de comportement de l'appli.
