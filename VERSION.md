@@ -4,6 +4,14 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.41.1 (2026-10-26), correctif du déploiement Home Assistant
+Appli Home Assistant 0.41.1, appli Android inchangée (0.38.1).
+- `ha-app/deployer.sh` ne copiait pas `poc/liste_blanche.py`, nouveau en 0.41.0 : l'appli Home Assistant 0.41.0
+  s'arrêtait au démarrage sur `ModuleNotFoundError: No module named 'liste_blanche'`, la passerelle de la tablette
+  ne répondait plus et l'écran affichait « Maison hors ligne ». Le module est ajouté à la copie.
+- Nouveau test `test_deployer_copie_tous_les_modules_importes` (`poc/tests/test_demarrage.py`) : tout module de
+  `poc/` importé par un module copié doit figurer dans la ligne de copie du script.
+
 ## Serveur 0.41.0 (2026-10-26), historique par appareil et liste blanche commune
 Session S-F5 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.41.0.
 - L'historique du LLM est tenu par appareil : la clé (`Cerveau.cle_historique`) est `(personne, appareil)` tirés du
