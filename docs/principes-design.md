@@ -41,8 +41,10 @@ La tablette est un écran OLED allumé en permanence : c'est le cas le plus expo
 
 Socle visuel du client web (PWA servie par le serveur Python). Les planches de référence sont dans
 `docs/maquettes/client-web/` (ouvrir `index.html`) : Accueil, trois écrans d'appairage, Réglages,
-révocation d'un appareil, Journal (jour, soir, feuille de détail), Demander, Vie privée, et `composants.html`
-qui montre chaque jeton et chaque état. Le CSS commun
+révocation d'un appareil, Journal (jour, soir, feuille de détail), Demander, Vie privée, Maison avec son
+volet lampe, Météo et mer, Routines (liste, détail, confirmation de suppression), états d'échec du volet
+lampe, et `composants.html` qui montre chaque jeton et chaque état. Dix-huit planches numérotées, leur
+liste complète est dans `index.html`. Le CSS commun
 est répété tel quel dans chaque planche, la session de code le reprend dans un fichier unique.
 Ces règles prolongent celles de l'appli Android sans les recopier : même famille de couleurs, même
 typographie, même façon de donner du volume.
@@ -160,6 +162,26 @@ Le nom donné est celui de la classe dans les maquettes.
 | `.saisie`, `.bascule` | champ écrit avec envoi et option Essai, sans agir |
 | `.reponse-iris` | réponse écrite de l'assistant et actions faites |
 | `.roles` (niveau de vie privée), `.apercu` | sélecteur Tout, Action seulement, Discret en boutons radio réels, et aperçu en pointillé de ce que verrait un autre habitant |
+
+Lot maison (planches 13 à 18) :
+
+| Composant | Rôle |
+|---|---|
+| `.alerte--air` | alerte d'air en haut de Maison, bord et icône orange, texte en couleur normale, avec une consigne en mots |
+| `.mesures`, `.mesure` (`--bon`, `--correct`, `--mediocre`, `--mauvais`, `--frais`, `--absente`, `--aucune`) | mesure en lecture seule, toujours un mot ("agréable", "médiocre"), puce de couleur qui n'est jamais seule, ligne dite en toutes lettres si la mesure manque |
+| `.piece-tete`, `.piece-protegee` | en-tête d'une carte de pièce (nom, surface, mesures) et pièce protégée sans aucune valeur ni lampe |
+| `.lampe`, `.lampe--ouverte`, `.lampe-ouvrir`, `.sphere--teinte`, `.commutateur` | ligne de lampe avec sphère teintée de sa couleur, interrupteur (`role="switch"`, pointillé s'il est désactivé) et chevron qui ouvre le volet |
+| `.volet-tete`, `.volet-pied`, `.segments`, `.segment` | volet d'une lampe en feuille basse, onglets Blanc et Couleur (`role="tab"`), pied d'état (attente, échec) |
+| `.reglage`, `.reglage-tete`, `.valeur-reglage`, `.glisseur` (`--chaleur`, `--teinte`), `.rempli`, `.pouce`, `.bornes` | réglage à glisseur (`role="slider"` avec `aria-valuetext`), piste de chaleur bornée aux limites de l'ampoule, bande de teintes |
+| `.choix-grille`, `.choix`, `.echantillon`, `.coche` | blancs nommés et couleurs nommées, choix marqué par une coche et un contour, jamais par la couleur seule |
+| `.maintenant`, `.temp-grand`, `.fleche-vent` | conditions du moment de Météo et mer, grande température, flèche de vent toujours doublée du sens écrit |
+| `.heures`, `.heure-prev`, `.graphique`, `.marees` | prochaines heures en rangée, courbe de marée en SVG (`role="img"` et `aria-label`) avec trait pointillé de l'heure actuelle |
+| `.routine`, `.declencheurs`, `.etapes-routine`, `.routine-fiche`, `.entete-routine` | ligne de routine (interrupteur à droite), phrases de déclenchement, étapes dites en mots, fiche du dernier déclenchement |
+| `.actions--ligne`, `.reflet-supprimee` | rangée de quatre actions de routine, Supprimer rouge et séparé, et trace de la routine retirée après suppression |
+
+Jetons d'air ajoutés pour ce lot, identiques dans les trois thèmes : `--air-bon` #D4E6C8, `--air-correct`
+#EDD48A, `--air-mediocre` #EE9A45, `--air-mauvais` #D6503A. Ils colorent une puce et jamais le texte, qui reste
+en `--texte-1`.
 
 La barre d'onglets est absente des écrans d'appairage et de la feuille de révocation. Réglages la
 garde, sans onglet courant.
