@@ -59,7 +59,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.43.0"
+VERSION = "0.43.1"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -684,7 +684,7 @@ class HomeAssistant:
         commande (journal/musique.jsonl et sortie du serveur), même quand HA ne répond pas.
 
         Tout tient en DELAI_MUSIQUE secondes, recherche comprise : la tablette attend 45 s la réponse du
-        LLM, qui fait deux tours autour de l'outil."""
+        LLM, dont un tour d'appel de l'outil et un tour de réponse (la boucle d'outils en permet six au plus)."""
         t0 = time.time()
         trace = {}
         try:
@@ -1057,7 +1057,8 @@ OUTIL_PROPOSER = {"type": "function", "function": {
         "required": ["phrases", "etapes"]}}}
 
 # Outils proposés au LLM selon le mode du tour (0.28.0). Un appel à un outil absent de la liste du tour
-# n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, note des routines 3.1).
+# n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, Cerveau.executer_outil, voir la section 3.1
+# de docs/plan/conception/routines.md).
 # « proposer » (0.42.0) crée une routine, « question » (0.42.0) répond à une étape question d'une routine : ces
 # deux modes partent sans historique et n'en laissent aucun (MODES_ISOLES).
 MODES_OUTILS = {"commande": ("appeler_service", "jouer_musique", "lire_etat"),
@@ -1067,6 +1068,23 @@ MODES_ISOLES = ("proposer", "question")
 INDISPONIBLE = {"erreur": "outil indisponible"}
 # Parole écrite par le serveur pendant ce tour (reformulation d'une routine) : elle remplace la réponse du LLM.
 PAROLE_FIXEE = contextvars.ContextVar("parole_fixee", default=None)
+# Au plus six allers-retours avec le LLM par demande (appel d'outil, résultat, nouvel appel), puis une phrase de repli.
+TOURS_OUTILS_MAX = 6
+PHRASE_ABANDON = "Je n'ai pas réussi à terminer cette demande."
+PHRASE_REFUS_LLM = "Je ne peux pas traiter cette demande."
+
+
+class TourLLM(NamedTuple):
+    """Un tour du LLM vu par la boucle d'outils, quel que soit le format de l'API.
+
+    reponse : texte nettoyé, renseigné seulement quand le LLM ne demande aucun outil. appels : les appels d'outils
+    tels que l'API les renvoie, que seul l'adaptateur du format sait lire. refus : le modèle a refusé de répondre.
+    brut : ce dont l'adaptateur a besoin pour rejouer ce tour dans les messages."""
+    reponse: str = ""
+    appels: tuple = ()
+    refus: bool = False
+    brut: object = None
+
 
 CONSIGNES_MODE = {
     "proposer": (
@@ -1136,7 +1154,8 @@ demande, sous « États actuels ». N'invente jamais un état : lis-le là, ou a
 
 Appareils (entity_id | nom | pièce) :
 {inventaire}"""
-# Parties propres à la maison (section llm de maison.json) : lieu, consignes en plus, une par ligne.
+
+
 def _sans_accolades(texte):
     """Texte de la configuration glissé dans CONSIGNE, qui passe ensuite par str.format."""
     return str(texte).replace("{", "{{").replace("}", "}}")
@@ -1151,6 +1170,8 @@ def consigne_plafond():
             f"(volume_level {securite.VOLUME_MAX:g}) : une valeur plus forte y est ramenée.")
 
 
+# Parties propres à la maison (section llm de maison.json) : lieu, consignes en plus (une par ligne), script de
+# lancement de la musique et plafond de volume, glissés à la place des repères @...@ du texte ci-dessus.
 CONSIGNE = (CONSIGNE.replace("@LIEU@", _sans_accolades(LLM_MAISON.get("lieu") or "la maison"))
             .replace("@SCRIPT_LANCER@", _sans_accolades(SCRIPT_LANCER))
             .replace("@PLAFOND@", consigne_plafond())
@@ -1158,6 +1179,11 @@ CONSIGNE = (CONSIGNE.replace("@LIEU@", _sans_accolades(LLM_MAISON.get("lieu") or
 
 
 class Cerveau:
+    """Le LLM local (Qwen par LM Studio, format OpenAI) qui comprend la demande hors règles et appelle les outils.
+
+    Porte aussi tout ce que CerveauClaude partage : l'historique par appareil et par personne, l'aiguillage fermé
+    des outils (executer_outil) et la boucle d'appel d'outils (boucle_outils). Seuls l'appel à l'API et la forme
+    des messages changent d'un cerveau à l'autre."""
     # Posés par l'Assistant (0.42.0) : validation d'une proposition de routine et liste des routines de la personne.
     rappel_routine = None
     rappel_liste = None
@@ -1267,7 +1293,50 @@ class Cerveau:
             return self.ha.etat(demande)
         return dict(INDISPONIBLE)
 
+    def boucle_outils(self, texte, noms, actions, musiques, demander, lire_appel, ajouter, relancer=None):
+        """Boucle d'appel d'outils commune au serveur local (format OpenAI) et à Claude (format Anthropic).
+
+        Elle porte tout ce qui ne dépend pas du format : la limite de tours, l'exécution de chaque outil par
+        l'aiguillage fermé (executer_outil : liste blanche, garde-fou de volume, journal des actions), la parole
+        fixée par le serveur et la phrase de repli. Le format reste dans les fonctions fournies par l'appelant :
+        - demander() fait un appel au LLM et renvoie un TourLLM ;
+        - lire_appel(appel) renvoie (nom de l'outil, arguments), arguments à None quand ils sont illisibles ;
+        - ajouter(tour, retours) ajoute aux messages le tour du LLM puis les résultats, retours étant la liste de
+          (appel, résultat) dans l'ordre des appels ;
+        - relancer(reponse), facultative, renvoie vrai quand une réponse sans outil doit redemander un tour.
+
+        Renvoie la réponse parlée. Les actions réussies ou refusées s'ajoutent à `actions`."""
+        for _ in range(TOURS_OUTILS_MAX):
+            tour = demander()
+            if tour.refus:
+                return PHRASE_REFUS_LLM
+            if not tour.appels:
+                if relancer and relancer(tour.reponse):
+                    continue
+                return tour.reponse
+            retours = []
+            for appel in tour.appels:
+                nom, args = lire_appel(appel)
+                res = (self.executer_outil(nom, args, texte, noms, actions, musiques)
+                       if isinstance(args, dict) else {"erreur": "arguments illisibles"})
+                retours.append((appel, res))
+            ajouter(tour, retours)
+            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
+                return PAROLE_FIXEE.get()
+        return PHRASE_ABANDON
+
+    def terminer_tour(self, mode, historique, texte, reponse, actions, musiques, si_vide=""):
+        """Fin commune d'une demande : le garde-fou de musique corrige la réponse, puis la conversation est gardée
+        (sauf en mode isolé). `si_vide` ne remplace dans l'historique qu'une réponse vide."""
+        reponse = garde_fou_musique(reponse, musiques)
+        if mode in MODES_ISOLES:
+            return reponse, actions
+        self.historique = historique + [{"role": "user", "content": texte},
+                                        {"role": "assistant", "content": reponse or si_vide}]
+        return reponse, actions
+
     def repondre(self, texte, mode="commande"):
+        """Une demande au LLM local (format OpenAI) : adaptateur mince autour de boucle_outils."""
         historique = [] if mode in MODES_ISOLES else self.historique
         PAROLE_FIXEE.set(None)
         liste, etats = self.ha.inventaire() if self.ha else ("(Home Assistant non connecté)", "")
@@ -1283,7 +1352,8 @@ class Cerveau:
         musiques = []  # résultats de jouer_musique, pour garde_fou_musique
         outils = outils_avec_entites(self.ha.entites_llm, mode) if self.ha else []
         noms = {nom_outil(o) for o in outils}
-        for _ in range(6):
+
+        def demander():
             corps = {"cache_prompt": True, "model": self.cfg["llm_modele"], "messages": messages,
                      "temperature": 0, "max_tokens": 300,
                      "chat_template_kwargs": {"enable_thinking": False}}
@@ -1293,44 +1363,41 @@ class Cerveau:
             r.raise_for_status()
             msg = r.json()["choices"][0]["message"]
             appels = msg.get("tool_calls") or []
-            if not appels:
-                reponse = nettoyer(msg.get("content") or "")
-                # Qwen annonce « je vais éteindre », affirme « j'ai allumé » ou refuse à tort
-                # (« déjà allumée » alors qu'elle est éteinte) sans appeler l'outil (vu les 11 et
-                # 12/10). Une relance, une seule, avec l'état réel sous les yeux.
-                if ("appeler_service" in noms and not actions and not relance and re.search(
-                        r"\bje (vais|peux|m'en occupe|lance|allume|éteins|coupe)|\bj'ai (allumé|éteint|lancé|coupé|mis|réglé|baissé|monté)"
-                        r"|je ne peux pas|déjà (allumée?|éteinte?)|pas trouvé|n'est pas dans la liste", reponse, re.I)):
-                    relance = True
-                    messages += [{"role": "assistant", "content": reponse},
+            return TourLLM(reponse="" if appels else nettoyer(msg.get("content") or ""), appels=appels, brut=msg)
+
+        def lire_appel(a):
+            try:
+                args = json.loads(a["function"].get("arguments") or "{}")
+            except ValueError:
+                args = None
+            return a["function"].get("name"), args
+
+        def ajouter(tour, retours):
+            messages.append({"role": "assistant", "content": tour.brut.get("content") or "",
+                             "tool_calls": tour.appels})
+            for a, res in retours:
+                messages.append({"role": "tool", "tool_call_id": a["id"],
+                                 "content": json.dumps(res, ensure_ascii=False)})
+
+        def relancer(reponse):
+            # Qwen annonce « je vais éteindre », affirme « j'ai allumé » ou refuse à tort
+            # (« déjà allumée » alors qu'elle est éteinte) sans appeler l'outil (vu les 11 et
+            # 12/10). Une relance, une seule, avec l'état réel sous les yeux.
+            nonlocal relance
+            if ("appeler_service" in noms and not actions and not relance and re.search(
+                    r"\bje (vais|peux|m'en occupe|lance|allume|éteins|coupe)|\bj'ai (allumé|éteint|lancé|coupé|mis|réglé|baissé|monté)"
+                    r"|je ne peux pas|déjà (allumée?|éteinte?)|pas trouvé|n'est pas dans la liste", reponse, re.I)):
+                relance = True
+                messages.extend([{"role": "assistant", "content": reponse},
                                  {"role": "user", "content": "Tu n'as appelé aucun outil, donc rien n'a été fait. "
                                   f"Rappel des appareils actifs : {etats} Si ma demande est une action, appelle "
                                   f"appeler_service maintenant avec l'entity_id exact de la liste (la télé est {TELE}). "
-                                  "Sinon réponds simplement."}]
-                    continue
-                break
-            messages.append({"role": "assistant", "content": msg.get("content") or "",
-                             "tool_calls": appels})
-            for a in appels:
-                try:
-                    args = json.loads(a["function"].get("arguments") or "{}")
-                except ValueError:
-                    args = None
-                res = (self.executer_outil(a["function"].get("name"), args, texte, noms, actions, musiques)
-                       if isinstance(args, dict) else {"erreur": "arguments illisibles"})
-                messages.append({"role": "tool", "tool_call_id": a["id"],
-                                 "content": json.dumps(res, ensure_ascii=False)})
-            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
-                reponse = PAROLE_FIXEE.get()
-                break
-        else:
-            reponse = "Je n'ai pas réussi à terminer cette demande."
-        reponse = garde_fou_musique(reponse, musiques)
-        if mode in MODES_ISOLES:
-            return reponse, actions
-        self.historique = historique + [{"role": "user", "content": texte},
-                                        {"role": "assistant", "content": reponse}]
-        return reponse, actions
+                                  "Sinon réponds simplement."}])
+                return True
+            return False
+
+        reponse = self.boucle_outils(texte, noms, actions, musiques, demander, lire_appel, ajouter, relancer)
+        return self.terminer_tour(mode, historique, texte, reponse, actions, musiques)
 
 
 def garde_fou_volume(texte, args):
@@ -1401,7 +1468,8 @@ class CerveauClaude(Cerveau):
 
     Mêmes outils, même consigne, mêmes garde-fous (liste blanche, volume, présélection).
     Réflexion coupée et consigne en cache : on vise la latence d'une commande vocale.
-    La clé est lue dans ANTHROPIC_API_KEY (poc/.env), jamais affichée."""
+    La clé est lue dans ANTHROPIC_API_KEY (poc/.env) ou, dans l'appli HA, dans l'option anthropic_api_key. Le SDK
+    accepte aussi un jeton ANTHROPIC_AUTH_TOKEN à la place. Elle n'est jamais affichée."""
 
     def __init__(self, cfg, ha):
         import anthropic
@@ -1446,12 +1514,13 @@ class CerveauClaude(Cerveau):
             systeme.append({"type": "text", "text": self.supplement_mode(mode)})
         messages = list(historique) + [{"role": "user", "content":
                                          f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
-        actions, reponse = [], ""
+        actions = []
         self.dernieres_actions = []
         musiques = []  # résultats de jouer_musique, pour garde_fou_musique
         outils = self.outils_du_mode(mode)
         noms = {o["name"] for o in outils}
-        for _ in range(6):
+
+        def demander():
             t = time.perf_counter()
             r = self.client.messages.create(
                 model=self.modele, max_tokens=1024, system=systeme, messages=messages,
@@ -1460,31 +1529,23 @@ class CerveauClaude(Cerveau):
             self.mesures.append((time.perf_counter() - t, u.input_tokens,
                                  getattr(u, "cache_read_input_tokens", 0) or 0, u.output_tokens))
             if r.stop_reason == "refusal":
-                reponse = "Je ne peux pas traiter cette demande."
-                break
+                return TourLLM(refus=True)
             appels = [b for b in r.content if b.type == "tool_use"]
-            if not appels:
-                reponse = nettoyer(" ".join(b.text for b in r.content if b.type == "text"))
-                break
-            messages.append({"role": "assistant", "content": r.content})
-            resultats = []
-            for b in appels:
-                res = self.executer_outil(b.name, dict(b.input or {}), texte, noms, actions, musiques)
-                resultats.append({"type": "tool_result", "tool_use_id": b.id,
-                                  "content": json.dumps(res, ensure_ascii=False),
-                                  **({"is_error": True} if "erreur" in res else {})})
-            messages.append({"role": "user", "content": resultats})
-            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
-                reponse = PAROLE_FIXEE.get()
-                break
-        else:
-            reponse = "Je n'ai pas réussi à terminer cette demande."
-        reponse = garde_fou_musique(reponse, musiques)
-        if mode in MODES_ISOLES:
-            return reponse, actions
-        self.historique = historique + [{"role": "user", "content": texte},
-                                        {"role": "assistant", "content": reponse or "..."}]
-        return reponse, actions
+            if appels:
+                return TourLLM(appels=appels, brut=r)
+            return TourLLM(reponse=nettoyer(" ".join(b.text for b in r.content if b.type == "text")), brut=r)
+
+        def lire_appel(b):
+            return b.name, dict(b.input or {})
+
+        def ajouter(tour, retours):
+            messages.append({"role": "assistant", "content": tour.brut.content})
+            messages.append({"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": b.id, "content": json.dumps(res, ensure_ascii=False),
+                 **({"is_error": True} if "erreur" in res else {})} for b, res in retours]})
+
+        reponse = self.boucle_outils(texte, noms, actions, musiques, demander, lire_appel, ajouter)
+        return self.terminer_tour(mode, historique, texte, reponse, actions, musiques, si_vide="...")
 
 
 ANNONCE_LANCEE = re.compile(r"lancée?s?\b|c'est parti|ça (joue|tourne)|en lecture|j'ai mis\b", re.I)
