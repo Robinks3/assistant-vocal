@@ -64,6 +64,8 @@ IDS_GENERIQUES = frozenset({
     "switch.prise", "climate.essai",
     "sensor.c", "sensor.t", "sensor.t2", "sensor.pm", "sensor.co2", "sensor.salon_t", "sensor.salon_co2",
     "sensor.chambre_t", "sensor.chambre_h", "sensor.couloir_t", "sensor.protegee_t", "sensor.sans_aire",
+    # S-L7 : "sensor.t_$zone" et "sensor.c_$zone" (MesuresTest) sont lus jusqu'au "$".
+    "sensor.h", "sensor.p", "sensor.t_", "sensor.c_", "sensor.t_cam",
 })
 # Services de Home Assistant (domaine.service) : ce ne sont pas des entités.
 SERVICES = frozenset({

@@ -57,6 +57,21 @@
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(238, 234, 226, 0.1); }
   .past svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .past.surligne { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(238, 234, 226, 0.1), 0 0 0 3px rgba(238, 234, 226, 0.35); }
+  /* mesures par pièce (0.9.0, S-L7) : pastille sous le nom de chaque pièce en vue entière, carton de la pièce choisie
+     en bas à gauche. Toujours un mot à côté de la couleur, jamais une couleur seule. */
+  .etiq .mes { display: inline-block; margin-top: 0.25em; padding: 0.05em 0.6em; border-radius: 999px; color: #1B1A17; text-shadow: none; white-space: nowrap; }
+  #mesures { position: fixed; left: 14px; bottom: 30px; max-width: 46%; pointer-events: none; padding: 0.7em 0.95em; border-radius: 14px;
+    background: rgba(26, 25, 22, 0.86); color: #E8E2D8; font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(238, 234, 226, 0.1); opacity: 0; transition: opacity .3s; }
+  #mesures.visible { opacity: 1; }
+  #mesures b { display: block; font-weight: 500; color: #EEEAE2; }
+  #mesures .ml { display: flex; align-items: baseline; gap: 0.6em; margin-top: 0.3em; white-space: nowrap; }
+  #mesures .ml .n { color: #BAB2A6; min-width: 5.5em; }
+  #mesures .ml .v { color: #EEEAE2; }
+  #mesures .mot { padding: 0 0.6em; border-radius: 999px; color: #1B1A17; font-weight: 600; }
+  #mesures .suiv { display: block; margin: 0.05em 0 0 6.1em; color: #BAB2A6; font-size: 0.8em; white-space: nowrap; }
+  #mesures .alerte { display: block; margin-top: 0.5em; color: #F2994A; }
+  #mesures .vide { display: block; margin-top: 0.3em; color: #BAB2A6; }
   #version { position: fixed; left: 10px; bottom: 8px; font-size: 11px; color: #4A4A4A; pointer-events: none; }
   @media (max-width: 520px) { #panneau { width: calc(100% - 24px); max-height: 45%; top: auto; bottom: 28px; } }
 </style>
@@ -83,6 +98,7 @@
 <div id="scene"></div>
 <canvas id="voile"></canvas>
 <div id="grand"></div>
+<div id="mesures"></div>
 <div id="version">Plan 3D v{{VERSION}} du {{DATE}}</div>
 <script>(function(){"use strict";
 /*THREE*/
@@ -1309,7 +1325,7 @@ if (params.get("panneau") === "0" || window.Maison3dAndroid) panneau.classList.a
 const toileVoile = document.getElementById("voile"), cVoile = toileVoile.getContext("2d");
 const couche = document.getElementById("grand");
 const grandEtat = { actif: false, piece: null, voile: 0, voileDe: 0, voileVers: 0, voileT0: 0, opacite: 0.65,
-  etiquettes: [], pastilles: [], taille: 56, police: 20, positions: [], visibles: false, suspenduAvant: false };
+  etiquettes: [], pastilles: [], mesures: null, taille: 56, police: 20, positions: [], visibles: false, suspenduAvant: false };
 const POLY = Object.fromEntries(DONNEES.pieces.map(p => [p.id, p.polygone]));
 function centrePiece(id) {
   const q = POLY[id]; if (!q) return null;
@@ -1368,11 +1384,12 @@ function grand(actif) {
     nomsSol.forEach(m => m.visible = false);
   } else {
     tour.suspendu = grandEtat.suspenduAvant;
-    grandEtat.piece = null; grandEtat.pastilles = []; grandEtat.etiquettes = [];
+    grandEtat.piece = null; grandEtat.pastilles = []; grandEtat.etiquettes = []; grandEtat.mesures = null;
     voiler(0, 0);
   }
   majVueEntiere();
   construireCouche();
+  rendreMesures();
   demander();
 }
 function voiler(vers, duree) {
@@ -1389,12 +1406,13 @@ function choisir(id, duree) {
     montrer([id], d || 1);
     voiler(grandEtat.opacite, d ? 400 : 0);
   } else {
-    grandEtat.piece = null; grandEtat.pastilles = [];
+    grandEtat.piece = null; grandEtat.pastilles = []; grandEtat.mesures = null;
     ensemble(d);
     voiler(0, d ? 300 : 0);
   }
   majVueEntiere();
   construireCouche();
+  rendreMesures();
   demander();
   return true;
 }
@@ -1403,6 +1421,34 @@ function etiquettes(liste) { grandEtat.etiquettes = Array.isArray(liste) ? liste
 // Pastilles de la pièce choisie : [{entite, genre (lampe, tele, enceinte), fraction, allume, etat (ok, rate, hors), surligne}].
 function pastilles(liste) { grandEtat.pastilles = Array.isArray(liste) ? liste : []; construireCouche(); demander(); }
 const echapper = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Une couleur de mesure ne vient que de l'appli (#RRGGBB), mais rien d'autre ne doit finir dans un attribut style.
+const couleurSure = c => /^#[0-9A-Fa-f]{6}$/.test(String(c)) ? String(c) : "#9AA0A6";
+// Mesures de la pièce choisie : {piece, nom, statut (ok, protegee, aucun...), texte, couleur, lignes:[{nom, valeur, mot, couleur, suivant}], air, alerte}.
+// Une pièce protégée n'arrive ici qu'avec statut et texte, jamais une valeur. null efface la carte.
+function mesures(charge) {
+  grandEtat.mesures = charge && typeof charge === "object" ? charge : null;
+  rendreMesures();
+  demander();
+}
+function rendreMesures() {
+  const m = grandEtat.mesures, n = document.getElementById("mesures");
+  if (!n) return;
+  if (!grandEtat.actif || !grandEtat.piece || !m) { n.classList.remove("visible"); n.innerHTML = ""; return; }
+  const f = Math.round(grandEtat.police * 0.8);
+  let h = `<b style="font-size:${Math.round(f * 1.15)}px">${m.statut === "protegee" ? CADENAS : ""}${echapper(m.nom || "")}</b>`;
+  if (m.statut === "protegee" || m.statut === "aucun" || !Array.isArray(m.lignes) || !m.lignes.length) {
+    h += `<span class="vide" style="font-size:${f}px">${echapper(m.texte || "")}</span>`;
+  } else {
+    m.lignes.forEach(l => {
+      h += `<div class="ml" style="font-size:${f}px"><span class="n">${echapper(l.nom)}</span><span class="v">${echapper(l.valeur)}</span>`
+        + (l.mot ? `<span class="mot" style="background:${echapper(couleurSure(l.couleur))}">${echapper(l.mot)}</span>` : "") + `</div>`
+        + (l.suivant ? `<span class="suiv" style="font-size:${Math.round(f * 0.85)}px">${echapper(l.suivant)}</span>` : "");
+    });
+    if (m.alerte) h += `<span class="alerte" style="font-size:${f}px">${echapper(m.alerte)}</span>`;
+  }
+  n.innerHTML = h;
+  n.classList.add("visible");
+}
 // Couche des étiquettes ou des pastilles. Même liste qu'avant (mêmes entités, même pièce) : les éléments sont
 // mis à jour sur place, sans repartir de zéro ni rejouer leur fondu à chaque nouvel état lu dans HA.
 let cleCouche = "";
@@ -1418,7 +1464,8 @@ function construireCouche() {
     const n = neuf ? document.createElement("div") : couche.children[i];
     if (!piece) {
       n.className = "etiq";
-      n.innerHTML = `<b style="font-size:${f}px">${q.verrou ? CADENAS : ""}${echapper(q.nom)}</b><small style="font-size:${Math.round(f * 0.75)}px">${echapper(q.etat)}</small>`;
+      n.innerHTML = `<b style="font-size:${f}px">${q.verrou ? CADENAS : ""}${echapper(q.nom)}</b><small style="font-size:${Math.round(f * 0.75)}px">${echapper(q.etat)}</small>`
+        + (q.mesure && q.mesure.texte ? `<span class="mes" style="font-size:${Math.round(f * 0.7)}px;background:${echapper(couleurSure(q.mesure.couleur))}">${echapper(q.mesure.texte)}</span>` : "");
       n.dataset.piece = q.piece;
     } else {
       n.className = "past" + (q.surligne ? " surligne" : "");
@@ -1599,7 +1646,7 @@ window.maison3d = {
   // le point (x, y) de la page tombe-t-il sur l'appartement (sol, murs, meubles) ou dans le noir autour ?
   // 0.8.0 : la maison en grand. [taille] et [police] des pastilles et des étiquettes, en pixels CSS.
   grand: (actif, taille, police) => { if (taille > 0) grandEtat.taille = +taille; if (police > 0) grandEtat.police = +police; grand(actif); },
-  choisir, etiquettes, pastilles,
+  choisir, etiquettes, pastilles, mesures,
   voile: opacite => { grandEtat.opacite = Math.max(0, Math.min(0.9, +opacite || 0.65)); if (grandEtat.piece) voiler(grandEtat.opacite, 200); demander(); },
   designer: (x, y) => JSON.stringify(designer(x, y)),
   contenu: () => JSON.stringify(contenu()),
@@ -1639,6 +1686,7 @@ addEventListener("message", ev => {
   else if (d.type === "choisir") choisir(d.id, d.duree);
   else if (d.type === "etiquettes") etiquettes(d.liste);
   else if (d.type === "pastilles") pastilles(d.liste);
+  else if (d.type === "mesures") mesures(d.charge);
 });
 
 construireListe();

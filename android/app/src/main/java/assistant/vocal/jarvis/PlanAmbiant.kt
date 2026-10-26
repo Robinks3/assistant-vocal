@@ -280,6 +280,8 @@ internal class PlanAmbiant(private val ctx: Context) {
     private var pastillesEnvoyees = ""
     private var etiquettesVoulues = JSONArray()
     private var pastillesVoulues = JSONArray()
+    private var mesuresEnvoyees = ""
+    private var mesuresVoulues: JSONObject? = null
 
     /** Objets réglables de chaque pièce (texte JSON de maison3d.contenu), lus quand la page est prête. */
     var contenu: String? = null
@@ -301,9 +303,11 @@ internal class PlanAmbiant(private val ctx: Context) {
             choisie = null
             etiquettesVoulues = JSONArray()
             pastillesVoulues = JSONArray()
+            mesuresVoulues = null
         }
         etiquettesEnvoyees = ""
         pastillesEnvoyees = ""
+        mesuresEnvoyees = ""
         vue.contentDescription = if (actif) "Maison en grand, toucher une pièce pour la régler" else "Plan de l'appartement, toucher pour ouvrir la maison en grand"
         val v = vue3d ?: return
         if (prete) {
@@ -317,8 +321,24 @@ internal class PlanAmbiant(private val ctx: Context) {
         if (!grandActif) return
         choisie = piece
         pastillesEnvoyees = ""
-        if (piece == null) pastillesVoulues = JSONArray()
+        if (piece == null) {
+            pastillesVoulues = JSONArray()
+            mesuresVoulues = null
+            mesuresEnvoyees = ""
+        }
         if (prete) vue3d?.choisir(piece, dureeMs)
+    }
+
+    /**
+     * Mesures de la pièce choisie (S-L7), envoyées seulement quand elles changent. null : pas de carton de mesures
+     * (maison entière). Les valeurs sont déjà filtrées par MaisonEnGrand.mesuresPiece, la page ne reçoit rien d'une pièce protégée.
+     */
+    fun mesures(charge: JSONObject?) {
+        mesuresVoulues = charge
+        val t = charge?.toString() ?: ""
+        if (!grandActif || t == mesuresEnvoyees || !prete) return
+        mesuresEnvoyees = t
+        vue3d?.mesures(charge)
     }
 
     /** Étiquettes des pièces de la vue entière, envoyées seulement quand elles changent. */
@@ -356,6 +376,10 @@ internal class PlanAmbiant(private val ctx: Context) {
             v.choisir(p, 0)
             pastillesEnvoyees = pastillesVoulues.toString()
             v.pastilles(pastillesVoulues)
+            mesuresVoulues?.let { m ->
+                mesuresEnvoyees = m.toString()
+                v.mesures(m)
+            }
         }
     }
 

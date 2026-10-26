@@ -169,6 +169,7 @@ Lot maison (planches 13 à 18) :
 |---|---|
 | `.alerte--air` | alerte d'air en haut de Maison, bord et icône orange, texte en couleur normale, avec une consigne en mots |
 | `.mesures`, `.mesure` (`--bon`, `--correct`, `--mediocre`, `--mauvais`, `--frais`, `--absente`, `--aucune`) | mesure en lecture seule, toujours un mot ("agréable", "médiocre"), puce de couleur qui n'est jamais seule, ligne dite en toutes lettres si la mesure manque |
+| `.etiq .mes`, `#mesures` (vue 3D, S-L7) | pastille de mesures sous le nom d'une pièce et carton de la pièce choisie, en bas à gauche au-dessus de la version : même texte et même couleur que Maison, toujours un mot à côté de la couleur, « pièce protégée » seul pour une pièce protégée |
 | `.piece-tete`, `.piece-protegee` | en-tête d'une carte de pièce (nom, surface, mesures) et pièce protégée sans aucune valeur ni lampe |
 | `.lampe`, `.lampe--ouverte`, `.lampe-ouvrir`, `.sphere--teinte`, `.commutateur` | ligne de lampe avec sphère teintée de sa couleur, interrupteur (`role="switch"`, pointillé s'il est désactivé) et chevron qui ouvre le volet |
 | `.volet-tete`, `.volet-pied`, `.segments`, `.segment` | volet d'une lampe en feuille basse, onglets Blanc et Couleur (`role="tab"`), pied d'état (attente, échec) |

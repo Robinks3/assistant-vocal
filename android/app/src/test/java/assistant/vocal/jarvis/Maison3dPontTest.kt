@@ -291,6 +291,27 @@ class Maison3dPontTest {
     }
 
     @Test
+    fun s_l7_scriptDesMesuresPorteLaChargeSansRienDAutre() {
+        val pieces = MaisonEnGrand.lireContenu("""[{"id":"sejour","nom":"Séjour","lampes":[{"entite":"light.a","nom":""}],"medias":[]}]""")
+        val m = 1790000000.0
+        val mes = Mesures.parPiece(
+            Mesures.Releve(m, listOf(Mesures.Capteur("sensor.c", "carbon_dioxide", "650", "z", "", "", m - 30))),
+            mapOf("sejour" to listOf("z")), emptyList(),
+        ).getValue("sejour")
+        // pièce normale : la charge part telle quelle, gardée par le test de présence de la fonction
+        val normale = MaisonEnGrand.mesuresPiece(pieces[0], mes, verrou = false)
+        assertEquals("if (typeof maison3d.mesures === \"function\") maison3d.mesures($normale)", Maison3dPont.scriptMesures(normale))
+        assertTrue(Maison3dPont.scriptMesures(normale).contains("650 ppm"))
+        // pièce protégée : aucune valeur dans le script, même avec un relevé
+        val protegee = Maison3dPont.scriptMesures(MaisonEnGrand.mesuresPiece(pieces[0], mes, verrou = true))
+        assertTrue(protegee.contains("pièce protégée"))
+        assertFalse(protegee, protegee.contains("650") || protegee.contains("ppm"))
+        // sans capteur, puis effacement
+        assertTrue(Maison3dPont.scriptMesures(MaisonEnGrand.mesuresPiece(pieces[0], null, verrou = false)).contains("pas de capteur"))
+        assertEquals("if (typeof maison3d.mesures === \"function\") maison3d.mesures(null)", Maison3dPont.scriptMesures(null))
+    }
+
+    @Test
     fun texteRenduParLaWebView() {
         // evaluateJavascript encode le texte rendu par la page en JSON.
         assertEquals("{\"genre\":\"piece\",\"id\":\"sejour_cuisine\"}", Maison3dPont.texteRendu("\"{\\\"genre\\\":\\\"piece\\\",\\\"id\\\":\\\"sejour_cuisine\\\"}\""))

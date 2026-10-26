@@ -253,6 +253,13 @@ internal class Maison3dPont(private val executer: (String) -> Unit) {
         fun scriptPastilles(liste: JSONArray): String =
             "if (typeof maison3d.pastilles === \"function\") maison3d.pastilles($liste)"
 
+        /**
+         * Mesures de la pièce choisie (S-L7) : `{piece, nom, statut, texte, couleur, lignes, air}`, ou null pour effacer
+         * le carton (maison entière). Sans effet sur une page qui ne le connaît pas encore.
+         */
+        fun scriptMesures(charge: JSONObject?): String =
+            "if (typeof maison3d.mesures === \"function\") maison3d.mesures(${charge ?: "null"})"
+
         /** Opacité du voile sur les autres pièces : 0,65 le jour, 0,7 le soir. */
         fun scriptVoile(opacite: Float): String =
             "if (typeof maison3d.voile === \"function\") maison3d.voile(${nombre(opacite.coerceIn(0f, 0.9f))})"

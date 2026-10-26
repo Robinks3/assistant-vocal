@@ -206,7 +206,8 @@ object Mesures {
 
     /**
      * Mesures de chaque pièce de [corresp] à partir du [releve]. [protegees] : zones, pièces ou noms protégés (aucune
-     * valeur pour ces pièces). [noms] : nom lisible de chaque pièce (sinon l'identifiant). [maintenant] remplace l'heure
+     * valeur pour ces pièces). [noms] : nom lisible de chaque pièce (sinon l'identifiant, comme le serveur : le repli lisible
+     * se fait dans [deEtat]). [maintenant] remplace l'heure
      * du relevé quand l'appli a gardé ce relevé un moment.
      */
     fun parPiece(
@@ -233,6 +234,20 @@ object Mesures {
         }
         return sortie
     }
+
+    /**
+     * Nom d'une pièce tel qu'il se dit et s'affiche (S-L7) : celui de la carte quand il est connu, sinon l'identifiant
+     * rendu lisible (« chambre_camille » donne « Chambre camille »), jamais l'identifiant technique brut.
+     */
+    fun nomAffiche(piece: String, noms: Map<String, String>): String {
+        noms[piece]?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        val lisible = piece.replace('_', ' ').replace('-', ' ').trim()
+        return if (lisible.isEmpty()) piece else lisible.replaceFirstChar { it.uppercaseChar() }
+    }
+
+    /** Un nom affiché par pièce de la configuration : celui de la carte, sinon le repli lisible de [nomAffiche]. */
+    fun nomsLisibles(pieces: Collection<String>, noms: Map<String, String>): Map<String, String> =
+        pieces.associateWith { nomAffiche(it, noms) }
 
     private fun piece(nom: String, capteurs: List<Capteur>, dedies: Set<String>, maintenant: Double, fuseau: ZoneId): PieceMesures {
         if (capteurs.isEmpty()) return vide(Statut.AUCUN, "pas de capteur")
@@ -295,6 +310,20 @@ object Mesures {
     fun ligneAccueil(nom: String, p: PieceMesures): String =
         if (p.statut == Statut.AUCUN || p.statut == Statut.PROTEGEE) "" else "$nom ${p.texte}"
 
+    /**
+     * Ligne de l'accueil (S-L7), une seule, lisible de loin. Règle : si une pièce a l'air médiocre ou mauvais, c'est
+     * elle qui parle (la pire d'abord, à égalité la première de la configuration). Sinon la pièce principale, c'est-à-dire
+     * la première de `correspondance_pieces` qui a une température ou un air à dire. Une pièce protégée, sans capteur
+     * ou dont tout est muet ne parle jamais. Vide quand personne n'a rien à dire.
+     */
+    fun ligneAccueil(pieces: Map<String, PieceMesures>, noms: Map<String, String> = emptyMap()): String {
+        val parlantes = pieces.filter { (_, p) -> p.statut == Statut.OK || p.statut == Statut.SANS_AIR || p.statut == Statut.SANS_THERMOMETRE }
+        if (parlantes.isEmpty()) return ""
+        val alerte = parlantes.entries.filter { it.value.air?.aerer == true }.maxByOrNull { it.value.air?.rang ?: 0 }
+        val choix = alerte ?: parlantes.entries.first()
+        return ligneAccueil(nomAffiche(choix.key, noms), choix.value)
+    }
+
     /** Alertes de toutes les pièces, la plus grave d'abord (une phrase par pièce à aérer). */
     fun alertes(pieces: Map<String, PieceMesures>): List<String> =
         pieces.values.filter { it.alerte.isNotEmpty() }.sortedByDescending { it.air?.rang ?: 0 }.map { it.alerte }
@@ -315,6 +344,7 @@ object Mesures {
         val corresp = correspondance()
         if (corresp.isEmpty()) return emptyMap()
         val ecoule = (horloge - e.mesuresLe) / 1000.0
-        return parPiece(releve, corresp, zonesProtegees(), ZoneId.systemDefault(), noms, releve.maintenant + ecoule)
+        // Nom de la carte, sinon repli lisible : l'alerte « Aère la pièce X » ne dit jamais l'identifiant technique.
+        return parPiece(releve, corresp, zonesProtegees(), ZoneId.systemDefault(), nomsLisibles(corresp.keys, noms), releve.maintenant + ecoule)
     }
 }

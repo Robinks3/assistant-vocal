@@ -69,6 +69,84 @@ class MaisonEnGrandTest {
         assertEquals("Chambre de Camille", t.getString("nom"))
     }
 
+    private fun mesuresDe(vararg capteurs: Mesures.Capteur, protegees: List<String> = emptyList()): Mesures.PieceMesures {
+        val m = 1790000000.0
+        return Mesures.parPiece(Mesures.Releve(m, capteurs.toList()), mapOf("sejour_cuisine" to listOf("z")), protegees).getValue("sejour_cuisine")
+    }
+
+    @Test
+    fun s_l7_chargeDeMesuresPourUnePieceNormale_valeursMotsEtSeuilSuivant() {
+        val m = 1790000000.0
+        val mes = mesuresDe(
+            Mesures.Capteur("sensor.t", "temperature", "21,4", "z", "", "", m - 30),
+            Mesures.Capteur("sensor.h", "humidity", "45", "z", "", "", m - 30),
+            Mesures.Capteur("sensor.c", "carbon_dioxide", "1200", "z", "", "", m - 30),
+            Mesures.Capteur("sensor.p", "pm25", "5", "z", "", "", m - 30),
+        )
+        val c = MaisonEnGrand.mesuresPiece(sejour, mes, verrou = false)
+        assertEquals("sejour_cuisine", c.getString("piece"))
+        assertEquals("Séjour et cuisine", c.getString("nom"))
+        assertEquals("ok", c.getString("statut"))
+        // même texte et même couleur que sur le panneau en grand
+        assertEquals(mes.texte, c.getString("texte"))
+        assertEquals(mes.couleur, c.getString("couleur"))
+        val lignes = c.getJSONArray("lignes")
+        val parCle = (0 until lignes.length()).associate { lignes.getJSONObject(it).getString("cle") to lignes.getJSONObject(it) }
+        assertEquals(listOf("temperature", "humidite", "co2", "pm25"), parCle.keys.toList())
+        assertEquals("21°", parCle.getValue("temperature").getString("valeur"))
+        assertEquals("45 %", parCle.getValue("humidite").getString("valeur"))
+        val co2 = parCle.getValue("co2")
+        assertEquals("1200 ppm", co2.getString("valeur"))
+        assertEquals("médiocre", co2.getString("mot"))
+        assertEquals(Mesures.COULEURS_AIR[2], co2.getString("couleur"))
+        assertTrue(co2.getString("suivant").isNotEmpty())
+        assertEquals("5 µg/m3", parCle.getValue("pm25").getString("valeur"))
+        assertEquals("bon", parCle.getValue("pm25").getString("mot"))
+        assertTrue(c.getJSONObject("air").getBoolean("aerer"))
+        assertEquals(mes.alerte, c.getString("alerte"))
+    }
+
+    @Test
+    fun s_l7_pieceProtegee_aucuneValeurVersLaPage_memeAvecUnReleve() {
+        val m = 1790000000.0
+        val mes = mesuresDe(Mesures.Capteur("sensor.t", "temperature", "21", "z", "", "", m - 30), Mesures.Capteur("sensor.c", "carbon_dioxide", "1200", "z", "", "", m - 30))
+        // par le verrou de l'appli, alors que le relevé existe et n'est pas marqué protégé
+        val verrou = MaisonEnGrand.mesuresPiece(sejour, mes, verrou = true)
+        assertEquals("protegee", verrou.getString("statut"))
+        assertEquals("pièce protégée", verrou.getString("texte"))
+        assertEquals(0, verrou.getJSONArray("lignes").length())
+        for (cle in listOf("air", "alerte")) assertFalse(cle, verrou.has(cle))
+        assertFalse(verrou.toString(), verrou.toString().contains("1200") || verrou.toString().contains("21°"))
+        // par le statut du calcul
+        val protegee = mesuresDe(Mesures.Capteur("sensor.t", "temperature", "21", "z", "", "", m - 30), protegees = listOf("z"))
+        val c = MaisonEnGrand.mesuresPiece(sejour, protegee, verrou = false)
+        assertEquals("protegee", c.getString("statut"))
+        assertEquals(0, c.getJSONArray("lignes").length())
+        assertEquals(Mesures.COULEUR_GRIS, c.getString("couleur"))
+    }
+
+    @Test
+    fun s_l7_pieceSansCapteur_diraPasDeCapteur() {
+        for (m in listOf(null, mesuresDe())) {
+            val c = MaisonEnGrand.mesuresPiece(sejour, m, verrou = false)
+            assertEquals("aucun", c.getString("statut"))
+            assertEquals("pas de capteur", c.getString("texte"))
+            assertEquals(0, c.getJSONArray("lignes").length())
+            assertEquals(Mesures.COULEUR_GRIS, c.getString("couleur"))
+        }
+    }
+
+    @Test
+    fun s_l7_uneMesurePerimee_estDiteAbsenteSansValeurNiCouleur() {
+        val m = 1790000000.0
+        val mes = mesuresDe(Mesures.Capteur("sensor.c", "carbon_dioxide", "1200", "z", "", "", m - 7300), Mesures.Capteur("sensor.t", "temperature", "21", "z", "", "", m - 30))
+        val lignes = MaisonEnGrand.mesuresPiece(sejour, mes, verrou = false).getJSONArray("lignes")
+        val co2 = (0 until lignes.length()).map { lignes.getJSONObject(it) }.first { it.getString("cle") == "co2" }
+        assertTrue(co2.getString("valeur"), co2.getString("valeur").startsWith("absent depuis "))
+        assertEquals("", co2.getString("mot"))
+        assertEquals(Mesures.COULEUR_GRIS, co2.getString("couleur"))
+    }
+
     @Test
     fun drapeauDeLOccupantLeve_aucunePieceProtegee() {
         // Securite.PROTEGER_OCCUPANT est à false depuis le 22/10/2026 (demande du propriétaire).

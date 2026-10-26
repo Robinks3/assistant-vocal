@@ -6,6 +6,15 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.46.0 (2026-10-27), mesures dans la vue 3D et sur l'accueil
+Mineure (versionCode 84). Session S-L7 du plan, serveur inchangé (0.45.1).
+- Les mesures des pièces s'affichent dans la vue 3D : pastille sous le nom de chaque pièce, carton de la pièce
+  touchée (température, humidité, CO2, particules, mot de l'air et seuil suivant), « pièce protégée » seul pour une
+  pièce protégée.
+- L'accueil gagne une ligne courte « Salon 21°, air bon » : la pièce à aérer d'abord, sinon la première pièce de
+  `correspondance_pieces` qui a quelque chose à dire.
+- L'alerte « Aère la pièce X » dit le nom affiché de la pièce, jamais son identifiant technique.
+
 ## 0.45.0 (2026-10-26), durcissement
 Mineure (versionCode 83). Session S-D5 du plan, pendant du serveur 0.45.1.
 - Les extras d'intention `test_*` de l'activité principale ne sont lus que dans un build de débogage.
