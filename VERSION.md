@@ -4,6 +4,24 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.34.1 (2026-10-26), licences : MIT pour le code, modèles non commerciaux téléchargés
+Session S-C5 du plan 1.2.0 (décision D2). Aucun changement de comportement du serveur. Le numéro `VERSION` de
+`poc/assistant.py` reste à passer à 0.34.1 à la fusion (fichier à écrivain unique, non touché par cette branche).
+- `LICENSE` à la racine : MIT, titulaire neutre « les auteurs de l'assistant vocal local », avec un rappel que les
+  modèles, polices et bibliothèques tiers gardent leur licence.
+- `LICENCES-TIERS.md` réécrit (dette I15) : la phrase « tous droits réservés » est remplacée par la licence MIT,
+  toutes les bibliothèques Python des deux `requirements.txt` et toutes les dépendances Gradle sont listées avec
+  version contrôlée, licence et source, la note sur piper-tts (GPL-3.0-or-later) est ajoutée, la section « Modèles
+  à retirer de l'instantané public » liste les trois modèles CC BY-NC-SA 4.0 d'openWakeWord avec leur adresse
+  officielle et leur SHA-256, et la section « Reste à confirmer » dit ce qui n'a pas pu être vérifié.
+- `poc/outils/telecharger_modeles.py` : les trois modèles d'openWakeWord (mot de réveil Hey Jarvis, prétraitement)
+  sont téléchargés depuis la publication officielle v0.5.1 avec vérification SHA-256 et licence affichée avant le
+  téléchargement. Nouvelles fonctions `modeles_manquants`, `message_modeles_manquants` et `verifier_au_demarrage`
+  (message clair : fichiers manquants, licence, commande). Le branchement au démarrage du serveur reste à faire
+  dans `poc/assistant.py`.
+- Test `poc/tests/test_modeles_manquants.py` (10 cas, sans réseau). Le téléchargement n'a pas été lancé et les
+  modèles restent dans le dépôt privé.
+
 ## Serveur 0.34.0 (2026-10-25), administration dans Home Assistant (Ingress), invitation par code
 Lot : une page d'administration dans la barre latérale de Home Assistant, réservée aux administrateurs de HA de
 la liste blanche. Doc HA : https://contributors.home-assistant.io/apps/guides/ingress/. Appli Android 0.37.0
