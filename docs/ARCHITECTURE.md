@@ -39,11 +39,12 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 
 | Fichier | Rôle | Éléments principaux |
 |---|---|---|
-| `assistant.py` | Chaîne de compréhension et d'action, utilisable seule en ligne de commande (`--texte`, `--clavier`, `--reveil`, `--essai`, `--claude`, `--version`) | `VERSION`, `SERVICES_PERMIS`, `OUTILS`, `CONSIGNE`, `HomeAssistant`, `Cerveau` (LLM compatible OpenAI), `CerveauClaude`, `Transcripteur` (Canary), `Voix` (Piper), `Reveil`, `Oreille`, `Assistant`, `garde_fou_volume`, `garde_fou_musique`, journaux |
+| `assistant.py` | Chaîne de compréhension et d'action, utilisable seule en ligne de commande (`--texte`, `--clavier`, `--reveil`, `--essai`, `--claude`, `--version`) | `VERSION`, `OUTILS`, `CONSIGNE`, `HomeAssistant`, `Cerveau` (LLM compatible OpenAI), `CerveauClaude`, `Transcripteur` (Canary), `Voix` (Piper), `Reveil`, `Oreille`, `Assistant`, `garde_fou_volume`, `garde_fou_musique`, journaux |
 | `dictionnaire.py` | Phrases de `commandes.yaml` développées en formes exactes, recherche tolérante, phrases apprises | `normaliser`, `epurer`, `developper`, `Personnes`, `Dictionnaire` (`chercher`, `apprendre`, `oublier`), `SEUIL_FLOU = 0.88` |
 | `securite.py` | Sécurité écrite en dur, copiée dans `Securite.kt` | `SECURITE_ACTIVE`, `PROTEGER_OCCUPANT`, `HEURE_CALME_ACTIVE`, `VOLUME_MAX`, `verifier`, `phrase_protegee`, `entites_permises` |
 | `serveur_satellite.py` | Serveur WebSocket des satellites, les deux profils | `Moteur` (ressources partagées, capacités, bascules), `Satellite` (machine à états d'une connexion), `Arbitre`, `Calibration`, `passerelle_ha`, `CanalWyoming`, `ReveilWyoming`, `transcrire_api`, `transcrire_ha`, `synthetiser_ha`, `servir` |
 | `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `controler_service`, `refus_schema`, `refus_launch_app`, `DOMAINES_INTERDITS` |
+| `liste_blanche.py` | La liste blanche commune des actions de la télé et des lampes (0.41.0), voir « Liste blanche commune » | `SERVICES_PERMIS`, `DOMAINES_HORS_LLM`, `DOMAINES_ADMIN`, `REGLAGES`, `refus_reglage` |
 | `maison.py` | Lecture du dossier de configuration | `DOSSIER`, `CONFIG`, `reseau()`, `liste()`, `NOM_PROPRIETAIRE`, `CLE_PROPRIETAIRE` |
 | `vad.py` | Silero VAD v5 | `creer()`, `Vad.parole()` |
 | `vision.py` | Visages pour la tablette (YuNet, SFace) | `Vision.analyser`, `traiter_message`, `regard` |
@@ -369,13 +370,13 @@ communs. Le plafond du volume se règle dans la configuration, pas dans le code 
 plafonne le volume sur place. Côté Kotlin, le plafond est appliqué par `Securite.plafonner` avant l'envoi, et
 `Securite.monterSansDepasser` change un `volume_up` en `volume_set` 5 points plus haut, borné par le plafond,
 quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au LLM du serveur
-(`SERVICES_PERMIS`), et les écrans de l'appli ne dessinent ni trait ni mention de plafond.
+(`liste_blanche.SERVICES_PERMIS`), et les écrans de l'appli ne dessinent ni trait ni mention de plafond.
 
 ### Autres verrous du serveur
 
 | Verrou | Où |
 |---|---|
-| Liste blanche des services (décision D6, 0.37.0) : tout ce que Home Assistant expose pour les domaines d'équipement (lumières, interrupteurs, ventilateurs, volets, climat, humidificateurs, chauffe-eau, vannes, sirènes, lecteurs, Music Assistant, aspirateurs, tondeuses, caméras en marche et arrêt, scènes, scripts, automatisations, entrées `input_*`, boutons, nombres, textes, minuteurs, compteurs, `remote`, `select`, `domaine_tele`), complété au démarrage par `GET /api/services` quand Home Assistant répond. Restent refusés : toute cible par `device_id`, `floor_id` ou `label_id`, les `DOMAINES_INTERDITS` (serrure, alarme, notification, etc.), les rechargements, `camera.snapshot`, `scene.apply`, `media_player.play_media`, `remote.learn_command` et ce qui écrit un fichier ou désigne d'autres appareils dans ses données. `domaine_tele`, `remote` et `select` sont dans `DOMAINES_HORS_LLM` : hors du contexte du LLM et de son outil `appeler_service`, réservés au dictionnaire. `launch_app` n'accepte qu'une URL `https://` | `SERVICES_PERMIS`, `services_depuis_ha`, `HomeAssistant.service` |
+| Liste blanche des services (décision D6, 0.37.0) : tout ce que Home Assistant expose pour les domaines d'équipement (lumières, interrupteurs, ventilateurs, volets, climat, humidificateurs, chauffe-eau, vannes, sirènes, lecteurs, Music Assistant, aspirateurs, tondeuses, caméras en marche et arrêt, scènes, scripts, automatisations, entrées `input_*`, boutons, nombres, textes, minuteurs, compteurs, `remote`, `select`, `domaine_tele`), complété au démarrage par `GET /api/services` quand Home Assistant répond. Restent refusés : toute cible par `device_id`, `floor_id` ou `label_id`, les `DOMAINES_INTERDITS` (serrure, alarme, notification, etc.), les rechargements, `camera.snapshot`, `scene.apply`, `media_player.play_media`, `remote.learn_command` et ce qui écrit un fichier ou désigne d'autres appareils dans ses données. `domaine_tele`, `remote` et `select` sont dans `DOMAINES_HORS_LLM` : hors du contexte du LLM et de son outil `appeler_service`, réservés au dictionnaire. `launch_app` n'accepte qu'une URL `https://` | `liste_blanche.SERVICES_PERMIS`, `services_depuis_ha`, `HomeAssistant.service` |
 | Le LLM ne voit que les domaines de `DOMAINES_CONTEXTE` (`DOMAINES_LLM`, soit lumières, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts et booléens, plus les capteurs de température, d'humidité, de porte, de fenêtre et la météo) et l'outil `appeler_service` n'accepte que `DOMAINES_OUTIL_LLM` (ces domaines, plus `button` et `switch`) : l'élargissement de la liste blanche ne change rien à ce que voit le modèle, qui reste sans les entités masquées par `llm.masquer` ni les entités protégées | `HomeAssistant.inventaire` |
 | Les entités permises partent en `enum` dans le schéma des outils, et toute entité hors de la liste est refusée par le code | `outils_avec_entites`, `HomeAssistant.service` |
 | Un changement de volume non demandé dans la phrase est refusé | `garde_fou_volume` |
@@ -383,11 +384,45 @@ quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au 
 | Phrase qui parle de l'occupant protégé refusée avant tout LLM | `securite.phrase_protegee` |
 | Une action sur une entité protégée n'est jamais apprise | `Assistant.apprendre` |
 | Assist de Home Assistant sauté | `HomeAssistant.conversation`, `MoteurLocal.comprendre` |
+| Liste blanche commune : table des services et section `reglages` de `maison.json`, appliquées par les deux voies | `liste_blanche`, `acces.controler_service` |
+| Historique du LLM tenu par appareil, jamais par une personne écrite dans un message ; sans identité d'appareil, aucun historique | `Cerveau.cle_historique` |
 | Passerelle : domaines interdits (`lock`, `alarm_control_panel`, `homeassistant`, `hassio`, `shell_command`, `rest_command`, `python_script`, `notify`, `persistent_notification`, `recorder`, `system_log`), chemins en correspondance exacte | `acces.verifier_requete_ha` |
 | Aucun jeton Home Assistant dans l'APK | `PasserelleHa` |
 
 Les actions du dictionnaire ne passent pas par la liste blanche, puisque le dictionnaire est écrit par le
 propriétaire, mais elles passent toutes par `acces.controler_service`, donc par `securite.verifier`.
+
+### Liste blanche commune (0.41.0)
+
+La liste de ce que le LLM et l'appli peuvent faire sur la télé et les lampes vit dans un seul module,
+`poc/liste_blanche.py`, jamais en deux copies. Elle a deux parties.
+
+1. La table des services par domaine, `SERVICES_PERMIS` (décision D6, voir plus haut), avec `DOMAINES_HORS_LLM`
+   (`domaine_tele`, `remote`, `select`, réservés au dictionnaire et à l'appli). `assistant.py` la réexporte pour
+   `HomeAssistant.service`, `services_depuis_ha` et l'exporteur de dictionnaire de l'appli.
+2. Les réglages de la maison, lus dans la section `reglages` de `maison.json`, tous facultatifs. Une clé absente
+   ne restreint rien de plus que la table et `securite.py`.
+
+| Clé de `reglages` | Effet |
+|---|---|
+| `applis` | Liste des noms d'applis que `domaine_tele.launch_app` accepte dans son champ `app` |
+| `interrupteurs` | Liste des `switch.*` appelables. Un appel sur un interrupteur absent de la liste, ou sans cible, est refusé |
+| `attributs_refuses` | Pour un service `domaine.service`, les clés de données refusées (`{"light.turn_on": ["flash"]}`) |
+
+Les deux voies passent par `acces.controler_service`, qui appelle `liste_blanche.refus_reglage` après les
+contrôles de schéma et de `launch_app`, et avant `securite.verifier`. La voie du LLM (`HomeAssistant.service`)
+applique en plus la table pour tous les domaines. La passerelle de l'appli (`acces.verifier_requete_ha`) applique
+la table pour les trois domaines réservés à l'appli (`domaine_tele`, `remote`, `select`), puisque l'appli
+appelle d'autres services d'équipement que le LLM. Rien dans les réglages ne rouvre `device_id`, `floor_id`,
+`label_id` ni un domaine de `DOMAINES_INTERDITS`. Test de parité : `poc/tests/test_liste_blanche_commune.py`.
+
+### Historique du LLM par appareil (0.41.0)
+
+`Cerveau.historiques` est indexé par `(personne, appareil)`, tirés du contexte de requête posé par la session
+(`Assistant.requete`) : l'appareil est l'identité appairée, la personne vient d'`acces.personne_effective`. Le
+texte du message n'y entre jamais, donc « je suis Camille » ne donne pas l'historique de Camille, et « qu'est-ce
+qu'on t'a demandé juste avant » ne rend que les phrases du même appareil. Une requête sans identité d'appareil
+(`Cerveau.cle_historique()` vaut `None`) ne garde rien d'une demande à l'autre. Six messages au plus, 120 s.
 
 ### Santé
 

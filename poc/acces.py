@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, timezone
 import ipaddress
 from urllib.parse import urlparse
 
+import liste_blanche
 import maison
 import securite
 
@@ -773,11 +774,13 @@ def controler_service(domaine, service, corps, personne=None, services_permis=No
     """POINT DE CONTRÔLE UNIQUE (0.40.0, S-F4) de tout appel de service Home Assistant, sur la voie du LLM
     (HomeAssistant.service), celle du dictionnaire (Assistant.executer) et celle de l'appli
     (verifier_requete_ha). Rend un Refus (texte en français, avec son genre), ou None si l'appel peut partir.
-    Ordre : domaines interdits, service permis, schéma des données, URL de launch_app, puis securite.verifier.
+    Ordre : domaines interdits, service permis, schéma des données, URL de launch_app, réglages de la maison
+    (liste_blanche.refus_reglage, communs à toutes les voies), puis securite.verifier.
 
     services_permis : l'ensemble des services permis du domaine (liste blanche), ou None quand la voie n'en a pas.
     Le LLM en a une (HomeAssistant.services_permis). Le dictionnaire est écrit par le propriétaire et l'appli
-    a besoin de services hors liste (media_player.join pour grouper les enceintes), les deux passent sans.
+    a besoin de services hors liste (media_player.join pour grouper les enceintes), les deux passent sans, sauf
+    la passerelle pour les domaines réservés à l'appli (liste_blanche.DOMAINES_HORS_LLM, table SERVICES_PERMIS).
     personne : qui parle d'après la session, jamais d'après le texte d'un message (règle 3 de securite.py)."""
     if domaine in DOMAINES_INTERDITS:
         return _refus("domaine", f"domaine {domaine} interdit par la passerelle")
@@ -788,6 +791,10 @@ def controler_service(domaine, service, corps, personne=None, services_permis=No
     if refus:
         return _refus("donnees", refus)
     refus = refus_launch_app(f"{domaine}.{service}", corps)
+    if refus:
+        return _refus("donnees", refus)
+    # Réglages de la maison (liste_blanche.REGLAGES) : les mêmes pour toutes les voies, puisqu'elles passent ici.
+    refus = liste_blanche.refus_reglage(domaine, service, corps)
     if refus:
         return _refus("donnees", refus)
     refus = securite.verifier(f"{domaine}.{service}", {} if corps is None else corps, personne=personne)
@@ -811,4 +818,8 @@ def verifier_requete_ha(methode, chemin, corps, personne=None):
     if not m:
         return "chemin non permis"
     domaine, service = m.groups()
-    return controler_service(domaine, service, corps, personne=personne) or None
+    # Les domaines réservés à l'appli et au dictionnaire (domaine_tele, remote, select) ont leur liste de
+    # services dans liste_blanche, la même que celle du serveur. Les autres domaines gardent leur liberté de
+    # services côté appli (media_player.join pour grouper les enceintes), le LLM seul a la liste.
+    permis = liste_blanche.SERVICES_PERMIS.get(domaine) if domaine in liste_blanche.DOMAINES_HORS_LLM else None
+    return controler_service(domaine, service, corps, personne=personne, services_permis=permis) or None
