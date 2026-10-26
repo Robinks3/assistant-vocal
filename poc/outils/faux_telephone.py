@@ -1,7 +1,8 @@
 """Faux téléphone : se connecte au serveur satellite et rejoue des phrases synthétisées.
 
 Usage : python poc/outils/faux_telephone.py [--reveil] "phrase 1" "phrase 2"
-Sans --reveil, simule le bouton Parler. Avec --reveil, fait précéder la phrase de « Hey Jarvis »."""
+Sans --reveil, simule le bouton Parler. Avec --reveil, fait précéder la phrase du mot de réveil réglé dans
+maison.json (section reveil, voir assistant.prononciation_reveil), « Hey Jarvis » à l'anglaise en repli."""
 import asyncio, json, os, sys, time
 import numpy as np, websockets
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -12,7 +13,9 @@ load_dotenv(A.ICI / ".env")
 from piper import PiperVoice
 
 voix = PiperVoice.load(str(A.ICI / "voix" / "fr_FR-siwis-medium.onnx"))
-voix_en = PiperVoice.load(str(A.ICI / "voix" / "en_US-lessac-medium.onnx"))  # le mot de réveil à l'anglaise
+MOT_REVEIL, LANGUE_REVEIL = A.prononciation_reveil()  # même source que le serveur : maison.json, section reveil
+# Le mot de réveil se dit avec la voix de sa langue : voix française, ou anglaise pour « Hey Jarvis ».
+voix_reveil = voix if LANGUE_REVEIL == "fr" else PiperVoice.load(str(A.ICI / "voix" / "en_US-lessac-medium.onnx"))
 def pcm16k(texte, v=None):
     v = v or voix
     x = np.frombuffer(b"".join(c.audio_int16_bytes for c in v.synthesize(texte)), np.int16).astype(np.float32)
@@ -35,7 +38,7 @@ async def main():
         for p in phrases:
             t0 = time.perf_counter()
             if reveil:
-                await envoyer_flux(ws, np.concatenate([silence, pcm16k("Hey Jarvis!", voix_en), silence[:4000]]))
+                await envoyer_flux(ws, np.concatenate([silence, pcm16k(MOT_REVEIL, voix_reveil), silence[:4000]]))
             else:
                 await ws.send(json.dumps({"type": "parler"}))
             envoi = asyncio.create_task(envoyer_flux(ws, np.concatenate([pcm16k(p), silence, silence])))

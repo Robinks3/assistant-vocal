@@ -4,6 +4,25 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.36.3 (2026-10-26), build et outillage
+Session S-D4 du plan 1.2.0. Le numéro 0.36.2 est réservé à S-D1 (fuseau et heures calmes), menée en parallèle.
+Aucun changement de comportement du serveur, seuls l'outillage, la documentation et deux outils de test bougent.
+- Appli Home Assistant (`ha-app/jarvis/config.yaml`) : l'architecture `aarch64` s'ajoute à `amd64`. L'image
+  `python:5.12-slim` et les dépendances de `requirements.txt` existent pour les deux. Un Raspberry Pi 4 ou 5 et
+  un Home Assistant Green peuvent donc installer l'appli. Le profil `ha` ne change pas.
+- `poc/tests/test_demarrage.py` (avec le harnais `demarrage_a_vide.py`) : le serveur des satellites démarre sans
+  `poc/.env`, sans micro, sans réseau et sans Home Assistant, écoute quelques secondes puis s'arrête seul. Toute
+  connexion hors de la machine est refusée et fait échouer le test. Si un module tiers manque, le test est sauté
+  avec le motif. Un second test lance `shellcheck` sur les scripts shell du dépôt, sauté quand l'outil est absent.
+- `android/outils/pousser_canary.sh` : installe une version d'essai de l'appli par `adb install -r`, sur
+  l'appareil donné en argument. Aucun jeton ni adresse dans le script (ils sont dans l'APK, copiés par Gradle).
+- `dire.py` et `faux_telephone.py` (`poc/outils/`) : l'option `--reveil` dit le mot de réveil réglé dans
+  `maison.json` (nouvelle fonction `assistant.prononciation_reveil`, même source que le serveur, même repli sur
+  « Hey Jarvis » à l'anglaise), au lieu de « Hey Jarvis » écrit en dur.
+- Documentation (`docs/INSTALLER.md`) : compilation hors de Windows sans `-PdossierBuild`, signature par
+  `keystore.properties`, version d'essai par `pousser_canary.sh`, ARM64 pour l'appli Home Assistant, dossier
+  `reveil/` non copié par `deployer.sh`, `CLAUDE_MODELE` et `SATELLITE_JETON_<NOM>` dans le tableau du `.env`.
+
 ## Serveur 0.36.1 (2026-10-26), schémas du README et de la documentation refaits
 Session S-V1 du plan 1.2.0, fusionnée après S-D3 (0.36.0), d'où le numéro 0.36.1. Aucun changement de comportement, seuls les schémas et le README bougent.
 - Cinq schémas SVG écrits à la main, chacun en thème clair et en thème sombre, dans `docs/images/` :

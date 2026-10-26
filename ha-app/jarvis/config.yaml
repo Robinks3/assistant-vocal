@@ -1,10 +1,13 @@
 # Nom affiché remplacé au déploiement par la section assistant de maison.json (deployer.sh).
 name: Assistant vocal
-version: "0.36.1"
+version: "0.36.3"
 slug: jarvis
 description: Serveur de l'assistant vocal local (téléphones satellites), sans PC fixe.
+# 0.36.3 : aarch64 ajouté (Raspberry Pi 4 et 5, Home Assistant Green). L'image python:5.12-slim et les
+# dépendances de requirements.txt existent pour les deux architectures.
 arch:
   - amd64
+  - aarch64
 init: false
 startup: application
 boot: auto
