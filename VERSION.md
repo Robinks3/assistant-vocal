@@ -4,6 +4,20 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.35.1 (2026-10-26), schémas du README et de la documentation refaits
+Session S-V1 du plan 1.2.0. Aucun changement de comportement, seuls les schémas et le README bougent.
+- Cinq schémas SVG écrits à la main, chacun en thème clair et en thème sombre, dans `docs/images/` :
+  `architecture`, `trajet-phrase`, `config-architecture`, `roles-droits` et `routines`. Ils reprennent l'esprit des
+  anciens (boîtes nettes, flèches lisibles, légendes courtes) et ne montrent que la maison d'exemple de
+  `config-exemple/`.
+- Ce qui n'existe pas encore dans le code est marqué « prévu » en pointillé : le client web et son port 8767, le
+  contexte de requête, les droits différenciés par rôle et les routines. L'occupant protégé et les heures calmes
+  sont indiqués éteints.
+- README : chaque schéma est dans un `<picture>` qui suit le thème du lecteur, avec une légende courte. Trois
+  nouveaux schémas sont placés, la séparation du moteur et de `config/` dans « Ce qui reste à la maison », puis les
+  rôles et les routines dans une section marquée « prévus ».
+- Les schémas sont statiques, l'ancien trajet de phrase animé est remplacé par un trajet numéroté.
+
 ## Serveur 0.35.0 (2026-10-26), météo marine : sources désactivables, côte et plan 3D reproductibles
 Session S-D2 du plan 1.2.0. Une configuration existante se comporte comme avant : tout ce qui est ajouté est
 facultatif ou n'écrit qu'un avertissement.

@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 736" width="100%" role="img" aria-label="Rôles et droits : propriétaire, colocataire, appareil partagé, invité" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Rôles et droits : propriétaire, colocataire, appareil partagé, invité</title><desc>Les quatre rôles et l'invitation existent dans poc/acces.py, seul l'administrateur gère les appareils. Les droits différenciés par rôle (liste blanche des messages) sont prévus.</desc>
+<defs>
+<linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#000000"/></linearGradient>
+<radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.13"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22272E"/><stop offset="1" stop-color="#15181D"/></linearGradient>
+<radialGradient id="orbe-bleu" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#D3E4FF"/><stop offset="0.38" stop-color="#7FB2FF"/><stop offset="0.78" stop-color="#4C8DFF"/><stop offset="1" stop-color="#2D5DC2"/></radialGradient>
+<radialGradient id="halo-bleu"><stop offset="0.35" stop-color="#7FB2FF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#7FB2FF" stop-opacity="0.10"/><stop offset="1" stop-color="#7FB2FF" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-cyan" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#C8F7FD"/><stop offset="0.38" stop-color="#4FE3F4"/><stop offset="0.78" stop-color="#22C3D8"/><stop offset="1" stop-color="#11849A"/></radialGradient>
+<radialGradient id="halo-cyan"><stop offset="0.35" stop-color="#4FE3F4" stop-opacity="0.40"/><stop offset="0.7" stop-color="#4FE3F4" stop-opacity="0.10"/><stop offset="1" stop-color="#4FE3F4" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-violet" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#E6DDFF"/><stop offset="0.38" stop-color="#A98BFF"/><stop offset="0.78" stop-color="#8A66F0"/><stop offset="1" stop-color="#5A3EC0"/></radialGradient>
+<radialGradient id="halo-violet"><stop offset="0.35" stop-color="#A98BFF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#A98BFF" stop-opacity="0.10"/><stop offset="1" stop-color="#A98BFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-ambre" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FFE6C2"/><stop offset="0.38" stop-color="#F0B46A"/><stop offset="0.78" stop-color="#DE9440"/><stop offset="1" stop-color="#A9661F"/></radialGradient>
+<radialGradient id="halo-ambre"><stop offset="0.35" stop-color="#F0B46A" stop-opacity="0.40"/><stop offset="0.7" stop-color="#F0B46A" stop-opacity="0.10"/><stop offset="1" stop-color="#F0B46A" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-vert" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#CBF4DE"/><stop offset="0.38" stop-color="#5BD898"/><stop offset="0.78" stop-color="#3CCB7F"/><stop offset="1" stop-color="#1E8A52"/></radialGradient>
+<radialGradient id="halo-vert"><stop offset="0.35" stop-color="#5BD898" stop-opacity="0.40"/><stop offset="0.7" stop-color="#5BD898" stop-opacity="0.10"/><stop offset="1" stop-color="#5BD898" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-rouge" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FAC9C5"/><stop offset="0.38" stop-color="#EC7A73"/><stop offset="0.78" stop-color="#E5534B"/><stop offset="1" stop-color="#A3322B"/></radialGradient>
+<radialGradient id="halo-rouge"><stop offset="0.35" stop-color="#EC7A73" stop-opacity="0.40"/><stop offset="0.7" stop-color="#EC7A73" stop-opacity="0.10"/><stop offset="1" stop-color="#EC7A73" stop-opacity="0"/></radialGradient>
+</defs>
+<rect x="0.5" y="0.5" width="899" height="735" rx="22" fill="url(#fond)" stroke="#16191D"/><rect x="0.5" y="0.5" width="899" height="735" rx="22" fill="url(#lueurFond)"/>
+<text x="24" y="44" font-size="22" font-weight="700" fill="#F2F5F9">Rôles et droits</text>
+<text x="24" y="70" font-size="14.5" fill="#BAC3D0">Quatre rôles. Les rôles existent déjà, les droits qui les distinguent sont à venir.</text>
+<rect x="24" y="96" width="204" height="94" rx="14" fill="url(#carte)"/>
+<rect x="24" y="96" width="204" height="94" rx="14" fill="#EC7A73" fill-opacity="0.13"/>
+<rect x="24" y="96" width="204" height="94" rx="14" fill="none" stroke="#EC7A73" stroke-width="1.5"/>
+<circle cx="50" cy="122" r="20" fill="url(#halo-rouge)"/>
+<circle cx="50" cy="122" r="12" fill="url(#orbe-rouge)"/>
+<text x="50" y="127" font-size="13" font-weight="700" fill="#10151D" text-anchor="middle">1</text>
+<text x="72" y="127" font-size="15.5" font-weight="600" fill="#F2F5F9">Propriétaire</text>
+<text x="40" y="154" font-size="13" fill="#BAC3D0">Rôle administrateur</text>
+<text x="40" y="174" font-size="13" fill="#BAC3D0">Sacha, dans l'exemple</text>
+<rect x="240" y="96" width="204" height="94" rx="14" fill="url(#carte)"/>
+<rect x="240" y="96" width="204" height="94" rx="14" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="240" y="96" width="204" height="94" rx="14" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<circle cx="266" cy="122" r="20" fill="url(#halo-bleu)"/>
+<circle cx="266" cy="122" r="12" fill="url(#orbe-bleu)"/>
+<text x="266" y="127" font-size="13" font-weight="700" fill="#10151D" text-anchor="middle">2</text>
+<text x="288" y="127" font-size="15.5" font-weight="600" fill="#F2F5F9">Colocataire</text>
+<text x="256" y="154" font-size="13" fill="#BAC3D0">Rôle habitant, par défaut</text>
+<text x="256" y="174" font-size="13" fill="#BAC3D0">Camille, dans l'exemple</text>
+<rect x="456" y="96" width="204" height="94" rx="14" fill="url(#carte)"/>
+<rect x="456" y="96" width="204" height="94" rx="14" fill="#F0B46A" fill-opacity="0.13"/>
+<rect x="456" y="96" width="204" height="94" rx="14" fill="none" stroke="#F0B46A" stroke-width="1.5"/>
+<circle cx="482" cy="122" r="20" fill="url(#halo-ambre)"/>
+<circle cx="482" cy="122" r="12" fill="url(#orbe-ambre)"/>
+<text x="482" y="127" font-size="13" font-weight="700" fill="#10151D" text-anchor="middle">3</text>
+<text x="504" y="127" font-size="15.5" font-weight="600" fill="#F2F5F9">Appareil partagé</text>
+<text x="472" y="154" font-size="13" fill="#BAC3D0">Rôle partagé</text>
+<text x="472" y="174" font-size="13" fill="#BAC3D0">Tablette commune</text>
+<rect x="672" y="96" width="204" height="94" rx="14" fill="url(#carte)"/>
+<rect x="672" y="96" width="204" height="94" rx="14" fill="#5BD898" fill-opacity="0.13"/>
+<rect x="672" y="96" width="204" height="94" rx="14" fill="none" stroke="#5BD898" stroke-width="1.5"/>
+<circle cx="698" cy="122" r="20" fill="url(#halo-vert)"/>
+<circle cx="698" cy="122" r="12" fill="url(#orbe-vert)"/>
+<text x="698" y="127" font-size="13" font-weight="700" fill="#10151D" text-anchor="middle">4</text>
+<text x="720" y="127" font-size="15.5" font-weight="600" fill="#F2F5F9">Invité</text>
+<text x="688" y="154" font-size="13" fill="#BAC3D0">Rôle invité</text>
+<text x="688" y="174" font-size="13" fill="#BAC3D0">Entre par un code</text>
+<text x="24" y="218" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">DÉJÀ DANS LE CODE</text>
+<rect x="24" y="228" width="852" height="82" rx="12" fill="url(#carte)"/>
+<rect x="24" y="228" width="852" height="82" rx="12" fill="#5BD898" fill-opacity="0.13"/>
+<rect x="24" y="228" width="852" height="82" rx="12" fill="none" stroke="#5BD898" stroke-width="1.5"/>
+<text x="42" y="251" font-size="13.5" fill="#BAC3D0">Seul l'administrateur appaire, révoque, change les rôles et invite (poc/acces.py).</text>
+<text x="42" y="275" font-size="13.5" fill="#BAC3D0">Rôles attribuables : habitant, partagé ou invité. Sans choix, le rôle est habitant.</text>
+<text x="42" y="299" font-size="13.5" fill="#BAC3D0">Invitation : code à 6 chiffres, 120 s, 3 essais, usage unique, jamais administrateur.</text>
+<text x="24" y="342" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">DROITS PAR RÔLE</text>
+<rect x="174" y="327" width="50.5" height="20" rx="10" fill="#F0B46A" fill-opacity="0.2"/>
+<rect x="174" y="327" width="50.5" height="20" rx="10" fill="none" stroke="#F0B46A" stroke-width="1.2"/>
+<text x="199.2" y="341.5" font-size="12" font-weight="600" fill="#F0B46A" text-anchor="middle">prévu</text>
+<rect x="24" y="354" width="852" height="314" rx="12" fill="url(#carte)"/>
+<rect x="24" y="354" width="852" height="314" rx="12" fill="none" stroke="#313843" stroke-width="1.2" stroke-dasharray="6 5"/>
+<text x="281" y="376" font-size="13.5" font-weight="700" fill="#F08F89" text-anchor="middle">Propriétaire</text>
+<text x="451" y="376" font-size="13.5" font-weight="700" fill="#8DBAFF" text-anchor="middle">Colocataire</text>
+<text x="621" y="376" font-size="13.5" font-weight="700" fill="#F0B46A" text-anchor="middle">Appareil</text>
+<text x="791" y="376" font-size="13.5" font-weight="700" fill="#5BD898" text-anchor="middle">Invité</text>
+<path d="M36 388 L864 388" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="413" font-size="13" font-weight="600" fill="#F2F5F9">Demandes et réglages</text>
+<rect x="206" y="395" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="281" y="413" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="376" y="395" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="451" y="413" font-size="12.5" fill="#BAC3D0" text-anchor="middle">entités autorisées</text>
+<rect x="546" y="395" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="621" y="413" font-size="12.5" fill="#BAC3D0" text-anchor="middle">pièces communes</text>
+<rect x="716" y="395" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="791" y="413" font-size="12.5" fill="#BAC3D0" text-anchor="middle">pièces communes</text>
+<path d="M36 428 L864 428" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="453" font-size="13" font-weight="600" fill="#F2F5F9">Météo, mer, vent, air</text>
+<rect x="206" y="435" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="281" y="453" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="376" y="435" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="451" y="453" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="546" y="435" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="621" y="453" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="716" y="435" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="791" y="453" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<path d="M36 468 L864 468" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="493" font-size="13" font-weight="600" fill="#F2F5F9">Santé</text>
+<rect x="206" y="475" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="281" y="493" font-size="12.5" fill="#BAC3D0" text-anchor="middle">la sienne, avec clé</text>
+<rect x="376" y="475" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="451" y="493" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="546" y="475" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="621" y="493" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="716" y="475" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="791" y="493" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<path d="M36 508 L864 508" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<circle cx="44" cy="528" r="4.5" fill="#5BD898"/>
+<text x="56" y="533" font-size="13" font-weight="600" fill="#F2F5F9">Appareils et rôles</text>
+<rect x="206" y="515" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="281" y="533" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="376" y="515" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="451" y="533" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="546" y="515" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="621" y="533" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="716" y="515" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="791" y="533" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<path d="M36 548 L864 548" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="573" font-size="13" font-weight="600" fill="#F2F5F9">Routines : créer</text>
+<rect x="206" y="555" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="281" y="573" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="376" y="555" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="451" y="573" font-size="12.5" fill="#BAC3D0" text-anchor="middle">pour lui</text>
+<rect x="546" y="555" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="621" y="573" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="716" y="555" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="791" y="573" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<path d="M36 588 L864 588" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="613" font-size="13" font-weight="600" fill="#F2F5F9">Routines auto</text>
+<rect x="206" y="595" width="150" height="26" rx="8" fill="#5BD898" fill-opacity="0.13"/>
+<text x="281" y="613" font-size="12.5" font-weight="600" fill="#5BD898" text-anchor="middle">oui</text>
+<rect x="376" y="595" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="451" y="613" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="546" y="595" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="621" y="613" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<rect x="716" y="595" width="150" height="26" rx="8" fill="#EC7A73" fill-opacity="0.13"/>
+<text x="791" y="613" font-size="12.5" font-weight="600" fill="#8F9AAA" text-anchor="middle">non</text>
+<path d="M36 628 L864 628" stroke="#313843" stroke-width="1" opacity="0.6"/>
+<text x="40" y="653" font-size="13" font-weight="600" fill="#F2F5F9">Durée de session</text>
+<rect x="206" y="635" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="281" y="653" font-size="12.5" fill="#BAC3D0" text-anchor="middle">30 jours glissants</text>
+<rect x="376" y="635" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="451" y="653" font-size="12.5" fill="#BAC3D0" text-anchor="middle">30 jours glissants</text>
+<rect x="546" y="635" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="621" y="653" font-size="12.5" fill="#BAC3D0" text-anchor="middle">jeton fixe</text>
+<rect x="716" y="635" width="150" height="26" rx="8" fill="#6D7787" fill-opacity="0.1"/>
+<text x="791" y="653" font-size="12.5" fill="#BAC3D0" text-anchor="middle">7 jours</text>
+<circle cx="28" cy="692" r="4.5" fill="#5BD898"/>
+<text x="40" y="696" font-size="12.5" fill="#8F9AAA">Point vert : déjà appliqué par le serveur. Le reste suit la conception du client web.</text>
+</svg>
