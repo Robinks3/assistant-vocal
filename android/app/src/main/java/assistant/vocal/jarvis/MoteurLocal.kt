@@ -64,7 +64,20 @@ class MoteurLocal(
 ) : AutoCloseable {
 
     /** Seul chemin vers Home Assistant : aucun jeton HA n'est embarqué dans l'APK. */
-    val passerelle = PasserelleHa(contexte, urlJarvisHa, annonce, changementPasserelle)
+    val passerelle = PasserelleHa(
+        contexte, urlJarvisHa, annonce,
+        changement = {
+            surCapacitesRoutines()
+            changementPasserelle()
+        },
+        routinesMaj = { surRoutinesMaj() },
+    )
+
+    /** Routines reçues du serveur (0.40.0, S-R3) : reconnues ici, exécutées et jugées par le serveur. */
+    private val routines = RoutinesLocal()
+    private val verrouRoutines = Any()
+    /** Dernier échec de lecture de la liste des routines, pour ne pas retenter à chaque phrase. */
+    @Volatile private var routinesEchecLe = 0L
 
     /**
      * Où transcrire la phrase découpée (0.17.0) : OuTranscrire.TABLETTE (Canary ici), PC, HA ou EN_LIGNE.
@@ -611,6 +624,16 @@ class MoteurLocal(
     }
 
     private fun comprendre(texteEntendu: String, d: DictionnaireLocal, debut: Long) {
+        // Routines (0.40.0, S-R3) : avant tout le reste, comme sur le serveur. Une phrase de routine est reconnue ici
+        // (liste reçue du serveur), exécutée et jugée par lui. Une demande de création ou de gestion, ou la réponse
+        // « oui » ou « non » à un brouillon, ne va jamais au LLM ordinaire, qui agirait sur-le-champ.
+        val routine = try {
+            traiterRoutines(texteEntendu, debut)
+        } catch (e: Exception) {
+            Log.w(TAG, "Routines : traitement impossible", e)
+            false
+        }
+        if (routine) return
         // Question de météo (0.25.0, remplace le raccourci « quel temps demain » de la 0.20.0) : comprise sans LLM,
         // la réponse est calculée sur les prévisions lues, dite, et le panneau Météo s'ouvre sur la bonne page, le bon
         // jour et la plage demandée, avec la réponse écrite. Rien n'est commandé.
@@ -731,6 +754,159 @@ class MoteurLocal(
         terminer(r.texte, comprisPar.ifEmpty { "rien" }, detail, faits, reponse.ifBlank { "Je n'ai pas compris." },
             SystemClock.elapsedRealtime() - debut, erreur)
         if (trouve == null) noterManque(chemin, comprisPar.ifEmpty { "rien" }, detail, faits, reponse)
+    }
+
+    // ------------------------------------------------------------ routines (0.40.0, lot S-R3)
+
+    /** Qui parle, tel qu'envoyé au serveur : vide pour un test écrit (muet) ou quand on ne sait pas. */
+    private fun personneRoutines(): String = if (muet) "" else personne
+
+    /** La passerelle vient de recevoir les capacités : retenir que le serveur gère les routines, lire la liste. */
+    private fun surCapacitesRoutines() {
+        if (!passerelle.routinesDispo) return
+        routines.serveurSait = true
+        // Hors du fil réseau de la passerelle : lire la liste attend la réponse du serveur.
+        try {
+            minuteur.execute { actualiserRoutines(personneRoutines()) }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** `routines_maj` : les listes gardées ne sont plus sûres, chaque personne connue redemande la sienne. */
+    private fun surRoutinesMaj() {
+        routines.perimer()
+        val aRelire = (routines.personnes() + RoutinesLocal.cle(personneRoutines())).distinct()
+        try {
+            minuteur.execute { for (p in aRelire) actualiserRoutines(p) }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Lit la liste des routines visibles de [personne] sur le serveur. Faux si le serveur ne répond pas. */
+    private fun actualiserRoutines(personne: String): Boolean = synchronized(verrouRoutines) {
+        val demande = JSONObject().put("type", "routines")
+        if (personne.isNotEmpty()) demande.put("personne", personne)
+        val j = passerelle.echanger(demande, "routines", 5)
+        if (j == null) {
+            routinesEchecLe = SystemClock.elapsedRealtime()
+            return false
+        }
+        val n = routines.enregistrer(personne, j)
+        routinesEchecLe = 0L
+        Log.i(TAG, "Routines lues pour « $personne » : $n (version ${j.optInt("version")})")
+        true
+    }
+
+    /** Relit la liste de la personne qui parle si elle manque ou si le serveur a signalé un changement. */
+    private fun rafraichirRoutines() {
+        if (!routines.serveurSait || !passerelle.disponible) return
+        val p = personneRoutines()
+        if (routines.aJour(p)) return
+        // Un serveur qui ne répond pas ne retarde pas chaque phrase : un nouvel essai après 30 s.
+        if (routinesEchecLe != 0L && SystemClock.elapsedRealtime() - routinesEchecLe < 30_000) return
+        actualiserRoutines(p)
+    }
+
+    /**
+     * Vrai si la phrase a reçu sa réponse du côté des routines. Faux : la chaîne ordinaire continue (météo,
+     * palette, dictionnaire, Assist, LLM). Une confirmation de brouillon en attente passe avant tout.
+     */
+    private fun traiterRoutines(texte: String, debut: Long): Boolean {
+        if (routines.confirmationEnAttente(SystemClock.elapsedRealtime())) return routineTexte(texte, debut, "réponse à la proposition")
+        if (!routines.serveurSait && routines.vide) return false
+        rafraichirRoutines()
+        return when (val decision = routines.decider(texte, personneRoutines())) {
+            is RoutinesLocal.Decision.Lancer -> lancerRoutine(texte, decision.routine, debut)
+            is RoutinesLocal.Decision.Serveur -> routineTexte(texte, debut, decision.raison)
+            RoutinesLocal.Decision.Aucune -> false
+        }
+    }
+
+    /** Message au serveur : essai si rien ne doit partir, personne si elle est connue. */
+    private fun demandeRoutine(type: String): JSONObject {
+        val demande = JSONObject().put("type", type).put("essai", !reel)
+        // Qui parle : le serveur s'en sert pour la portée de la routine et pour la sécurité (règle 3).
+        val p = personneRoutines()
+        if (p.isNotEmpty()) demande.put("personne", p)
+        return demande
+    }
+
+    /** Lance une routine reconnue ici. Toujours vrai : la phrase a été prise en charge, réussie ou non. */
+    private fun lancerRoutine(texte: String, r: RoutinesLocal.Routine, debut: Long): Boolean {
+        Securite.phraseProtegee(texte, personne)?.let { refus ->
+            ajouterEtape("Sécurité", "phrase refusée avant la routine : $refus", Etat.Statut.ECHEC)
+            terminer(texte, "sécurité", "refus avant la routine", emptyList(), "Je ne le fais pas : $refus.",
+                SystemClock.elapsedRealtime() - debut, true)
+            return true
+        }
+        val nom = "Routine ${r.nom}"
+        ajouterEtape(nom, "demandée au serveur" + if (reel) "" else " en essai, rien ne sera exécuté", Etat.Statut.EN_COURS)
+        val t0 = SystemClock.elapsedRealtime()
+        val demande = demandeRoutine("routine_lancer").put("id", r.id)
+        Etat.modifier { it.copy(aideReflexion = "Je lance la routine...") }
+        // 90 s : une routine peut enchaîner des pauses et de la musique.
+        val j = try {
+            passerelle.echanger(demande, "routine_lancee", 90)
+        } finally {
+            Etat.modifier { it.copy(aideReflexion = "") }
+        }
+        val ms = SystemClock.elapsedRealtime() - t0
+        if (j == null) {
+            majEtape(nom, "serveur injoignable ou trop lent (${passerelle.etat})", ms, Etat.Statut.ECHEC)
+            terminer(texte, ConfigMaison.NOM_ASSISTANT, "routine", emptyList(), RoutinesLocal.SANS_SERVEUR_LANCER,
+                SystemClock.elapsedRealtime() - debut, true)
+            return true
+        }
+        val parole = j.optString("parole")
+        val ok = j.optBoolean("ok", false)
+        val echecs = j.optJSONArray("echecs")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+        majEtape(
+            nom,
+            "« $parole »" + (if (echecs.isNotEmpty()) "\n" + echecs.joinToString("\n") else "") + if (reel) "" else "\n(essai : rien exécuté)",
+            ms, if (ok) Etat.Statut.OK else Etat.Statut.ECHEC,
+        )
+        val fait = listOf("routine ${r.nom}" + if (reel) "" else " (non exécutée, essai)") + echecs
+        terminer(texte, ConfigMaison.NOM_ASSISTANT, "routine", fait, parole.ifBlank { if (ok) "C'est fait." else "Je n'ai pas pu lancer la routine." },
+            SystemClock.elapsedRealtime() - debut, !ok)
+        return true
+    }
+
+    /**
+     * Confie la phrase au serveur (`routine_texte`) : gestion à la voix, création, réponse à un brouillon, routine
+     * réservée à un autre. Faux si le serveur dit que ce n'est pas une demande de routine : la chaîne ordinaire continue.
+     */
+    private fun routineTexte(texte: String, debut: Long, raison: String): Boolean {
+        Securite.phraseProtegee(texte, personne)?.let { refus ->
+            ajouterEtape("Sécurité", "phrase refusée avant les routines : $refus", Etat.Statut.ECHEC)
+            terminer(texte, "sécurité", "refus avant les routines", emptyList(), "Je ne le fais pas : $refus.",
+                SystemClock.elapsedRealtime() - debut, true)
+            routines.finirConfirmation()
+            return true
+        }
+        val nom = "Routines"
+        ajouterEtape(nom, "$raison : phrase envoyée au serveur" + if (reel) "" else " en essai", Etat.Statut.EN_COURS)
+        val t0 = SystemClock.elapsedRealtime()
+        val demande = demandeRoutine("routine_texte").put("texte", texte)
+        val j = passerelle.echanger(demande, "routine_texte", 20)
+        val ms = SystemClock.elapsedRealtime() - t0
+        if (j == null) {
+            majEtape(nom, "serveur injoignable ou trop lent (${passerelle.etat})", ms, Etat.Statut.ECHEC)
+            routines.finirConfirmation()
+            terminer(texte, ConfigMaison.NOM_ASSISTANT, "routine", emptyList(), RoutinesLocal.SANS_SERVEUR_GESTION,
+                SystemClock.elapsedRealtime() - debut, true)
+            return true
+        }
+        val parole = j.optString("parole")
+        val attente = j.optInt("confirmation_attendue", 0)
+        // Marge pour la lecture de la proposition : le serveur reste juge de son propre délai.
+        routines.attendreConfirmation(if (attente > 0) attente + RoutinesLocal.MARGE_CONFIRMATION_S else 0, SystemClock.elapsedRealtime())
+        if (parole.isBlank() || parole == RoutinesLocal.PAS_UNE_ROUTINE) {
+            majEtape(nom, "pas une demande de routine, la phrase suit son cours", ms, Etat.Statut.SAUTE)
+            return false
+        }
+        majEtape(nom, "« $parole »" + if (attente > 0) "\nréponse attendue pendant $attente s" else "", ms, Etat.Statut.OK)
+        terminer(texte, ConfigMaison.NOM_ASSISTANT, "routine", emptyList(), parole, SystemClock.elapsedRealtime() - debut)
+        return true
     }
 
     // ------------------------------------------------------------ ratés et notes (demande du 13/10)
@@ -1049,7 +1225,7 @@ class MoteurLocal(
         if (v != null && voixPrete && !muet) {
             // Sous l'orbe, la réponse commence vide et se remplit au fil de la voix.
             Etat.modifier { it.copy(parole = "", paroleFinLe = 0L) }
-            finLecture = { retourAuRepos() }
+            finLecture = { apresReponse() }
             if (couperParole) {
                 // Écoute attentive : le mot de réveil peut couper la réponse (guetterPendantReponse).
                 reveilAReinitialiser = true
@@ -1059,6 +1235,19 @@ class MoteurLocal(
             v.speak(reponse, TextToSpeech.QUEUE_FLUSH, null, "reponse")
         } else {
             Etat.modifier { it.copy(parole = reponse, paroleFinLe = SystemClock.elapsedRealtime()) }
+            apresReponse()
+        }
+    }
+
+    /**
+     * Fin d'une réponse. Quand le serveur attend « oui » ou « non » à un brouillon de routine
+     * (`confirmation_attendue`), l'écoute se rouvre sans mot de réveil, la phrase suivante repart en `routine_texte`.
+     * Sinon retour au repos.
+     */
+    private fun apresReponse() {
+        if (routines.confirmationEnAttente(SystemClock.elapsedRealtime())) {
+            commencerEcoute("réponse attendue à la proposition de routine")
+        } else {
             retourAuRepos()
         }
     }

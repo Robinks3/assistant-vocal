@@ -31,6 +31,8 @@ class PasserelleHa(
     private val annonce: (JSONObject) -> Unit = {},
     /** Appelé quand la passerelle devient disponible ou ne l'est plus. */
     private val changement: () -> Unit = {},
+    /** Le serveur signale que les routines ont changé (`routines_maj`, 0.40.0), avec le numéro de version. */
+    private val routinesMaj: (Int) -> Unit = {},
 ) : AutoCloseable {
 
     /** Réponse de HA. Pour une image (serveur 0.18.1), [base64] et [type] remplacent [corps]. */
@@ -156,6 +158,10 @@ class PasserelleHa(
     @Volatile var ventMesureDispo = false
         private set
 
+    /** Capacité `routines` (serveur 0.43.x, appli 0.40.0) : liste, lancement et gestion des routines par le serveur. */
+    @Volatile var routinesDispo = false
+        private set
+
     /** Moteurs de transcription annoncés par l'appli de l'assistant sur HA (0.17.0), null tant que rien n'est reçu. */
     @Volatile var transcriptions: List<String>? = null
         private set
@@ -260,6 +266,7 @@ class PasserelleHa(
         }
         meteoMerDispo = false
         ventMesureDispo = false
+        routinesDispo = false
         Log.w(TAG, "Connexion perdue : $raison" + (if (reessayerVite) " (nouvel essai immédiat)" else " (nouvel essai dans 5 s)") +
             (if (surRepli) ", sur le repli en clair" else ""))
         val avant = disponible
@@ -315,6 +322,8 @@ class PasserelleHa(
                     disponible = j.optBoolean("passerelle_ha", false)
                     meteoMerDispo = annonceCapacite(j, "meteo_mer")
                     ventMesureDispo = annonceCapacite(j, "vent_mesure")
+                    // Pas de routines sur le repli en clair : le serveur les refuse hors du port chiffré.
+                    routinesDispo = !repli && annonceCapacite(j, "routines")
                     transcriptions = j.optJSONArray("transcription")?.let { a ->
                         (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }
                     }
@@ -327,12 +336,18 @@ class PasserelleHa(
                     }
                     capacitesRecues = true
                     Log.i(TAG, "Capacités reçues : version ${j.optString("version")}, disponible=$disponible, " +
-                        "meteo_mer=$meteoMerDispo, vent_mesure=$ventMesureDispo, repli=$repli")
+                        "meteo_mer=$meteoMerDispo, vent_mesure=$ventMesureDispo, routines=$routinesDispo, repli=$repli")
                     pret.complete(true)
                     // Toujours signalé : l'écran affiche l'état lisible, même sans changement de disponibilité.
                     prevenir()
                 }
                 "appairage_demande" -> annonce(j)
+                // Signal seul : chaque client redemande sa propre liste, filtrée pour lui. Jamais sur le fil réseau.
+                "routines_maj" -> try {
+                    routinesMaj(j.optInt("version", 0))
+                } catch (ex: Exception) {
+                    Log.w(TAG, "Rappel de routines_maj en erreur", ex)
+                }
                 // Réponse attendue par son identifiant (transcription), sinon par son seul état (llm).
                 else -> if (e.isNotEmpty()) (attentesEtat.remove("$e#${j.opt("id")}") ?: attentesEtat.remove(e))?.complete(j)
             }

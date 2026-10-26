@@ -6,6 +6,32 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.40.0 (2026-10-26), routines sur la tablette : « bonne nuit » PC éteint comme PC allumé
+Nouveauté (versionCode 76). Session S-R3 du plan (la 0.39.0 est réservée au lot télé). Les routines vivent et
+s'exécutent côté serveur (`poc/routines.py`, 0.43.x) avec la sécurité en dur et tous les contrôles existants. La
+tablette garde la liste reçue pour reconnaître la phrase sur place, et confie le reste au serveur par le port chiffré.
+- `RoutinesLocal.kt` (nouveau, logique pure) : liste reçue (message `routines`, phrases et variantes sous leur forme
+  comparée), une liste par personne, périmée par `routines_maj`. Décision d'une phrase : routine active que la personne
+  peut lancer (`routine_lancer`), routine réservée à un autre, mot « routine », création ou changement à la voix
+  (`routine_texte`), sinon la chaîne ordinaire continue. La portée (« tous » ou l'auteur reconnu) est appliquée aussi ici,
+  le serveur reste le juge.
+- Le motif de création (`INTENTION_ROUTINE`) couvre aussi « crée-moi / fais-moi / fais / ajoute / programme / mets en
+  place / enregistre / configure / prépare une routine », « peux-tu me ... une routine » et « je voudrais / je veux /
+  j'aimerais (créer) une routine ». Le mot « routine » reste exigé : « fais une pause » ou « ajoute du lait à la liste »
+  ne déclenchent rien.
+- `MoteurLocal.kt` : les routines passent avant la météo, la palette et le dictionnaire. Avant tout envoi, la phrase
+  passe par `Securite.phraseProtegee`. Étape « Routine » dans le déroulé, essai honoré (rien d'exécuté pour une phrase
+  écrite en essai), échecs d'étapes affichés. Serveur injoignable : « Je ne peux pas lancer la routine sans le serveur »
+  (ou « gérer les routines »), jamais de repli vers le LLM qui agirait à la place.
+- Brouillon en attente (`confirmation_attendue`) : à la fin de la réponse, l'écoute se rouvre sans mot de réveil et la
+  phrase suivante, dans le délai (marge de 20 s pour la lecture de la proposition), repart en `routine_texte`.
+- `PasserelleHa.kt` : message `routines_maj` (rappel `routinesMaj`), capacité `routines` suivie dans `routinesDispo`
+  (faux sur le repli en clair, qui refuse les routines).
+- Tests : `RoutinesLocalTest` (liste reçue, portée, décision, confirmation, motif de création sur les cas communs
+  `poc/tests/cas_routines.json`).
+- Limite : la liste n'est pas gardée sur disque, elle est relue au démarrage de l'appli dès que le serveur répond.
+- Fin de lot locale requise : APK sur la tablette, « bonne nuit » dite PC éteint puis PC allumé.
+
 ## 0.38.2 (2026-10-26), passerelle Home Assistant : reconnexion robuste et journal
 Correctif (versionCode 74). Le 26/10 au soir, la tablette est restée « Maison hors ligne » après des redémarrages de
 l'appli de l'assistant sur HA, jusqu'à un `am force-stop`. La passerelle ne journalisait rien, la cause exacte n'a pas
