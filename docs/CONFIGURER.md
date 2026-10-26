@@ -199,7 +199,7 @@ dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le d
 | `zones_protegees` | liste de textes | Identifiants de zones Home Assistant (`area_id`) refusées. |
 | `entites_protegees` | liste de textes | Entités protégées dont l'identifiant ne contient aucun mot protégé (automatisation de réveil, script qui éteint tout). |
 | `son_salon` | liste de textes | Lecteurs et scripts qui font du son dans la pièce de vie : pendant les heures calmes, seuls éteindre, mettre en pause, arrêter, baisser et couper le son passent. Comparaison exacte, casse comprise. |
-| `heures_calmes` | objet `{debut, fin}`, heures entières | Plage des heures calmes, `debut` compris, `fin` exclue, à l'heure de `fuseau`. Par défaut : 0 et 9. Un `debut` après la `fin` (22 et 7) donne une plage qui passe minuit. |
+| `heures_calmes` | objet `{debut, fin}`, heures entières | Plage des heures calmes, `debut` compris, `fin` exclue, à l'heure de `fuseau`. Par défaut : 0 et 9. Un `debut` après la `fin` (22 et 7) donne une plage qui passe minuit, un `debut` égal à la `fin` une plage vide. |
 | `permis_personne` | objet, clé = prénom en minuscules sans accent | Pour chaque personne reconnue par la tablette : `entites` et `services` qu'elle peut piloter parmi ses affaires protégées. |
 | `plafond_volume` | nombre de 0 à 100 | Toujours actif : volume le plus fort permis, en pourcentage. Absent ou 100 : aucun plafond. Voir [le plafond de volume](#le-plafond-de-volume). |
 
