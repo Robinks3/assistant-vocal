@@ -12,10 +12,11 @@ Usage :
   ajouter --essai : affiche ce qui serait fait, sans rien exécuter
   python poc/assistant.py --version
 """
-import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, time
+import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, threading, time
 
 import acces
 import maison
+import routines
 import securite
 from liste_blanche import (SERVICES_PERMIS, DOMAINES_HORS_LLM, DOMAINES_ADMIN, NOMS_ECARTES, SERVICES_ECARTES,
                            SELECTEURS_VERS_UN_APPAREIL, _cible_son_domaine, _champ_vers_un_appareil)
@@ -58,7 +59,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.41.0"
+VERSION = "0.42.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -1025,10 +1026,61 @@ OUTILS = [
             "entity_id": {"type": "string"}}, "required": ["entity_id"]}}},
 ]
 
+# Outil de création d'une routine (0.42.0), proposé au seul mode « proposer » : il ne fait rien d'autre que
+# soumettre une proposition à routines.valider_proposition, qui la valide, la reformule et la garde en brouillon.
+# Constante séparée de OUTILS : le mode « commande » sans entités rend toujours OUTILS lui-même.
+OUTIL_PROPOSER = {"type": "function", "function": {
+    "name": "proposer_routine",
+    "description": "Propose une routine : une phrase que la personne dira plus tard pour lancer une suite d'actions. "
+                   "Le serveur valide, reformule et demande lui-même la confirmation. Un seul appel par demande.",
+    "parameters": {"type": "object", "properties": {
+        "nom": {"type": "string", "description": "nom court de la routine, ex. « Bonne nuit »"},
+        "phrases": {"type": "array", "items": {"type": "string"},
+                    "description": "la ou les phrases dites par la personne, telles qu'elle les a dites"},
+        "variantes": {"type": "array", "items": {"type": "string"},
+                      "description": "formulations proches qui lancent la même routine (cinq au plus)"},
+        "reponse": {"type": "string", "description": "phrase dite après le lancement, facultative"},
+        "remplace": {"type": "string", "description": "id d'une routine existante à remplacer, facultatif"},
+        "etapes": {"type": "array", "description": "étapes dans l'ordre, huit au plus", "items": {
+            "type": "object", "properties": {
+                "etape": {"type": "string", "enum": ["service", "musique", "annonce", "question", "pause"]},
+                "domaine": {"type": "string"}, "service": {"type": "string"},
+                "entity_id": {"type": ["string", "array"], "items": {"type": "string"},
+                              "description": "entity_id exacts de la liste, un par appareil, jamais une pièce"},
+                "donnees": {"type": "object"},
+                "recherche": {"type": "string"}, "artiste": {"type": "string"},
+                "type": {"type": "string", "enum": list(routines.TYPES_MUSIQUE)},
+                "enceinte": {"type": "string"},
+                "texte": {"type": "string", "description": "texte d'une annonce ou d'une question"},
+                "secondes": {"type": "number"}},
+            "required": ["etape"]}}},
+        "required": ["phrases", "etapes"]}}}
+
 # Outils proposés au LLM selon le mode du tour (0.28.0). Un appel à un outil absent de la liste du tour
 # n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, note des routines 3.1).
-MODES_OUTILS = {"commande": ("appeler_service", "jouer_musique", "lire_etat")}
+# « proposer » (0.42.0) crée une routine, « question » (0.42.0) répond à une étape question d'une routine : ces
+# deux modes partent sans historique et n'en laissent aucun (MODES_ISOLES).
+MODES_OUTILS = {"commande": ("appeler_service", "jouer_musique", "lire_etat"),
+                "proposer": ("proposer_routine", "lire_etat"),
+                "question": ("lire_etat",)}
+MODES_ISOLES = ("proposer", "question")
 INDISPONIBLE = {"erreur": "outil indisponible"}
+# Parole écrite par le serveur pendant ce tour (reformulation d'une routine) : elle remplace la réponse du LLM.
+PAROLE_FIXEE = contextvars.ContextVar("parole_fixee", default=None)
+
+CONSIGNES_MODE = {
+    "proposer": (
+        "\nMODE CRÉATION DE ROUTINE. La personne veut créer ou changer une routine : une phrase qu'elle dira plus tard "
+        "pour lancer une suite d'actions. N'agis pas sur la maison toi-même. Appelle une seule fois l'outil "
+        "proposer_routine. Les phrases sont celles qu'elle vient de dire, mot pour mot, sans le mot de réveil. "
+        "Chaque étape nomme ses appareils un par un avec des entity_id exacts de la liste, jamais une pièce, un groupe ni "
+        "« tout ». Étapes possibles : service (domaine, service, entity_id, donnees), musique (recherche, type, enceinte), "
+        "annonce (texte), question (texte), pause (secondes). Ne dis jamais que la routine est enregistrée : le serveur "
+        "la reformule et demande lui-même la confirmation. Si la demande est trop floue, pose une seule question courte."),
+    "question": (
+        "\nTu réponds à une question posée par une routine : une ou deux phrases courtes. Tu peux lire l'état d'un "
+        "appareil, rien de plus, tu n'agis sur rien."),
+}
 
 
 def nom_outil(o):
@@ -1045,7 +1097,7 @@ def outils_avec_entites(entites, mode="commande"):
     if not entites and mode == "commande":
         return OUTILS
     import copy
-    outils = copy.deepcopy([o for o in OUTILS if nom_outil(o) in noms])
+    outils = copy.deepcopy([o for o in OUTILS + [OUTIL_PROPOSER] if nom_outil(o) in noms])
     if not entites:
         return outils
     ids = sorted(entites)
@@ -1106,6 +1158,20 @@ CONSIGNE = (CONSIGNE.replace("@LIEU@", _sans_accolades(LLM_MAISON.get("lieu") or
 
 
 class Cerveau:
+    # Posés par l'Assistant (0.42.0) : validation d'une proposition de routine et liste des routines de la personne.
+    rappel_routine = None
+    rappel_liste = None
+
+    def supplement_mode(self, mode):
+        """Texte ajouté à la consigne pour ce mode (vide en mode commande)."""
+        texte = CONSIGNES_MODE.get(mode, "")
+        if mode == "proposer" and self.rappel_liste:
+            try:
+                texte += self.rappel_liste()
+            except Exception as e:
+                print(f"  routines : liste illisible ({e.__class__.__name__})")
+        return texte
+
     def __init__(self, cfg, ha):
         import httpx
         self.cfg, self.ha = cfg, ha
@@ -1188,6 +1254,12 @@ class Cerveau:
                               else " (non joué)" if "erreur" in res
                               else " (non confirmé)" if res.get("confirme") is False else ""))
             return res
+        if nom == "proposer_routine":
+            if not self.rappel_routine:
+                return dict(INDISPONIBLE)
+            res = self.rappel_routine(args, texte)
+            PAROLE_FIXEE.set(res["parole"])
+            return {"ok": bool(res["ok"]), "parole": res["parole"]}
         if nom == "lire_etat":
             demande = args.get("entity_id", "")
             if not isinstance(demande, str) or demande not in self.ha.entites_llm:  # même liste que l'enum du schéma, que le LLM peut contourner
@@ -1196,11 +1268,12 @@ class Cerveau:
         return dict(INDISPONIBLE)
 
     def repondre(self, texte, mode="commande"):
-        historique = self.historique
+        historique = [] if mode in MODES_ISOLES else self.historique
+        PAROLE_FIXEE.set(None)
         liste, etats = self.ha.inventaire() if self.ha else ("(Home Assistant non connecté)", "")
         jour = date_francaise()
         # Tout ce qui change (date, états) va dans le dernier message : le début reste en cache.
-        messages = [{"role": "system", "content": CONSIGNE.format(inventaire=liste)}]
+        messages = [{"role": "system", "content": CONSIGNE.format(inventaire=liste) + self.supplement_mode(mode)}]
         probables = presélection(texte, liste)
         indice = f" Appareils probables pour cette demande : {probables}." if probables else ""
         messages += historique + [{"role": "user", "content":
@@ -1247,9 +1320,14 @@ class Cerveau:
                        if isinstance(args, dict) else {"erreur": "arguments illisibles"})
                 messages.append({"role": "tool", "tool_call_id": a["id"],
                                  "content": json.dumps(res, ensure_ascii=False)})
+            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
+                reponse = PAROLE_FIXEE.get()
+                break
         else:
             reponse = "Je n'ai pas réussi à terminer cette demande."
         reponse = garde_fou_musique(reponse, musiques)
+        if mode in MODES_ISOLES:
+            return reponse, actions
         self.historique = historique + [{"role": "user", "content": texte},
                                         {"role": "assistant", "content": reponse}]
         return reponse, actions
@@ -1356,13 +1434,16 @@ class CerveauClaude(Cerveau):
     def repondre(self, texte, mode="commande"):
         if self.sans_cle:
             raise RuntimeError(MANQUE_CLE_CLAUDE)
-        historique = self.historique
+        historique = [] if mode in MODES_ISOLES else self.historique
+        PAROLE_FIXEE.set(None)
         liste, etats = self.ha.inventaire() if self.ha else ("(Home Assistant non connecté)", "")
         jour = date_francaise()
         probables = presélection(texte, liste)
         indice = f" Appareils probables pour cette demande : {probables}." if probables else ""
         systeme = [{"type": "text", "text": CONSIGNE.format(inventaire=liste),
                     "cache_control": {"type": "ephemeral"}}]
+        if mode in CONSIGNES_MODE:
+            systeme.append({"type": "text", "text": self.supplement_mode(mode)})
         messages = list(historique) + [{"role": "user", "content":
                                          f"[Nous sommes le {jour}.{self.indication_personne} États actuels : {etats}{indice} Réponds en français.]\n\n{texte}"}]
         actions, reponse = [], ""
@@ -1393,9 +1474,14 @@ class CerveauClaude(Cerveau):
                                   "content": json.dumps(res, ensure_ascii=False),
                                   **({"is_error": True} if "erreur" in res else {})})
             messages.append({"role": "user", "content": resultats})
+            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
+                reponse = PAROLE_FIXEE.get()
+                break
         else:
             reponse = "Je n'ai pas réussi à terminer cette demande."
         reponse = garde_fou_musique(reponse, musiques)
+        if mode in MODES_ISOLES:
+            return reponse, actions
         self.historique = historique + [{"role": "user", "content": texte},
                                         {"role": "assistant", "content": reponse or "..."}]
         return reponse, actions
@@ -1441,6 +1527,15 @@ REPONSE_DOUTEUSE = re.compile(r"\?|je ne peux pas|pas réussi|n'ai pas pu|imposs
 # Correction vocale juste après une action apprise : la leçon est oubliée.
 CORRECTION = re.compile(r"^\s*(non|annule|annuler|c'est pas ça|ce n'est pas ça|pas ça|mauvais|erreur|oublie)\b", re.I)
 DELAI_CORRECTION = 30.0
+# Demande de création ou de changement de routine (0.42.0, note des routines 4.1). Liste à ajuster sur des phrases
+# réelles, la même que dans poc/tests/cas_routines.json.
+INTENTION_ROUTINE = re.compile(
+    r"\b(?:quand|lorsque|si|(?:à|a) chaque fois que|chaque fois que)\s+je\s+(?:te\s+)?(?:dis|dirai|disais)\b"
+    r"|\b(?:dorénavant|désormais|à partir de maintenant|a partir de maintenant)\b"
+    r"|\b(?:cr[ée]e[rz]?|nouvelle|change[rz]?|modifie[rz]?|remplace[rz]?)\s+(?:une\s+|la\s+|ma\s+|cette\s+)?"
+    r"(?:nouvelle\s+)?routine\b", re.I)
+# Une suite de routine (musique, pauses) à la fois : l'assistant n'est pas réentrant et ha.personne est partagé.
+VERROU_ROUTINES = threading.Lock()
 
 
 def nettoyer(t):
@@ -1474,6 +1569,9 @@ class Assistant:
         else:
             self.cerveau = Cerveau(cfg, self.ha)
             print("  cerveau : Qwen3.5-9B local (llama-server)")
+        self.cerveau.rappel_routine = self.creer_routine
+        self.cerveau.rappel_liste = self.liste_routines_llm
+        self.suites_routine = []
         self.voix = Voix(cfg["voix"], cfg["sortie"]) if avec_audio else None
         self.stt = Transcripteur() if avec_audio else None
         print(f"  modèles chargés en {time.perf_counter() - t:.1f} s")
@@ -1526,11 +1624,248 @@ class Assistant:
         with self.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
             return self._traiter(texte, t_stt, personne)
 
+    # ------------------------------------------------------------------------------------- routines (0.42.0)
+    def contexte_routines(self, complet=True, creation=""):
+        """Contexte du moteur de routines pour la requête en cours. Léger (sans inventaire) pour un brouillon ou la
+        recherche d'un déclencheur, complet (inventaire de la personne qui parle) pour créer ou lancer."""
+        r = REQUETE.get()
+        ctx = routines.Contexte(
+            personne=(r.personne if r else None) or "", role=(r.role if r else "") or "",
+            appareil=(r.appareil if r else "") or "", essai=self.essai,
+            enceintes=dict(self.ha.ENCEINTES_MUSIQUE) if self.ha else {},
+            dico=self.dico, services_permis=self.ha.services_permis if self.ha else None,
+            mots_reserves=[reglage_reveil().mot, reglage_reveil().nom],
+            motifs_reserves=[CORRECTION, INTENTION_ROUTINE], garde_volume=garde_fou_volume, phrase_creation=creation)
+        if complet and self.ha:
+            try:
+                liste, _ = self.ha.inventaire()
+                ctx.entites = set(self.ha.entites_llm)
+                for ligne in liste.splitlines():
+                    morceaux = [m.strip() for m in ligne.split("|")]
+                    if len(morceaux) >= 2 and morceaux[0]:
+                        ctx.noms[morceaux[0]] = morceaux[1]
+            except Exception as e:  # HA injoignable : rien ne passe (fermé par défaut)
+                print(f"  routines : inventaire illisible ({e.__class__.__name__})")
+                ctx.entites = None
+        return ctx
+
+    def liste_routines_llm(self):
+        """Routines que la personne peut changer, ajoutées à la consigne du mode création pour qu'une modification
+        revienne comme un remplacement complet."""
+        ctx = self.contexte_routines(complet=False)
+        lignes = []
+        for r in routines.registre().visibles(ctx):
+            if not routines.peut_gerer(r, ctx) or not r["declencheurs"]:
+                continue
+            d = r["declencheurs"][0]
+            faits = ", puis ".join(routines._decrire_etape(e, ctx) for e in r["etapes"])
+            lignes.append(f"- {r['id']} : {r['nom']}, phrases {d['phrases']}, étapes : {faits}")
+        if not lignes:
+            return ""
+        return ("\nRoutines existantes de cette personne (pour en changer une, appelle proposer_routine avec "
+                "remplace = son id et la routine complète) :\n" + "\n".join(lignes))
+
+    def creer_routine(self, args, texte):
+        """Appelé par l'outil proposer_routine : valide la proposition du LLM et garde le brouillon en attente."""
+        reg = routines.registre()
+        ctx = self.contexte_routines(complet=True, creation=texte)
+        res = routines.valider_proposition(args, ctx, reg)
+        if res["ok"]:
+            reg.poser_brouillon(ctx, res["routine"], res["remplace"])
+        else:
+            routines.journal("proposition refusée", personne=ctx.personne, appareil=ctx.appareil, motif=res["parole"])
+        return res
+
+    def proposer_routine(self, texte):
+        """Demande de création : la phrase part dans la boucle fermée du mode « proposer » (sans historique)."""
+        personne = Cerveau.cle_conversation()[0]
+        refus = securite.phrase_protegee(texte, personne)
+        if refus:  # même règle qu'avant tout appel au LLM
+            return f"Je ne le fais pas : {refus}."
+        qui = routines.qui_est(self.contexte_routines(complet=False))
+        if qui == "inconnu":
+            return routines.MSG_INCONNU
+        if qui == "invite":
+            return routines.MSG_INVITE
+        if not self.ha:
+            return "Je n'arrive pas à joindre la maison, je ne crée pas de routine."
+        try:
+            parole, _ = self.cerveau.repondre(texte, mode="proposer")
+        except Exception as e:
+            if str(e) == MANQUE_CLE_CLAUDE:
+                return "Je n'ai pas de clé Anthropic, Claude ne peut pas répondre."
+            return "Le modèle de langage ne répond pas. Le PC est peut-être occupé."
+        return parole
+
+    def question_routine(self, texte):
+        """Étape « question » d'une routine : le seul outil lire_etat, aucun historique."""
+        parole, _ = self.cerveau.repondre(texte, mode="question")
+        return parole
+
+    def suite_routine(self, suite):
+        """Partie de fond d'une routine (musique, pauses), dans le contexte de la requête et sous un verrou."""
+        contexte = contextvars.copy_context()
+
+        def tache():
+            try:
+                with VERROU_ROUTINES:
+                    contexte.run(suite)
+            except Exception as e:
+                print(f"  routines : suite en erreur ({e.__class__.__name__})")
+                routines.journal("suite en erreur", erreur=e.__class__.__name__)
+
+        if self.essai:  # essai : ni pause ni musique, la suite ne fait que se noter
+            tache()
+            return
+        fil = threading.Thread(target=tache, name="routine", daemon=True)
+        self.suites_routine = [f for f in getattr(self, "suites_routine", []) if f.is_alive()] + [fil]
+        fil.start()
+
+    def lancer_routine(self, routine):
+        """Lance une routine pour la personne de la requête en cours. Renvoie ce qu'il faut dire."""
+        ctx = self.contexte_routines(complet=True)
+        if not routines.peut_lancer(routine, ctx):
+            return f"La routine {routine['nom']} n'est pas pour toi."
+        parole, suite = routines.lancer(routine, ctx, self.ha, question=self.question_routine,
+                                        reg=routines.registre())
+        self.derniers_echecs = list(ctx.echecs)  # lus par la réponse réseau routine_lancee, sous le verrou du moteur
+        if suite:
+            self.suite_routine(suite)
+        return parole
+
+    @staticmethod
+    def _res_routine(parole, voie, actions=None):
+        appareil = (REQUETE.get().appareil if REQUETE.get() else "") or ""
+        return {"parole": parole, "voie": voie, "actions": actions or [],
+                "confirmation": appareil in routines.registre().brouillons}
+
+    def routines_avant(self, texte):
+        """Étapes 1 à 5 de l'ordre de traitement des routines (note de conception 5.1), appelées par _traiter et par
+        le message llm de la tablette : brouillon en attente et « oui » qui suit, demande de création, déclencheur.
+        La gestion à la voix (étape 2) viendra avec S-R2. Renvoie None (la chaîne ordinaire continue) ou un dict
+        {parole, voie, actions, confirmation}. Le texte est déjà passé par epurer."""
+        try:
+            return self._routines_avant(texte)
+        except Exception as e:
+            print(f"  routines : erreur ({e.__class__.__name__}: {e})")
+            routines.journal("erreur", erreur=e.__class__.__name__)
+            if INTENTION_ROUTINE.search(texte):  # jamais au LLM ordinaire, qui agirait sur-le-champ
+                return self._res_routine("Je n'arrive pas à gérer les routines pour le moment.", "routine erreur")
+            return None
+
+    def _routines_avant(self, texte):
+        if not routines.reglage("active"):
+            if INTENTION_ROUTINE.search(texte):
+                return self._res_routine("Les routines sont désactivées.", "routine (désactivées)")
+            return None
+        reg = routines.registre()
+        ctx = self.contexte_routines(complet=False)
+        parole = reg.reponse_brouillon(texte, ctx)
+        if parole is not None:
+            return self._res_routine(parole, "routine (brouillon)")
+        appareil = Cerveau.cle_conversation()[1]
+        lecon = (getattr(self, "lecons", None) or {}).get(appareil)
+        if lecon and CORRECTION.search(texte) and time.time() - lecon[1] < DELAI_CORRECTION:
+            return None  # « non » juste après une leçon apprise : la correction ordinaire passe en premier
+        if INTENTION_ROUTINE.search(texte):
+            return self._res_routine(self.proposer_routine(texte), "routine (création)")
+        routine, etat = reg.trouver(texte, ctx)
+        if etat == "reservee":
+            auteur = str(routine.get("auteur") or "").capitalize()
+            return self._res_routine(f"Je ne t'ai pas reconnu, la routine {routine['nom']} est réservée à {auteur}.",
+                                     "routine refus")
+        if routine:
+            parole = self.lancer_routine(routine)
+            return self._res_routine(parole, f"routine ({routine['nom']})", [f"routine {routine['nom']}"])
+        return None
+
+    def _finir_routine(self, texte, pre, t_stt, t):
+        """Fin d'un tour réglé par les routines : même sortie que _traiter (console, voix, journal)."""
+        parole, voie, actions = pre["parole"], pre["voie"], pre["actions"]
+        t_cerveau = time.perf_counter() - t
+        print(f"  [{voie_courte(voie)}] {pour_console(parole)}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
+        t_tts = 0.0
+        if self.voix and parole:
+            t = time.perf_counter()
+            signal = self.voix.synthetiser(parole)
+            t_tts = time.perf_counter() - t
+            self.voix.jouer(signal)
+        journaliser(texte, voie + (" [essai]" if self.essai else ""), t_stt, t_cerveau, t_tts, parole, actions)
+        return parole
+
+    def routines_reseau(self, genre, msg, serveur=""):
+        """Messages réseau des routines (note de conception 7.4), à appeler dans self.requete(...) : le moteur de
+        routines filtre par la personne et le rôle de la requête. Renvoie le dict à envoyer. Le serveur WebSocket a
+        déjà contrôlé le port chiffré et le rôle de l'appareil (acces.type_permis)."""
+        from dictionnaire import epurer
+        reg = routines.registre()
+        ctx = self.contexte_routines(complet=False)
+        actif = routines.reglage("active")
+        ident = str(msg.get("id") or "")[:80]
+
+        def refuse(raison):
+            return {"etat": "refuse", "type": genre, "message": raison}
+
+        if genre == "routines":
+            reg.assurer()
+            if not actif:
+                droits = {"qui": routines.qui_est(ctx), "creer": False, "tout_gerer": False, "exporter": False}
+                return {"etat": "routines", "routines": [], "serveur": serveur, "droits": droits, "version": reg.version}
+            return {"etat": "routines", "routines": [reg.resume(r) for r in reg.visibles(ctx)], "serveur": serveur,
+                    "droits": routines.droits(ctx), "version": reg.version}
+        if not actif:
+            return refuse("routines désactivées")
+        if genre == "routine_lancer":
+            r = reg.par_id(ident)
+            if r is None or r not in reg.visibles(ctx):  # une routine invisible vaut une routine inconnue
+                return {"etat": "routine_lancee", "id": ident, "parole": "Je ne trouve pas cette routine.",
+                        "echecs": [], "ok": False}
+            if not r["actif"]:
+                return {"etat": "routine_lancee", "id": ident, "ok": False, "echecs": [],
+                        "parole": f"La routine {r['nom']} est coupée."}
+            t = time.perf_counter()
+            parole = self.lancer_routine(r)
+            echecs = list(getattr(self, "derniers_echecs", []))
+            journaliser(f"routine {r['nom']}", f"routine ({r['nom']}, depuis l'appareil)"
+                        + (" [essai]" if self.essai else ""), 0.0, time.perf_counter() - t, 0.0, parole,
+                        [f"routine {r['nom']}"])
+            return {"etat": "routine_lancee", "id": ident, "parole": parole, "echecs": echecs, "ok": True}
+        if genre in ("routine_activer", "routine_supprimer"):
+            if genre == "routine_activer":
+                if not isinstance(msg.get("actif"), bool):
+                    return refuse("champ actif attendu")
+                fait = reg.activer(ident, msg["actif"], ctx)
+            else:
+                fait = reg.supprimer(ident, ctx)
+            return {"etat": "routine_ok", "id": ident} if fait else refuse("routine inconnue ou non permise")
+        if genre == "routine_texte":
+            texte = epurer(str(msg.get("texte") or "").strip())[:500]
+            if not texte:
+                return {"etat": "routine_texte", "parole": "", "confirmation_attendue": 0}
+            t = time.perf_counter()
+            pre = self.routines_avant(texte)
+            if pre is None:
+                return {"etat": "routine_texte", "parole": "Ce n'est pas une demande de routine.",
+                        "confirmation_attendue": 0}
+            journaliser(texte, pre["voie"] + (" [essai]" if self.essai else ""), 0.0, time.perf_counter() - t, 0.0,
+                        pre["parole"], pre["actions"])
+            return {"etat": "routine_texte", "parole": pre["parole"],
+                    "confirmation_attendue": routines.reglage("delai_confirmation_s") if pre["confirmation"] else 0}
+        if genre == "routines_export":
+            contenu = reg.exporter(ctx)
+            if contenu is None:
+                return refuse("réservé au propriétaire")
+            return {"etat": "routines_export", "contenu": contenu}
+        return refuse("type inconnu")
+
     def _traiter(self, texte, t_stt, personne):
         from dictionnaire import epurer
         t = time.perf_counter()
         voie, actions = "ha", []
         texte = epurer(texte)  # « est-ce que tu peux éteindre » devient « éteindre »
+        pre = self.routines_avant(texte)  # brouillon, création, déclencheur : avant la correction et le dictionnaire
+        if pre is not None:
+            return self._finir_routine(texte, pre, t_stt, t)
         # Correction vocale de la dernière leçon : « non », « annule »... dans les 30 s.
         lecons = getattr(self, "lecons", None)
         if lecons is None:
@@ -1637,6 +1972,11 @@ class Assistant:
         dictionnaire ensuite (instantané, sans LLM). Jamais en mode essai, jamais pour une question,
         un échec, ou une phrase dont l'effet dépend du moment (« encore », « éteins-la »)."""
         actions = getattr(self.cerveau, "dernieres_actions", [])
+        try:
+            if routines.registre().est_declencheur(texte):  # déclencheur de routine : jamais appris (note 5.3)
+                return
+        except Exception as e:
+            print(f"  routines : déclencheurs illisibles ({e.__class__.__name__})")
         if (self.essai or not actions or NON_APPRENABLE.search(texte) or REPONSE_DOUTEUSE.search(parole or "")
                 or len(texte.split()) < 2):
             return

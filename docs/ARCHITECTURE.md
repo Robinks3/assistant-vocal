@@ -45,6 +45,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 | `serveur_satellite.py` | Serveur WebSocket des satellites, les deux profils | `Moteur` (ressources partagées, capacités, bascules), `Satellite` (machine à états d'une connexion), `Arbitre`, `Calibration`, `passerelle_ha`, `CanalWyoming`, `ReveilWyoming`, `transcrire_api`, `transcrire_ha`, `synthetiser_ha`, `servir` |
 | `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `controler_service`, `refus_schema`, `refus_launch_app`, `DOMAINES_INTERDITS` |
 | `liste_blanche.py` | La liste blanche commune des actions de la télé et des lampes (0.41.0), voir « Liste blanche commune » | `SERVICES_PERMIS`, `DOMAINES_HORS_LLM`, `DOMAINES_ADMIN`, `REGLAGES`, `refus_reglage` |
+| `routines.py` | Moteur de routines (0.42.0) : une phrase déclenche une suite d'étapes, voir « Routines » en partie 4. Autonome, il n'importe pas `assistant.py` | `reglage`, `DEFAUTS`, `Contexte`, `qui_est`, `droits`, `valider_etape(s)`, `valider_proposition`, `Registre` (`visibles`, `resume`, `activer`, `supprimer`, `exporter`), `lancer`, `FICHIER`, `JOURNAL` |
 | `maison.py` | Lecture du dossier de configuration | `DOSSIER`, `CONFIG`, `reseau()`, `liste()`, `NOM_PROPRIETAIRE`, `CLE_PROPRIETAIRE` |
 | `vad.py` | Silero VAD v5 | `creer()`, `Vad.parole()` |
 | `vision.py` | Visages pour la tablette (YuNet, SFace) | `Vision.analyser`, `traiter_message`, `regard` |
@@ -55,7 +56,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 
 Les données vivantes ne sont pas de la configuration. Elles vont dans le dossier `JARVIS_DONNEES` (`poc/` par
 défaut, `/data` dans l'appli Home Assistant) : `journal/latences.csv` (durées seules, sans phrase), `journal/assistant-AAAA-MM-JJ.jsonl` (historique avec phrases, purgé après `journal.conserver_jours`), `journal/manques.jsonl`,
-`journal/retours.jsonl`, `journal/musique.jsonl`, `commandes_apprises.yaml` (et son export pour l'appli,
+`journal/retours.jsonl`, `journal/musique.jsonl`, `routines.json` et `journal/routines.jsonl` (0.42.0), `commandes_apprises.yaml` (et son export pour l'appli,
 `genere/android/dictionnaire_appris.json`), `appareils.json` et le certificat
 `tls/cert.pem`, `tls/cle.pem`.
 
@@ -170,6 +171,7 @@ et dans les options de l'appli Home Assistant.
 | Réveil | Serveur | `Satellite.recevoir_audio` puis `Satellite.bloc` : `Model.predict` d'openWakeWord sur chaque bloc, seuil `SEUIL_REVEIL`. `Arbitre.demander` choisit un seul appareil quand plusieurs ont entendu (fenêtre de 250 ms, échos ignorés 1,5 s). `commencer_ecoute` envoie `ecoute` et ignore le son 0,6 ou 0,9 s, le temps du son de début |
 | Fin de phrase | Serveur | Silero (`vad.creer`) : fin après 0,45 s de silence (0,8 s au seuil d'énergie), 6 s au plus pour commencer, 12 s au plus en tout, 320 ms gardées avant la parole |
 | Transcription | Serveur | `Satellite.terminer_phrase` envoie `reflexion`, puis `Moteur.traiter` appelle `Moteur.transcrire` : Canary (`Transcripteur.transcrire`), Wyoming (`transcrire_ha`) ou API (`transcrire_api`). Speech-to-Phrase vide se replie sur l'API si elle est configurée |
+| Routines | Serveur | `Assistant._traiter` appelle d'abord `routines_avant` (0.42.0) : brouillon en attente, « oui » ou « non » à la reformulation, phrase de déclenchement connue, ou demande de création (`INTENTION_ROUTINE`). Si une routine répond, la chaîne s'arrête là. Sinon la phrase continue vers le dictionnaire. Voir « Routines » en partie 4 |
 | Dictionnaire | Serveur | `Assistant._traiter` : `epurer`, correction vocale d'une leçon récente ("non", "annule" dans les 30 s), `Dictionnaire.chercher`, puis `Personnes.appliquer` pour "ma chambre" selon la personne reconnue |
 | Contexte | Serveur | `Assistant.requete` ouvre le contexte de la requête (`REQUETE`, un `Requete` par commande, copié par `asyncio.to_thread`) : essai, personne, appareil, rôle, canal (`voix`, `texte`, `appli`, `web`). La personne et le rôle viennent de la session (jeton, `appareils.json`, `acces.personne_effective`), jamais du champ `personne` d'un message. Rien n'est écrit sur les objets partagés (`ha.personne` est en lecture seule) |
 | Sécurité | Serveur | `acces.controler_service`, point de contrôle unique de tout appel de service : domaines interdits, service permis (voie du LLM), forme des données, URL de `launch_app`, puis `securite.verifier` avec la personne du contexte |
@@ -262,6 +264,7 @@ réponse. Les messages du serveur portent un champ `etat`, ceux de l'appareil un
 | `appairage`, `empreinte` | Port chiffré actif, empreinte de sa clé publique |
 | `vision`, `meteo_mer`, `vent_mesure` | Fonctions présentes sur ce serveur |
 | `sante`, `sante_historique` | Calculées pour chaque connexion : vraies seulement sur la liaison chiffrée et pour une clé permise |
+| `routines` | Vrai quand la fonction est active (`routines.active`, 0.42.0). Les messages de routines restent réservés à la liaison chiffrée, quelle que soit la valeur |
 
 ### Voix et réveil
 
@@ -302,6 +305,22 @@ réponse. Les messages du serveur portent un champ `etat`, ceux de l'appareil un
 | `manque` | `texte`, `epure`, `cle`, `regles`, `candidats`, `traite_par`, `actions`, `reponse`, `essai`, `appareil`, `dictionnaire`, `test`, `personne` | `{"etat":"manque","message":"noté"}`, ligne ajoutée à `manques.jsonl` |
 | `retour` | `verdict` (`bien` ou autre valeur, prise pour `mauvais`), `date`, `heure`, `entendu`, `compris_par`, `detail`, `fait`, `reponse`, `essai`, `personne` | `{"etat":"retour","message"}`. Une phrase apprise jugée mauvaise est oubliée |
 | `manques` | `n` (1 à 2000, 200 par défaut) | `{"etat":"manques","manques","retours"}` |
+
+### Routines (0.42.0)
+
+Port chiffré seulement : sur le port en clair, ces types reçoivent `{"etat":"refuse","message":"réservé au port chiffré"}`. Le type est ensuite contrôlé par `acces.type_permis` (table `TYPES_PAR_ROLE`), la personne et le rôle viennent de la session, jamais d'un champ du message.
+
+| Message | Rôles permis | Champs | Réponse |
+|---|---|---|---|
+| `routines` | tous | aucun | `{"etat":"routines","routines","serveur","droits","version"}`. Chaque routine est résumée (`id`, `nom`, `auteur`, `pour`, `actif`, `a_revoir`, `phrases`, `variantes`, `etapes` en nombre, `derniere_execution`, `executions`). Le propriétaire voit tout, les autres leurs routines et celles « pour tous ». `droits` dit ce que l'appelant peut faire (`qui`, `creer`, `tout_gerer`, `exporter`) |
+| `routine_lancer` | tous | `id`, `essai` (vrai par défaut, comme `llm`) | `{"etat":"routine_lancee","id","parole","echecs","ok"}`. Une routine invisible ou inconnue donne `ok: false` sans rien dire de plus |
+| `routine_texte` | tous | `texte`, `essai` | `{"etat":"routine_texte","parole","confirmation_attendue"}`. Même moteur que la voix : un brouillon, sa reformulation, puis « oui » dans les `confirmation_attendue` secondes (0 quand rien n'attend) |
+| `routine_activer` | habitant, administrateur | `id`, `actif` (booléen exigé) | `{"etat":"routine_ok","id"}` ou `refuse` |
+| `routine_supprimer` | habitant, administrateur | `id` | `{"etat":"routine_ok","id"}` ou `refuse` |
+| `routines_export` | administrateur (propriétaire) | aucun | `{"etat":"routines_export","contenu"}` |
+| `routines_maj` | Serveur vers appareils | `version` | Signal sans contenu, diffusé après un changement. Chaque client redemande sa liste |
+
+L'essai effectif est celui du serveur OU celui du message. Un refus a toujours la forme `{"etat":"refuse","type","message"}`.
 
 ### Passerelle Home Assistant
 
@@ -416,6 +435,57 @@ la table pour les trois domaines réservés à l'appli (`domaine_tele`, `remote`
 appelle d'autres services d'équipement que le LLM. Rien dans les réglages ne rouvre `device_id`, `floor_id`,
 `label_id` ni un domaine de `DOMAINES_INTERDITS`. Test de parité : `poc/tests/test_liste_blanche_commune.py`.
 
+### Routines (0.42.0)
+
+`poc/routines.py` stocke et exécute des routines : une phrase de déclenchement, une suite d'étapes. Cinq natures
+d'étape : `service` (un appel Home Assistant), `annonce`, `question` (posée au cerveau), `pause` et `musique`.
+Le moteur est autonome (il n'importe pas `assistant.py`), `Assistant` lui prête sa voix, son cerveau et ses appels.
+
+Ordre de traitement d'une phrase dans `Assistant.routines_avant`, avant la correction vocale et le dictionnaire.
+
+1. Un brouillon en attente de confirmation : « oui » l'enregistre, « non » l'abandonne, un « oui » arrivé après
+   `delai_confirmation_s` mais avant `absorption_s` est absorbé au lieu de partir au LLM.
+2. Une phrase de déclenchement connue : correspondance exacte sur la forme normalisée (`forme`, qui applique
+   `epurer` puis `normaliser`). Une phrase d'auteur dite par une personne non reconnue est refusée avec un
+   motif explicite.
+3. Une demande de création ou de modification (`INTENTION_ROUTINE`, « quand je dis X, fais Y », « crée une
+   routine ») : le cerveau la traduit en proposition JSON, `valider_proposition` la contrôle, le serveur la
+   reformule à voix haute et attend un « oui ».
+4. Sinon `None` : la phrase suit la chaîne ordinaire.
+
+Ce qui garde une routine à l'intérieur des limites d'une commande directe.
+
+- Chaque étape `service` passe par `acces.controler_service`, comme une commande dite, à la création et à chaque
+  lancement. Une routine ne permet jamais ce que la commande directe refuse : domaines interdits, services hors
+  liste blanche, forme des données, réglages, puis `securite.verifier` avec la personne qui lance. Les tests
+  rejouent chaque cas de `poc/tests/cas_routines.json` des deux côtés. Les protections de l'occupant et de
+  l'heure calme sont coupées en dur dans `securite.py` : les tests les allument par `monkeypatch` pour prouver que la
+  routine les suit.
+- Les cibles par pièce, étage, appareil, étiquette, `all`, joker ou `target` sont refusées, comme les entités
+  absentes de l'inventaire. Les clés `area_id`, `device_id`, `floor_id`, `label_id` et `target` sont refusées à toute
+  profondeur des données.
+- Au chargement du fichier, chaque routine est revalidée. Une étape devenue refusée coupe la routine
+  (`actif` faux, motif dans `a_revoir`) et n'est jamais exécutée, même si le fichier a été modifié à la main.
+- Limites configurables par la section `routines` (voir CONFIGURER.md) : nombre de routines, d'étapes et de
+  variantes, longueur minimale d'une phrase, durée des pauses, intervalle entre deux lancements.
+- Phrases interdites en dur (« oui », « non », « stop », formules de gestion) plus `routines.phrases_interdites`,
+  et refus d'une phrase qui est déjà une commande du dictionnaire ou une phrase apprise. Une phrase identique ou
+  proche (`difflib`, seuil `SEUIL_FLOU` de 0,88) d'une routine que la personne peut lancer ne crée pas de doublon,
+  le serveur propose de remplacer la routine existante.
+
+Droits : le propriétaire crée, lance, gère et exporte tout. Un habitant crée et gère les siennes. Un invité et un
+appareil partagé lancent seulement, une personne non reconnue ne crée rien. Une routine « pour tous » se lance par
+tous, une routine « pour son auteur » par son auteur seul.
+
+Exécution : la partie immédiate (services, annonces) tourne dans la requête. À partir de la première pause ou de
+la première musique, la suite part dans un fil sous un verrou de module (`VERROU_ROUTINES`), sans reprendre le
+verrou du moteur à chaque étape. En mode essai (serveur ou message), rien n'est exécuté et chaque étape est
+décrite. Le journal de l'historique range ces entrées dans la catégorie `routine`.
+
+Écarts avec la note de conception : la gestion à la voix (liste, coupure, suppression, section 6.1) est laissée
+à S-R2, elle passe pour l'instant par les messages réseau du protocole. Le lancement à l'heure ou sur
+événement n'existe pas, seules les phrases déclenchent.
+
 ### Historique du LLM par appareil (0.41.0)
 
 `Cerveau.historiques` est indexé par `(personne, appareil)`, tirés du contexte de requête posé par la session
@@ -524,7 +594,7 @@ serveur n'y est donc pas disponible.
 
 | Côté | Commande | Configuration |
 |---|---|---|
-| Serveur | `python -m pytest poc/tests` | `conftest.py` règle `ASSISTANT_VOCAL_CONFIG` sur `config-exemple/` si la variable est vide, et détourne `journal/musique.jsonl` vers un dossier temporaire |
+| Serveur | `python -m pytest poc/tests` | `conftest.py` règle `ASSISTANT_VOCAL_CONFIG` sur `config-exemple/` si la variable est vide, et détourne `journal/musique.jsonl`, `routines.json` et `journal/routines.jsonl` vers un dossier temporaire. Les routines ont `test_routines.py` et `cas_routines.json` |
 | Appli | `./gradlew testDebugUnitTest` dans `android/` | La propriété `maison.dossier` pointe sur `config-exemple/`. `-PmaisonTests=reel` relance sur la vraie configuration, où les cas écrits pour l'exemple échouent |
 
 Côté serveur, onze fichiers et 206 fonctions de test : accès et arbitre (`test_acces.py`), dictionnaire et

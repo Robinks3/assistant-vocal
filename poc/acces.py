@@ -150,11 +150,20 @@ TYPES_COMMUNS = frozenset({"lecture_finie", "parler", "reveil", "llm", "ha", "me
 TYPES_SANTE = frozenset({"sante", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour"})
 # Reconnaissance des visages (tablette) et signalement de commandes non comprises : pas pour l'invité.
 TYPES_FOYER = frozenset({"vision", "manque"})
+# Routines (0.42.0, note de conception des routines 7.4), port chiffré seulement. Consulter, lancer et parler au
+# moteur de routines sont permis à tous les rôles : le moteur filtre lui-même par personne (un invité ne voit et ne
+# lance que les routines « pour tous », il n'en crée pas). Couper, réactiver et supprimer : habitants et
+# administrateurs (le moteur borne encore à ses propres routines, tout pour le propriétaire). Exporter : l'administrateur,
+# et le moteur le réserve en plus au propriétaire. Hors de TYPES_ADMINISTRATION, dont le contenu est figé par un test.
+TYPES_ROUTINES = frozenset({"routines", "routine_lancer", "routine_texte"})
+TYPES_ROUTINES_GESTION = frozenset({"routine_activer", "routine_supprimer"})
+TYPES_ROUTINES_EXPORT = frozenset({"routines_export"})
 TYPES_PAR_ROLE = {
-    "administrateur": TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER | TYPES_ADMINISTRATION,
-    "habitant": TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER,
-    "partage": TYPES_COMMUNS | TYPES_FOYER,
-    "invite": TYPES_COMMUNS,
+    "administrateur": (TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER | TYPES_ADMINISTRATION | TYPES_ROUTINES
+                       | TYPES_ROUTINES_GESTION | TYPES_ROUTINES_EXPORT),
+    "habitant": TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER | TYPES_ROUTINES | TYPES_ROUTINES_GESTION,
+    "partage": TYPES_COMMUNS | TYPES_FOYER | TYPES_ROUTINES,
+    "invite": TYPES_COMMUNS | TYPES_ROUTINES,
 }
 
 

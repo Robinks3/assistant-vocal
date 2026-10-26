@@ -97,6 +97,7 @@ import assistant as A  # noqa: E402
 import acces  # noqa: E402
 import administration  # noqa: E402
 import maison  # noqa: E402
+import routines as R  # noqa: E402
 import vad as V  # noqa: E402
 import vision as VI  # noqa: E402
 import sante as SA  # noqa: E402
@@ -236,6 +237,7 @@ class Moteur:
                 "sante_historique": sat is not None and self.refus_sante_hist(sat) is None,
                 "meteo_mer": getattr(self, "meteo_mer", None) is not None,
                 "vent_mesure": getattr(self, "vent_mesure", None) is not None,
+                "routines": bool(R.reglage("active")),
                 "empreinte": self.empreinte_tls}
 
     def etat_stt(self):
@@ -402,6 +404,19 @@ class Moteur:
         t = time.perf_counter()
         erreur = ""
         with a.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
+            # Routines (0.42.0, note 5.1) : brouillon en attente, demande de création ou déclencheur passent avant le
+            # LLM ordinaire, qui agirait sur-le-champ sur « quand je dis ... ».
+            from dictionnaire import epurer
+            pre = a.routines_avant(epurer(texte))
+            if pre is not None:
+                duree = time.perf_counter() - t
+                A.journaliser(texte, pre["voie"] + (" [essai]" if essai else ""), 0.0, duree, 0.0,
+                              pre["parole"], pre["actions"])
+                res = {"reponse": pre["parole"], "actions": list(pre["actions"]), "cerveau": "routines",
+                       "ms": round(duree * 1000), "erreur": "", "essai": essai}
+                if pre["confirmation"]:
+                    res["confirmation_attendue"] = R.reglage("delai_confirmation_s")
+                return res
             try:
                 parole, actions = a.cerveau.repondre(texte)
                 a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
@@ -415,6 +430,14 @@ class Moteur:
                           parole, actions)
         return {"reponse": parole, "actions": list(actions), "cerveau": nom, "ms": round(duree * 1000),
                 "erreur": erreur, "essai": essai}
+
+    def messages_routines(self, genre, msg, essai, personne, appareil, role):
+        """Messages réseau des routines (note 7.4), dans un fil : le contexte de la requête porte la personne, le rôle
+        et l'essai (celui du serveur ou celui du message). Renvoie le dict de la réponse."""
+        a = self.assistant
+        with a.requete(essai=self.essai or bool(essai), personne=personne, appareil=appareil, role=role,
+                       canal="appli"):
+            return a.routines_reseau(genre, msg, serveur=self.profil)
 
     def transcrire(self, signal_f32, moteur=None):
         """Texte de la phrase par le moteur demandé (« pc », « api », « ha_stp », « ha_whisper »),
@@ -773,7 +796,8 @@ def traduire_reglages(texte):
 def entree_historique(ligne, noms):
     voie = ligne.get("voie", "")
     categorie = ("dictionnaire" if voie.startswith("dictionnaire") else "Home Assistant" if voie.startswith("ha")
-                 else "Claude ou modèle local" if voie.startswith("llm") else voie.split(" (")[0])
+                 else "Claude ou modèle local" if voie.startswith("llm")
+                 else "routine" if voie.startswith("routine") else voie.split(" (")[0])
     return {"heure": ligne.get("horodatage", "")[11:16], "date": ligne.get("horodatage", "")[:10],
             "essai": "[essai]" in voie, "entendu": ligne.get("texte", ""), "compris_par": categorie,
             "detail_voie": voie, "fait": actions_lisibles(ligne.get("actions"), noms),
@@ -946,6 +970,8 @@ def passerelle_ha(moteur, msg, identite=None):
 # l'appairage, réglages communs à tous (transcription, mode, cerveau), lecture des phrases ratées et des retours.
 # La table complète des types permis par rôle est dans acces.py (TYPES_PAR_ROLE, acces.type_permis).
 TYPES_ADMINISTRATEUR = acces.TYPES_ADMINISTRATION
+# Messages des routines (0.42.0) : port chiffré seulement, rôle contrôlé par acces.type_permis (TYPES_PAR_ROLE).
+TYPES_ROUTINES = acces.TYPES_ROUTINES | acces.TYPES_ROUTINES_GESTION | acces.TYPES_ROUTINES_EXPORT
 
 
 def nom_de_type(genre):
@@ -1091,6 +1117,7 @@ class Satellite:
         self.etat = "reflexion"
         signal = np.concatenate(self.capture).astype(np.float32) / 32768.0
         await self.envoyer(etat="reflexion", texte="")
+        avant = R.registre().version
         async with self.moteur.verrou:
             texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
                                                                  self.cle_appareil())
@@ -1099,6 +1126,7 @@ class Satellite:
         derniere = lire_journal(1)
         if derniere:  # l'historique de l'appli s'enrichit en direct, chez ceux qui ont le droit de le voir
             await self.moteur.diffuser_historique(derniere[0])
+        await self.signaler_routines(avant)  # une routine créée ou lancée à la voix change la liste
         if audio:
             duree = (len(audio) - 44) / 2 / int.from_bytes(audio[24:28], "little")
             self.sourd_jusqua = time.time() + duree + 3.0  # filet si la fin de lecture se perd
@@ -1227,6 +1255,7 @@ class Satellite:
             return
         personne = self.personne_du_message(msg)
         print(f"[{self.nom}] LLM demandé par l'appareil : {A.pour_console(texte)}" + (f" (personne : {personne})" if personne else ""))
+        avant = R.registre().version
         async with self.moteur.verrou:
             res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
                                           personne, self.cle_appareil())
@@ -1234,6 +1263,40 @@ class Satellite:
         derniere = lire_journal(1)
         if derniere:
             await self.moteur.diffuser_historique(derniere[0])
+        await self.signaler_routines(avant)
+
+    async def signaler_routines(self, avant):
+        """Diffuse le signal « routines_maj » (version seulement, jamais le contenu : chaque client redemande sa liste
+        filtrée) quand le registre a changé depuis la version [avant]."""
+        reg = R.registre()
+        if reg.version != avant:
+            await self.moteur.diffuser({"etat": "routines_maj", "version": reg.version})
+
+    async def repondre_routines(self, genre, msg, role):
+        """Messages des routines (note de conception 7.4), port chiffré. Le champ « personne » n'est lu que pour un
+        appareil partagé (personne_du_message), l'essai est celui du serveur ou celui du message. Un lancement, une
+        création ou un « oui » passent sous le verrou du moteur comme une commande, le reste est une simple lecture."""
+        personne = self.personne_du_message(msg)
+        essai = bool(msg.get("essai", True))
+        print(f"[{self.nom}] routines : {genre}" + (f" (personne : {personne})" if personne else ""))
+        avant = R.registre().version
+        try:
+            if genre in ("routine_lancer", "routine_texte"):
+                async with self.moteur.verrou:
+                    rep = await asyncio.to_thread(self.moteur.messages_routines, genre, msg, essai, personne,
+                                                  self.cle_appareil(), role)
+            else:
+                rep = await asyncio.to_thread(self.moteur.messages_routines, genre, msg, essai, personne,
+                                              self.cle_appareil(), role)
+        except Exception as e:  # jamais d'exception brute vers la tablette : seulement sa classe
+            print(f"[{self.nom}] routines : erreur inattendue ({e.__class__.__name__})")
+            rep = {"etat": "refuse", "type": genre, "message": f"erreur inattendue ({e.__class__.__name__})"}
+        await self.envoyer(**rep)
+        if genre in ("routine_lancer", "routine_texte"):
+            derniere = lire_journal(1)
+            if derniere:
+                await self.moteur.diffuser_historique(derniere[0])
+        await self.signaler_routines(avant)
 
     async def recevoir_texte(self, texte):
         try:
@@ -1259,6 +1322,11 @@ class Satellite:
                 await self.envoyer(etat=genre[:40], id=msg.get("id"), erreur="santé non permise pour cet appareil")
             else:
                 await self.envoyer(etat="refuse", type=genre[:40], message="type de message non permis pour ce rôle")
+            return
+        if isinstance(genre, str) and genre in TYPES_ROUTINES and not getattr(self, "chiffre", False):
+            # Routines : port chiffré 8766 seulement (note 7.4). Le port en clair ne les connaît pas.
+            print(f"[{self.nom}] message « {genre} » refusé : réservé au port chiffré")
+            await self.envoyer(etat="refuse", type=genre, message="réservé au port chiffré")
             return
         if msg.get("type") == "lecture_finie":
             self.sourd_jusqua = time.time() + 0.3
@@ -1308,6 +1376,8 @@ class Satellite:
                 await self.envoyer(**rep)
         elif msg.get("type") == "llm":
             asyncio.create_task(self.repondre_llm(msg))
+        elif isinstance(genre, str) and genre in TYPES_ROUTINES:
+            asyncio.create_task(self.repondre_routines(genre, msg, role))
         elif msg.get("type") == "manque":
             # Raté du dictionnaire sur un appareil en mode « Cet appareil » : centralisé ici.
             entree = {k: v for k, v in msg.items() if k != "type"}
