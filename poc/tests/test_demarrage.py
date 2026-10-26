@@ -5,6 +5,7 @@ Deux garanties de bout en bout, sur le dépôt seul :
   quelques secondes puis s'arrête de lui-même (le démarrage ne dépend donc d'aucune machine particulière) ;
 - les scripts shell suivis par git passent shellcheck, quand l'outil est installé."""
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -95,3 +96,25 @@ def test_les_scripts_shell_sont_trouves():
     """La liste des scripts contrôlés contient au moins les trois scripts d'outillage connus."""
     noms = {p.name for p in _scripts_shell()}
     assert {"deployer.sh", "garde-fou.sh", "pousser_canary.sh"} <= noms
+
+
+def _modules_copies_par_deployer():
+    """Modules de poc/ que ha-app/deployer.sh copie dans l'appli Home Assistant (ligne cp vers $ETAPE/app/)."""
+    texte = (RACINE / "ha-app" / "deployer.sh").read_text(encoding="utf-8")
+    ligne = next(l for l in texte.splitlines() if l.startswith("cp ") and l.rstrip().endswith('"$ETAPE/app/"'))
+    return set(re.findall(r'"\$POC/(\w+)\.py"', ligne))
+
+
+def test_deployer_copie_tous_les_modules_importes():
+    """Tout module de poc/ importé par un module copié est copié lui aussi (panne du 26/10 : liste_blanche.py
+    oublié, l'appli HA 0.41.0 s'arrêtait au démarrage sur ModuleNotFoundError)."""
+    poc = RACINE / "poc"
+    copies = _modules_copies_par_deployer()
+    assert {"serveur_satellite", "assistant", "acces"} <= copies, "ligne cp de deployer.sh introuvable"
+    manquants = {}
+    for module in sorted(copies):
+        source = (poc / f"{module}.py").read_text(encoding="utf-8")
+        for importe in re.findall(r"(?m)^\s*(?:import|from)\s+(\w+)", source):
+            if (poc / f"{importe}.py").exists() and importe not in copies:
+                manquants.setdefault(importe, []).append(module)
+    assert not manquants, f"modules importés mais absents de deployer.sh : {manquants}"

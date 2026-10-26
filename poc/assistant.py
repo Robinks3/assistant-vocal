@@ -58,7 +58,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.41.0"
+VERSION = "0.41.1"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
