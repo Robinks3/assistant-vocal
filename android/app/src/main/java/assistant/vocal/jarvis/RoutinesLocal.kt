@@ -171,6 +171,9 @@ class RoutinesLocal(
 
         private const val MOT_ROUTINE = "routine"
 
+        /** « -moi » ou « -nous » facultatif après le verbe, comme _PRONOM_ROUTINE du serveur. */
+        private const val PRONOM = "(?:[-\\s]+(?:moi|nous))?"
+
         /**
          * Phrase qui crée ou change une routine. Recopie de INTENTION_ROUTINE (poc/assistant.py), vérifiée sur les
          * mêmes cas (poc/tests/cas_routines.json). (?U) : \b et la casse comprennent les lettres accentuées.
@@ -181,19 +184,18 @@ class RoutinesLocal(
         val INTENTION_ROUTINE = Regex(
             "(?iU)\\b(?:quand|lorsque|si|(?:à|a) chaque fois que|chaque fois que)\\s+je\\s+(?:te\\s+)?(?:dis|dirai|disais)\\b" +
                 "|\\b(?:dorénavant|désormais|à partir de maintenant|a partir de maintenant)\\b" +
-                "|\\b(?:cr[ée]e[rz]?|nouvelle|change[rz]?|modifie[rz]?|remplace[rz]?)\\s+(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?" +
-                "(?:nouvelle\\s+)?routine\\b" +
-                // Verbe de création, avec ou sans « -moi » : crée-moi, fais-moi, fais, ajoute, programme, mets en place...
-                "|\\b(?:cr[ée]e[rz]?|fais|fait|faire|ajoute[rz]?|programme[rz]?|mets?|mettre|enregistre[rz]?|configure[rz]?" +
-                "|pr[ée]pare[rz]?)(?:[-\\s]+(?:moi|nous))?\\s+(?:en\\s+place\\s+)?(?:une\\s+|la\\s+|ma\\s+|cette\\s+|notre\\s+)?" +
-                "(?:nouvelle\\s+)?routine\\b" +
-                // Demande polie : peux-tu me créer / me faire / m'ajouter une routine.
-                "|\\b(?:peux|peut|pouvez|pourrais|pourriez)[-\\s]+(?:tu|vous)\\s+(?:me\\s+|m['’]|nous\\s+)?(?:\\p{L}+\\s+){0,3}?" +
-                "(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?(?:nouvelle\\s+)?routine\\b" +
-                // Souhait : je voudrais / je veux / j'aimerais (créer, faire, avoir) une routine.
-                "|\\b(?:je\\s+(?:voudrais|veux|souhaite|souhaiterais)|j['’]aimerais|j['’]aurais\\s+envie)\\s+" +
-                "(?:(?:de\\s+|d['’])?(?:cr[ée]er|faire|avoir|ajouter|programmer|configurer|pr[ée]parer|enregistrer)\\s+)?" +
-                "(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?(?:nouvelle\\s+)?routine\\b"
+                // changer une routine existante, ou la créer avec ou sans « -moi »
+                "|\\b(?:cr[ée]e[rsz]?|change[rz]?|modifie[rz]?|remplace[rz]?)$PRONOM" +
+                "\\s+(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?(?:(?:nouvelle|petite)\\s+)?routine\\b" +
+                "|\\bnouvelle\\s+routine\\b" +
+                // autres verbes de création, suivis de « une » seulement : « fais la routine du matin » est un lancement
+                "|(?<!\\bje )(?<!\\bj['’])\\b(?:fais|faire|faites|ajoute[rsz]?|programme[rsz]?|enregistre[rsz]?|configure[rsz]?" +
+                "|pr[ée]pare[rsz]?|m(?:ets?|ettre|ettez)$PRONOM\\s+en\\s+place)$PRONOM" +
+                "\\s+une\\s+(?:(?:nouvelle|petite)\\s+)?routine\\b" +
+                // « je voudrais / je veux / j'aimerais (créer) une routine »
+                "|\\b(?:je\\s+(?:voudrais|veux|souhaite|souhaiterais)|j['’]aimerais|j['’]aimerai)\\s+(?:bien\\s+)?" +
+                "(?:(?:cr[ée]er|faire|ajouter|avoir|programmer|enregistrer|configurer|pr[ée]parer|mettre\\s+en\\s+place)\\s+)?" +
+                "une\\s+(?:(?:nouvelle|petite)\\s+)?routine\\b"
         )
 
         /** Clé d'une personne : sans accent, en minuscules. « inconnu » vaut « personne reconnue » (vide). */
