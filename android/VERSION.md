@@ -6,6 +6,27 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.38.2 (2026-10-26), passerelle Home Assistant : reconnexion robuste et journal
+Correctif (versionCode 74). Le 26/10 au soir, la tablette est restée « Maison hors ligne » après des redémarrages de
+l'appli de l'assistant sur HA, jusqu'à un `am force-stop`. La passerelle ne journalisait rien, la cause exacte n'a pas
+pu être lue, mais le code avait deux chemins sans relance.
+- `PasserelleHa.kt` : une socket ouverte dont les capacités annoncent `passerelle_ha` absent ou faux (appli sur HA en
+  cours de redémarrage, jeton pas encore chargé) restait ouverte et saine, sans échec ni relance. Un chien de garde
+  propre à la passerelle (`GardeReconnexion`, contrôle toutes les 10 s, aussi à chaque `ouvrir()`) annule maintenant la
+  socket et rouvre quand elle existe sans être `disponible` depuis plus de 30 s.
+- Course corrigée : `onOpen`, `onMessage` et `perdu` comparaient la socket reçue à `ws` sans verrou, alors que `ws`
+  n'est enregistrée qu'au retour de `newWebSocket`. Un échec ou un message arrivé avant (appli sur HA qui redémarre,
+  réponse immédiate) était écarté, et la socket morte restait enregistrée, donc `ouvrir()` ne faisait plus rien.
+  La comparaison se fait sous le verrou d'`ouvrir()`.
+- La relance est planifiée avant le rappel `changement()`, qui est protégé : une erreur de l'écran ne peut plus la
+  faire perdre.
+- Journal `JarvisPasserelle` : ouverture (adresse), connexion ouverte, capacités reçues (version, disponible), perte
+  avec sa raison et le délai de relance, passage sur le repli en clair, déclenchement du chien de garde, clé annoncée
+  différente. Aucun jeton ni en-tête d'authentification.
+- L'épinglage de clé (`Confiance`) est inchangé.
+- Test : `GardeReconnexionTest` (garde sans Android). La course de socket n'a pas de test JVM : elle exige un vrai
+  `WebSocket` OkHttp et un `Context` Android.
+
 ## 0.38.1 (2026-10-26), serrures et alarmes refusées par la sécurité en dur
 Session S-F4 du plan 1.2.0 (versionCode 73), accompagne le serveur 0.40.0.
 - `Securite.kt` : `verifier` refuse tout service ou toute cible des domaines `lock` et `alarm_control_panel`, comme

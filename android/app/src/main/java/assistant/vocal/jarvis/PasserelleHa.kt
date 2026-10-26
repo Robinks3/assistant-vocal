@@ -56,16 +56,58 @@ class PasserelleHa(
     private val attentesEtat = ConcurrentHashMap<String, CompletableFuture<JSONObject>>()
     private val planif = Executors.newSingleThreadScheduledExecutor()
 
+    /** Chien de garde (0.38.2) : socket ouverte mais passerelle indisponible depuis trop longtemps. */
+    private val garde = GardeReconnexion()
+
+    init {
+        // Propre minuterie : la relance ne dépend plus seulement du chien de garde du service.
+        try {
+            planif.scheduleWithFixedDelay({ surveiller() }, PERIODE_GARDE_S, PERIODE_GARDE_S, TimeUnit.SECONDS)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Vrai si [socket] est la socket courante. Attend la fin d'[ouvrir], qui l'enregistre sous verrou. */
+    private fun courante(socket: WebSocket): Boolean = synchronized(this) { socket === ws }
+
+    /** Signale un changement à l'appelant sans que son erreur éventuelle ne coupe la relance. */
+    private fun prevenir() {
+        try {
+            changement()
+        } catch (e: Exception) {
+            Log.w(TAG, "Rappel de changement en erreur", e)
+        }
+    }
+
+    /** Annule et rouvre une socket qui reste ouverte sans que la passerelle soit disponible depuis 30 s. */
+    private fun surveiller() {
+        if (ferme) return
+        val socket = ws
+        if (!garde.doitRelancer(socket, disponible, System.nanoTime() / 1_000_000)) return
+        if (socket == null) return
+        val avant = etat
+        Log.w(TAG, "Chien de garde : socket ouverte depuis plus de ${GardeReconnexion.DELAI_MS / 1000} s sans passerelle disponible ($avant), annulation et réouverture")
+        perdu(socket, "chien de garde : passerelle indisponible depuis ${GardeReconnexion.DELAI_MS / 1000} s ($avant)", reessayerVite = true)
+        try {
+            socket.cancel()
+        } catch (_: Exception) {
+        }
+        prevenir()
+    }
+
     /** Ouvre la connexion si besoin, sans attendre. */
     fun ouvrir() {
-        if (ferme || ws != null) return
+        if (ferme) return
+        surveiller()
+        if (ws != null) return
         synchronized(this) {
-            if (ws != null) return
+            if (ferme || ws != null) return
             val principale = url.trim().trimEnd('/')
             val repli = Confiance.repli(contexte, principale)
             val adresse = if (surRepli && repli != null) repli else principale
             if (pret.isDone) pret = CompletableFuture()
             etat = "connexion à $adresse"
+            Log.i(TAG, "Ouverture vers $adresse" + (if (adresse == repli) " (repli en clair)" else ""))
             try {
                 ws = Confiance.client(base, contexte, adresse)
                     .newWebSocket(Confiance.requete(contexte, adresse), Ecouteur(adresse, adresse == repli, repli != null))
@@ -207,12 +249,19 @@ class PasserelleHa(
     }
 
     private fun perdu(socket: WebSocket, raison: String, reessayerVite: Boolean = false) {
-        if (socket === ws) {
-            meteoMerDispo = false
-            ventMesureDispo = false
+        // Sous verrou : un échec immédiat ne doit pas passer avant l'enregistrement de la socket par ouvrir(),
+        // sinon elle resterait enregistrée, morte, et plus rien ne la rouvrirait.
+        synchronized(this) {
+            if (socket !== ws) {
+                Log.i(TAG, "Perte d'une ancienne socket ignorée ($raison)")
+                return
+            }
+            ws = null
         }
-        if (socket !== ws) return
-        ws = null
+        meteoMerDispo = false
+        ventMesureDispo = false
+        Log.w(TAG, "Connexion perdue : $raison" + (if (reessayerVite) " (nouvel essai immédiat)" else " (nouvel essai dans 5 s)") +
+            (if (surRepli) ", sur le repli en clair" else ""))
         val avant = disponible
         disponible = false
         capacitesRecues = false
@@ -223,8 +272,9 @@ class PasserelleHa(
         attentes.clear()
         for (p in attentesEtat.values) p.complete(null)
         attentesEtat.clear()
-        if (avant || !reessayerVite) changement()
+        // La relance d'abord : une erreur du rappel ne doit jamais la faire perdre.
         planifier(if (reessayerVite) 300 else 5000)
+        if (avant || !reessayerVite) prevenir()
     }
 
     private inner class Ecouteur(
@@ -234,13 +284,14 @@ class PasserelleHa(
     ) : WebSocketListener() {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            if (webSocket !== ws) return
+            if (!courante(webSocket)) return
+            Log.i(TAG, "Connexion ouverte vers $adresse" + (if (repli) " (en clair)" else ""))
             etat = if (repli) "connectée en clair ($adresse), appli ${ConfigMaison.NOM_ASSISTANT} sur HA à mettre à jour pour le port chiffré"
             else "connectée, en attente des capacités"
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
-            if (webSocket !== ws) return
+            if (!courante(webSocket)) return
             val j = try {
                 JSONObject(text)
             } catch (_: Exception) {
@@ -256,6 +307,7 @@ class PasserelleHa(
                     val retenue = if (repli) null else Confiance.empreinte(contexte, adresse)
                     if (annoncee.isNotEmpty() && retenue != null && annoncee != retenue) {
                         etat = "clé annoncée par le serveur différente de celle reçue : connexion coupée"
+                        Log.w(TAG, "Clé annoncée différente de la clé épinglée pour $adresse : connexion coupée")
                         Etat.modifier { it.copy(alerteCle = "La clé du serveur Home Assistant ne correspond pas à celle annoncée. Vérifie-la dans l'écran Appareils.") }
                         webSocket.cancel()
                         return
@@ -274,9 +326,11 @@ class PasserelleHa(
                         "appli ${ConfigMaison.NOM_ASSISTANT} sur HA trop ancienne (v${j.optString("version")}, 0.17.0 requise)"
                     }
                     capacitesRecues = true
+                    Log.i(TAG, "Capacités reçues : version ${j.optString("version")}, disponible=$disponible, " +
+                        "meteo_mer=$meteoMerDispo, vent_mesure=$ventMesureDispo, repli=$repli")
                     pret.complete(true)
                     // Toujours signalé : l'écran affiche l'état lisible, même sans changement de disponibilité.
-                    changement()
+                    prevenir()
                 }
                 "appairage_demande" -> annonce(j)
                 // Réponse attendue par son identifiant (transcription), sinon par son seul état (llm).
@@ -336,5 +390,6 @@ class PasserelleHa(
 
     private companion object {
         const val TAG = "JarvisPasserelle"
+        const val PERIODE_GARDE_S = 10L
     }
 }
