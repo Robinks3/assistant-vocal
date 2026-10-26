@@ -21,7 +21,7 @@ class HistoriqueLisibleTest {
         assertEquals("Lampe TV : luminosité 40 %", HistoriqueLisible.ligne("light.turn_on light.salon_lampe_tele (brightness_pct=40)", noms))
         assertEquals("Cuisine : pause", HistoriqueLisible.ligne("media_player.media_pause media_player.enceinte_cuisine", noms))
         // Nom inconnu : tiré de l'identifiant.
-        assertEquals("Entree entree : allumée", HistoriqueLisible.ligne("light.turn_on light.couloir_plafond", noms))
+        assertEquals("Couloir plafond : allumée", HistoriqueLisible.ligne("light.turn_on light.couloir_plafond", noms))
     }
 
     @Test
