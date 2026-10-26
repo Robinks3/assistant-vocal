@@ -2,8 +2,9 @@
 
 Ce document s'adresse au développeur qui reprend le projet. Il décrit les blocs du moteur, le trajet d'une
 phrase, le protocole entre les appareils et le serveur, la sécurité, la façon d'étendre l'ensemble, puis les
-tests, les versions et le garde-fou git. Il correspond au serveur 0.33.0 et à l'appli 0.35.0. L'inventaire des
-modèles, machine par machine, est dans `QUOI-TOURNE-OU.md`.
+tests, les versions et le garde-fou git. Il a été écrit pour le serveur 0.33.0 et l'appli 0.35.0. Les changements
+apportés depuis (sources météo désactivables, mot de réveil lu dans la configuration, schémas clair et sombre)
+sont décrits dans `VERSION.md`. L'inventaire des modèles, machine par machine, est dans `QUOI-TOURNE-OU.md`.
 
 Le moteur ne contient aucune donnée réelle. Tout ce qui décrit un logement est lu dans le dossier de
 configuration, dans cet ordre (`dossier_config()` de `poc/maison.py`) :
