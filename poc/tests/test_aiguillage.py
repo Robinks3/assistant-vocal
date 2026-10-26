@@ -168,9 +168,9 @@ def test_requete_ne_touche_pas_aux_objets_partages(monkeypatch):
     assistant = object.__new__(A.Assistant)
     assistant.ha, assistant.essai = ha, False
     assistant.indication = lambda p: f" parle : {p}." if p else ""
-    with assistant.requete(essai=True, personne="alex", appareil="tab"):
-        assert assistant.essai and ha.essai and ha.personne == "alex"
-        assert A.Cerveau.cle_conversation() == ("alex", "tab")
+    with assistant.requete(essai=True, personne="sacha", appareil="tab"):
+        assert assistant.essai and ha.essai and ha.personne == "sacha"
+        assert A.Cerveau.cle_conversation() == ("sacha", "tab")
         assert ha.service("light", "turn_on", ENTITE) == {"ok": True} and ha.client.posts == []
     assert not assistant.essai and not ha.essai and ha.personne is None
     assert A.Cerveau.cle_conversation() == (None, None)
@@ -182,12 +182,12 @@ def test_historique_par_appareil(monkeypatch):
     assistant = object.__new__(A.Assistant)
     assistant.essai = False
     assistant.indication = lambda p: ""
-    with assistant.requete(personne="alex", appareil="tab"):
+    with assistant.requete(personne="sacha", appareil="tab"):
         c.repondre("allume le salon")
         assert len(c.historique) == 2
-    with assistant.requete(personne="alex", appareil="téléphone"):
+    with assistant.requete(personne="sacha", appareil="téléphone"):
         assert c.historique == []
-    with assistant.requete(personne="Exemple69", appareil="tab"):
+    with assistant.requete(personne="camille", appareil="tab"):
         assert c.historique == []
 
 
@@ -229,9 +229,9 @@ def test_essai_effectif_du_serveur(monkeypatch):
     monkeypatch.setattr(A, "journaliser", lambda *a: None)
     for serveur, telephone in [(True, False), (False, True), (False, False)]:
         moteur.essai = serveur
-        res = moteur.llm_texte("allume le salon", telephone, "alex", "tab")
+        res = moteur.llm_texte("allume le salon", telephone, "sacha", "tab")
         assert res["essai"] is (serveur or telephone)
-    assert vus == [(True, "alex", "tab", True), (True, "alex", "tab", True), (False, "alex", "tab", False)]
+    assert vus == [(True, "sacha", "tab", True), (True, "sacha", "tab", True), (False, "sacha", "tab", False)]
     assert not ha.essai and assistant.essai is False
 
 
@@ -260,12 +260,12 @@ def test_identite_transmise_par_repondre_llm(monkeypatch):
 
     async def scenario():
         sat.moteur.verrou = asyncio.Lock()
-        await sat.repondre_llm({"texte": "allume le salon", "essai": False, "personne": "alex"})
+        await sat.repondre_llm({"texte": "allume le salon", "essai": False, "personne": "sacha"})
     asyncio.run(scenario())
-    assert recus == [("allume le salon", False, "alex", "appareil:a1")]
+    assert recus == [("allume le salon", False, "sacha", "appareil:a1")]
     # Un jeton fixe de poc/.env partagé : le nom de l'appareil sépare les historiques.
-    sat.identite = "alex"
-    assert sat.cle_appareil() == "alex/tablette"
+    sat.identite = "sacha"
+    assert sat.cle_appareil() == "sacha/tablette"
 
 
 def test_essai_du_serveur_est_un_plancher(monkeypatch):

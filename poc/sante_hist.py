@@ -2,7 +2,7 @@
 
 Onglets Tendances, Séances, Records et vue Jour. Le serveur du PC ne recalcule rien et ne demande
 jamais l'historique complet à sante-api (le résumé sur 4000 jours bloquerait le service une dizaine
-de secondes) : il lit le fichier que le tableau de bord HealthStats a déjà calculé sur le SERVEUR
+de secondes) : il lit le fichier que le tableau de bord HealthStats a déjà calculé sur le serveur-exemple
 (adresse `reseau.sante_donnees_url` de maison.json (dossier de configuration), chemin /dashboard/HealthStats/dashboard/data-auto.js),
 servi par le portail derrière Tailscale Serve, sans jeton, avec ETag (304 sur If-None-Match),
 régénéré au plus toutes les 30 min. Contenu : « window.HEALTHSTATS_AUTO = {JSON}; » ou « = null; ».

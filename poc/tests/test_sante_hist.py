@@ -441,8 +441,8 @@ def test_vue_jour():
 
 
 # ------------------------------------------------------------ lecture réseau et caches
-def historique(reponse, horloge=None, maintenant=None, adresses=("192.0.2.1",),
-               source=lambda ip, port: "192.0.2.1", jeton="jeton-invente-de-test"):
+def historique(reponse, horloge=None, maintenant=None, adresses=("100.64.0.10",),
+               source=lambda ip, port: "100.64.0.10", jeton="jeton-invente-de-test"):
     vu = []
 
     def appel(requete):
@@ -476,7 +476,7 @@ def test_lecture_par_l_adresse_verifiee(monkeypatch, jour_fixe):
     d = asyncio.run(h.donnees())
     assert d.jours[AUJOURDHUI].pas == 777 and h._etag == '"v1"'
     r = vu[0]
-    assert r.url.scheme == "https" and r.url.host == "192.0.2.1" and r.url.port is None
+    assert r.url.scheme == "https" and r.url.host == "100.64.0.10" and r.url.port is None
     assert r.url.path == "/dashboard/HealthStats/dashboard/data-auto.js"
     assert r.headers["Host"] == HOTE and r.extensions["sni_hostname"] == HOTE  # nom en SNI : certificat vérifié
     assert "if-none-match" not in r.headers and "authorization" not in r.headers
@@ -486,8 +486,8 @@ def test_lecture_par_l_adresse_verifiee(monkeypatch, jour_fixe):
 
 
 @pytest.mark.parametrize("adresses,source,attendu", [
-    (("192.0.2.1",), lambda ip, port: "192.0.2.1", "ne mène pas dans Tailscale, lecture annulée"),
-    (("192.0.2.1",), lambda ip, port: "192.168.0.20", "ne passe pas par Tailscale, lecture annulée"),
+    (("8.8.4.4",), lambda ip, port: "100.64.0.10", "ne mène pas dans Tailscale, lecture annulée"),
+    (("100.64.0.10",), lambda ip, port: "192.168.0.20", "ne passe pas par Tailscale, lecture annulée"),
 ])
 def test_hors_tailscale_aucune_lecture(adresses, source, attendu):
     h, vu = historique(httpx.Response(200, content=contenu()), adresses=adresses, source=source)
@@ -619,7 +619,7 @@ def test_commentaire_associe_ou_ignore(jour_fixe):
     appels = [r for r in vu if r.url.path == "/api/commentaire"]
     assert len(appels) == 2                                   # une lecture par date, puis le cache
     r = appels[0]
-    assert r.url.host == "192.0.2.1" and r.headers["Host"] == "sante.exemple.ts.net:8096"
+    assert r.url.host == "100.64.0.10" and r.headers["Host"] == "sante.exemple.ts.net:8096"
     assert r.headers["Authorization"] == "Bearer jeton-invente-de-test"
     assert all("seule" not in str(x.url) and "matin" not in str(x.url) for x in vu)  # id jamais dans une URL
 
@@ -932,7 +932,7 @@ def test_analyse_indisponible_au_journal_sans_date_ni_texte(capsys, jour_fixe):
     h, _ = historique(transport_analyse(refus))
     assert detail(h, "seule")["analyse"] is None
     assert "santé : analyse indisponible (ConnectError)" in capsys.readouterr().out
-    h, _ = historique(transport_analyse(lambda r: httpx.Response(200, json={})), adresses=("192.0.2.1",))
+    h, _ = historique(transport_analyse(lambda r: httpx.Response(200, json={})), adresses=("8.8.4.4",))
     h._donnees, h._t = donnees({"2031-03-13": jour(sessions=[
         seance("seule", "2031-03-13T18:00:00Z", "2031-03-13T19:00:00Z")])}), h._horloge()
     assert detail(h, "seule")["analyse"] is None

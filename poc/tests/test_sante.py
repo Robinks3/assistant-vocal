@@ -185,9 +185,9 @@ def test_refus():
 
 
 def test_adresse_tailscale():
-    assert str(SA.adresse_tailscale("x", lambda h: ["192.0.2.1"])) == "192.0.2.1"
-    assert str(SA.adresse_tailscale("x", lambda h: ["fd7a:115c:a1e0::5", "192.0.2.1"])) == "192.0.2.1"
-    for adresses in (["192.0.2.1"], ["192.0.2.1", "192.0.2.1"], ["192.0.2.1"], []):
+    assert str(SA.adresse_tailscale("x", lambda h: ["100.64.0.10"])) == "100.64.0.10"
+    assert str(SA.adresse_tailscale("x", lambda h: ["fd7a:115c:a1e0::5", "100.64.0.10"])) == "100.64.0.10"
+    for adresses in (["8.8.4.4"], ["100.64.0.10", "8.8.4.4"], ["192.168.0.20"], []):
         with pytest.raises(SA.ErreurSante, match="jeton gardé"):
             SA.adresse_tailscale("x", lambda h, a=adresses: a)
 
@@ -198,7 +198,7 @@ def test_adresse_tailscale():
 
 
 # ------------------------------------------------------------ appels à sante-api
-def relais_simule(reponse, horloge=None, adresses=("192.0.2.1",), source=lambda ip, port: "192.0.2.1"):
+def relais_simule(reponse, horloge=None, adresses=("100.64.0.10",), source=lambda ip, port: "100.64.0.10"):
     vu = []
 
     def appel(requete):
@@ -230,7 +230,7 @@ def test_appel_et_cache(jour_fixe):
     requete = vu[0]
     assert requete.headers["Authorization"] == "Bearer jeton-invente-de-test"
     assert requete.headers["Host"] == "sante.test:8096"
-    assert requete.url.host == "192.0.2.1"  # l'adresse vérifiée, pas le nom résolu une 2e fois
+    assert requete.url.host == "100.64.0.10"  # l'adresse vérifiée, pas le nom résolu une 2e fois
     assert requete.url.path == "/api/resume" and requete.url.params["jours"] == "8"
     assert d1["nuit"]["minutes"] == 432 and "lu_a" in d1
 
@@ -251,7 +251,7 @@ def test_reglages_du_client(jour_fixe, monkeypatch):
 
 
 def test_hors_tailscale_aucun_appel():
-    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), adresses=("192.0.2.1",))
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), adresses=("8.8.4.4",))
     with pytest.raises(SA.ErreurSante, match="ne mène pas dans Tailscale"):
         asyncio.run(relais.resume())
     assert vu == []

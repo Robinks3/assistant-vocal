@@ -47,9 +47,9 @@ def test_saisie_tolerante_aux_espaces_mais_pas_aux_codes_courts():
 
 
 def test_reseau_local_exclut_le_tailnet_et_le_public():
-    assert acces.adresse_locale("192.0.2.1")
+    assert acces.adresse_locale("192.168.0.20")
     assert acces.adresse_locale("127.0.0.1")
-    assert not acces.adresse_locale("192.0.2.1")
+    assert not acces.adresse_locale("100.64.0.10")
     assert not acces.adresse_locale("fd7a:115c:a1e0::5")
     assert acces.adresse_locale("fd12:3456::1")
     assert not acces.adresse_locale("8.8.8.8")
@@ -61,5 +61,5 @@ def test_refus_gardes_pour_le_diagnostic(tmp_path):
     for i in range(25):
         app.noter_refus("jeton invalide", f"192.168.0.{i}")
     assert len(app.refus) == 20
-    assert app.vue(avec_code=True)["refus"][-1]["ip"] == "192.0.2.1"
+    assert app.vue(avec_code=True)["refus"][-1]["ip"] == f"192.168.0.{i}"
     assert app.vue()["refus"] == []
