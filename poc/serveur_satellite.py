@@ -374,7 +374,11 @@ class Moteur:
         verdict = "bien" if msg.get("verdict") == "bien" else "mauvais"
         entendu = str(msg.get("entendu", "")).strip()
         effet = ""
-        if verdict == "mauvais" and entendu:
+        if verdict == "mauvais" and entendu and str(msg.get("compris_par", "")).startswith("routine"):
+            # Une commande de routine jugée mauvaise : notée, sans rien changer (note de conception des routines 6.1)
+            effet = "routine : noté, rien n'est changé"
+            R.journal("retour mauvais", appareil=appareil, entendu=entendu, compris_par=str(msg.get("compris_par")))
+        elif verdict == "mauvais" and entendu:
             dico = self.assistant.dico
             for phrase in (entendu, epurer(entendu)):
                 if dico.oublier(phrase):

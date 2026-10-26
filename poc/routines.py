@@ -66,6 +66,7 @@ MSG_INCONNU = "Je ne sais pas qui parle, je ne crée pas de routine. Mets-toi de
 MSG_INVITE = "Les invités ne peuvent pas créer de routine."
 MSG_EXPIRE = "La proposition a expiré, redis-moi la routine."
 MSG_RESTE = "Le reste, je le garde ?"
+MSG_EXPIRE_SUPPRESSION = "La demande a expiré, redis-moi quelle routine supprimer."
 CHAMPS_PROPOSITION = {"nom", "phrases", "variantes", "reponse", "etapes", "remplace"}
 INTERDITS_CIBLE = {"area_id", "device_id", "floor_id", "label_id"}
 TYPES_MUSIQUE = ("track", "artist", "album", "playlist")
@@ -376,18 +377,32 @@ def _decrire_etape(e, ctx):
     return f"attends {e['secondes']:g} secondes"
 
 
-def decrire(routine, ctx, notes=(), remplace=None):
-    """Reformulation écrite par le serveur à partir de la routine validée, pas par le LLM."""
+def _corps(routine, ctx):
+    """« quand tu dis A, je fais B » : ce que la routine déclenche et ce qu'elle fait."""
     d = routine["declencheurs"][0]
     dites = " ou ".join(f"« {p} »" for p in d["phrases"])
     if d["variantes"]:
         n = len(d["variantes"])
         dites += f" (et {n} variante{'s' if n > 1 else ''})"
     faits = ", puis ".join(_decrire_etape(e, ctx) for e in routine["etapes"])
+    sujet = "j'" if faits[:1].lower() in "aeiouhéèêàâîôû" else "je "
+    return f"quand tu dis {dites}, {sujet}{faits}"
+
+
+def decrire(routine, ctx, notes=(), remplace=None, fin=None):
+    """Reformulation écrite par le serveur à partir de la routine validée, pas par le LLM. Pour un remplacement,
+    elle dit ce qui change (« Avant : ... Après : ... Je remplace ? », note de conception 6.1). fin : phrase finale
+    imposée (la description d'une routine existante n'attend aucune confirmation)."""
     debut = " ".join(notes) + " " if notes else ""
-    remplace_txt = f"Je remplace la routine {remplace['nom']}. " if remplace else ""
-    fin = MSG_RESTE if notes else "Je l'enregistre ?"
-    return f"{debut}{remplace_txt}Routine {routine['nom']} : quand tu dis {dites}, je {faits}. {fin}".strip()
+    if remplace:
+        # La note « je la remplace » annonce déjà ce que dit Avant/Après : seule une autre note (variante ou étape
+        # retirée) fait demander « Le reste, je le garde ? ».
+        defaut = MSG_RESTE if [n for n in notes if not n.endswith("je la remplace.")] else "Je remplace ?"
+        corps = f"Routine {routine['nom']}. Avant : {_corps(remplace, ctx)}. Après : {_corps(routine, ctx)}."
+    else:
+        defaut = MSG_RESTE if notes else "Je l'enregistre ?"
+        corps = f"Routine {routine['nom']} : {_corps(routine, ctx)}."
+    return f"{debut}{corps} {defaut if fin is None else fin}".strip()
 
 
 # ---------------------------------------------------------------------------------------------- registre
@@ -521,6 +536,11 @@ class Registre:
                                 "le": time.monotonic()}
         self.absorption[cle] = time.monotonic() + reglage("delai_confirmation_s") + reglage("absorption_s")
 
+    def poser_suppression(self, ctx, routine):
+        """Demande de suppression en attente du « oui » (6.1) : même brouillon, même délai, même absorption."""
+        self.poser_brouillon(ctx, routine, None)
+        self.brouillons[ctx.appareil]["suppression"] = routine["id"]
+
     def abandonner(self, ctx, raison):
         b = self.brouillons.pop(ctx.appareil, None)
         if b:
@@ -534,24 +554,41 @@ class Registre:
         f = forme(texte)
         b = self.brouillons.get(cle)
         if b:
+            suppression = bool(b.get("suppression"))
             if time.monotonic() - b["le"] > reglage("delai_confirmation_s"):
                 self.abandonner(ctx, "expiré")
-                return MSG_EXPIRE if f in CONFIRMER | ABANDONNER else None
+                if f not in CONFIRMER | ABANDONNER:
+                    return None
+                return MSG_EXPIRE_SUPPRESSION if suppression else MSG_EXPIRE
             if b["personne"] != ctx.personne:
                 self.abandonner(ctx, "personne changée")
                 return None
             if f in CONFIRMER:
-                return self.enregistrer(ctx)
+                return self.confirmer_suppression(ctx) if suppression else self.enregistrer(ctx)
             if f in ABANDONNER:
                 self.abandonner(ctx, "refusé")
                 self.absorption.pop(cle, None)
-                return "D'accord, je n'enregistre rien."
+                return "D'accord, je ne supprime rien." if suppression else "D'accord, je n'enregistre rien."
             self.abandonner(ctx, "autre phrase")
             return None
         if f in CONFIRMER | ABANDONNER and time.monotonic() < self.absorption.get(cle, 0):
             self.absorption.pop(cle, None)
             return MSG_EXPIRE
         return None
+
+    def confirmer_suppression(self, ctx):
+        """Le « oui » d'une suppression : les droits sont revérifiés au moment de retirer (supprimer)."""
+        with self.verrou:
+            b = self.brouillons.pop(ctx.appareil, None)
+            if not b or not b.get("suppression"):
+                return MSG_EXPIRE_SUPPRESSION
+            r = self.par_id(b["suppression"])
+            if r is None:
+                return "Cette routine n'existe plus."
+            nom = r["nom"]
+            if not self.supprimer(r["id"], ctx):
+                return f"Je ne peux pas supprimer la routine {nom}."
+            return f"Routine {nom} supprimée."
 
     def enregistrer(self, ctx):
         with self.verrou:
@@ -805,3 +842,189 @@ def lancer(routine, ctx, ha, question=None, reg=None, maintenant=time.monotonic)
         reg.noter_execution(routine["id"], "ok" if not echecs else "partiel", echecs)
     journal("exécution", id=routine["id"], personne=ctx.personne, essai=ctx.essai, echecs=echecs)
     return parole, None
+
+
+# ------------------------------------------------------------------------------------ gestion à la voix
+# Note de conception 6.1 : un petit analyseur, sans LLM, reconnaît les commandes de gestion. Il ne s'applique qu'à une
+# phrase qui commence par un des verbes ci-dessous et qui contient « routine ». « change la routine Arrivée » n'est
+# pas ici : la modification passe par la création (proposer_routine avec remplace).
+VERBES_GESTION = {
+    # Les infinitifs servent après « peux-tu », que la normalisation retire sans toucher au verbe.
+    "decrire": ("que fait", "qu est ce que fait", "decris", "decris moi", "decrire", "explique", "explique moi",
+                "expliquer"),
+    "couper": ("coupe", "couper", "desactive", "desactiver", "suspends", "suspendre"),
+    "reactiver": ("reactive", "reactiver", "rallume", "rallumer", "remets", "remettre"),
+    "supprimer": ("supprime", "supprimer", "efface", "effacer", "oublie", "oublier", "retire", "retirer", "enleve",
+                  "enlever"),
+    "lancer": ("lance", "lancer", "execute", "executer", "declenche", "declencher", "demarre", "demarrer"),
+}
+ECRITURE = ("couper", "reactiver", "supprimer")
+_POLI = r"(?:(?:peux tu|tu peux|pourrais tu|est ce que tu peux|dis moi) )?"
+_VERBE_DE = {v: a for a, vs in VERBES_GESTION.items() for v in vs}
+_VERBES_RE = "|".join(sorted(_VERBE_DE, key=len, reverse=True))
+_MOTIF_UNE = re.compile(rf"^{_POLI}(?P<verbe>{_VERBES_RE}) (?:(?:la|ma|cette) )?routine(?: (?P<cible>.+))?$")
+_MOTIF_PLUSIEURS = re.compile(rf"^{_POLI}(?P<verbe>{_VERBES_RE}) (?:toutes? )?(?:mes|les) (?:toutes )?routines\b")
+_MOTIF_LISTE = re.compile(
+    rf"^{_POLI}(?:(?:quelles sont|liste|lis|montre|affiche|donne)(?: moi)? (?:toutes )?(?:mes|les) routines"
+    r"|quelles routines (?:j ai|ai je|existent|y a t il))\b")
+_DEBUT_CIBLE = re.compile(r"^(?:(?:qui s appelle|appelee|nommee|intitulee|de|d|du|la|le|ma|mon|cette) )+")
+MSG_GESTION_INCONNU = "Je ne sais pas qui parle, je ne touche pas aux routines. Mets-toi devant la tablette."
+MSG_GESTION_INVITE = "Les invités ne peuvent pas modifier les routines."
+
+
+def analyser(texte):
+    """(action, cible) si la phrase est une commande de gestion des routines, sinon None. action : lister, decrire,
+    couper, reactiver, supprimer, lancer, ou « plusieurs » (un verbe d'écriture sur toutes les routines). cible : texte
+    normalisé après le mot « routine », éventuellement vide."""
+    f = forme(texte)
+    if "routine" not in f:  # couvre aussi « routines »
+        return None
+    if _MOTIF_LISTE.match(f):
+        return "lister", ""
+    m = _MOTIF_UNE.match(f)
+    if m:
+        return _VERBE_DE[m["verbe"]], (m["cible"] or "").strip()
+    m = _MOTIF_PLUSIEURS.match(f)
+    if m and _VERBE_DE[m["verbe"]] in ECRITURE + ("lancer",):
+        return "plusieurs", ""
+    return None
+
+
+def _mots_inclus(cible, f):
+    mots = cible.split()
+    return bool(mots) and set(mots) <= set(f.split()) and any(len(m) >= 4 for m in mots)
+
+
+def _chercher(cible, candidates):
+    """Routines nommées par cette cible : par le nom ou par une phrase, à l'identique après normalisation, sinon
+    approchées (SEUIL_FLOU, ou tous les mots de la cible dans le nom)."""
+    bruts = [cible]
+    court = _DEBUT_CIBLE.sub("", cible)
+    if court and court != cible:
+        bruts.append(court)
+
+    def formes(r):
+        return {forme(r["nom"])} | _formes_routine(r)
+
+    exact = [r for r in candidates if any(c in formes(r) for c in bruts)]
+    if exact:
+        return exact
+    return [r for r in candidates if any(
+        (difflib_proche(c, f) and mots_compatibles(c, f)) or _mots_inclus(c, f) for c in bruts for f in formes(r))]
+
+
+def _noms(routines, n=5):
+    noms = [r["nom"] for r in routines[:n]]
+    return ", ".join(noms) + (f" et {len(routines) - n} autres" if len(routines) > n else "")
+
+
+def _elire(cible, candidates, ctx):
+    """(routine, None) ou (None, parole) : la cible désigne une seule routine, sinon la réponse dit pourquoi."""
+    if not candidates:
+        return None, "Tu n'as aucune routine."
+    if not cible:
+        return None, f"Laquelle ? Il y a {_noms(candidates)}."
+    trouvees = _chercher(cible, candidates)
+    if len(trouvees) > 1:
+        siennes = [r for r in trouvees if ctx.personne and r.get("auteur") == ctx.personne]
+        if len(siennes) == 1:
+            trouvees = siennes
+    if len(trouvees) == 1:
+        return trouvees[0], None
+    if trouvees:
+        return None, f"Plusieurs routines correspondent : {_noms(trouvees)}. Laquelle ?"
+    return None, f"Je ne trouve pas de routine « {cible} ». Il y a {_noms(candidates)}."
+
+
+def _lister(visibles, ctx):
+    if not visibles:
+        return "Tu n'as aucune routine."
+    morceaux = []
+    for r in visibles[:5]:
+        d = r["declencheurs"][0] if r["declencheurs"] else None
+        txt = r["nom"]
+        if r.get("auteur") and r.get("auteur") != ctx.personne:
+            txt += f" de {str(r['auteur']).capitalize()}"
+        if d and d["phrases"]:
+            txt += f" (« {d['phrases'][0]} »)"
+        if not r["actif"]:
+            txt += ", coupée"
+        morceaux.append(txt)
+    n = len(visibles)
+    debut = "Tu as une routine" if n == 1 else f"Tu as {n} routines"
+    reste = f" et {n - 5} autres, visibles à l'écran" if n > 5 else ""
+    return f"{debut} : {', '.join(morceaux)}{reste}."
+
+
+def revalider(routine, ctx_valide):
+    """Motif (dit à voix haute) pour lequel une étape n'est plus permise, ou None. 5.4 : toute réactivation reprend
+    la validation complète, comme à la création."""
+    for e in routine["etapes"]:
+        ok, motif = valider_etape(e, ctx_valide)
+        if not ok:
+            return motif
+    return None
+
+
+def _reponse(parole, action, lancer=None):
+    return {"parole": parole, "voie": f"routine ({action})", "actions": [], "lancer": lancer}
+
+
+def gerer(texte, ctx, reg, contexte_complet=None):
+    """Étape 2 de l'ordre de traitement (5.1). Renvoie None si la phrase n'est pas une commande de gestion, sinon
+    {parole, voie, actions, lancer} : lancer est la routine à exécuter par l'appelant (commande « lance la routine »).
+    contexte_complet : fonction sans argument qui fabrique le contexte avec inventaire (réactivation, description)."""
+    cmd = analyser(texte)
+    if cmd is None:
+        return None
+    action, cible = cmd
+    reg.assurer()
+    q = qui_est(ctx)
+    if action == "plusieurs":
+        return _reponse("Je gère les routines une par une, dis-moi laquelle.", action)
+    if action in ECRITURE and q in ("inconnu", "invite"):
+        return _reponse(MSG_GESTION_INCONNU if q == "inconnu" else MSG_GESTION_INVITE, action)
+    visibles = reg.visibles(ctx)
+    if action == "lister":
+        return _reponse(_lister(visibles, ctx), action)
+    candidates = [r for r in visibles if peut_lancer(r, ctx)] if action == "lancer" else visibles
+    r, parole = _elire(cible, candidates, ctx)
+    if r is None:
+        return _reponse(parole, action)
+    nom = r["nom"]
+    if action == "decrire":
+        c = contexte_complet() if contexte_complet else ctx
+        fin = ""
+        if not r["actif"]:
+            fin = "Elle est coupée" + (f" : {r['a_revoir']}" if r.get("a_revoir") else ".")
+        return _reponse(decrire(r, c, fin=fin), action)
+    if action == "lancer":
+        if not r["actif"]:
+            return _reponse(f"La routine {nom} est coupée.", action)
+        return _reponse("", action, lancer=r)
+    if not peut_gerer(r, ctx):
+        return _reponse(f"La routine {nom} n'est pas à toi, je n'y touche pas.", action)
+    if action == "couper":
+        if not r["actif"]:
+            return _reponse(f"La routine {nom} est déjà coupée.", action)
+        reg.activer(r["id"], False, ctx)
+        return _reponse(f"Routine {nom} coupée.", action)
+    if action == "reactiver":
+        if r["actif"]:
+            return _reponse(f"La routine {nom} est déjà active.", action)
+        if contexte_complet and r.get("auteur") == ctx.personne:
+            c = contexte_complet()
+            c.declencheurs = reg.formes_toutes()
+        else:  # la routine d'un autre : seules la liste blanche et les réglages se jugent sans son inventaire
+            c = Contexte(personne=r.get("auteur", ""), statique=True)
+        motif = revalider(r, c)
+        if motif:
+            with reg.verrou:
+                r["a_revoir"] = motif
+                reg.sauver()
+            journal("réactivation refusée", id=r["id"], personne=ctx.personne, motif=motif)
+            return _reponse(f"Je ne réactive pas la routine {nom} : {motif}", action)
+        reg.activer(r["id"], True, ctx)
+        return _reponse(f"Routine {nom} réactivée.", action)
+    reg.poser_suppression(ctx, r)  # supprimer : confirmation d'abord
+    return _reponse(f"Je supprime la routine {nom} ?", action)

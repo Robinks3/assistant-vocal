@@ -45,7 +45,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 | `serveur_satellite.py` | Serveur WebSocket des satellites, les deux profils | `Moteur` (ressources partagées, capacités, bascules), `Satellite` (machine à états d'une connexion), `Arbitre`, `Calibration`, `passerelle_ha`, `CanalWyoming`, `ReveilWyoming`, `transcrire_api`, `transcrire_ha`, `synthetiser_ha`, `servir` |
 | `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `controler_service`, `refus_schema`, `refus_launch_app`, `DOMAINES_INTERDITS` |
 | `liste_blanche.py` | La liste blanche commune des actions de la télé et des lampes (0.41.0), voir « Liste blanche commune » | `SERVICES_PERMIS`, `DOMAINES_HORS_LLM`, `DOMAINES_ADMIN`, `REGLAGES`, `refus_reglage` |
-| `routines.py` | Moteur de routines (0.42.0) : une phrase déclenche une suite d'étapes, voir « Routines » en partie 4. Autonome, il n'importe pas `assistant.py` | `reglage`, `DEFAUTS`, `Contexte`, `qui_est`, `droits`, `valider_etape(s)`, `valider_proposition`, `Registre` (`visibles`, `resume`, `activer`, `supprimer`, `exporter`), `lancer`, `FICHIER`, `JOURNAL` |
+| `routines.py` | Moteur de routines (0.42.0, gestion à la voix en 0.43.0 avec `analyser` et `gerer`) : une phrase déclenche une suite d'étapes, voir « Routines » en partie 4. Autonome, il n'importe pas `assistant.py` | `reglage`, `DEFAUTS`, `Contexte`, `qui_est`, `droits`, `valider_etape(s)`, `valider_proposition`, `Registre` (`visibles`, `resume`, `activer`, `supprimer`, `exporter`), `lancer`, `FICHIER`, `JOURNAL` |
 | `maison.py` | Lecture du dossier de configuration | `DOSSIER`, `CONFIG`, `reseau()`, `liste()`, `NOM_PROPRIETAIRE`, `CLE_PROPRIETAIRE` |
 | `vad.py` | Silero VAD v5 | `creer()`, `Vad.parole()` |
 | `vision.py` | Visages pour la tablette (YuNet, SFace) | `Vision.analyser`, `traiter_message`, `regard` |
@@ -171,7 +171,7 @@ et dans les options de l'appli Home Assistant.
 | Réveil | Serveur | `Satellite.recevoir_audio` puis `Satellite.bloc` : `Model.predict` d'openWakeWord sur chaque bloc, seuil `SEUIL_REVEIL`. `Arbitre.demander` choisit un seul appareil quand plusieurs ont entendu (fenêtre de 250 ms, échos ignorés 1,5 s). `commencer_ecoute` envoie `ecoute` et ignore le son 0,6 ou 0,9 s, le temps du son de début |
 | Fin de phrase | Serveur | Silero (`vad.creer`) : fin après 0,45 s de silence (0,8 s au seuil d'énergie), 6 s au plus pour commencer, 12 s au plus en tout, 320 ms gardées avant la parole |
 | Transcription | Serveur | `Satellite.terminer_phrase` envoie `reflexion`, puis `Moteur.traiter` appelle `Moteur.transcrire` : Canary (`Transcripteur.transcrire`), Wyoming (`transcrire_ha`) ou API (`transcrire_api`). Speech-to-Phrase vide se replie sur l'API si elle est configurée |
-| Routines | Serveur | `Assistant._traiter` appelle d'abord `routines_avant` (0.42.0) : brouillon en attente, « oui » ou « non » à la reformulation, phrase de déclenchement connue, ou demande de création (`INTENTION_ROUTINE`). Si une routine répond, la chaîne s'arrête là. Sinon la phrase continue vers le dictionnaire. Voir « Routines » en partie 4 |
+| Routines | Serveur | `Assistant._traiter` appelle d'abord `routines_avant` (0.42.0) : brouillon en attente, « oui » ou « non » à la reformulation, commande de gestion (0.43.0, avant la correction vocale), phrase de déclenchement connue, ou demande de création (`INTENTION_ROUTINE`). Si une routine répond, la chaîne s'arrête là. Sinon la phrase continue vers le dictionnaire. Voir « Routines » en partie 4 |
 | Dictionnaire | Serveur | `Assistant._traiter` : `epurer`, correction vocale d'une leçon récente ("non", "annule" dans les 30 s), `Dictionnaire.chercher`, puis `Personnes.appliquer` pour "ma chambre" selon la personne reconnue |
 | Contexte | Serveur | `Assistant.requete` ouvre le contexte de la requête (`REQUETE`, un `Requete` par commande, copié par `asyncio.to_thread`) : essai, personne, appareil, rôle, canal (`voix`, `texte`, `appli`, `web`). La personne et le rôle viennent de la session (jeton, `appareils.json`, `acces.personne_effective`), jamais du champ `personne` d'un message. Rien n'est écrit sur les objets partagés (`ha.personne` est en lecture seule) |
 | Sécurité | Serveur | `acces.controler_service`, point de contrôle unique de tout appel de service : domaines interdits, service permis (voie du LLM), forme des données, URL de `launch_app`, puis `securite.verifier` avec la personne du contexte |
@@ -445,13 +445,27 @@ Ordre de traitement d'une phrase dans `Assistant.routines_avant`, avant la corre
 
 1. Un brouillon en attente de confirmation : « oui » l'enregistre, « non » l'abandonne, un « oui » arrivé après
    `delai_confirmation_s` mais avant `absorption_s` est absorbé au lieu de partir au LLM.
-2. Une phrase de déclenchement connue : correspondance exacte sur la forme normalisée (`forme`, qui applique
+   Une demande de suppression est un brouillon comme un autre (clé `suppression`) : même délai, même absorption,
+   et seule la personne qui l'a demandée la confirme.
+2. Une commande de gestion (0.43.0, `routines.gerer`) : lister, décrire, couper, réactiver, supprimer ou lancer une
+   routine. Un analyseur sans LLM (`routines.analyser`) ne retient qu'une phrase qui commence par un des verbes de
+   `VERBES_GESTION` et qui contient « routine ». Elle passe AVANT la correction vocale, car « oublie la routine X »
+   est aussi une `CORRECTION`. La cible est cherchée par nom ou phrase (exacte, puis approchée), en préférant les
+   routines de la personne en cas de doublon. La réactivation revalide toutes les étapes (5.4), la suppression
+   demande « Je supprime la routine X ? » et garde une copie complète dans `journal/routines.jsonl`. « Toutes mes
+   routines » est refusé. Invités et personnes non reconnues ne modifient rien, les habitants ne gèrent que les
+   leurs (`peut_gerer`), le propriétaire gère toutes.
+3. Une phrase de déclenchement connue : correspondance exacte sur la forme normalisée (`forme`, qui applique
    `epurer` puis `normaliser`). Une phrase d'auteur dite par une personne non reconnue est refusée avec un
    motif explicite.
-3. Une demande de création ou de modification (`INTENTION_ROUTINE`, « quand je dis X, fais Y », « crée une
+4. Une demande de création ou de modification (`INTENTION_ROUTINE`, « quand je dis X, fais Y », « crée une
    routine ») : le cerveau la traduit en proposition JSON, `valider_proposition` la contrôle, le serveur la
-   reformule à voix haute et attend un « oui ».
-4. Sinon `None` : la phrase suit la chaîne ordinaire.
+   reformule à voix haute et attend un « oui ». Une modification passe par `remplace` et la reformulation dit
+   « Avant : ... Après : ... Je remplace ? ».
+5. Sinon `None` : la phrase suit la chaîne ordinaire.
+
+Le retour « mauvais » du propriétaire sur une commande dont `compris_par` commence par « routine » est noté dans
+`journal/retours.jsonl` et dans le journal des routines sans rien changer (`Moteur.noter_retour`).
 
 Ce qui garde une routine à l'intérieur des limites d'une commande directe.
 

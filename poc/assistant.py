@@ -59,7 +59,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.42.0"
+VERSION = "0.43.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -1742,7 +1742,7 @@ class Assistant:
     def routines_avant(self, texte):
         """Étapes 1 à 5 de l'ordre de traitement des routines (note de conception 5.1), appelées par _traiter et par
         le message llm de la tablette : brouillon en attente et « oui » qui suit, demande de création, déclencheur.
-        La gestion à la voix (étape 2) viendra avec S-R2. Renvoie None (la chaîne ordinaire continue) ou un dict
+        commandes de gestion (lister, décrire, couper, réactiver, supprimer, lancer). Renvoie None (la chaîne ordinaire continue) ou un dict
         {parole, voie, actions, confirmation}. Le texte est déjà passé par epurer."""
         try:
             return self._routines_avant(texte)
@@ -1763,6 +1763,14 @@ class Assistant:
         parole = reg.reponse_brouillon(texte, ctx)
         if parole is not None:
             return self._res_routine(parole, "routine (brouillon)")
+        # Gestion à la voix (étape 2) : avant la correction, car « oublie la routine Arrivée » est aussi une CORRECTION
+        gestion = routines.gerer(texte, ctx, reg, contexte_complet=lambda: self.contexte_routines(complet=True))
+        if gestion is not None:
+            if gestion["lancer"] is not None:
+                routine = gestion["lancer"]
+                parole = self.lancer_routine(routine)
+                return self._res_routine(parole, f"routine ({routine['nom']})", [f"routine {routine['nom']}"])
+            return self._res_routine(gestion["parole"], gestion["voie"], gestion["actions"])
         appareil = Cerveau.cle_conversation()[1]
         lecon = (getattr(self, "lecons", None) or {}).get(appareil)
         if lecon and CORRECTION.search(texte) and time.time() - lecon[1] < DELAI_CORRECTION:
