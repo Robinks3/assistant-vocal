@@ -4,6 +4,29 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.43.0 (2026-10-26), routines, lot 2 : gestion à la voix
+Session S-R2 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.43.0.
+- Commandes de gestion sans LLM, par un petit analyseur de `poc/routines.py` (`analyser`, `gerer`) : « quelles sont
+  mes routines », « que fait la routine X », « coupe la routine X », « réactive la routine X », « supprime la routine
+  X », « lance la routine X ». La cible se cherche par le nom ou par une phrase, à l'identique puis approchée. Deux
+  candidates ou aucune : la réponse le dit et cite les noms. Un verbe d'écriture sur « toutes mes routines » est refusé.
+- Ordre de traitement : ces commandes passent après le brouillon et avant la correction vocale, donc « oublie la
+  routine Arrivée » supprime la routine et non la dernière leçon apprise.
+- Suppression : confirmation obligatoire (« Je supprime la routine X ? »), mêmes délai et absorption que la création.
+  La copie complète de la routine reste dans `journal/routines.jsonl`.
+- Réactivation : revalidation complète des étapes (inventaire de la personne, liste blanche, réglages). Une étape
+  devenue refusée garde la routine coupée, avec le motif dans `a_revoir`.
+- Modification : elle passe par la création (`remplace`). La reformulation dit maintenant ce qui change
+  (« Avant : ... Après : ... Je remplace ? »), et élide « j'allume », « j'éteins ».
+- Droits inchangés : le propriétaire gère tout, un habitant les siennes, un invité et une personne non reconnue
+  listent, décrivent et lancent les routines « pour tous » sans rien modifier.
+- Retour « mauvais » sur une commande de catégorie routine : noté dans les retours et dans `routines.jsonl`, sans
+  oublier de phrase apprise.
+- Les verbes de gestion existent aussi à l'infinitif (« peux-tu supprimer la routine X »). La note « je la remplace »
+  n'impose plus « Le reste, je le garde ? » quand elle est seule : la question est « Je remplace ? ».
+- Tests : `test_routines.py` complété de 65 tests (une phrase par commande, refus de droits, ordre de traitement,
+  suppression confirmée, réactivation revalidée). Suite complète : 1503 réussis, 8 ignorés.
+
 ## Serveur 0.42.0 (2026-10-26), moteur de routines, lot 1
 Session S-R1 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.42.0.
 - Nouveau module `poc/routines.py` : une phrase de déclenchement lance une suite d'étapes (service Home Assistant,

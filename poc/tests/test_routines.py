@@ -1139,3 +1139,386 @@ def test_categorie_routine_du_journal():
     assert S.entree_historique(refus, {})["compris_par"] == "routine"
     creation = dict(ligne, voie="routine (création)")
     assert S.entree_historique(creation, {})["compris_par"] == "routine"
+
+
+# ------------------------------------------------------------------------------- gestion à la voix (0.43.0, S-R2)
+def voix(texte, personne="sacha", role="administrateur", **kw):
+    """Une commande de gestion passée au moteur, comme le fait l'assistant (contexte léger, complet à la demande)."""
+    c = ctx(personne, role)
+    return R.gerer(texte, c, R.registre(), contexte_complet=lambda: ctx(personne, role, **kw))
+
+
+def deux_routines():
+    """Bonne nuit (Sacha, phrase « je vais dormir maintenant ») et Arrivée (Sacha, phrase « je suis rentré »)."""
+    enregistrer()
+    enregistrer(proposition(nom="Arrivée", phrases=["je suis rentré"],
+                            etapes=[dict(LUMIERE, service="turn_on", entity_id=["light.couloir_plafond"])]))
+
+
+# La section 6.1 de la note : une phrase par commande, toutes reconnues par l'analyseur sans LLM.
+@pytest.mark.parametrize("phrase,attendu", [
+    ("quelles sont mes routines", ("lister", "")),
+    ("liste mes routines", ("lister", "")),
+    ("montre-moi mes routines", ("lister", "")),
+    ("quelles routines j'ai", ("lister", "")),
+    ("que fait la routine Arrivée", ("decrire", "arrivee")),
+    ("décris la routine Arrivée", ("decrire", "arrivee")),
+    ("explique-moi la routine Arrivée", ("decrire", "arrivee")),
+    ("coupe la routine Arrivée", ("couper", "arrivee")),
+    ("désactive la routine Arrivée", ("couper", "arrivee")),
+    ("réactive la routine Arrivée", ("reactiver", "arrivee")),
+    ("rallume la routine Arrivée", ("reactiver", "arrivee")),
+    ("supprime la routine Arrivée", ("supprimer", "arrivee")),
+    ("efface la routine Arrivée", ("supprimer", "arrivee")),
+    ("oublie la routine Arrivée", ("supprimer", "arrivee")),
+    ("peux-tu supprimer la routine Arrivée", ("supprimer", "arrivee")),
+    ("lance la routine Arrivée", ("lancer", "arrivee")),
+    ("exécute la routine qui s'appelle Arrivée", ("lancer", "qui s appelle arrivee")),
+    ("supprime toutes mes routines", ("plusieurs", "")),
+    ("coupe toutes les routines", ("plusieurs", "")),
+    ("supprime la routine", ("supprimer", "")),
+])
+def test_analyseur_reconnait_chaque_commande(phrase, attendu):
+    assert R.analyser(phrase) == attendu
+
+
+@pytest.mark.parametrize("phrase", [
+    "allume la lumière du salon", "quand je te dis dodo éteins le salon", "change la routine Arrivée",
+    "crée une routine pour le soir", "la routine du matin est super", "joue la routine", "oublie ça", "coupe la lumière",
+])
+def test_analyseur_laisse_passer_le_reste(phrase):
+    assert R.analyser(phrase) is None
+
+
+def test_lister_les_routines():
+    assert voix("quelles sont mes routines")["parole"] == "Tu n'as aucune routine."
+    deux_routines()
+    rep = voix("liste mes routines")
+    assert rep["voie"] == "routine (lister)" and rep["lancer"] is None and rep["actions"] == []
+    assert rep["parole"] == ("Tu as 2 routines : Bonne nuit (« je vais dormir maintenant »), "
+                             "Arrivée (« je suis rentré »).")
+
+
+def test_lister_dit_l_auteur_les_routines_coupees_et_plafonne():
+    enregistrer(personne="camille", role="habitant", pour="tous")
+    reg = R.registre()
+    reg.activer(reg.routines[0]["id"], False, ctx())
+    assert voix("quelles sont mes routines")["parole"] == (
+        "Tu as une routine : Bonne nuit de Camille (« je vais dormir maintenant »), coupée.")
+    MOTS = ["cinéma", "lecture", "dîner", "ménage", "réveil", "bricolage"]  # phrases très différentes : aucun remplacement
+    for i in range(6):
+        enregistrer(proposition(nom=f"Scène {i}", phrases=[MOTS[i] + " pour la soirée"]), pour="tous")
+    parole = voix("liste mes routines")["parole"]
+    assert parole.startswith("Tu as 7 routines") and parole.endswith("et 2 autres, visibles à l'écran.")
+
+
+def test_lister_une_habitante_ne_voit_que_ses_routines_et_les_partagees():
+    enregistrer(pour="auteur")
+    enregistrer(proposition(nom="Arrivée", phrases=["je suis rentré"]), pour="tous")
+    parole = voix("quelles sont mes routines", "camille", "habitant")["parole"]
+    assert "Arrivée" in parole and "Bonne nuit" not in parole
+
+
+def test_decrire_une_routine_par_son_nom_ou_sa_phrase():
+    deux_routines()
+    rep = voix("que fait la routine Arrivée")
+    assert rep["voie"] == "routine (decrire)" and rep["parole"].startswith("Routine Arrivée : quand tu dis « je suis rentré »")
+    assert "Je l'enregistre ?" not in rep["parole"] and "?" not in rep["parole"]
+    assert voix("décris la routine je vais dormir maintenant")["parole"].startswith("Routine Bonne nuit")
+
+
+def test_decrire_une_routine_coupee_le_dit():
+    ancienne = enregistrer()
+    R.registre().activer(ancienne["id"], False, ctx())
+    assert voix("décris la routine Bonne nuit")["parole"].endswith("Elle est coupée.")
+
+
+def test_couper_puis_reactiver():
+    ancienne = enregistrer()
+    assert voix("coupe la routine Bonne nuit")["parole"] == "Routine Bonne nuit coupée."
+    assert R.registre().par_id(ancienne["id"])["actif"] is False
+    assert voix("désactive la routine Bonne nuit")["parole"] == "La routine Bonne nuit est déjà coupée."
+    assert voix("réactive la routine Bonne nuit")["parole"] == "Routine Bonne nuit réactivée."
+    assert R.registre().par_id(ancienne["id"])["actif"] is True
+    assert voix("réactive la routine Bonne nuit")["parole"] == "La routine Bonne nuit est déjà active."
+
+
+def test_une_routine_coupee_ne_se_declenche_plus_mais_reste_dans_la_liste():
+    ancienne = enregistrer()
+    voix("coupe la routine Bonne nuit")
+    assert R.registre().trouver("je vais dormir maintenant", ctx())[0] is None
+    assert "coupée" in voix("liste mes routines")["parole"]
+    assert R.registre().par_id(ancienne["id"])
+
+
+def test_reactiver_revalide_les_etapes():
+    ancienne = enregistrer()
+    voix("coupe la routine Bonne nuit")
+    # Le fichier a été modifié à la main pendant que la routine dormait : une étape que la validation refuse.
+    reg = R.registre()
+    reg.par_id(ancienne["id"])["etapes"] = [{"etape": "service", "domaine": "lock", "service": "unlock",
+                                              "entity_id": ["lock.porte_entree"]}]
+    rep = voix("réactive la routine Bonne nuit")
+    assert rep["parole"].startswith("Je ne réactive pas la routine Bonne nuit : ")
+    r = reg.par_id(ancienne["id"])
+    assert r["actif"] is False and r["a_revoir"]
+    assert "réactivation refusée" in R.JOURNAL.read_text(encoding="utf-8")
+
+
+def test_reactiver_refuse_une_entite_disparue_de_l_inventaire():
+    ancienne = enregistrer()
+    voix("coupe la routine Bonne nuit")
+    rep = voix("réactive la routine Bonne nuit", entites={"light.inconnue"})
+    assert rep["parole"].startswith("Je ne réactive pas la routine Bonne nuit")
+    assert R.registre().par_id(ancienne["id"])["actif"] is False
+
+
+def test_supprimer_demande_confirmation_puis_oui():
+    ancienne = enregistrer()
+    rep = voix("supprime la routine Bonne nuit")
+    assert rep["parole"] == "Je supprime la routine Bonne nuit ?" and rep["voie"] == "routine (supprimer)"
+    assert R.registre().par_id(ancienne["id"])  # rien n'est encore effacé
+    assert R.registre().reponse_brouillon("oui", ctx()) == "Routine Bonne nuit supprimée."
+    assert R.registre().routines == []
+
+
+def test_supprimer_puis_non_garde_la_routine():
+    ancienne = enregistrer()
+    voix("efface la routine Bonne nuit")
+    assert R.registre().reponse_brouillon("non", ctx()) == "D'accord, je ne supprime rien."
+    assert R.registre().par_id(ancienne["id"])
+    assert R.registre().reponse_brouillon("oui", ctx()) is None  # le brouillon est parti avec le « non »
+
+
+def test_supprimer_une_confirmation_expiree_ne_supprime_rien(monkeypatch):
+    ancienne = enregistrer()
+    voix("supprime la routine Bonne nuit")
+    reg = R.registre()
+    appareil = ctx().appareil
+    reg.brouillons[appareil]["le"] -= R.reglage("delai_confirmation_s") + 1  # le délai est passé
+    assert reg.reponse_brouillon("oui", ctx()) == R.MSG_EXPIRE_SUPPRESSION
+    assert reg.par_id(ancienne["id"]) and appareil not in reg.brouillons
+
+
+def test_supprimer_garde_une_copie_complete_au_journal():
+    ancienne = enregistrer()
+    voix("supprime la routine Bonne nuit")
+    R.registre().reponse_brouillon("oui", ctx())
+    lignes = [json.loads(x) for x in R.JOURNAL.read_text(encoding="utf-8").splitlines()]
+    sup = [x for x in lignes if "suppression" in x.values()]
+    assert sup and sup[-1]["copie"]["id"] == ancienne["id"] and sup[-1]["copie"]["etapes"] == ancienne["etapes"]
+
+
+def test_une_autre_personne_ne_confirme_pas_la_suppression():
+    enregistrer()
+    voix("supprime la routine Bonne nuit")
+    assert R.registre().reponse_brouillon("oui", ctx("camille", "habitant")) is None
+    assert len(R.registre().routines) == 1
+
+
+def test_supprimer_sans_cible_demande_laquelle():
+    deux_routines()
+    rep = voix("supprime la routine")
+    assert rep["parole"] == "Laquelle ? Il y a Bonne nuit, Arrivée."
+    assert R.registre().brouillons == {}
+
+
+def test_cible_inconnue_ou_aucune_routine():
+    assert voix("supprime la routine Arrivée")["parole"] == "Tu n'as aucune routine."
+    deux_routines()
+    assert voix("supprime la routine Pizza")["parole"] == "Je ne trouve pas de routine « pizza ». Il y a Bonne nuit, Arrivée."
+
+
+def test_cible_approchee_faute_de_transcription():
+    deux_routines()
+    assert voix("coupe la routine arrivé")["parole"] == "Routine Arrivée coupée."
+    assert voix("décris la routine bonne nuits")["parole"].startswith("Routine Bonne nuit")
+
+
+def test_deux_routines_ambigues_et_preference_pour_les_siennes():
+    enregistrer(proposition(nom="Matin tôt", phrases=["debout là dedans"]), pour="tous")
+    enregistrer(proposition(nom="Matin tard", phrases=["encore un peu de repos"]), pour="tous")
+    rep = voix("coupe la routine matin")
+    assert rep["parole"] == "Plusieurs routines correspondent : Matin tôt, Matin tard. Laquelle ?"
+    assert all(r["actif"] for r in R.registre().routines)
+    # Même nom chez deux auteurs : Camille vise la sienne.
+    enregistrer(proposition(nom="Dodo", phrases=["dodo de sacha"]), pour="tous")
+    enregistrer(proposition(nom="Dodo", phrases=["dodo de camille"]), personne="camille", role="habitant", pour="tous")
+    assert voix("coupe la routine Dodo", "camille", "habitant")["parole"] == "Routine Dodo coupée."
+    dodos = {r["auteur"]: r["actif"] for r in R.registre().routines if r["nom"] == "Dodo"}
+    assert dodos == {"sacha": True, "camille": False}
+
+
+def test_toutes_mes_routines_est_refuse():
+    deux_routines()
+    for phrase in ("supprime toutes mes routines", "coupe toutes les routines", "efface mes routines"):
+        assert voix(phrase)["parole"] == "Je gère les routines une par une, dis-moi laquelle."
+    assert len(R.registre().routines) == 2 and R.registre().brouillons == {}
+
+
+def test_lancer_renvoie_la_routine_a_executer():
+    deux_routines()
+    rep = voix("lance la routine Arrivée")
+    assert rep["lancer"]["nom"] == "Arrivée" and rep["parole"] == ""
+    voix("coupe la routine Arrivée")
+    rep = voix("lance la routine Arrivée")
+    assert rep["lancer"] is None and rep["parole"] == "La routine Arrivée est coupée."
+
+
+# --- droits
+def test_une_habitante_ne_touche_pas_a_la_routine_d_un_autre():
+    ancienne = enregistrer(pour="tous")
+    for phrase in ("coupe la routine Bonne nuit", "réactive la routine Bonne nuit", "supprime la routine Bonne nuit"):
+        assert voix(phrase, "camille", "habitant")["parole"] == "La routine Bonne nuit n'est pas à toi, je n'y touche pas."
+    assert R.registre().par_id(ancienne["id"])["actif"] is True and R.registre().brouillons == {}
+    # Lecture et lancement restent permis sur une routine partagée.
+    assert voix("décris la routine Bonne nuit", "camille", "habitant")["parole"].startswith("Routine Bonne nuit")
+    assert voix("lance la routine Bonne nuit", "camille", "habitant")["lancer"]["id"] == ancienne["id"]
+
+
+def test_une_habitante_ne_voit_pas_la_routine_privee_d_un_autre():
+    enregistrer(pour="auteur")
+    assert voix("décris la routine Bonne nuit", "camille", "habitant")["parole"] == "Tu n'as aucune routine."
+    assert voix("lance la routine Bonne nuit", "camille", "habitant")["lancer"] is None
+
+
+def test_l_habitante_gere_les_siennes():
+    enregistrer(personne="camille", role="habitant")
+    assert voix("coupe la routine Bonne nuit", "camille", "habitant")["parole"] == "Routine Bonne nuit coupée."
+    assert voix("réactive la routine Bonne nuit", "camille", "habitant")["parole"] == "Routine Bonne nuit réactivée."
+    voix("supprime la routine Bonne nuit", "camille", "habitant")
+    assert R.registre().reponse_brouillon("oui", ctx("camille", "habitant")) == "Routine Bonne nuit supprimée."
+
+
+def test_le_proprietaire_gere_celles_des_autres():
+    enregistrer(personne="camille", role="habitant", pour="auteur")
+    assert voix("coupe la routine Bonne nuit")["parole"] == "Routine Bonne nuit coupée."
+    assert voix("réactive la routine Bonne nuit")["parole"] == "Routine Bonne nuit réactivée."
+
+
+@pytest.mark.parametrize("role,msg", [("invite", R.MSG_GESTION_INVITE), ("local", R.MSG_GESTION_INCONNU)])
+def test_invite_et_inconnu_ne_modifient_rien(role, msg):
+    ancienne = enregistrer(pour="tous")
+    for phrase in ("coupe la routine Bonne nuit", "réactive la routine Bonne nuit", "supprime la routine Bonne nuit"):
+        assert voix(phrase, "", role)["parole"] == msg
+    assert R.registre().par_id(ancienne["id"])["actif"] is True and R.registre().brouillons == {}
+
+
+def test_invite_lit_et_lance_seulement_ce_qui_est_partage():
+    enregistrer(pour="tous")
+    enregistrer(proposition(nom="Arrivée", phrases=["je suis rentré"]), pour="auteur")
+    parole = voix("quelles sont mes routines", "", "invite")["parole"]
+    assert "Bonne nuit" in parole and "Arrivée" not in parole
+
+
+# --- au niveau de l'assistant
+def test_assistant_suppression_a_la_voix_en_deux_temps(assistant):
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+        pre = assistant.routines_avant("supprime la routine Dodo")
+        assert pre["parole"] == "Je supprime la routine Dodo ?" and pre["voie"] == "routine (supprimer)"
+        assert pre["confirmation"] is True
+        fin = assistant.routines_avant("oui")
+        assert fin["parole"] == "Routine Dodo supprimée." and fin["confirmation"] is False
+        assert assistant.routines_avant("dodo profond") is None
+    assert R.registre().routines == []
+
+
+def test_assistant_oublie_la_routine_ne_confond_pas_avec_la_correction(assistant):
+    """« oublie » est aussi un mot de CORRECTION : juste après une leçon apprise, la routine passe d'abord."""
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+        assistant.lecons[A.Cerveau.cle_conversation()[1]] = ("allume le truc", __import__("time").time())
+        pre = assistant.routines_avant("oublie la routine Dodo")
+        assert pre["parole"] == "Je supprime la routine Dodo ?"
+        assistant.routines_avant("oui")
+    assert R.registre().routines == []
+    assert assistant.lecons  # la leçon n'a pas été touchée
+
+
+def test_assistant_un_oublie_ordinaire_reste_une_correction(assistant):
+    with requete(assistant):
+        assert assistant.routines_avant("oublie ça") is None
+
+
+def test_assistant_liste_decrit_coupe_reactive(assistant):
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+        assert assistant.routines_avant("quelles sont mes routines")["parole"] == (
+            "Tu as une routine : Dodo (« dodo profond »).")
+        assert assistant.routines_avant("que fait la routine Dodo")["parole"].startswith(
+            "Routine Dodo : quand tu dis « dodo profond »")
+        assert assistant.routines_avant("coupe la routine Dodo")["parole"] == "Routine Dodo coupée."
+        assert assistant.routines_avant("dodo profond") is None
+        assert assistant.routines_avant("réactive la routine Dodo")["parole"] == "Routine Dodo réactivée."
+        assert assistant.routines_avant("dodo profond")["parole"] == "Routine Dodo lancée."
+
+
+def test_assistant_lance_la_routine_par_son_nom(assistant):
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+        pre = assistant.routines_avant("lance la routine Dodo")
+        assert pre["parole"] == "Routine Dodo lancée." and pre["voie"] == "routine (Dodo)"
+        assert pre["actions"] == ["routine Dodo"]
+    assert [x[:3] for x in assistant.ha.appels] == [("light", "turn_off", ["light.salon_plafond"])]
+
+
+def test_assistant_gestion_refusee_a_un_invite_sans_appeler_le_llm(assistant):
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+    with requete(assistant, "", "invite", "appareil:invite"):
+        pre = assistant.routines_avant("supprime la routine Dodo")
+    assert pre["parole"] == R.MSG_GESTION_INVITE and len(R.registre().routines) == 1
+    assert len(assistant.appels_cerveau) == 1  # seulement la création de départ
+
+
+def test_assistant_modification_dit_avant_apres_et_remplace(assistant):
+    with requete(assistant):
+        assistant.routines_avant("quand je te dis dodo profond éteins le salon")
+        assistant.routines_avant("oui")
+        assistant.cerveau.proposition = proposition(
+            phrases=["dodo profond"], nom="Dodo", etapes=[dict(LUMIERE, entity_id=["light.couloir_plafond"])])
+        pre = assistant.routines_avant("quand je te dis dodo profond éteins le couloir")
+        assert "Avant : " in pre["parole"] and "Après : " in pre["parole"] and pre["parole"].endswith("Je remplace ?")
+        fin = assistant.routines_avant("oui")
+        assert fin["parole"] == "Routine Dodo enregistrée."
+    assert len(R.registre().routines) == 1
+    assert R.registre().routines[0]["etapes"][0]["entity_id"] == ["light.couloir_plafond"]
+
+
+def test_decrire_en_modification_montre_avant_et_apres():
+    ancienne = enregistrer()
+    res = R.valider_proposition(proposition(nom="Dodo", etapes=[dict(LUMIERE, entity_id=["light.couloir_plafond"])]),
+                                ctx(), R.registre())
+    parole = R.decrire(res["routine"], ctx(), remplace=R.registre().par_id(res["remplace"]))
+    assert res["remplace"] == ancienne["id"]
+    assert parole.startswith("Routine Dodo. Avant : ") and " Après : " in parole and parole.endswith("Je remplace ?")
+
+
+def test_decrire_elide_j_devant_une_voyelle():
+    r = enregistrer(proposition(nom="Allumage", phrases=["fais de la lumière"],
+                                etapes=[dict(LUMIERE, service="turn_on", entity_id=["light.couloir_plafond"])]))
+    assert "tu dis « fais de la lumière », j'allume" in R.decrire(r, ctx())
+
+
+# --- retour « mauvais » du propriétaire
+def test_retour_mauvais_sur_une_commande_de_routine_ne_change_rien(monkeypatch):
+    import serveur_satellite as S
+    ecrit = []
+    monkeypatch.setattr(A, "ajouter_jsonl", lambda chemin, ligne: ecrit.append(ligne))
+    oubliees = []
+    faux = SimpleNamespace(assistant=SimpleNamespace(dico=SimpleNamespace(oublier=lambda p: oubliees.append(p) or True)))
+    effet = S.Moteur.noter_retour(faux, {"verdict": "mauvais", "entendu": "supprime la routine dodo",
+                                         "compris_par": "routine (supprimer)"}, "tablette")
+    assert effet == "routine : noté, rien n'est changé" and oubliees == []
+    assert ecrit[0]["effet"] == effet and ecrit[0]["verdict"] == "mauvais"
+    assert "retour mauvais" in R.JOURNAL.read_text(encoding="utf-8")
+    # Une phrase ordinaire apprise reste oubliée comme avant.
+    effet = S.Moteur.noter_retour(faux, {"verdict": "mauvais", "entendu": "allume le truc",
+                                         "compris_par": "dictionnaire"}, "tablette")
+    assert effet.startswith("phrase apprise") and oubliees
