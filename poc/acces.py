@@ -1,5 +1,5 @@
-"""Accès des téléphones au serveur de l'assistant (v0.17.0), idées reprises du protocole des satellites de
-assistant (auteurs inspiration), réécrites ici.
+"""Accès des téléphones au serveur de l'assistant (v0.17.0), idées reprises du protocole des satellites d'un
+projet d'inspiration, réécrites ici.
 
 - Le jeton voyage dans l'en-tête « Authorization: Bearer », plus dans l'adresse (qui finit dans les
   journaux). L'ancienne forme « ?jeton= » reste acceptée sur le port en clair tant que

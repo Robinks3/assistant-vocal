@@ -1,6 +1,6 @@
 """Analyse d'image déportée sur le PC pour la tablette (v0.18.0) : visages, regard, empreinte.
 
-Idée reprise d'un projet d'inspiration (auteurs inspiration, perception/vision.py), réécrite ici. Mêmes modèles
+Idée reprise d'un projet d'inspiration, réécrite ici. Mêmes modèles
 publiés par OpenCV : YuNet pour trouver les visages (licence MIT) et SFace pour en tirer une
 empreinte de 128 nombres (Apache 2.0), dans poc/modeles/vision/.
 

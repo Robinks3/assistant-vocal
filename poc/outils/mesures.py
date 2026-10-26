@@ -1,6 +1,6 @@
 """Médiane et 95e centile des latences par voie et par étape, lus dans journal/latences.csv.
 
-Idée reprise d'un projet d'inspiration (scripts/mesures.ts) : suivre la latence ressentie par étape plutôt que
+Idée reprise d'un projet d'inspiration : suivre la latence ressentie par étape plutôt que
 d'en juger à l'oreille. Les commandes en essai comptent aussi (elles mesurent le même chemin).
 Usage : python poc/outils/mesures.py [--depuis 0.17.0] [--fichier chemin/latences.csv]"""
 import argparse, csv, sys

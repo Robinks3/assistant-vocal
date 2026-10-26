@@ -12,7 +12,7 @@ load_dotenv(A.ICI / ".env")
 from piper import PiperVoice
 
 voix = PiperVoice.load(str(A.ICI / "voix" / "fr_FR-siwis-medium.onnx"))
-voix_en = PiperVoice.load(str(A.ICI / "voix" / "en_US-lessac-medium.onnx"))  # « assistant » à l anglaise
+voix_en = PiperVoice.load(str(A.ICI / "voix" / "en_US-lessac-medium.onnx"))  # le mot de réveil à l'anglaise
 def pcm16k(texte, v=None):
     v = v or voix
     x = np.frombuffer(b"".join(c.audio_int16_bytes for c in v.synthesize(texte)), np.int16).astype(np.float32)

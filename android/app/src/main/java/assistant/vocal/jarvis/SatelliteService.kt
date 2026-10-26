@@ -90,10 +90,10 @@ class SatelliteService : Service() {
         const val SEUIL_REVEIL_DEFAUT = 0.4f
         /** Mot de réveil guetté sur l'appareil : ReveilLocal.HEY_JARVIS (par défaut) ou ReveilLocal.PERSO. */
         const val CLE_MOT_REVEIL = "mot_reveil"
-        /** Le mot de réveil de la configuration a son propre seuil, 0,5 par défaut comme dans le projet assistant (auteurs inspiration). */
+        /** Le mot de réveil de la configuration a son propre seuil, 0,5 par défaut. */
         private const val CLE_SEUIL_PERSO = "seuil_reveil_perso"
-        /** Clé de ce seuil jusqu'à la 0.30.x, recopiée une fois sous CLE_SEUIL_PERSO. */
-        private const val CLE_SEUIL_ANCIENNE = "seuil_reveil_assistant"
+        /** Préfixe des clés de ce seuil jusqu'à la 0.30.x (un seul mot de réveil personnalisé, nommé dans la clé). */
+        private const val PREFIXE_SEUIL_ANCIEN = "seuil_reveil_"
         private const val SEUIL_PERSO_DEFAUT = 0.5f
         /** Adresses ws://...:8765 converties une fois en wss://...:8766 (0.15.0). */
         private const val CLE_MIGRATION_WSS = "migration_wss"
@@ -131,8 +131,11 @@ class SatelliteService : Service() {
                 p.edit().putString(CLE_URL_PC, p.getString(CLE_URL, null)).remove(CLE_URL).apply()
             }
             // Migration : le seuil du mot de réveil de la configuration change de clé.
-            if (!p.contains(CLE_SEUIL_PERSO) && p.contains(CLE_SEUIL_ANCIENNE)) {
-                p.edit().putFloat(CLE_SEUIL_PERSO, p.getFloat(CLE_SEUIL_ANCIENNE, SEUIL_PERSO_DEFAUT)).remove(CLE_SEUIL_ANCIENNE).apply()
+            if (!p.contains(CLE_SEUIL_PERSO)) {
+                val ancienne = p.all.keys.firstOrNull { it.startsWith(PREFIXE_SEUIL_ANCIEN) }
+                if (ancienne != null) {
+                    p.edit().putFloat(CLE_SEUIL_PERSO, p.getFloat(ancienne, SEUIL_PERSO_DEFAUT)).remove(ancienne).apply()
+                }
             }
             // Migration 0.15.0 : une adresse en clair sur 8765 passe sur le port chiffré. Une seule
             // fois, pour qu'une adresse ws:// saisie exprès ensuite soit respectée.
