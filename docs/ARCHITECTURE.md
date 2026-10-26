@@ -226,6 +226,50 @@ Par addition, une commande du dictionnaire sur le serveur du PC répond environ 
 parole, et une commande qui passe par Claude 3 à 4 s. Ce sont des estimations, pas des mesures de bout en bout.
 Le journal `latences.csv` donne les vraies valeurs de chaque commande (`stt_s`, `cerveau_s`, `tts_s`).
 
+### Reconnaissance de la voix sur le PC, mesures du 26/10/2026
+
+Session S-D8 (dette T). Le moteur d'un serveur de profil `pc` est `stt_actif = "pc"` à l'initialisation de `Moteur`
+(`ha_stp` en profil `ha`). L'appli peut le changer parmi `capacites()["transcription"]` (`pc`, `ha_stp`, `ha_whisper`,
+`api` si une clé est réglée) par le message `transcription`, et `Moteur.transcrire` replie sur Canary quand Home
+Assistant échoue. Le réglage passe par `stt_actif`, il n'existe aucune variable `STT_LOCAL`.
+
+Méthode : `poc/outils/mesure_stt_locale.py`, hors ligne, sans serveur ni micro. 20 phrases de commande de la maison
+(1,8 s en moyenne), dites par Piper (une seule voix, propre), transcrites en voix propre puis avec un bruit blanc à
+15 dB de rapport signal sur bruit. Chaque phrase est transcrite 5 fois après une passe de chauffe, la latence est la
+médiane des phrases. Le taux d'erreur de mots (WER) compare les mots sans accents ni ponctuation et accepte un nombre
+écrit en chiffres ou en lettres. Machine : processeur à 8 cœurs (processeur de bureau), Windows 11, onnxruntime 1.31.0
+(CPU), onnx-asr 0.12.0, faster-whisper 1.2.1 (int8, 8 fils), pendant que le serveur du PC tournait au repos.
+
+| Moteur (processeur du PC) | Chargement | Latence médiane | Pire phrase | WER voix propre | WER avec bruit |
+|---|---|---|---|---|---|
+| Canary 1B v2 int8 (profil `pc` actuel) | 2 à 2,5 s | 0,32 à 0,49 s | 0,76 s | 5,7 % | 8,2 à 11,5 % |
+| Canary 1B v2 fp32 | 5 s | 0,74 s | 1,11 s | 5,7 % | 8,2 % |
+| Parakeet TDT v3 int8 | 2,5 s | 0,14 à 0,16 s | 0,25 s | 4,1 à 4,9 % | 6,5 à 8,9 % |
+| Whisper small int8 | 1,2 s | 0,95 s | 2,05 s | 4,1 % | 18,3 % |
+| Whisper medium int8 | 2,1 s | 2,7 s | 5,1 s | 2,5 % | 4,1 % |
+| Whisper large-v3 turbo int8 | 2,1 s | 3,6 s | 4,4 s | 1,6 % | 4,1 % |
+
+Les fourchettes viennent de trois passes complètes de Canary int8 et deux de Parakeet. Sur 20 phrases, un écart de
+3 points de WER vaut un à deux mots et change d'une passe à l'autre, car la sortie de l'int8 varie un peu avec les
+fils de calcul. Seuls les écarts de latence sont solides.
+
+Lecture. Canary int8 et Parakeet int8 ont la même justesse à la précision de la mesure, Parakeet va 2 à 3 fois plus
+vite (0,15 s contre 0,35 s, soit 0,2 s gagnée sur une commande de 1 à 4 s). Les erreurs des deux sont surtout des
+homophones d'impératifs (« éteint » pour « éteins », « mais » pour « mets »), que le dictionnaire absorbe, et des
+phrases très courtes dans le bruit (« bonne nuit »). Les Whisper les plus justes sont trop lents pour une commande
+vocale (2,7 à 3,6 s avant même de répondre), Whisper small est rapide mais décroche dans le bruit. Canary fp32 coûte
+le double sans rien gagner.
+
+Décision : le moteur du profil PC reste Canary int8. Le gain de Parakeet (0,2 s) ne justifie pas de rouvrir son
+écartement du 11/10, où il a deviné la langue et rendu « I mean. » pour une commande française. Une voix de synthèse
+unique ne peut pas rejouer ce défaut, et il faudrait des phrases réelles pour trancher. À reprendre si ce gain
+devient utile.
+
+Non mesurés ici : `ha_stp` et `ha_whisper` (demandent Home Assistant et le SSH de la passerelle, voir les chiffres
+du 12/10 plus haut : 0,7 à 1,5 s pour Speech-to-Phrase, environ 90 s pour Whisper) et `api` (réseau et clé de
+service en ligne, la voix quitte la maison). `essai_transcription.py` n'a pas servi : il envoie l'audio au serveur
+en marche, ce que la session s'interdisait.
+
 ## 3. Le protocole entre les satellites et le serveur
 
 ### Connexion
