@@ -41,7 +41,8 @@ La tablette est un écran OLED allumé en permanence : c'est le cas le plus expo
 
 Socle visuel du client web (PWA servie par le serveur Python). Les planches de référence sont dans
 `docs/maquettes/client-web/` (ouvrir `index.html`) : Accueil, trois écrans d'appairage, Réglages,
-révocation d'un appareil, et `composants.html` qui montre chaque jeton et chaque état. Le CSS commun
+révocation d'un appareil, Journal (jour, soir, feuille de détail), Demander, Vie privée, et `composants.html`
+qui montre chaque jeton et chaque état. Le CSS commun
 est répété tel quel dans chaque planche, la session de code le reprend dans un fichier unique.
 Ces règles prolongent celles de l'appli Android sans les recopier : même famille de couleurs, même
 typographie, même façon de donner du volume.
@@ -150,6 +151,15 @@ Le nom donné est celui de la classe dans les maquettes.
 | `.orbe`, `.sphere` | état de l'assistant, lampe |
 | `.onglets`, `.onglet` (`--orbe`) | barre du bas : Accueil, Journal, Demander (orbe), Maison, Météo |
 | `.voile`, `.feuille` | feuille modale basse |
+| `.entree`, `.entree-pied` | entrée du journal : bouton de détail, pastille de résultat en mot, lien Ce n'était pas ça hors du bouton et seulement sur ses propres demandes |
+| `.filtres`, `.filtre` | filtres du journal en boutons à état (`aria-pressed`), Tout par défaut |
+| `.demande-en-cours`, `.pas` | demande en direct et ses étapes (fait, actuel, attente), chaque étape par une forme et un texte caché |
+| `.feuille--haute`, `.fiche` | feuille de détail défilante et liste de définitions (heure, appareil, phrase, action, réponse) |
+| `.orbe--l`, `.orbe-voix` | orbe de dictée à l'écoute, anneaux animés seulement hors `prefers-reduced-motion` |
+| `.niveau-micro`, `.transcription` | niveau du micro et transcription en direct, partie provisoire en retrait |
+| `.saisie`, `.bascule` | champ écrit avec envoi et option Essai, sans agir |
+| `.reponse-iris` | réponse écrite de l'assistant et actions faites |
+| `.roles` (niveau de vie privée), `.apercu` | sélecteur Tout, Action seulement, Discret en boutons radio réels, et aperçu en pointillé de ce que verrait un autre habitant |
 
 La barre d'onglets est absente des écrans d'appairage et de la feuille de révocation. Réglages la
 garde, sans onglet courant.
