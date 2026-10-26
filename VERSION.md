@@ -4,6 +4,14 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.44.2 (2026-10-26), repli Assist coupé par défaut
+Correctif. Session S-D9 du plan (décision D8, dette I9). Appli Home Assistant 0.44.2, appli Android inchangée.
+- Le repli vers Assist de Home Assistant est coupé par défaut. Le réglage `securite.assist_repli` (booléen `true`
+  seulement) l'ouvre, uniquement après un échec du LLM et jamais en mode essai.
+- Même ouvert, le repli refuse toute phrase que la sécurité écarte ou ne sait pas contrôler d'avance (serrures,
+  alarmes, cuisson, chauffage, visée en bloc, volume plafonné, occupant protégé), avec le motif au journal
+  (`[repli Assist]`). `SECURITE_ACTIVE` et les règles de `verifier()` ne changent pas.
+
 ## Serveur 0.44.1 (2026-10-26), notes du LLM à l'export
 Correctif. Session S-D7 du plan (constat C6). Appli Android 0.43.1, appli Home Assistant 0.44.1.
 - L'export du dictionnaire pour l'appli porte `llm.notes` tel quel, couvert par de nouveaux tests (notes
