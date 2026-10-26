@@ -144,4 +144,79 @@ class DictionnaireTest {
             JSONObject("""{$apprisVide,"formes":[["phrase ancienne",0]]}"""))
         assertNull(ancien.chercher("phrase ancienne"))
     }
+
+    /** Valeur comparée en texte, comme poc/tests/test_commandes_dynamiques.py : 2200 = "2200", true = "true", listes et objets à plat. */
+    private fun texte(v: Any?): String = when (v) {
+        null, JSONObject.NULL -> "None"
+        is Boolean -> if (v) "true" else "false"
+        is JSONObject -> "{" + v.keys().asSequence().sorted().joinToString(",") { "$it=${texte(v.opt(it))}" } + "}"
+        is org.json.JSONArray -> "[" + (0 until v.length()).joinToString(",") { texte(v.get(it)) } + "]"
+        else -> v.toString()
+    }
+
+    /**
+     * Lampes et télévision à la voix (S-L4, 0.41.0) : mêmes phrases et mêmes pièges (rose, orange, monte, chaud) que
+     * test_phrase de test_commandes_dynamiques.py (poc/tests/cas_commandes_lampes_tele.json).
+     */
+    @Test
+    fun phrasesDesLampesEtDeLaTele() {
+        val cas = JSONObject(fichier("poc/tests/cas_commandes_lampes_tele.json").readText(Charsets.UTF_8)).getJSONArray("cas")
+        assertTrue("aucun cas lu", cas.length() > 0)
+        val echecs = ArrayList<String>()
+        for (i in 0 until cas.length()) {
+            val c = cas.getJSONObject(i)
+            val note = c.getString("note")
+            val trouve = dico.chercher(c.getString("phrase"))
+            if (c.optBoolean("absent")) {
+                if (trouve != null) echecs.add("$note : « ${c.getString("phrase")} » ne doit rien déclencher, trouvé ${trouve.forme.source} ligne ${trouve.forme.ligne}")
+                continue
+            }
+            if (trouve == null) {
+                echecs.add("$note : phrase absente du dictionnaire")
+                continue
+            }
+            val obtenues = trouve.forme.actions
+            val attendues = c.getJSONArray("actions")
+            if (obtenues.length() != attendues.length()) {
+                echecs.add("$note : ${obtenues.length()} actions au lieu de ${attendues.length()}")
+                continue
+            }
+            for (k in 0 until attendues.length()) {
+                val voulue = attendues.getJSONObject(k)
+                val obtenue = obtenues.getJSONObject(k)
+                for (cle in voulue.keys()) {
+                    if (texte(obtenue.opt(cle)) != texte(voulue.opt(cle))) {
+                        echecs.add("$note : $cle = ${texte(obtenue.opt(cle))} au lieu de ${texte(voulue.opt(cle))}")
+                    }
+                }
+            }
+        }
+        assertEquals("cas en écart avec dictionnaire.py :\n" + echecs.joinToString("\n"), 0, echecs.size)
+    }
+
+    /** Ce que la voix envoie est ce que le volet de la lampe affiche : mêmes teintes et mêmes blancs que ReglageLampe. */
+    @Test
+    fun couleursEtBlancsNommesSontCeuxDuVolet() {
+        for (t in ReglageLampe.TEINTES) {
+            val a = dico.chercher("mets le salon en ${t.nom.lowercase()}")!!.forme.actions.getJSONObject(0)
+            assertEquals(t.nom, "[${t.degres},100]", texte(a.opt("hs_color")))
+        }
+        val voix = mapOf("Bougie" to "bougie", "Chaud" to "chaud", "Neutre" to "blanc neutre", "Froid" to "blanc froid")
+        for (b in ReglageLampe.BLANCS) {
+            val a = dico.chercher("mets le salon en ${voix.getValue(b.nom)}")!!.forme.actions.getJSONObject(0)
+            assertEquals(b.nom, b.kelvin.toString(), texte(a.opt("color_temp_kelvin")))
+        }
+    }
+
+    @Test
+    fun lesEtatsDuDictionnaireSontDesTextes() {
+        // Garde-fou du piège YAML 1.1 (on non cité devenu booléen) : aucune liste `etats` de l'export n'a de booléen.
+        for (phrase in listOf("monte", "baisse", "reprends", "pause")) {
+            val actions = dico.chercher(phrase)!!.forme.actions
+            for (i in 0 until actions.length()) {
+                val etats = actions.getJSONObject(i).optJSONArray("etats") ?: continue
+                for (k in 0 until etats.length()) assertTrue("$phrase : ${etats.get(k)}", etats.get(k) is String)
+            }
+        }
+    }
 }

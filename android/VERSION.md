@@ -6,6 +6,18 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.41.0 (2026-10-26), lampes et télévision à la voix sur la tablette
+Nouveauté (versionCode 78). Session S-L4 du plan, pendant du serveur 0.44.0.
+- Nouvel objet `CommandesDynamiques.kt`, même logique que `poc/commandes_dynamiques.py` : `selon_etat` et `kelvin_pas`.
+  `MoteurLocal.comprendre` lit l'état des entités concernées par la passerelle (`GET /api/states/<entité>`, seulement
+  hors mode essai), résout les actions après le choix de la personne et avant `Securite.verifier`, qui voit donc des
+  actions ordinaires. Une action dynamique qui ne laisse rien à faire dit sa réponse (« Il n'y a rien à reprendre. »).
+- Le dictionnaire exporté (`genere/android/dictionnaire.json`) porte les nouvelles phrases : couleur, blanc nommé,
+  luminosité, « plus chaud », télévision.
+- Tests : `CommandesDynamiquesTest` (cas de `cas_dynamique.json`) et, dans `DictionnaireTest`, les phrases de
+  `cas_commandes_lampes_tele.json` avec leurs pièges (rose, orange, monte, chaud), les teintes et blancs alignés sur
+  `ReglageLampe`, et les listes `etats` sans booléen.
+
 ## 0.40.1 (2026-10-26), correctif : l'appli 0.40.0 plantait au démarrage
 Correctif (versionCode 77). Le motif `INTENTION_ROUTINE` de `RoutinesLocal.kt` portait le drapeau `(?U)`, accepté
 par la JVM des tests mais refusé par Android (ICU, PatternSyntaxException) : le moteur local ne se construisait

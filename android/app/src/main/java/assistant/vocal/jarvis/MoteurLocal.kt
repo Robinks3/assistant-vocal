@@ -674,8 +674,12 @@ class MoteurLocal(
             // « Ma chambre » selon la personne qui parle (section personnes de commandes.yaml, 21/10/2026).
             val brutes = (0 until f.actions.length()).map { f.actions.getJSONObject(it) }
             val pourQui = d.personnes.appliquer(brutes, f.cle, personne)
-            val actions = pourQui.actions
+            // Actions dynamiques (S-L4, 0.41.0) : résolues d'après l'état des appareils, avant le contrôle de sécurité,
+            // qui voit donc des actions ordinaires.
+            val dynamiques = resoudreDynamiques(pourQui.actions)
+            val actions = dynamiques.actions
             if (pourQui.reponse != null) reponse = pourQui.reponse
+            if (dynamiques.vide != null && pourQui.refus == null) reponse = dynamiques.vide
             if (d.personnes.personnelle(brutes, f.cle)) {
                 val qui = if (personne.isEmpty()) "qui parle n'est pas établi, chambre par défaut" else "dit par $personne"
                 ajouterEtape(
@@ -992,6 +996,27 @@ class MoteurLocal(
     }
 
     // ------------------------------------------------------------ Home Assistant
+
+    /**
+     * Remplace les actions dynamiques d'une commande du dictionnaire par des actions ordinaires (S-L4). Les états
+     * viennent de Home Assistant, par la passerelle. En essai ou passerelle injoignable, aucun état n'est lu : chaque
+     * action se résout comme pour un appareil dont l'état est inconnu.
+     */
+    private fun resoudreDynamiques(liste: List<JSONObject>): CommandesDynamiques.Resolution {
+        val etats = HashMap<String, JSONObject?>()
+        if (reel) {
+            for (e in CommandesDynamiques.entitesLues(liste)) {
+                etats[e] = try {
+                    val r = passerelle.requete("GET", "/api/states/$e", null, 8)
+                    if (r.ok) JSONObject(r.corps) else null
+                } catch (ex: Exception) {
+                    Log.w(TAG, "État de $e illisible", ex)
+                    null
+                }
+            }
+        }
+        return CommandesDynamiques.resoudreToutes(liste, etats)
+    }
 
     /** Une action du dictionnaire vers /api/services/<domaine>/<service>, par la passerelle. */
     private fun executer(brute: JSONObject): Pair<Boolean, String> {

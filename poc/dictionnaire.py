@@ -169,6 +169,19 @@ class Personnes:
         return sortie, None, reponse
 
 
+def _formater(valeur, valeurs):
+    """Remplace {emplacement} dans tous les textes d'une action, y compris dans ses listes et ses objets
+    imbriqués (hs_color: ["{couleur}", 100], actions dynamiques). Pendant Kotlin : Forme.actions, qui remplace
+    dans le JSON entier. Les clés ne sont jamais touchées."""
+    if isinstance(valeur, str):
+        return valeur.format(**valeurs)
+    if isinstance(valeur, list):
+        return [_formater(v, valeurs) for v in valeur]
+    if isinstance(valeur, dict):
+        return {k: _formater(v, valeurs) for k, v in valeur.items()}
+    return valeur
+
+
 class Dictionnaire:
     def __init__(self, chemin, chemin_appris):
         """[chemin] : commandes.yaml du dossier de configuration. [chemin_appris] : phrases apprises, propres à
@@ -254,6 +267,5 @@ class Dictionnaire:
             trouve = self.formes[cle]
         cmd, valeurs = trouve
         actions = cmd["action"] if isinstance(cmd["action"], list) else [cmd["action"]]
-        actions = [{k: (v.format(**valeurs) if isinstance(v, str) else v) for k, v in a.items()}
-                   for a in actions]
+        actions = [_formater(a, valeurs) for a in actions]
         return actions, cmd.get("reponse", "C'est fait."), cle

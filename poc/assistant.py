@@ -15,6 +15,7 @@ Usage :
 import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, threading, time
 
 import acces
+import commandes_dynamiques
 import maison
 import routines
 import securite
@@ -59,7 +60,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.43.3"
+VERSION = "0.44.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -524,6 +525,18 @@ class HomeAssistant:
         r.raise_for_status()
         e = r.json()
         return {"etat": e["state"], **attributs_lus(e["attributes"])}
+
+    def etat_brut(self, entity_id):
+        """Objet d'état de HA tel quel ({"state", "attributes"}), ou None si l'état n'a pas pu être lu.
+        Sert à résoudre les actions dynamiques du dictionnaire (commandes_dynamiques.py), jamais au LLM."""
+        try:
+            r = self.client.get(f"{self.url}/api/states/{entity_id}")
+            if r.status_code != 200:
+                return None
+            e = r.json()
+            return e if isinstance(e, dict) else None
+        except Exception:
+            return None
 
     def service(self, domaine, service, entity_id=None, donnees=None, confirmer=True):
         """Service demandé par le LLM ou rejoué par une routine (confirmer=False : pas d'attente
@@ -1974,6 +1987,11 @@ class Assistant:
                 parole, voie = refus_personne, voie + " refus personne inconnue"
             elif reponse_personne:
                 parole = reponse_personne
+            # Actions dynamiques (S-L4) : résolues d'après l'état des appareils, avant le contrôle de sécurité,
+            # qui voit donc des actions ordinaires.
+            liste, parole_vide = self.resoudre_dynamiques(liste)
+            if parole_vide and not refus_personne:
+                parole = parole_vide
             for a in liste:
                 actions.append(resume_action(a["service"], a.get("entity_id"),
                                              {k: v for k, v in a.items() if k not in ("service", "entity_id")}))
@@ -2047,6 +2065,18 @@ class Assistant:
             except Exception as e:  # le journal des ratés ne doit jamais casser une commande
                 print(f"  journal des ratés impossible : {e}")
         return parole
+
+    def resoudre_dynamiques(self, liste):
+        """Remplace les actions dynamiques d'une commande du dictionnaire par des actions ordinaires, d'après l'état
+        de Home Assistant. Mode essai ou HA injoignable : aucun état lu, chaque action se résout comme pour un
+        appareil dont l'état est inconnu. Renvoie (actions, réponse à dire quand il ne reste rien à faire)."""
+        lues = commandes_dynamiques.entites_lues(liste)
+        if not lues:
+            return liste, None
+        etats = {}
+        if self.ha and not self.essai:
+            etats = {e: self.ha.etat_brut(e) for e in lues}
+        return commandes_dynamiques.resoudre_toutes(liste, etats)
 
     def apprendre(self, texte, parole):
         """Range dans le dictionnaire une phrase que le LLM vient de traiter avec succès.
