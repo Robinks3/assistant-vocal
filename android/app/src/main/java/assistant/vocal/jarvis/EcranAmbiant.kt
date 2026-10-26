@@ -141,6 +141,11 @@ internal class EcranAmbiant(private val ctx: Context) {
         setOnClickListener { surMeteo() }
     }
     /**
+     * Mesures de la pièce principale sur l'accueil (S-L7) : « Salon 21°, air bon », ou la pièce dont l'air est à aérer.
+     * Une ligne sous la météo, vide (GONE) sans capteur, sans relevé ou pour une pièce protégée.
+     */
+    private val ligneAir = texte(Palette.texte2).apply { visibility = View.GONE }
+    /**
      * Santé du propriétaire (0.19.0), en graphes depuis la 0.26.0 (anneau des pas, 7 nuits, cœur au repos), seulement
      * quand il est reconnu et seul, en vivant plein. Retirée de l'arbre (GONE, sans libellé) dès qu'elle ne l'est plus.
      */
@@ -157,6 +162,7 @@ internal class EcranAmbiant(private val ctx: Context) {
     private val bref = texte(Palette.texte2).apply { visibility = View.GONE }
     private val colRepos = lignes().apply {
         addView(blocMeteo)
+        addView(ligneAir)
         addView(sante)
         addView(panne)
         addView(bref)
@@ -306,6 +312,8 @@ internal class EcranAmbiant(private val ctx: Context) {
         pluie.taille(26f * s)
         lp(pluie, 0f, 26f)
         lp(ligneMeteo, 20f)
+        ligneAir.taille(26f * s)
+        lp(ligneAir, 14f)
         // Bloc santé : 28 px sous la météo, avec sa marge de toucher de 12 px tout autour (maquette `SanteMelange`).
         sante.echelle = s
         lp(sante, 28f, -VueSanteAccueil.MARGE)
@@ -819,9 +827,12 @@ internal class EcranAmbiant(private val ctx: Context) {
         val nuit = !jour()
         val dessin = MeteoTexte.picto(e.meteo?.code ?: "", nuit)
         val b = if (e.bref.isNotEmpty() && maintenant - e.brefLe < EcranAmbiantDelais.BREF_MS && panne.visibility != View.VISIBLE) e.bref else ""
-        val cle = "$date|$temp|$p|$dessin|$b"
+        val air = lignePieces(e)
+        val cle = "$date|$temp|$p|$dessin|$b|$air"
         if (cle == cleRepos) return
         cleRepos = cle
+        ligneAir.texte = air
+        ligneAir.visibility = if (air.isEmpty()) View.GONE else View.VISIBLE
         ligneDate.texte = date
         temperature.texte = temp
         picto.picto = dessin
@@ -830,6 +841,21 @@ internal class EcranAmbiant(private val ctx: Context) {
         pluie.visibility = if (p.isEmpty()) View.GONE else View.VISIBLE
         bref.texte = b
         bref.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** Ligne de mesures de l'accueil (Mesures.ligneAccueil), vide quand personne n'a rien à dire. */
+    private fun lignePieces(e: Etat.Instantane): String {
+        val connues = piecesConnues()
+        val brutes = Mesures.deEtat(e)
+        if (brutes.isEmpty()) return ""
+        // Même double barrière que les étiquettes : une pièce protégée pour la personne présente ne dit rien.
+        val lus = MaisonEnGrand.index(e.lumieres, e.mediasPlan)
+        val qui = e.quiParle()
+        val sures = brutes.mapValues { (id, m) ->
+            val p = connues.firstOrNull { it.id == id }
+            if (p != null && MaisonEnGrand.protegee(p, lus, qui)) Mesures.PROTEGEE else m
+        }
+        return Mesures.ligneAccueil(sures, Mesures.nomsPieces)
     }
 
     /** Colonne de l'échange : écoute, réflexion, réponse, échec d'une action, assistant à l'arrêt. */
@@ -1004,6 +1030,8 @@ internal class EcranAmbiant(private val ctx: Context) {
         if (c != contenuLu) {
             contenuLu = c
             pieces = MaisonEnGrand.lireContenu(c)
+            // S-L7 : les noms de la carte servent aussi à la voix et à l'alerte « Aère la pièce {nom} », dès que la page est lue.
+            if (pieces.isNotEmpty()) Mesures.nomsPieces = pieces.associate { it.id to it.nom }
         }
         return pieces
     }
@@ -1099,15 +1127,24 @@ internal class EcranAmbiant(private val ctx: Context) {
             return
         }
         plan.voile(if (jour()) MaisonEnGrand.VOILE_JOUR else MaisonEnGrand.VOILE_SOIR)
+        val mesures = mesuresPieces(e)
         if (maisonGrand.pieceChoisie == null) {
+            plan.mesures(null)
             plan.etiquettes(
                 MaisonEnGrand.etiquettes(
                     piecesConnues(), MaisonEnGrand.index(e.lumieres, e.mediasPlan), e.quiParle(), inj,
-                    mesures = mesuresPieces(e),
+                    mesures = mesures,
                 ),
             )
         } else {
             plan.pastilles(maisonGrand.pastilles())
+            // S-L7 : température, humidité, CO2 et particules de la pièce touchée (rien d'une pièce protégée).
+            plan.mesures(
+                if (inj) null else choisie?.let { c ->
+                    val verrou = MaisonEnGrand.protegee(c, MaisonEnGrand.index(e.lumieres, e.mediasPlan), e.quiParle())
+                    MaisonEnGrand.mesuresPiece(c, mesures[c.id], verrou)
+                },
+            )
         }
         // Une demande attend sa confirmation : revu toutes les 300 ms (échec à 5 s, surlignage de 400 ms).
         vue.removeCallbacks(revoirGrand)

@@ -63,6 +63,28 @@ def test_s_l5_la_page_porte_le_retour_d_etat(copie):
     assert "kelvinVersCouleur(a.color_temp_kelvin)" in html and "a.rgb_color" in html
 
 
+def test_s_l7_la_page_porte_les_mesures_par_piece(copie):
+    """Mesures dans la vue 3D : pastille sous le nom de chaque pièce, carton de la pièce choisie, message du pont
+    `mesures`, tout échappé, couleur validée, et aucune requête réseau dans la page."""
+    assert lancer(copie).returncode == 0
+    html = sorties(copie)[1].read_text(encoding="utf-8")
+    # le pont : export, message, carton
+    assert "choisir, etiquettes, pastilles, mesures," in html
+    assert 'd.type === "mesures"' in html and 'id="mesures"' in html and "function rendreMesures()" in html
+    # la pastille de l'étiquette ne prend que le texte et la couleur envoyés par l'appli, échappés et validés
+    assert "q.mesure.texte" in html and "couleurSure(q.mesure.couleur)" in html
+    assert "#[0-9A-Fa-f]{6}" in html
+    # pièce protégée ou sans capteur : seulement le texte, jamais de lignes de valeurs
+    assert 'm.statut === "protegee" || m.statut === "aucun"' in html
+    # la carte s'efface en quittant la maison en grand ou en choisissant la vue entière
+    assert html.count("grandEtat.mesures = null") >= 2
+    # toujours un mot à côté de la couleur
+    assert "l.mot" in html
+    # pas de réseau dans le code de la page (la bibliothèque 3D embarquée n'est pas concernée)
+    modele = (SCRIPT.parent / "vue3d_modele.html").read_text(encoding="utf-8")
+    assert "fetch(" not in modele and "XMLHttpRequest" not in modele and "WebSocket" not in modele
+
+
 def test_c11_deux_executions_donnent_la_meme_sortie(copie):
     premiere = []
     for _ in range(2):

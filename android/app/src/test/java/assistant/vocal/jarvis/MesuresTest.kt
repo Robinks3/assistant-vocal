@@ -211,4 +211,73 @@ class MesuresTest {
         assertEquals("Salon 21°, air médiocre", Mesures.ligneAccueil("Salon", p))
         assertEquals(listOf("Aère la pièce Salon, CO2 1200 ppm"), Mesures.alertes(r))
     }
+
+    private fun capteursAir(zone: String, co2: String, maintenant: Double) = listOf(
+        Mesures.Capteur("sensor.t_$zone", "temperature", "21", zone, "", "", maintenant - 30),
+        Mesures.Capteur("sensor.c_$zone", "carbon_dioxide", co2, zone, "", "", maintenant - 30),
+    )
+
+    @Test
+    fun nomAfficheVientDeLaCarteSinonUnRepliLisible() {
+        assertEquals("Salon", Mesures.nomAffiche("salon_id", mapOf("salon_id" to "Salon")))
+        assertEquals("Salon", Mesures.nomAffiche("salon_id", mapOf("salon_id" to "  Salon ")))
+        // nom vide ou inconnu : l'identifiant rendu lisible, jamais le texte brut avec ses tirets bas
+        assertEquals("Chambre camille", Mesures.nomAffiche("chambre_camille", mapOf("chambre_camille" to "")))
+        assertEquals("Salle de bain", Mesures.nomAffiche("salle-de-bain", emptyMap()))
+    }
+
+    @Test
+    fun alertePorteLeNomAfficheDeLaPieceEtPasSonIdentifiant() {
+        val maintenant = 1790000000.0
+        val releve = Mesures.Releve(maintenant, capteursAir("zone_salon", "1200", maintenant))
+        val corresp = mapOf("piece_salon_12" to listOf("zone_salon"))
+        // avec le nom de la carte
+        val avec = Mesures.parPiece(releve, corresp, emptyList(), noms = mapOf("piece_salon_12" to "Salon")).getValue("piece_salon_12")
+        assertEquals("Aère la pièce Salon, CO2 1200 ppm", avec.alerte)
+        // sans nom connu (voix avant l'ouverture de la maison en grand) : repli lisible, pas d'identifiant technique
+        val sans = Mesures.parPiece(releve, corresp, emptyList(), noms = Mesures.nomsLisibles(corresp.keys, emptyMap())).getValue("piece_salon_12")
+        assertEquals("Aère la pièce Piece salon 12, CO2 1200 ppm", sans.alerte)
+        assertFalse(sans.alerte.contains("_"))
+    }
+
+    private fun troisPieces(): Map<String, Mesures.PieceMesures> {
+        val m = 1790000000.0
+        val capteurs = capteursAir("z_salon", "500", m) + capteursAir("z_chambre", "500", m) + capteursAir("z_bureau", "500", m) +
+            Mesures.Capteur("sensor.t_cam", "temperature", "20", "z_camille", "", "", m - 30)
+        val corresp = linkedMapOf(
+            "camille" to listOf("z_camille"), "salon" to listOf("z_salon"), "chambre" to listOf("z_chambre"),
+            "bureau" to listOf("z_bureau"), "vide" to listOf("z_nulle"),
+        )
+        return Mesures.parPiece(Mesures.Releve(m, capteurs), corresp, listOf("camille"))
+    }
+
+    @Test
+    fun ligneAccueilPrendLaPremierePieceQuiParleEtSauteLesProtegeesEtLesMuettes() {
+        val r = troisPieces()
+        assertEquals(Mesures.Statut.PROTEGEE, r.getValue("camille").statut)
+        assertEquals(Mesures.Statut.AUCUN, r.getValue("vide").statut)
+        // « camille » est protégée : c'est la suivante dans l'ordre de la configuration qui parle
+        assertEquals("Le salon 21°, air bon", Mesures.ligneAccueil(r, mapOf("salon" to "Le salon")))
+        assertEquals("Salon 21°, air bon", Mesures.ligneAccueil(r))
+    }
+
+    @Test
+    fun ligneAccueilDonneLaParoleAPieceQuiDoitEtreAeree() {
+        val m = 1790000000.0
+        val capteurs = capteursAir("z_salon", "500", m) + capteursAir("z_bureau", "1200", m) + capteursAir("z_chambre", "1600", m)
+        val corresp = linkedMapOf("salon" to listOf("z_salon"), "bureau" to listOf("z_bureau"), "chambre" to listOf("z_chambre"))
+        val r = Mesures.parPiece(Mesures.Releve(m, capteurs), corresp, emptyList(), noms = mapOf("chambre" to "Chambre"))
+        // la pire d'abord, même si le salon est la pièce principale
+        assertEquals("Chambre 21°, air mauvais", Mesures.ligneAccueil(r, mapOf("chambre" to "Chambre")))
+    }
+
+    @Test
+    fun ligneAccueilVideQuandPersonneNaRienADire() {
+        assertEquals("", Mesures.ligneAccueil(emptyMap()))
+        val m = 1790000000.0
+        val r = Mesures.parPiece(Mesures.Releve(m, emptyList()), mapOf("a" to listOf("z")), listOf("b"))
+        assertEquals("", Mesures.ligneAccueil(r))
+        val protegee = Mesures.parPiece(Mesures.Releve(m, capteursAir("z", "500", m)), mapOf("a" to listOf("z")), listOf("z"))
+        assertEquals("", Mesures.ligneAccueil(protegee))
+    }
 }

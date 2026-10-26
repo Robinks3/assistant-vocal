@@ -721,6 +721,13 @@ jusqu'à 1500 compris, mauvais au-delà. Particules PM2.5 en µg/m3, mêmes mots
 sous 19°, agréable de 19° à 24° compris, chaud au-dessus. L'air d'une pièce prend le pire des deux mots, et une alerte
 « Aère la pièce X » apparaît dès « médiocre ». Une mesure muette depuis plus de 2 h n'est plus colorée.
 
+Accueil et vue 3D (S-L7) : l'écran d'accueil montre une ligne courte du type « Salon 21°, air bon ». Si une pièce a
+l'air médiocre ou mauvais, c'est elle qui parle (la pire, à égalité la première de la liste). Sinon c'est la première
+pièce de `correspondance_pieces` qui a quelque chose à dire : **l'ordre de la liste fixe donc la pièce principale**,
+mettez-y d'abord celle que vous voulez voir. Une pièce protégée, sans capteur ou muette ne parle jamais. Dans la vue 3D,
+chaque pièce porte sa pastille et la pièce touchée un carton avec chaque mesure. Le nom dit dans l'alerte est celui de
+`pieces.json`.
+
 Sécurité : une pièce dont l'identifiant, le nom ou une zone figure dans `securite.zones_protegees` ne montre aucune
 valeur (« pièce protégée »), que `PROTEGER_OCCUPANT` soit coupé ou non. Le gabarit écarte aussi ces zones dès Home
 Assistant, leurs mesures ne quittent donc pas la maison.

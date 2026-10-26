@@ -130,6 +130,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
     fun choisir(piece: String?, dureeMs: Int) = appeler(Maison3dPont.scriptChoisir(piece, dureeMs))
     fun etiquettes(liste: JSONArray) = appeler(Maison3dPont.scriptEtiquettes(liste))
     fun pastilles(liste: JSONArray) = appeler(Maison3dPont.scriptPastilles(liste))
+    fun mesures(charge: JSONObject?) = appeler(Maison3dPont.scriptMesures(charge))
     fun voile(opacite: Float) = appeler(Maison3dPont.scriptVoile(opacite))
 
     /**

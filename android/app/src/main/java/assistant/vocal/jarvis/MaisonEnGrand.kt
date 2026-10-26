@@ -164,6 +164,51 @@ internal object MaisonEnGrand {
     }
 
     /**
+     * Charge de mesures envoyée à la page 3D pour la pièce [p] (S-L7), prête à afficher : la page ne calcule rien.
+     * Les textes sont ceux de [Mesures] (même texte et même couleur que la pastille de la vue entière).
+     * Une pièce [verrou]illée, ou que [Mesures] dit protégée, ne livre AUCUNE valeur, seulement « pièce protégée ».
+     * Une pièce sans capteur ([m] nul ou statut AUCUN) dit « pas de capteur » et n'a pas de lignes.
+     */
+    fun mesuresPiece(p: Piece, m: Mesures.PieceMesures?, verrou: Boolean): JSONObject {
+        val o = JSONObject().put("piece", p.id).put("nom", p.nom)
+        if (verrou || m?.statut == Mesures.Statut.PROTEGEE) {
+            val s = Mesures.PROTEGEE
+            return o.put("statut", "protegee").put("texte", s.texte).put("couleur", s.couleur).put("lignes", JSONArray())
+        }
+        if (m == null || m.statut == Mesures.Statut.AUCUN) {
+            return o.put("statut", "aucun").put("texte", "pas de capteur").put("couleur", Mesures.COULEUR_GRIS).put("lignes", JSONArray())
+        }
+        o.put("statut", m.statut.name.lowercase()).put("texte", m.texte).put("couleur", m.couleur)
+        val lignes = JSONArray()
+        fun ligne(cle: String, nom: String, valeur: String, mot: String?, couleur: String?, suivant: String = "") {
+            lignes.put(
+                JSONObject().put("cle", cle).put("nom", nom).put("valeur", valeur).put("mot", mot ?: "")
+                    .put("couleur", couleur ?: Mesures.COULEUR_GRIS).put("suivant", suivant),
+            )
+        }
+        m.temperature?.let { t ->
+            if (t.valeur != null) ligne("temperature", "Température", "${Mesures.arrondi(t.valeur)}°", t.mot, Mesures.COULEUR_GRIS)
+            else ligne("temperature", "Température", "absente depuis ${t.depuis}", null, null)
+        }
+        m.humidite?.let { h ->
+            if (h.valeur != null) ligne("humidite", "Humidité", "${Mesures.arrondi(h.valeur)} %", null, null)
+            else ligne("humidite", "Humidité", "absente depuis ${h.depuis}", null, null)
+        }
+        m.co2?.let { a ->
+            if (a.valeur != null) ligne("co2", "CO2", "${Mesures.arrondi(a.valeur)} ppm", a.mot, a.couleur, a.suivant)
+            else ligne("co2", "CO2", "absent depuis ${a.depuis}", null, null)
+        }
+        m.pm25?.let { a ->
+            if (a.valeur != null) ligne("pm25", "Particules", "${Mesures.arrondi(a.valeur)} µg/m3", a.mot, a.couleur, a.suivant)
+            else ligne("pm25", "Particules", "absentes depuis ${a.depuis}", null, null)
+        }
+        o.put("lignes", lignes)
+        m.air?.let { a -> o.put("air", JSONObject().put("mot", a.mot).put("couleur", a.couleur).put("aerer", a.aerer)) }
+        if (m.alerte.isNotEmpty()) o.put("alerte", m.alerte)
+        return o
+    }
+
+    /**
      * Pastilles de la pièce choisie, une par objet, les mêmes partout (lampes, groupes, télé, enceintes). Fraction :
      * l'intensité d'une lampe allumée, le volume d'une enceinte sur le volume permis (Securite.VOLUME_MAX). [suivis] : demandes restées
      * sans réponse. [surligne] : l'entité dont la ligne vient d'être touchée.
