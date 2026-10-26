@@ -49,7 +49,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.36.1"
+VERSION = "0.36.2"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -1556,7 +1556,7 @@ class Assistant:
         # dictionnaire la rejouerait pour n'importe qui, et la sécurité la refuserait.
         if any(securite.protege(e) for a in actions for e in securite.cibles(a.get("entity_id"))):
             return
-        if self.dico.apprendre(texte, actions, parole or "C'est fait.", datetime.now().strftime("%Y-%m-%d %H:%M")):
+        if self.dico.apprendre(texte, actions, parole or "C'est fait.", maison.maintenant().strftime("%Y-%m-%d %H:%M")):
             if getattr(self, "lecons", None) is None:
                 self.lecons = {}
             self.lecons[Cerveau.cle_conversation()[1]] = (texte, time.time())
@@ -1593,7 +1593,7 @@ MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août
 def date_francaise():
     """L'app HA tourne sans locale française : strftime y donnait « Tuesday 13 October », et Haiku a
     répondu en anglais le 13/10/2026 au matin. Date écrite à la main, au fuseau de la maison."""
-    d = datetime.now(securite.FUSEAU)
+    d = maison.maintenant()
     return f"{JOURS[d.weekday()]} {d.day} {MOIS[d.month - 1]} {d.year}, {d.hour} h {d.minute:02d}"
 
 
@@ -1621,7 +1621,7 @@ def journaliser(texte, voie, t_stt, t_cerveau, t_tts, parole, actions):
         if neuf:
             w.writerow(["horodatage", "version", "texte", "voie", "stt_s", "cerveau_s", "tts_s",
                         "total_s", "reponse", "actions"])
-        w.writerow([datetime.now().isoformat(timespec="seconds"), VERSION, texte, voie,
+        w.writerow([maison.maintenant().strftime(maison.FORMAT_HORODATAGE), VERSION, texte, voie,
                     f"{t_stt:.2f}", f"{t_cerveau:.2f}", f"{t_tts:.2f}",
                     f"{t_stt + t_cerveau + t_tts:.2f}", parole, " | ".join(actions)])
 
@@ -1641,7 +1641,7 @@ def journaliser_musique(entree):
 
 def ajouter_jsonl(chemin, entree):
     chemin.parent.mkdir(exist_ok=True)
-    entree = {"horodatage": datetime.now().isoformat(timespec="seconds"), "version": VERSION, **entree}
+    entree = {"horodatage": maison.maintenant().strftime(maison.FORMAT_HORODATAGE), "version": VERSION, **entree}
     with open(chemin, "a", encoding="utf-8") as f:
         f.write(json.dumps(entree, ensure_ascii=False) + "\n")
 

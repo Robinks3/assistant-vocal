@@ -137,11 +137,24 @@ object Securite {
     fun pieceProtegee(piece: String): Boolean = PROTEGER_OCCUPANT && MOTS_PIECES.any { it in piece.lowercase() }
 
     /**
+     * Vrai si [heure] (0 à 23) tombe dans la plage calme [debut], [fin] exclue. Une plage qui passe minuit (début
+     * après la fin, par exemple 22 h à 7 h) couvre la soirée et le début de matinée (26/10/2026, S-D1). Début égal
+     * à la fin : plage vide. Même calcul que en_heure_calme de securite.py (cas communs « heures_calmes_nuit »).
+     */
+    fun enHeureCalme(heure: Int, debut: Int, fin: Int): Boolean =
+        if (debut <= fin) heure in debut until fin else heure >= debut || heure < fin
+
+    /**
      * Raison du refus, ou null si l'action est permise. [action] : {"service", "entity_id", ...}.
      * [personne] : qui parle d'après la reconnaissance de la tablette (règle 3), vide si on ne sait pas.
      * [volumeMax] : plafond du volume, celui de la configuration sauf dans les tests.
+     * [plageCalme] : (début, fin) qui force la règle 2 sur cette plage, pour les tests seulement. Absent, la règle
+     * suit HEURE_CALME_ACTIVE et heures_calmes de la configuration.
      */
-    fun verifier(action: JSONObject, heure: Int = heureMaison(), personne: String = "", volumeMax: Double = VOLUME_MAX): String? {
+    fun verifier(
+        action: JSONObject, heure: Int = heureMaison(), personne: String = "", volumeMax: Double = VOLUME_MAX,
+        plageCalme: Pair<Int, Int>? = null,
+    ): String? {
         if (!SECURITE_ACTIVE) return null
         val service = action.optString("service")
         val entites = cibles(action.opt("entity_id"))
@@ -154,7 +167,8 @@ object Securite {
         if (PROTEGER_OCCUPANT && entites.any { it.equals("all", true) }) return "viser toute la maison est interdit, cela toucherait la chambre de $NOM_OCCUPANT (sécurité)"
         if (PROTEGER_OCCUPANT && zones.any { it.lowercase() in ZONES_PROTEGEES || protege(it) }) return "je ne touche jamais aux pièces de $NOM_OCCUPANT (sécurité)"
         if (protege(service) || entites.any { protege(it) && !permisPour(personne, service, it) }) return "je ne touche jamais à ce qui appartient à $NOM_OCCUPANT (sécurité)"
-        if (HEURE_CALME_ACTIVE && heure in HEURE_CALME_DEBUT until HEURE_CALME_FIN) {
+        val calme = plageCalme ?: if (HEURE_CALME_ACTIVE) Pair(HEURE_CALME_DEBUT, HEURE_CALME_FIN) else null
+        if (calme != null && enHeureCalme(heure, calme.first, calme.second)) {
             var silencieux = service in SERVICES_SILENCIEUX
             if (service == "media_player.volume_mute" && action.has("is_volume_muted") && !action.optBoolean("is_volume_muted")) silencieux = false
             if (!silencieux && (service in SON_SALON || entites.any { it in SON_SALON })) {

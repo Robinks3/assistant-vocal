@@ -1,6 +1,6 @@
 # Nom affiché remplacé au déploiement par la section assistant de maison.json (deployer.sh).
 name: Assistant vocal
-version: "0.36.1"
+version: "0.36.2"
 slug: jarvis
 description: Serveur de l'assistant vocal local (téléphones satellites), sans PC fixe.
 arch:

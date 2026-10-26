@@ -21,6 +21,7 @@ défaut).
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
@@ -71,6 +72,30 @@ SECURITE = CONFIG.get("securite") or {}
 ACCES = CONFIG.get("acces") if isinstance(CONFIG.get("acces"), dict) else {}
 ADMINISTRATION = CONFIG.get("administration") if isinstance(CONFIG.get("administration"), dict) else {}
 FUSEAU = CONFIG.get("fuseau") or "UTC"
+
+
+def _zone(nom):
+    """Fuseau horaire de la maison. Nom inconnu ou base des fuseaux absente (Windows sans tzdata) : UTC, avec un
+    avertissement sauf si UTC était déjà le choix, plutôt que l'heure de la machine."""
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(nom)
+    except Exception:
+        if nom != "UTC":
+            print(f"maison : fuseau « {nom} » inconnu ou base des fuseaux absente (paquet tzdata), repli sur UTC",
+                  file=sys.stderr)
+        return timezone.utc
+
+
+ZONE = _zone(FUSEAU)
+# Forme des horodatages écrits dans les journaux et les fichiers d'état : heure de la maison, sans décalage.
+FORMAT_HORODATAGE = "%Y-%m-%dT%H:%M:%S"
+
+
+def maintenant():
+    """Heure de la maison (datetime avec fuseau), dans le fuseau de maison.json. Seule source d'heure du moteur :
+    jamais l'heure de la machine ni de l'appli Home Assistant, qui tourne en UTC (26/10/2026, S-D1)."""
+    return datetime.now(ZONE)
 # Propriétaire de la maison (section proprietaire) : prénom affiché, clé de son jeton SATELLITE_JETON et de ses
 # droits santé, transcriptions erronées de son prénom à corriger.
 PROPRIETAIRE = CONFIG.get("proprietaire") or {}

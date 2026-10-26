@@ -23,6 +23,33 @@ def test_action(cas, monkeypatch):
     assert (refus is not None) == cas["refus"], refus
 
 
+NUIT = CAS["heures_calmes_nuit"]
+
+
+@pytest.mark.parametrize("cas", NUIT["cas"], ids=lambda c: c["note"])
+def test_heures_calmes_passant_minuit(cas, monkeypatch):
+    """26/10/2026 (S-D1) : une plage de 22 h à 7 h couvre la soirée et le début de matinée. La règle reste coupée
+    dans la configuration, le test la force pour vérifier le calcul seul."""
+    monkeypatch.setattr(securite, "HEURE_CALME_ACTIVE", True)
+    monkeypatch.setattr(securite, "HEURE_CALME_DEBUT", NUIT["plage_nuit"]["debut"])
+    monkeypatch.setattr(securite, "HEURE_CALME_FIN", NUIT["plage_nuit"]["fin"])
+    moment = datetime(2026, 10, 21, cas["heure"], 30, tzinfo=securite.FUSEAU)
+    refus = securite.verifier(cas["service"], cas["donnees"], maintenant=moment)
+    assert (refus is not None) == cas["refus"], refus
+
+
+@pytest.mark.parametrize("cas", NUIT["en_heure_calme"], ids=lambda c: c["note"])
+def test_en_heure_calme(cas):
+    assert securite.en_heure_calme(cas["heure"], cas["debut"], cas["fin"]) == cas["attendu"]
+
+
+def test_heures_calmes_restent_coupees():
+    """La règle 2 est levée par le propriétaire : seul le calcul a changé, pas le niveau de protection."""
+    assert securite.HEURE_CALME_ACTIVE is False
+    assert securite.verifier("media_player.media_play", {"entity_id": "media_player.enceintes_maison"},
+                             maintenant=datetime(2026, 10, 21, 3, 0, tzinfo=securite.FUSEAU)) is None
+
+
 @pytest.mark.parametrize("cas", CAS["phrases"], ids=lambda c: c["phrase"])
 def test_phrase(cas):
     assert (securite.phrase_protegee(cas["phrase"], cas.get("personne")) is not None) == cas["refus"]

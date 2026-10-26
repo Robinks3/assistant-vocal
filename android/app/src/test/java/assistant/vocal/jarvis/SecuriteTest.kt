@@ -51,6 +51,46 @@ class SecuriteTest {
     }
 
     @Test
+    fun heuresCalmesPassantMinuit() {
+        // 26/10/2026 (S-D1) : plage de 22 h à 7 h. La règle reste coupée dans la configuration, le test la force.
+        val nuit = cas.getJSONObject("heures_calmes_nuit")
+        val plage = nuit.getJSONObject("plage_nuit")
+        val forcee = Pair(plage.getInt("debut"), plage.getInt("fin"))
+        val liste = nuit.getJSONArray("cas")
+        assertTrue("aucun cas d'heures calmes lu", liste.length() > 0)
+        val echecs = ArrayList<String>()
+        for (i in 0 until liste.length()) {
+            val c = liste.getJSONObject(i)
+            val action = JSONObject(c.getJSONObject("donnees").toString()).put("service", c.getString("service"))
+            val refus = Securite.verifier(action, c.getInt("heure"), plageCalme = forcee)
+            if ((refus != null) != c.getBoolean("refus")) {
+                echecs.add("${c.getString("note")} : attendu refus=${c.getBoolean("refus")}, obtenu « $refus »")
+            }
+        }
+        assertEquals("cas en écart avec securite.py :\n" + echecs.joinToString("\n"), 0, echecs.size)
+    }
+
+    @Test
+    fun enHeureCalme() {
+        val liste = cas.getJSONObject("heures_calmes_nuit").getJSONArray("en_heure_calme")
+        assertTrue("aucun cas de plage calme lu", liste.length() > 0)
+        for (i in 0 until liste.length()) {
+            val c = liste.getJSONObject(i)
+            assertEquals(c.getString("note"), c.getBoolean("attendu"),
+                Securite.enHeureCalme(c.getInt("heure"), c.getInt("debut"), c.getInt("fin")))
+        }
+    }
+
+    @Test
+    fun heuresCalmesRestentCoupees() {
+        // La règle 2 est levée par le propriétaire : seul le calcul a changé, pas le niveau de protection.
+        assertFalse(Securite.HEURE_CALME_ACTIVE)
+        val son = JSONObject().put("service", "media_player.media_play").put("entity_id", "media_player.enceintes_maison")
+        assertNull(Securite.verifier(son, 3))
+        assertNotNull(Securite.verifier(son, 3, plageCalme = Pair(22, 7)))
+    }
+
+    @Test
     fun phrases() {
         val liste = cas.getJSONArray("phrases")
         assertTrue("aucun cas de phrase lu", liste.length() > 0)

@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.36.2 (2026-10-26), une seule heure pour le moteur, heures calmes qui passent minuit
+Session S-D1 du plan 1.2.0. Aucune règle de sécurité n'est assouplie : la règle des heures calmes reste coupée
+par le propriétaire (`HEURE_CALME_ACTIVE` à `False`), seul son calcul est corrigé pour le jour où elle sera rallumée.
+- `maison.maintenant()` (`poc/maison.py`) est la seule source d'heure du moteur : l'heure dans le fuseau de
+  `maison.json` (`fuseau`), UTC si la clé manque, si le nom est inconnu ou si la base des fuseaux est absente
+  (avertissement sur la sortie d'erreur). `maison.ZONE` donne l'objet fuseau, `maison.FORMAT_HORODATAGE` la forme
+  des horodatages écrits (`2026-10-26T14:05:09`, sans décalage, comme avant, pour que l'appli Android les affiche
+  et les relise sans changement).
+- `acces.py`, `assistant.py` (date en français, journaux, phrases apprises), `sante.py`, `sante_hist.py`,
+  `securite.py`, `serveur_satellite.py` et les outils de banc (`poc/outils/`) lisent cette source. Plus aucun
+  `datetime.now()` sans argument, ni `time.strftime`, ni `date.today()` dans `poc/` hors des tests : l'application
+  Home Assistant tourne en UTC et la machine du serveur peut avoir n'importe quel fuseau. `date_du_jour()` de la
+  santé ne force plus Paris, elle suit le fuseau de la configuration.
+- `meteo_mer.FUSEAU_MER` prend par défaut le fuseau de la maison au lieu de son propre repli.
+- `securite.en_heure_calme(heure, debut, fin)` : une plage dont le début est après la fin (22 h à 7 h) couvre la
+  soirée et le début de matinée. Avant, `debut <= heure < fin` ne couvrait jamais rien. Début égal à la fin :
+  plage vide. Même calcul dans `Securite.enHeureCalme` (appli 0.37.4).
+- Tests : `poc/tests/test_fuseau.py` (nouveau, dont un fuseau `Pacific/Auckland` indépendant de la variable `TZ` de
+  la machine, le repli UTC et un garde-fou contre l'heure de la machine) et cinq heures-clés de la plage 22 h à
+  7 h dans `cas_securite.json` (section `heures_calmes_nuit`), lues par `test_securite.py` et `SecuriteTest.kt`.
+- `ha-app/jarvis/config.yaml` passe à 0.36.2.
+
 ## Serveur 0.36.1 (2026-10-26), schémas du README et de la documentation refaits
 Session S-V1 du plan 1.2.0, fusionnée après S-D3 (0.36.0), d'où le numéro 0.36.1. Aucun changement de comportement, seuls les schémas et le README bougent.
 - Cinq schémas SVG écrits à la main, chacun en thème clair et en thème sombre, dans `docs/images/` :
