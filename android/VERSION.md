@@ -6,6 +6,16 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.40.1 (2026-10-26), correctif : l'appli 0.40.0 plantait au démarrage
+Correctif (versionCode 77). Le motif `INTENTION_ROUTINE` de `RoutinesLocal.kt` portait le drapeau `(?U)`, accepté
+par la JVM des tests mais refusé par Android (ICU, PatternSyntaxException) : le moteur local ne se construisait
+pas et la tablette restait sans assistant.
+- Limites de mot écrites à la main (lettres et chiffres Unicode, accents compris), `RegexOption.IGNORE_CASE` seul.
+- Motif aligné sur celui du serveur 0.43.3 : « j'aimerais que tu crées une routine » est une création, « fais la
+  routine du matin » reste un lancement, apostrophe droite ou courbe.
+- Nouveau test `aucun_motif_avec_le_drapeau_u_refuse_par_android` : aucune source de l'appli ne peut plus écrire ce
+  drapeau.
+
 ## 0.40.0 (2026-10-26), routines sur la tablette : « bonne nuit » PC éteint comme PC allumé
 Nouveauté (versionCode 76). Session S-R3 du plan (la 0.39.0 est réservée au lot télé). Les routines vivent et
 s'exécutent côté serveur (`poc/routines.py`, 0.43.x) avec la sécurité en dur et tous les contrôles existants. La

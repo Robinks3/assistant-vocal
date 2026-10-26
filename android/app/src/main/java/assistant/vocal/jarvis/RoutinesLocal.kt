@@ -174,28 +174,36 @@ class RoutinesLocal(
         /** « -moi » ou « -nous » facultatif après le verbe, comme _PRONOM_ROUTINE du serveur. */
         private const val PRONOM = "(?:[-\\s]+(?:moi|nous))?"
 
+        // Limites de mot écrites à la main : \b n'est Unicode sur la JVM qu'avec (?U), qu'Android (ICU) refuse.
+        private const val LETTRE = "[\\p{L}\\p{N}_]"
+        private const val DEBUT_MOT = "(?<!$LETTRE)"
+        private const val FIN_MOT = "(?!$LETTRE)"
+        // Ni « je » ni « j' » juste avant : « je fais une routine » raconte, il ne demande rien.
+        private const val PAS_APRES_JE = "(?<!^je )(?<![^\\p{L}\\p{N}_]je )(?<!^j['’])(?<![^\\p{L}\\p{N}_]j['’])"
+
         /**
          * Phrase qui crée ou change une routine. Recopie de INTENTION_ROUTINE (poc/assistant.py), vérifiée sur les
-         * mêmes cas (poc/tests/cas_routines.json). (?U) : \b et la casse comprennent les lettres accentuées.
+         * mêmes cas (poc/tests/cas_routines.json), lettres accentuées comprises dans les limites de mot.
          * Les formes à verbe (« crée-moi », « fais », « ajoute », « programme », « mets en place », « enregistre »,
-         * « configure », « prépare », « peux-tu me ... », « je voudrais ... ») exigent le mot « routine » : « fais une
+         * « configure », « prépare », « je voudrais ... ») exigent le mot « routine » : « fais une
          * pause » ou « ajoute du lait à la liste » n'en font pas partie.
          */
         val INTENTION_ROUTINE = Regex(
-            "(?iU)\\b(?:quand|lorsque|si|(?:à|a) chaque fois que|chaque fois que)\\s+je\\s+(?:te\\s+)?(?:dis|dirai|disais)\\b" +
-                "|\\b(?:dorénavant|désormais|à partir de maintenant|a partir de maintenant)\\b" +
+            "$DEBUT_MOT(?:quand|lorsque|si|(?:à|a) chaque fois que|chaque fois que)\\s+je\\s+(?:te\\s+)?(?:dis|dirai|disais)$FIN_MOT" +
+                "|$DEBUT_MOT(?:dorénavant|désormais|à partir de maintenant|a partir de maintenant)$FIN_MOT" +
                 // changer une routine existante, ou la créer avec ou sans « -moi »
-                "|\\b(?:cr[ée]e[rsz]?|change[rz]?|modifie[rz]?|remplace[rz]?)$PRONOM" +
-                "\\s+(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?(?:(?:nouvelle|petite)\\s+)?routine\\b" +
-                "|\\bnouvelle\\s+routine\\b" +
+                "|$DEBUT_MOT(?:cr[ée]e[rsz]?|change[rz]?|modifie[rz]?|remplace[rz]?)$PRONOM" +
+                "\\s+(?:une\\s+|la\\s+|ma\\s+|cette\\s+)?(?:(?:nouvelle|petite)\\s+)?routine$FIN_MOT" +
+                "|${DEBUT_MOT}nouvelle\\s+routine$FIN_MOT" +
                 // autres verbes de création, suivis de « une » seulement : « fais la routine du matin » est un lancement
-                "|(?<!\\bje )(?<!\\bj['’])\\b(?:fais|faire|faites|ajoute[rsz]?|programme[rsz]?|enregistre[rsz]?|configure[rsz]?" +
+                "|$PAS_APRES_JE$DEBUT_MOT(?:fais|faire|faites|ajoute[rsz]?|programme[rsz]?|enregistre[rsz]?|configure[rsz]?" +
                 "|pr[ée]pare[rsz]?|m(?:ets?|ettre|ettez)$PRONOM\\s+en\\s+place)$PRONOM" +
-                "\\s+une\\s+(?:(?:nouvelle|petite)\\s+)?routine\\b" +
+                "\\s+une\\s+(?:(?:nouvelle|petite)\\s+)?routine$FIN_MOT" +
                 // « je voudrais / je veux / j'aimerais (créer) une routine »
-                "|\\b(?:je\\s+(?:voudrais|veux|souhaite|souhaiterais)|j['’]aimerais|j['’]aimerai)\\s+(?:bien\\s+)?" +
+                "|$DEBUT_MOT(?:je\\s+(?:voudrais|veux|souhaite|souhaiterais)|j['’]aimerais|j['’]aimerai)\\s+(?:bien\\s+)?" +
                 "(?:(?:cr[ée]er|faire|ajouter|avoir|programmer|enregistrer|configurer|pr[ée]parer|mettre\\s+en\\s+place)\\s+)?" +
-                "une\\s+(?:(?:nouvelle|petite)\\s+)?routine\\b"
+                "une\\s+(?:(?:nouvelle|petite)\\s+)?routine$FIN_MOT",
+            RegexOption.IGNORE_CASE,
         )
 
         /** Clé d'une personne : sans accent, en minuscules. « inconnu » vaut « personne reconnue » (vide). */

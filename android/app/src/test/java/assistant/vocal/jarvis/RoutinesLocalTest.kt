@@ -251,6 +251,26 @@ class RoutinesLocalTest {
         error("poc/tests/cas_routines.json introuvable depuis ${System.getProperty("user.dir")}")
     }
 
+    /**
+     * Android (ICU) refuse le drapeau U (UNICODE_CHARACTER_CLASS) que la JVM accepte : la 0.40.0 plantait au
+     * démarrage sans qu'aucun test ne le voie. Aucune source de l'appli ne doit l'écrire dans un motif.
+     */
+    @Test
+    fun aucun_motif_avec_le_drapeau_u_refuse_par_android() {
+        var dossier: File? = File(System.getProperty("user.dir") ?: ".").absoluteFile
+        var sources: File? = null
+        while (dossier != null && sources == null) {
+            sources = listOf("src/main/java", "app/src/main/java", "android/app/src/main/java")
+                .map { File(dossier, it) }.firstOrNull { it.isDirectory }
+            dossier = dossier.parentFile
+        }
+        val racine = sources ?: error("sources de l'appli introuvables depuis ${System.getProperty("user.dir")}")
+        val drapeau = Regex("\"\\(\\?[a-zA-Z]*U[a-zA-Z]*[):]")
+        val fautifs = racine.walkTopDown().filter { it.isFile && it.extension == "kt" }
+            .filter { drapeau.containsMatchIn(it.readText(Charsets.UTF_8)) }.map { it.name }.toList()
+        assertTrue("drapeau (?U) dans $fautifs", fautifs.isEmpty())
+    }
+
     @Test
     fun intention_cas_communs_avec_le_serveur() {
         val bloc = cas().getJSONObject("intention")
