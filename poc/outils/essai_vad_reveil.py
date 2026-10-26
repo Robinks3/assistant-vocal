@@ -2,7 +2,7 @@
 
 Pour chaque phrase : score maximal de chaque modèle de réveil, et découpage de la parole par Silero
 (début, fin, durée trouvée). Ne remplace pas un essai au micro : la voix siwis de Piper a servi à
-entraîner « assistant », son score ici est donc trop flatteur.
+entraîner le mot de réveil de la configuration, son score ici est donc trop flatteur.
 Usage : .venv\\Scripts\\python poc\\outils\\essai_vad_reveil.py"""
 import sys
 from pathlib import Path
@@ -17,7 +17,7 @@ import vad as V  # noqa: E402
 # Mot de réveil de la configuration (section reveil de maison.json, modèle reveil/<mot>.onnx), s'il y en a un.
 MOT = str((maison.CONFIG.get("reveil") or {}).get("mot") or "").strip().lower()
 
-PHRASES = ["assistant", "Hey Jarvis", "Jarvis", "Allume la lumière du salon", "Assistant", "Bonne nuit Assistant"]
+PHRASES = ["Assistant", "Hey Jarvis", "Jarvis", "Allume la lumière du salon", "Assistance", "Bonne nuit Assistante"]
 
 
 def reechantillonner(x, de, vers=16000):

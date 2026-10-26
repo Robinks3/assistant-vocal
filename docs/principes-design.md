@@ -206,4 +206,4 @@ garde, sans onglet courant.
 - Version de l'appli visible dans la couche de service et dans `android/VERSION.md`, toujours
   synchronisées.
 - Textes en français avec accents, sans tiret cadratin, sans point-virgule en phrase, sans emoji.
-- Ne pas copier le design d'un autre projet, assistant des auteurs inspiration compris.
+- Ne pas copier le design d'un autre projet, même cité comme inspiration.

@@ -8,7 +8,7 @@ import kotlin.math.sqrt
  * Reconnaissance des visages de la tablette (0.16.0), logique pure sans Android pour être testée
  * sur la machine (ReconnaissanceTest).
  *
- * Idée reprise d'un projet d'inspiration (auteurs inspiration, perception/recognition.py et vision.py), réécrite ici
+ * Idée reprise d'un projet d'inspiration, réécrite ici
  * avec nos propres règles. Un visage seul ne suffit pas à nommer quelqu'un : une image floue ou de
  * biais ressemble vite à un proche. Il faut donc une ressemblance nette (seuil), un écart franc avec
  * le deuxième profil (marge), et que cela se répète dans le temps (votes). Une fois confirmée,

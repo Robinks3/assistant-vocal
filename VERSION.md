@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.34.4 (2026-10-26), garde-fou piloté par une liste, documentation sans référence à un projet tiers
+Session S-C4 du plan 1.2.0. Aucun changement de comportement pour une configuration existante.
+- `.githooks/garde-fou.sh` lit `config/mots-interdits.txt` (une chaîne par ligne, lignes vides et lignes commençant
+  par `#` ignorées, insensible à la casse). Chaque chaîne est refusée dans les chemins indexés et dans leur contenu,
+  le mot trouvé est masqué dans le message. Sans ce fichier, un avertissement sort sur l'erreur standard et seuls les
+  contrôles génériques tournent. Aucun contrôle existant n'est retiré, et le script ne contient plus aucun mot en dur.
+- Le mot interdit disparaît de tout le moteur, `docs/` compris : commentaires du serveur, des outils, des tests et de
+  l'appli reformulés, valeur par défaut du mot de réveil devenue « Assistant ». Les entrées précédentes de ce journal
+  sont reformulées avec le même sens. La règle de `CLAUDE.md` devient : aucun nom de dépôt, de dossier ni de variable
+  ne contient un mot de `config/mots-interdits.txt`, et le mot de réveil n'est qu'un réglage.
+- `inspirations/` n'est plus suivi : le fichier de comparaison est retiré de l'index et de `.gitignore`, plus rien
+  dans le dépôt ne pointe vers ce dossier.
+- `README.md` : la section « Inspiration » laisse place à un remerciement général, sans lien ni nom de projet. La
+  licence passe à MIT (renvoi à `LICENSE` et à `LICENCES-TIERS.md`, qui est mis en cohérence).
+- Les prénoms réels des journaux de versions, du README et des licences sont remplacés par « le propriétaire », « la
+  colocataire », Sacha ou Camille. `docs/ARCHITECTURE.md` décrit une installation d'exemple avec du matériel générique.
+- `poc/serveur_satellite.py` avertit au démarrage, sans jamais s'arrêter, des modèles manquants
+  (`verifier_au_demarrage` de `poc/outils/telecharger_modeles.py`), sauf si la voix est choisie ailleurs. Deux tests
+  dans `test_modeles_manquants.py`.
+- `test_confidentialite.py` : les 19 attentes d'échec de S-C4 sont retirées (`ATTENDUS` est vide), le volet privé
+  passe sans elles. Cinq tests exécutent le vrai garde-fou dans un dépôt jetable (contenu, chemin, liste absente).
+
 ## Serveur 0.34.3 (2026-10-26), exemple de configuration entièrement fictif
 Session S-C3 du plan 1.2.0. Aucun changement de comportement pour une configuration existante.
 - `config-exemple/` ne contient plus aucune valeur réelle. Les identifiants d'entités de `maison.json`,
@@ -136,7 +158,7 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
 - Nouvelle section `acces` de `maison.json` (clé fictive dans `config-exemple/`) : `ecoute` (adresses d'écoute des ports
   8765 et 8766, `0.0.0.0` par défaut), `reseaux_autorises` (connexion refusée hors maison, tailnet et machine locale par
   défaut, `"*"` pour tout ouvrir), `ancien_acces` (jeton dans l'adresse sur 8765, permis par défaut,
-  `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Ports 8765 et ancien accès non coupés : décision de Alex.
+  `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Ports 8765 et ancien accès non coupés : décision du propriétaire.
 
 ## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
 - Services ouverts au serveur (`SERVICES_PERMIS`) : `domaine_tele.launch_app`, `domaine_tele.send_text_input`,
@@ -241,8 +263,8 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
 
 ## Serveur 0.27.0 (2026-10-25), plafond de volume réglable, aucun par défaut
 - Le plafond fixe de 50 % du volume devient le réglage `securite.plafond_volume` de `maison.json`, en
-  pourcentage : absent, `null` ou `100`, aucun plafond (le défaut). La configuration d'exemple et celle de
-  Alex le règlent à 100. Une valeur illisible (texte, booléen) garde un plafond prudent de 50 %, une valeur
+  pourcentage : absent, `null` ou `100`, aucun plafond (le défaut). La configuration d'exemple et celle du
+  propriétaire le règlent à 100. Une valeur illisible (texte, booléen) garde un plafond prudent de 50 %, une valeur
   hors de 0 à 100 y est ramenée (`securite.plafond_configure`).
 - Avec un plafond, tout se règle sur sa valeur : `volume_level` ramené au plafond, refus de
   `media_player.volume_up` dont le message dit la valeur, phrase de la consigne du LLM. Sans plafond,
@@ -260,7 +282,7 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
   l'appli Android. Les réponses parlées du serveur ne citent pas ce nom. « Assistant » quand la section est
   absente, vide ou mal formée, « Iris » dans `config-exemple/`. Distinct du mot de réveil (section `reveil`).
 - Commentaires du moteur neutres (« l'assistant », « le mot de réveil »), agents HTTP et générateurs en
-  `assistant-vocal/1.0`. Seules restent les citations du projet d'origine des auteurs inspiration.
+  `assistant-vocal/1.0`. Seules restaient alors des mentions d'un projet d'inspiration (retirées en 0.34.4).
 - Commentaires de `poc/securite.py` reformulés sans changer les règles ni le réglage du plafond de volume.
 - Test `poc/tests/test_assistant_nom.py`.
 
@@ -271,4 +293,4 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
   (`config/` ou `ASSISTANT_VOCAL_CONFIG`). `config-exemple/` porte une configuration fictive complète, qui fait
   tourner les tests.
 - La numérotation continue celle du projet d'origine, dont le journal complet reste avec la configuration
-  de Alex.
+  du propriétaire.

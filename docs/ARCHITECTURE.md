@@ -199,7 +199,8 @@ cerveau est toujours Claude.
 ### Ordres de grandeur
 
 Les chiffres viennent du code et des journaux de versions d'avant la séparation du moteur. Ils ont été
-mesurés sur un PC de bureau, une tablette, un téléphone et un Home Assistant sur petit serveur.
+mesurés sur une installation d'exemple : un PC de bureau, une tablette Android d'entrée de gamme, un téléphone
+Android haut de gamme et un Home Assistant sur un mini-PC à processeur petit serveur.
 
 | Étape | Durée typique |
 |---|---|
@@ -207,13 +208,13 @@ mesurés sur un PC de bureau, une tablette, un téléphone et un Home Assistant 
 | Arbitrage entre appareils | 250 ms quand plusieurs appareils sont au repos, rien sinon |
 | Fin de phrase | 0,45 s de silence avec Silero |
 | Canary sur le PC | 0,2 à 0,7 s par commande |
-| Canary sur l'appareil | 0,44 à 0,61 s (téléphone), 0,7 à 1,1 s (tablette) pour 3 s de parole |
+| Canary sur l'appareil | 0,44 à 0,61 s (téléphone haut de gamme), 0,7 à 1,1 s (tablette) pour 3 s de parole |
 | Speech-to-Phrase | 0,7 à 1,5 s, autour de 0,5 s de plus depuis le PC par SSH |
 | Dictionnaire | Quelques dizaines de millisecondes, 0,07 à 0,11 s pour comprendre une commande |
 | Lampe qui réagit | 0,2 s après l'ordre, confirmation relue toutes les 0,15 s |
 | Claude Haiku | 1,9 à 2,5 s par commande, environ 2,7 s depuis l'appareil par l'appli Home Assistant |
 | LLM local Qwen3.5-9B | 2,7 à 3,8 s par commande |
-| Piper | 0,2 s sur le PC, 0,7 s sur le petit serveur |
+| Piper | 0,2 s sur le PC, 0,7 s sur le mini-PC petit serveur |
 | Vision | 16 ms par image sur le PC (44 ms aller-retour), 27 à 28 ms par image sur la tablette |
 
 Par addition, une commande du dictionnaire sur le serveur du PC répond environ 1 à 1,5 s après la fin de la

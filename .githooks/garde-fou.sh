@@ -4,7 +4,11 @@
 #   .githooks/garde-fou.sh --pousse      commits envoyés (crochet pre-push, lit l'entrée standard de git)
 #   .githooks/garde-fou.sh --historique  tout l'historique de toutes les branches, avant un partage
 # Activation, une fois par clone : git config core.hooksPath .githooks
-# Faux positif : ajouter le commentaire "garde-fou: ignorer" sur la ligne concernée.
+# Faux positif : ajouter le commentaire "garde-fou: ignorer" sur la ligne concernée (jamais valable pour
+# les mots interdits ci-dessous).
+# Mots interdits : config/mots-interdits.txt (fichier privé, ignoré par git), une chaîne par ligne, lignes vides et
+# lignes commençant par # ignorées, casse ignorée. Chaque chaîne est refusée dans les chemins indexés et dans le
+# contenu texte des lignes ajoutées. Fichier absent : avertissement sur stderr, les autres contrôles tournent.
 # Contournement ponctuel, sur décision du propriétaire seulement : git commit --no-verify
 # Les valeurs trouvées ne sont jamais affichées (les sorties des agents finissent dans des journaux).
 
@@ -16,7 +20,7 @@ TAILLE_MAX_MO=${GARDE_FOU_TAILLE_MAX_MO:-5}
 TAILLE_MAX=$((TAILLE_MAX_MO * 1024 * 1024))
 
 # Fichiers à ne jamais versionner, voir .gitignore. Les modèles (*.exemple) restent permis.
-CHEMINS_INTERDITS='(^|/)\.env($|\.)|(^|/)local\.properties$|(^|/)keystore\.properties$|\.(jks|keystore|p12|pfx|pem|key|crt|cer|der|csr)$|(^|/)poc/tls/|(^|/)maison\.json$|^(config|maison)/|(^|/)assistant\.onnx$|(^|/)poc/commandes\.yaml$|^android/app/src/main/assets/(dictionnaire\.json|maison3d/vue3d\.html)$|^carte/(pieces|meubles|lampes)\.json$|(^|/)journal/|(^|/)commandes_apprises\.yaml$|(^|/)dictionnaire_appris\.json$|(^|/)appareils\.json$|\.(apk|aab|apks)$|\.(wav|mp3|m4a|flac|ogg|opus|aac|amr|3gp|webm|mp4|mov|mkv|avi)$|\.(gguf|litertlm|safetensors|pt|pth|ckpt|npy|npz)$|\.(db|sqlite|sqlite3)$|(^|/)docs/captures/|(^|/)test-(canary|reveil)/'
+CHEMINS_INTERDITS='(^|/)\.env($|\.)|(^|/)local\.properties$|(^|/)keystore\.properties$|\.(jks|keystore|p12|pfx|pem|key|crt|cer|der|csr)$|(^|/)poc/tls/|(^|/)maison\.json$|^(config|maison)/|(^|/)poc/commandes\.yaml$|^android/app/src/main/assets/(dictionnaire\.json|maison3d/vue3d\.html)$|^carte/(pieces|meubles|lampes)\.json$|(^|/)journal/|(^|/)commandes_apprises\.yaml$|(^|/)dictionnaire_appris\.json$|(^|/)appareils\.json$|\.(apk|aab|apks)$|\.(wav|mp3|m4a|flac|ogg|opus|aac|amr|3gp|webm|mp4|mov|mkv|avi)$|\.(gguf|litertlm|safetensors|pt|pth|ckpt|npy|npz)$|\.(db|sqlite|sqlite3)$|(^|/)docs/captures/|(^|/)test-(canary|reveil)/'
 CHEMINS_PERMIS='\.(exemple|example)$|^config-exemple/maison\.json$|^android/app/src/main/res/raw/ecoute_[a-z_]+\.wav$'
 
 # Secrets reconnaissables à leur forme : jeton Home Assistant (JWT), clés Anthropic, OpenAI, GitHub,
@@ -33,6 +37,21 @@ MOTS_FACTICES='test|exemple|example|invent|faux|fake|dummy|xxx|changeme|placehol
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
+
+# Mots interdits : une chaîne par ligne, sans espaces de bord, sans retour chariot.
+FICHIER_MOTS=config/mots-interdits.txt
+: > "$TMP/mots"
+if [ -f "$FICHIER_MOTS" ]; then
+    tr -d '' < "$FICHIER_MOTS" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v -e '^$' -e '^#' > "$TMP/mots" || true
+else
+    echo "Garde-fou : $FICHIER_MOTS absent, les mots interdits ne sont pas contrôlés (seuls les contrôles génériques tournent)." >&2
+fi
+# Script sed qui masque chaque mot interdit dans les sorties.
+sed -e 's/[][\.*^$/]/\\&/g' -e 's|.*|s/&/***/Ig|' "$TMP/mots" > "$TMP/masque.sed"
+
+masquer() {
+    if [ -s "$TMP/masque.sed" ]; then sed -f "$TMP/masque.sed"; else cat; fi
+}
 
 # Lignes ajoutées d'un diff, au format "[commit ]chemin:ligne<TAB>contenu".
 lignes_ajoutees() {
@@ -53,7 +72,23 @@ verifier() {
         grep -E "$MOTIFS_SECRETS" "$TMP/lignes"
         grep -i -E "$MOTIF_GENERIQUE" "$TMP/lignes" | grep -v -i -E "$MOTS_FACTICES"
     } | cut -f1 | sort -u > "$TMP/r_secrets"
+    : > "$TMP/r_mots_chemins"
+    : > "$TMP/r_mots_lignes"
+    if [ -s "$TMP/mots" ]; then
+        LC_ALL=C.UTF-8 grep -i -F -f "$TMP/mots" "$1" | sort -u > "$TMP/r_mots_chemins"
+        LC_ALL=C.UTF-8 grep -i -F -f "$TMP/mots" "$2" | cut -f1 | sort -u > "$TMP/r_mots_lignes"
+    fi
     refus=0
+    if [ -s "$TMP/r_mots_chemins" ]; then
+        refus=1
+        echo "Chemins qui contiennent un mot de $FICHIER_MOTS (mot masqué) :"
+        masquer < "$TMP/r_mots_chemins" | sed 's/^/  /'
+    fi
+    if [ -s "$TMP/r_mots_lignes" ]; then
+        refus=1
+        echo "Lignes ajoutées qui contiennent un mot de $FICHIER_MOTS (mot masqué) :"
+        masquer < "$TMP/r_mots_lignes" | sed 's/^/  /'
+    fi
     if [ -s "$TMP/r_chemins" ]; then
         refus=1
         echo "Fichiers à ne jamais versionner (secrets, données personnelles, binaires produits) :"

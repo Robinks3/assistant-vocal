@@ -2,7 +2,7 @@
 
 Remplace le seuil d'énergie pour trouver le début et la fin d'une phrase : la télé, un bip ou
 un bruit de fond ne passent plus pour de la parole, et la fin de phrase arrive plus tôt.
-Idée reprise d'un projet d'inspiration (auteurs inspiration, perception/vad.py), réécrite ici.
+Idée reprise d'un projet d'inspiration, réécrite ici.
 
 Le modèle travaille par fenêtres de 512 échantillons à 16 kHz (32 ms), précédées des 64
 derniers échantillons de la fenêtre d'avant, avec un état récurrent qu'on garde entre deux appels.

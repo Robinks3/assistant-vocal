@@ -185,10 +185,10 @@ class Moteur:
             print("  santé : " + (f"relais vers {self.sante.url}, permis à {', '.join(sorted(self.sante_personnes)) or 'personne'}"
                                   if self.sante else "relais éteint (SANTE_JETON absent)"))
         # Historique pour les onglets Tendances, Séances, Records et Jour (0.20.0) : lu dans le
-        # data-auto.js du tableau de bord sur le SERVEUR, mêmes conditions et même accès que le relais.
+        # data-auto.js du tableau de bord santé, mêmes conditions et même accès que le relais.
         self.sante_hist = SH.depuis_env(self.profil) if self.sante else None
         if self.profil == "pc":
-            print("  historique santé : " + ("tableau de bord HealthStats du SERVEUR" if self.sante_hist else "éteint"))
+            print("  historique santé : " + ("tableau de bord HealthStats" if self.sante_hist else "éteint"))
         # Météo marine du plan d'eau (section « mer » de maison.json) pour la page « Mer » (0.22.0) : sources
         # publiques, aucune donnée personnelle, dans les deux profils. METEO_MER=0 l'éteint (voir meteo_mer.py).
         self.meteo_mer = MM.depuis_env()
@@ -832,7 +832,7 @@ def enregistrer_seuil(seuil):
 class Arbitre:
     """Un seul téléphone répond quand plusieurs ont entendu le mot de réveil.
 
-    Idée reprise d'un projet d'inspiration (server/wake-arbiter.ts), réécrite ici. Avec un seul téléphone au repos,
+    Idée reprise d'un projet d'inspiration, réécrite ici. Avec un seul téléphone au repos,
     il répond tout de suite. Sinon, la première détection ouvre une fenêtre de 250 ms, le meilleur score
     gagne, et les détections du même appel qui arrivent ensuite (écho, retard réseau) sont ignorées
     pendant 1,5 s."""
@@ -1289,6 +1289,19 @@ async def suivre_satellite(sat, ws, moteur, nom):
         print(f"[{nom}] satellite déconnecté")
 
 
+def avertir_modeles_manquants(racine=None, sortie=None):
+    """Au démarrage : affiche le message des modèles absents (voix) avec la commande qui les récupère.
+
+    Avertissement seulement, le démarrage continue. Rien n'est dit si VOIX désigne une autre voix."""
+    if os.getenv("VOIX"):
+        return True
+    try:
+        from outils import telecharger_modeles as TM
+    except ImportError:
+        return True
+    return TM.verifier_au_demarrage("serveur", racine or TM.RACINE, sortie)
+
+
 async def servir(args):
     # Un jeton par personne : SATELLITE_JETON (le propriétaire, proprietaire.cle de maison.json) et
     # SATELLITE_JETON_<NOM> pour les autres.
@@ -1495,6 +1508,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     if a.seuil is None:
         a.seuil = float(os.getenv("SEUIL_REVEIL", "0.5"))
+    avertir_modeles_manquants()
     try:
         asyncio.run(servir(a))
     except KeyboardInterrupt:

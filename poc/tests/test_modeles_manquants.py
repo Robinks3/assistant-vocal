@@ -108,3 +108,27 @@ def test_les_assets_versionnes_ont_l_empreinte_attendue(T):
         fichier = racine / relatif
         if fichier.is_file():
             assert T.empreinte(fichier) == par_chemin[relatif]
+
+
+def test_le_serveur_avertit_au_demarrage_sans_s_arreter(tmp_path, monkeypatch):
+    """avertir_modeles_manquants écrit le message et renvoie faux, sans lever d'exception ni quitter."""
+    import serveur_satellite as S
+    from outils import telecharger_modeles as TM
+    monkeypatch.delenv("VOIX", raising=False)
+    sortie = io.StringIO()
+    assert S.avertir_modeles_manquants(tmp_path, sortie) is False
+    assert "Modèles manquants" in sortie.getvalue()
+    assert "telecharger_modeles.py" in sortie.getvalue()
+    remplir(tmp_path, TM, "serveur")
+    monkeypatch.setattr(TM, "_dossier_openwakeword", lambda: None)
+    sortie = io.StringIO()
+    assert S.avertir_modeles_manquants(tmp_path, sortie) is True
+    assert sortie.getvalue() == ""
+
+
+def test_le_serveur_se_tait_si_la_voix_est_choisie_ailleurs(tmp_path, monkeypatch):
+    import serveur_satellite as S
+    monkeypatch.setenv("VOIX", str(tmp_path / "autre.onnx"))
+    sortie = io.StringIO()
+    assert S.avertir_modeles_manquants(tmp_path, sortie) is True
+    assert sortie.getvalue() == ""
