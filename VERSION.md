@@ -10,6 +10,8 @@ Aucun code ni numéro de version ne change : le serveur et l'appli gardent leur 
   lisibles en clair, en sombre et en ambiance du soir : Accueil, appairage en trois écrans (nouveau navigateur,
   propriétaire avec rôle, confirmation par clé d'accès), Réglages, révocation d'un appareil, composants et états.
   Noms fictifs de `config-exemple/maison.json`. Version des maquettes : 1.0.0.
+- `docs/maquettes/client-web/` : planches du lot journal (S-W0b), Journal de jour et du soir, feuille de détail,
+  Demander (écoute, réponse, essai) et Vie privée (niveau, aperçu, confirmation par clé d'accès).
 - `docs/principes-design.md` : section Client web (palette en variables CSS, typographie, espacements, états,
   composants réutilisables, accessibilité).
 
