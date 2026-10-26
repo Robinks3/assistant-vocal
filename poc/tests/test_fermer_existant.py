@@ -354,9 +354,9 @@ def lire_csv(dossier):
 
 def test_le_csv_des_durees_ne_contient_aucune_phrase(dossier_journal):
     phrase, reponse = "allume la lampe du salon de Camille", "d'accord, voilà la réponse secrète"
-    A.journaliser(phrase, "dictionnaire (allume la lampe)", 0.1, 0.2, 0.3, reponse, ["light.salon"])
+    A.journaliser(phrase, "dictionnaire (allume la lampe)", 0.1, 0.2, 0.3, reponse, ["light.chambre_camille_chevet"])
     brut = (dossier_journal / "latences.csv").read_text(encoding="utf-8")
-    assert phrase not in brut and reponse not in brut and "lampe" not in brut and "light.salon" not in brut
+    assert phrase not in brut and reponse not in brut and "lampe" not in brut and "light.chambre_camille_chevet" not in brut
     ligne_csv = lire_csv(dossier_journal)[0]
     assert ligne_csv["voie"] == "dictionnaire" and ligne_csv["issue"] == "ok" and ligne_csv["total_s"] == "0.60"
     assert ligne_csv["actions_nb"] == "1" and ligne_csv["role"] == "local" and ligne_csv["version"] == A.VERSION
@@ -364,9 +364,9 @@ def test_le_csv_des_durees_ne_contient_aucune_phrase(dossier_journal):
 
 
 def test_l_historique_garde_la_phrase_pour_l_appli(dossier_journal):
-    A.journaliser("allume le salon", "ha", 0, 0.1, 0, "voilà", ["light.salon"])
+    A.journaliser("allume le salon", "ha", 0, 0.1, 0, "voilà", ["light.chambre_camille_chevet"])
     entree = A.lire_historique(5)[0]
-    assert entree["texte"] == "allume le salon" and entree["reponse"] == "voilà" and entree["actions"] == "light.salon"
+    assert entree["texte"] == "allume le salon" and entree["reponse"] == "voilà" and entree["actions"] == "light.chambre_camille_chevet"
     assert {"appareil", "personne", "role"} <= set(entree)
 
 
