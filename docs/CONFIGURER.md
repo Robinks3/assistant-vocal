@@ -119,7 +119,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `proprietaire` | `poc/maison.py`, `poc/dictionnaire.py`, `poc/sante.py`, `poc/serveur_satellite.py`, `ConfigMaison.kt`, `DictionnaireLocal.kt`, `Sante.kt`, `build.gradle.kts` | Propriétaire nommé `Moi`, avertissement au démarrage et à la compilation. |
 | `mer` | `poc/meteo_mer.py`, `MeteoMer.kt`, `MeteoQuestion.kt`, `EcranMeteo.kt` | Météo marine éteinte. |
 | `vent` | `poc/vent_mesure.py`, `MeteoVent.kt`, `EcranVent.kt`, `build.gradle.kts` | Vent mesuré éteint. Dans l'appli, la page Mer disparaît aussi. |
-| `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Seul "Hey Jarvis" existe. |
+| `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Sans section, le mot vaut "assistant" (ou `MOT_REVEIL`), avec repli sur "Hey Jarvis" si son modèle manque. |
 
 Aucune autre section n'est lue par le code.
 
@@ -467,11 +467,11 @@ après 1, 2, 4, 8 puis 15 minutes au plus, et son libellé apparaît dans les er
 
 ### `reveil`
 
-Mot de réveil propre à la maison, en plus de "Hey Jarvis".
+Mot de réveil de la maison. "Hey Jarvis" reste le modèle de repli quand le fichier du mot manque.
 
 | Champ | Type | Effet |
 |---|---|---|
-| `mot` | texte | Nom du modèle : `reveil/<mot>.onnx` dans le dossier de configuration. Interdit : `melspectrogram`, `embedding_model`, `hey_jarvis`, `hey_jarvis_v0.1` (la compilation échoue). |
+| `mot` | texte | Nom du modèle : `reveil/<mot>.onnx` dans le dossier de configuration. Par défaut : `MOT_REVEIL` de `poc/.env`, puis `assistant`. Interdit : `melspectrogram`, `embedding_model`, `hey_jarvis`, `hey_jarvis_v0.1` (la compilation échoue). |
 | `nom` | texte | Nom affiché. Par défaut : `mot` avec une majuscule. |
 | `langue` | texte | Affichée sous le nom dans les réglages de l'appli. |
 | `licence` | texte | Affichée dans les réglages de l'appli. |
@@ -930,23 +930,28 @@ l'APK.
 
 ### Mot de réveil
 
-Sans rien faire, l'assistant répond à "Hey Jarvis" (modèle anglais d'openWakeWord). Pour un mot à soi :
+Le mot par défaut est "assistant". Le moteur public ne fournit pas son modèle, et le seul modèle qu'openWakeWord
+sait détecter sans fichier de la configuration est "Hey Jarvis" (anglais). Tant que `reveil/assistant.onnx` manque,
+l'assistant se replie donc sur "Hey Jarvis", affiche ce nom et l'écrit au journal du serveur au démarrage :
+`modèle de réveil absent pour le mot assistant (attendu : ...), repli sur Hey Jarvis`. Pour un mot à soi :
 
 1. Obtenir un modèle openWakeWord au format ONNX.
 2. Le ranger dans `reveil/<mot>.onnx` du dossier de configuration, avec sa licence dans
    `reveil/<mot>.onnx.LICENSE` (sans elle, la compilation avertit).
 3. Le décrire dans la section `reveil` de `maison.json`.
-4. Sur le PC, `MOT_REVEIL=<mot>` dans `poc/.env`.
-5. Recompiler l'APK, qui range le modèle dans ses assets.
+4. Recompiler l'APK, qui range le modèle dans ses assets.
+
+Sur le PC, le mot est cherché dans cet ordre : `reveil.mot` de `maison.json`, puis la variable `MOT_REVEIL` de
+`poc/.env` (réglage de secours, qui ne casse pas une installation existante), puis `assistant`. Le nom affiché est
+`reveil.nom` quand le mot vient de `maison.json`, sinon le mot avec une majuscule.
 
 À l'écran, les réglages de l'appli proposent le mot de la configuration à côté de "Hey Jarvis", avec sa
-langue et sa licence, et le prennent par défaut. Le PC n'annonce le nom de la section que si `reveil.mot`
-vaut `MOT_REVEIL`. L'appli Home Assistant annonce toujours "Hey Jarvis", elle ne reçoit pas le dossier
-`reveil/`.
+langue et sa licence, et le prennent par défaut. L'appli Home Assistant annonce toujours "Hey Jarvis", elle ne
+reçoit pas le dossier `reveil/`.
 
-Pour l'éteindre : retirer la section ou vider `mot`, et remettre `MOT_REVEIL=hey_jarvis`. Une section
-`reveil` dont le modèle manque fait échouer la compilation de l'APK. Côté PC, un `MOT_REVEIL` sans modèle
-retombe sur "Hey Jarvis".
+Pour ne guetter que "Hey Jarvis" : retirer la section `reveil` et mettre `MOT_REVEIL=hey_jarvis` dans
+`poc/.env`. Une section `reveil` dont le modèle manque fait échouer la compilation de l'APK. L'exemple `config-exemple/` décrit le mot
+"assistant" sans fournir son modèle : déposer un modèle dans `reveil/` ou retirer la section avant de compiler.
 
 ### Vision des visages
 

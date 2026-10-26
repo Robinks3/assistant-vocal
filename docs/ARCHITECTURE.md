@@ -134,7 +134,7 @@ En mode Cet appareil, la seule connexion obligatoire est celle de la passerelle 
 | Sujet | Profil `pc` | Profil `ha` |
 |---|---|---|
 | Accès à Home Assistant | `HA_URL` et `HA_TOKEN` de `poc/.env` | `http://supervisor/core` et `SUPERVISOR_TOKEN` |
-| Mot de réveil | openWakeWord local, un modèle par connexion, `MOT_REVEIL` | Appli openWakeWord de HA par Wyoming, toujours `hey_jarvis` |
+| Mot de réveil | openWakeWord local, un modèle par connexion, mot de `reveil.mot` (puis `MOT_REVEIL`), repli `hey_jarvis` | Appli openWakeWord de HA par Wyoming, toujours `hey_jarvis` |
 | Transcription | Canary chargé au démarrage, plus `ha_stp`, `ha_whisper` (par `ssh nc`) et `api` si configurée | `ha_stp`, `ha_whisper`, et `api` si configurée |
 | Voix | Piper chargé au démarrage | Appli Piper de HA |
 | Cerveau | `claude` ou `local`, bascule à chaud | `claude` seulement |

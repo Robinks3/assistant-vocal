@@ -308,9 +308,10 @@ compiler dans l'APK.
 | `ANTHROPIC_API_KEY` | Clé de l'API d'Anthropic, lue par le SDK officiel | vide | Avec `LLM_FOURNISSEUR=claude` | Console de la plateforme Claude d'Anthropic, rubrique des clés d'API. |
 | `LLM_URL` | Adresse du LLM local | `http://127.0.0.1:8080/v1` | Avec `LLM_FOURNISSEUR=local` | Celle de votre `llama-server`. |
 | `LLM_MODELE` | Nom du modèle local | `assistant-vocal` | Non | L'alias donné à `llama-server` (`--alias`). |
-| `MICRO` | Morceau du nom du micro du PC | `fifine` si la ligne est absente, micro par défaut si elle est vide | Non | Nom affiché par Windows pour le micro. Sert seulement à `poc/assistant.py`. |
+| `MICRO` | Morceau du nom du micro du PC | `defaut` : le micro par défaut du système, aussi quand la ligne est vide | Non | Nom affiché par Windows pour le micro, pour en choisir un autre que celui par défaut. Sert seulement à `poc/assistant.py`. |
 | `SORTIE` | Morceau du nom de la sortie son du PC | sortie par défaut | Non | Idem, pour les haut-parleurs. |
-| `MOT_REVEIL` | Mot de réveil guetté par le PC : `hey_jarvis` ou un mot dont le modèle est dans `reveil/<mot>.onnx` de la configuration | `hey_jarvis` | Non | Le mot de la section `reveil` de `maison.json`, en minuscules. |
+| `MOT_REVEIL` | Réglage de secours du mot de réveil, lu seulement si `maison.json` n'a pas de `reveil.mot` | `assistant`, avec repli sur `hey_jarvis` si `reveil/<mot>.onnx` manque | Non | Le mot de la section `reveil` de `maison.json`, en minuscules, qui reste prioritaire. |
+| `VOIX` | Fichier de la voix Piper du PC | `poc/voix/fr_FR-siwis-medium.onnx` | Non | Chemin d'un fichier `.onnx` de voix Piper. Fichier absent : le serveur s'arrête avec un message qui le dit. `poc/outils/telecharger_modeles.py` récupère la voix par défaut. |
 | `STT_API_CLE` | Clé d'une transcription en ligne compatible avec l'API d'OpenAI | vide | Non. Prise en compte au-delà de 10 caractères. | Console du fournisseur (par exemple Mistral pour Voxtral). |
 | `STT_API_NOM` | Libellé affiché de cette transcription | `API` | Non | Texte libre, `Voxtral` dans le modèle. |
 | `SANTE_URL` | Adresse du service `sante-api` | `reseau.sante_url` de `maison.json` | Non | Service de santé externe, absent de ce dépôt, joignable seulement par Tailscale. |

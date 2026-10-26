@@ -4,6 +4,31 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.36.0 (2026-10-26), mot de réveil de la configuration, micro et voix par défaut
+Session S-D3 du plan 1.2.0 (décision D5 : un mot générique, réglable dans `maison.json`). Une installation qui
+règle `MOT_REVEIL` dans `poc/.env` se comporte comme avant.
+- Mot de réveil (`modele_reveil`, `reglage_reveil`) : le mot est lu d'abord dans la section `reveil` de
+  `maison.json` (`mot`, `nom`, `langue`, `licence`), puis dans `MOT_REVEIL` (réglage de secours), puis vaut
+  `assistant`. L'ordre est dans la docstring. Le nom affiché suit le mot réellement guetté : `reveil.nom` pour le mot
+  de la configuration, sinon le mot avec une majuscule.
+- Si `reveil/<mot>.onnx` est absent, repli sur `hey_jarvis` (seul modèle détectable sans fichier de la
+  configuration), nom affiché « Hey Jarvis » et une ligne claire au démarrage : `modèle de réveil absent pour le mot
+  X (attendu : ...), repli sur Hey Jarvis`. Une seule fonction, `annoncer_repli_reveil`, sert l'assistant et le
+  serveur satellite.
+- `serveur_satellite.py` et `assistant.py` : plus de « Hey Jarvis » en dur dans les textes (docstrings, message
+  « prêt », aide de `--reveil`). Le profil `ha` demande toujours `hey_jarvis` à l'appli openWakeWord de HA par
+  Wyoming et l'annonce sous ce nom.
+- Micro (I3) : `MICRO` absent ou vide vaut désormais `defaut`, le micro par défaut du système, au lieu d'un morceau de
+  nom de micro propre à une machine. `trouver_peripherique` accepte vide ou `defaut` sans interroger le matériel.
+- Voix (I3) : `VOIX` garde `poc/voix/fr_FR-siwis-medium.onnx` par défaut. Un fichier absent arrête le démarrage avec
+  un message qui nomme le fichier, `VOIX` et `poc/outils/telecharger_modeles.py` (`verifier_voix`).
+- `config-exemple/maison.json` : section `reveil` fictive (mot `assistant`), `_lisez_moi` réécrit. L'exemple ne
+  fournit pas de modèle : le déposer dans `reveil/` ou retirer la section avant de compiler l'APK.
+- Tests : `test_reveil.py` réécrit (nom « Assistant » avec modèle fictif, repli et message, `MOT_REVEIL` en secours,
+  priorité de la configuration), `test_demarrage_sans_env.py` (micro par défaut, voix absente).
+- Documentation : `MICRO`, `VOIX` et l'ordre de priorité du réveil dans `docs/INSTALLER.md`, `docs/CONFIGURER.md`,
+  `docs/FAQ.md`, `docs/ARCHITECTURE.md` et `docs/QUOI-TOURNE-OU.md`.
+
 ## Serveur 0.35.0 (2026-10-26), météo marine : sources désactivables, côte et plan 3D reproductibles
 Session S-D2 du plan 1.2.0. Une configuration existante se comporte comme avant : tout ce qui est ajouté est
 facultatif ou n'écrit qu'un avertissement.

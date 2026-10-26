@@ -6,7 +6,7 @@ Micro -> Canary 1B v2 en français (STT, CPU) -> dictionnaire de commandes (comm
 
 Usage :
   python poc/assistant.py               appui sur Entrée pour parler
-  python poc/assistant.py --reveil      mot de réveil « Hey Jarvis »
+  python poc/assistant.py --reveil      mot de réveil de la configuration (section reveil de maison.json)
   python poc/assistant.py --clavier     commandes tapées au clavier (sans micro)
   python poc/assistant.py --texte "allume la lumière"   une seule commande
   ajouter --essai : affiche ce qui serait fait, sans rien exécuter
@@ -19,6 +19,7 @@ import maison
 import securite
 from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 
 class Requete:
@@ -48,7 +49,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.35.0"
+VERSION = "0.36.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -97,6 +98,12 @@ if not securite.plafond_actif():
 DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - ({"button", "switch"} | DOMAINES_HORS_LLM)) | {"sensor", "binary_sensor", "weather"})
 
 
+# Valeurs sûres d'un moteur sans poc/.env (0.36.0) : le micro est le périphérique d'entrée par défaut du système,
+# la voix est celle que poc/outils/telecharger_modeles.py range dans poc/voix/.
+MICRO_DEFAUT = "defaut"
+VOIX_DEFAUT = ICI / "voix" / "fr_FR-siwis-medium.onnx"
+
+
 def charger_env():
     from dotenv import load_dotenv
     load_dotenv(ICI / ".env")
@@ -105,9 +112,9 @@ def charger_env():
         "ha_token": os.getenv("HA_TOKEN", "").strip(),
         "llm_url": os.getenv("LLM_URL", "http://127.0.0.1:8080/v1").rstrip("/"),
         "llm_modele": os.getenv("LLM_MODELE", "assistant-vocal"),
-        "micro": os.getenv("MICRO", "fifine"),
+        "micro": os.getenv("MICRO", MICRO_DEFAUT),
         "sortie": os.getenv("SORTIE", ""),
-        "voix": os.getenv("VOIX", str(ICI / "voix" / "fr_FR-siwis-medium.onnx")),
+        "voix": os.getenv("VOIX", str(VOIX_DEFAUT)),
         "llm_fournisseur": os.getenv("LLM_FOURNISSEUR", "local").strip().lower(),
         "claude_modele": os.getenv("CLAUDE_MODELE", "claude-haiku-5-5"),
     }
@@ -115,9 +122,12 @@ def charger_env():
 
 # ---------------------------------------------------------------- audio
 def trouver_peripherique(nom, entree):
-    import sounddevice as sd
-    if not nom:
+    """Numéro du périphérique audio dont le nom contient [nom], ou None : sounddevice prend alors le périphérique
+    par défaut du système. Un nom vide ou « defaut » désigne volontairement ce périphérique par défaut (MICRO et
+    SORTIE de poc/.env, MICRO_DEFAUT sans réglage), sans interroger le matériel."""
+    if not nom or nom.strip().lower() in ("defaut", "default"):
         return None
+    import sounddevice as sd
     for i, d in enumerate(sd.query_devices()):
         canaux = d["max_input_channels"] if entree else d["max_output_channels"]
         if nom.lower() in d["name"].lower() and canaux > 0 and d["hostapi"] == 0:
@@ -218,29 +228,68 @@ class Oreille:
         return np.concatenate(morceaux)
 
 
+# Mot de réveil : seul modèle que openWakeWord sait détecter sans fichier de la configuration, et mot par défaut
+# du moteur public (décision D5 du plan : un mot générique, réglable dans maison.json).
+MODELE_REPLI, NOM_REPLI = "hey_jarvis", "Hey Jarvis"
+MOT_REVEIL_DEFAUT = "assistant"
+
+
+class ReglageReveil(NamedTuple):
+    """Mot de réveil réellement guetté. [modele] : argument pour openWakeWord (chemin du .onnx ou MODELE_REPLI).
+    [nom] : nom affiché à l'utilisateur, toujours celui du mot détecté. [mot] : mot demandé par la configuration.
+    [repli] : phrase de journal quand le modèle du mot demandé est absent, chaîne vide sinon."""
+    modele: str
+    nom: str
+    mot: str
+    repli: str
+
+
+def reglage_reveil():
+    """Mot de réveil à guetter et son nom affiché. Ordre de priorité du mot demandé :
+    1. `reveil.mot` de la section reveil de maison.json (nom affiché : `reveil.nom`, sinon le mot capitalisé) ;
+    2. la variable MOT_REVEIL de poc/.env, réglage de secours qui ne casse pas une installation existante ;
+    3. « assistant », le défaut du moteur public (décision D5).
+    Le modèle de ce mot est le fichier reveil/<mot>.onnx du dossier de configuration. S'il est absent, le seul
+    modèle détectable est MODELE_REPLI : le moteur se replie dessus, le nom affiché devient NOM_REPLI et
+    [repli] porte la phrase à écrire dans le journal. Le nom affiché est donc toujours celui du mot détecté."""
+    section = maison.CONFIG.get("reveil")
+    section = section if isinstance(section, dict) else {}
+    mot_config = str(section.get("mot") or "").strip().lower()
+    mot = mot_config or os.getenv("MOT_REVEIL", "").strip().lower() or MOT_REVEIL_DEFAUT
+    if mot in (MODELE_REPLI, MODELE_REPLI + "_v0.1"):
+        return ReglageReveil(MODELE_REPLI, NOM_REPLI, mot, "")
+    fichier = maison.DOSSIER / "reveil" / f"{mot}.onnx"
+    if Path(mot).name == mot and fichier.exists():
+        nom = str(section.get("nom") or "").strip() if mot_config == mot else ""
+        return ReglageReveil(str(fichier), nom or mot.capitalize(), mot, "")
+    return ReglageReveil(MODELE_REPLI, NOM_REPLI, mot,
+                         f"modèle de réveil absent pour le mot {mot} (attendu : {fichier}), repli sur {NOM_REPLI}")
+
+
 def modele_reveil():
-    """Modèle du mot de réveil, variable MOT_REVEIL de poc/.env : « hey_jarvis » (anglais, par défaut) ou
-    un mot dont le modèle openWakeWord est rangé dans reveil/<mot>.onnx du dossier de configuration. Le nom
-    affiché vient de la section reveil de maison.json quand elle décrit ce mot (l'appli ne propose que ce
-    mot-là : un MOT_REVEIL sans section reveil est annoncé, mais l'appli affiche alors Hey Jarvis). Renvoie (argument pour openWakeWord, nom affiché)."""
-    nom = os.getenv("MOT_REVEIL", "hey_jarvis").strip().lower()
-    fichier = maison.DOSSIER / "reveil" / f"{nom}.onnx"
-    if nom != "hey_jarvis" and fichier.exists():
-        reveil = maison.CONFIG.get("reveil") or {}
-        affiche = str(reveil.get("nom") or "") if str(reveil.get("mot") or "").strip().lower() == nom else ""
-        return str(fichier), affiche or nom.capitalize()
-    return "hey_jarvis", "Hey Jarvis"
+    """Couple (argument pour openWakeWord, nom affiché) de reglage_reveil()."""
+    r = reglage_reveil()
+    return r.modele, r.nom
+
+
+def annoncer_repli_reveil():
+    """Écrit dans le journal la phrase de repli du mot de réveil, s'il y en a une. Renvoie le réglage utilisé."""
+    r = reglage_reveil()
+    if r.repli:
+        print(f"  {r.repli}")
+    return r
 
 
 class Reveil:
-    """Mot de réveil openWakeWord (modèle de MOT_REVEIL, « hey jarvis » par défaut)."""
+    """Mot de réveil openWakeWord (reglage_reveil : section reveil de maison.json, repli « Hey Jarvis »)."""
 
     def __init__(self, micro, seuil=0.5):
         import openwakeword
         from openwakeword.model import Model
-        modele, self.nom = modele_reveil()
-        if modele == "hey_jarvis":
-            openwakeword.utils.download_models(["hey_jarvis"])
+        reglage = annoncer_repli_reveil()
+        modele, self.nom = reglage.modele, reglage.nom
+        if modele == MODELE_REPLI:
+            openwakeword.utils.download_models([MODELE_REPLI])
         self.modele = Model(wakeword_models=[modele], inference_framework="onnx")
         self.dev = trouver_peripherique(micro, True)
         self.seuil = seuil
@@ -260,8 +309,17 @@ class Reveil:
                     return
 
 
+def verifier_voix(chemin):
+    """Arrête le démarrage avec un message clair quand le fichier de la voix Piper (VOIX de poc/.env, VOIX_DEFAUT
+    sans réglage) est absent, plutôt qu'une exception obscure au chargement du modèle."""
+    if not Path(chemin).is_file():
+        raise SystemExit(f"Voix Piper absente ({chemin}). La récupérer par python poc/outils/telecharger_modeles.py, "
+                         "ou régler VOIX dans poc/.env sur le fichier .onnx d'une autre voix.")
+
+
 class Voix:
     def __init__(self, chemin, sortie):
+        verifier_voix(chemin)
         from piper import PiperVoice
         self.voix = PiperVoice.load(chemin)
         self.taux = self.voix.config.sample_rate
@@ -1613,7 +1671,7 @@ def candidats_proches(dico, texte, n=5):
 def main():
     p = argparse.ArgumentParser(description="Assistant vocal local, POC")
     p.add_argument("--version", action="store_true")
-    p.add_argument("--reveil", action="store_true", help="mot de réveil « Hey Jarvis »")
+    p.add_argument("--reveil", action="store_true", help="mot de réveil de la configuration (« Hey Jarvis » sans son modèle)")
     p.add_argument("--clavier", action="store_true", help="commandes tapées, sans micro")
     p.add_argument("--texte", help="traite une seule commande écrite")
     p.add_argument("--essai", action="store_true", help="n'exécute rien, montre la voie choisie")
@@ -1645,7 +1703,7 @@ def main():
     print("  calibrage du bruit ambiant, silence une seconde...")
     oreille.calibrer()
     print(f"  bruit de fond {oreille.bruit:.4f}, seuil de parole {oreille.seuil:.4f} (le | du vumètre)")
-    print(f"  prêt. {'Dites « Hey Jarvis »' if reveil else 'Entrée, attendez le bip aigu, puis parlez'}."
+    print(f"  prêt. {f'Dites « {reveil.nom} »' if reveil else 'Entrée, attendez le bip aigu, puis parlez'}."
           " Bip grave : j'ai fini d'écouter. Ctrl+C pour quitter.")
     try:
         while True:

@@ -1,7 +1,7 @@
 ﻿# Lance le POC complet : LLM (s'il ne tourne pas déjà) puis l'assistant au micro.
 # Assistant vocal local v0.6.0, 2026-10-12.
 # Usage : powershell -ExecutionPolicy Bypass -File poc\lancer-assistant.ps1 [-Reveil] [-Essai]
-#   -Reveil : écoute « Hey Jarvis » au lieu de la touche Entrée
+#   -Reveil : écoute le mot de réveil de la configuration au lieu de la touche Entrée
 #   -Essai  : comprend et répond, mais n'agit sur rien dans la maison
 param([switch]$Reveil, [switch]$Essai)
 $ErrorActionPreference = 'Stop'
