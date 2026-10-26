@@ -62,6 +62,8 @@ IDS_GENERIQUES = frozenset({
     "light.a", "light.b", "light.x", "light.y", "light.z", "light.essai", "light.inconnue", "light.tout",
     "media_player.a", "media_player.b", "media_player.c", "media_player.autre", "media_player.inconnu",
     "switch.prise", "climate.essai",
+    "sensor.c", "sensor.t", "sensor.t2", "sensor.pm", "sensor.co2", "sensor.salon_t", "sensor.salon_co2",
+    "sensor.chambre_t", "sensor.chambre_h", "sensor.couloir_t", "sensor.protegee_t", "sensor.sans_aire",
 })
 # Services de Home Assistant (domaine.service) : ce ne sont pas des entités.
 SERVICES = frozenset({

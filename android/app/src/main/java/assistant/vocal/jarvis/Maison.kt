@@ -440,6 +440,25 @@ class Maison(
         val m = j.optJSONArray("medias") ?: JSONArray()
         val medias = (0 until m.length()).mapNotNull { i -> m.optJSONObject(i)?.let(Appareils::lire) }
         Etat.modifier { it.copy(lumieres = lumieres, mediasPlan = medias) }
+        lireMesures(p)
+    }
+
+    @Volatile private var mesuresLues = 0L
+
+    /**
+     * Mesures par pièce (S-L6) : un seul gabarit lit tous les capteurs utiles, au plus une fois par minute et
+     * seulement si la configuration relie des pièces à des zones (correspondance_pieces). Les zones protégées sont
+     * écartées dès le gabarit, leurs valeurs ne sortent même pas de Home Assistant.
+     */
+    private fun lireMesures(p: PasserelleHa) {
+        if (Mesures.correspondance().isEmpty()) return
+        val t = SystemClock.elapsedRealtime()
+        if (mesuresLues != 0L && t - mesuresLues < Mesures.PERIODE_MS) return
+        mesuresLues = t
+        val r = p.requete("POST", "/api/template", JSONObject().put("template", Mesures.gabarit(Mesures.zonesProtegees())))
+        if (!r.ok) return
+        val releve = Mesures.lireReleve(r.corps) ?: return
+        Etat.modifier { it.copy(mesures = releve, mesuresLe = t) }
     }
 
     /** Champs qui ne changent pas d'une lecture à l'autre : nom, pièce, membres d'un groupe, modes de couleur, bornes du blanc (0.27.0). */
@@ -850,7 +869,7 @@ class Maison(
                 domaine == "assist" -> "fait par Assist de Home Assistant"
                 domaine == "light" && nom == "turn_on" -> when {
                     d["brightness_pct"] != null -> "luminosité ${pourcent(d["brightness_pct"])}"
-                    d["brightness"] != null -> "luminosité ${pourcent(d["brightness"]!!.toDoubleOrNull()?.let { (it / 5.55).toString() })}"
+                    d["brightness"] != null -> "luminosité ${pourcent(d["brightness"]!!.toDoubleOrNull()?.let { (it / 2.55).toString() })}"
                     d.keys.any { it in setOf("color_name", "rgb_color", "hs_color", "xy_color") } -> "couleur"
                     d["color_temp_kelvin"] != null || d["kelvin"] != null || d["color_temp"] != null -> "température de couleur"
                     else -> "allumée"
@@ -906,7 +925,7 @@ class Maison(
             val d = a.donnees
             d["brightness_pct"]?.toDoubleOrNull()?.let { pct ->
                 val b = attr.optDouble("brightness")
-                if (!b.isNaN() && kotlin.math.abs(b / 5.55 - pct) > 6) return false
+                if (!b.isNaN() && kotlin.math.abs(b / 2.55 - pct) > 6) return false
             }
             d["volume_level"]?.toDoubleOrNull()?.let { v ->
                 val lu = attr.optDouble("volume_level")

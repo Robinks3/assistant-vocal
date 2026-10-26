@@ -143,15 +143,22 @@ internal object MaisonEnGrand {
     fun etiquettes(
         pieces: List<Piece>, lus: Map<String, Appareils.Appareil>, personne: String, injoignable: Boolean,
         estProtegee: (Piece) -> Boolean = { protegee(it, lus, personne) },
+        mesures: Map<String, Mesures.PieceMesures> = emptyMap(),
     ): JSONArray {
         val r = JSONArray()
         for (p in pieces) {
             if (p.objets.isEmpty()) continue
             val verrou = estProtegee(p)
-            r.put(
-                JSONObject().put("piece", p.id).put("nom", p.nom)
-                    .put("etat", if (verrou || injoignable) "" else etatPiece(p, lus)).put("verrou", verrou),
-            )
+            val o = JSONObject().put("piece", p.id).put("nom", p.nom)
+                .put("etat", if (verrou || injoignable) "" else etatPiece(p, lus)).put("verrou", verrou)
+            // S-L6 : pastille de mesures (texte, couleur). Une pièce verrouillée ne livre aucune valeur, même si un
+            // relevé existe : la barrière du gabarit et celle-ci se doublent.
+            val m = mesures[p.id]
+            if (m != null && !injoignable) {
+                val sure = if (verrou) Mesures.PROTEGEE else m
+                o.put("mesure", JSONObject().put("texte", sure.texte).put("couleur", sure.couleur).put("statut", sure.statut.name.lowercase()))
+            }
+            r.put(o)
         }
         return r
     }

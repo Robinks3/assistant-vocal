@@ -6,6 +6,14 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.44.0 (2026-10-26), mesures par pièce
+Mineure (versionCode 82). Session S-L6 du plan, pendant du serveur 0.45.0.
+- Les mesures des pièces (température, humidité, CO2, particules fines) sont lues toutes les 60 secondes et
+  s'affichent sur le panneau de la maison en grand, avec le mot de l'air et sa couleur.
+- Question à la voix comprise en local : « quelle température dans le salon », « comment est l'air de la chambre ».
+  Une pièce protégée répond « pièce protégée », sans valeur.
+- La vue 3D ne montre pas encore les mesures (lot suivant).
+
 ## 0.43.1 (2026-10-26), notes du LLM de l'appareil
 Correctif (versionCode 81). Session S-D7 du plan, pendant du serveur 0.44.1.
 - Le LLM de l'appareil lit `llm.notes` de la configuration exportée et ajoute la note entre crochets après le

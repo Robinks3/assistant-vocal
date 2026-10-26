@@ -123,6 +123,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `vent` | `poc/vent_mesure.py`, `MeteoVent.kt`, `EcranVent.kt`, `build.gradle.kts` | Vent mesuré éteint. Dans l'appli, la page Mer disparaît aussi. |
 | `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Sans section, le mot vaut "assistant" (ou `MOT_REVEIL`), avec repli sur "Hey Jarvis" si son modèle manque. |
 | `reglages` | `poc/liste_blanche.py`, `ReglageTele.kt`, `Maison3d.kt` | Aucune appli ni aucun interrupteur en plus, volet de la télé sans tuiles de sources, vue 3D sans correspondance d'entités. |
+| `correspondance_pieces` | `poc/mesures.py`, `poc/serveur_satellite.py`, `Mesures.kt` | Aucune mesure par pièce : l'appli ne lit aucun capteur et le serveur n'annonce pas la capacité `mesures`. |
 
 Aucune autre section n'est lue par le code.
 
@@ -688,6 +689,41 @@ chaleur en kelvins) et celui de la télé et des enceintes. La page reconnaît l
 
 Un toucher sur un objet de la vue 3D renvoie l'entité de la maquette : l'appli retrouve l'appareil de Home Assistant
 par la même correspondance, à l'envers. Une lampe indisponible ou inconnue est montrée éteinte, sans couleur périmée.
+
+### `correspondance_pieces` (mesures par pièce, serveur et appli, lot S-L6)
+
+Relie chaque pièce de `carte/pieces.json` (la clé est l'identifiant `id` de la pièce) aux zones de Home Assistant
+(les `area_id`, comme dans `zones_protegees`) dont on veut lire la température, l'humidité, le CO2 et les particules
+fines. Elle se remplit à la main : le moteur ne devine jamais la pièce d'un capteur. Une clé qui commence par `_` est
+ignorée. Une pièce absente de cette liste n'a ni mesure ni pastille.
+
+| Champ | Type | Effet |
+|---|---|---|
+| clé | texte | Identifiant de la pièce dans `pieces.json`. |
+| valeur | liste de textes, ou un texte | Zones de Home Assistant qui forment la pièce. Une pièce ouverte sur une autre (séjour et cuisine) en réunit plusieurs. |
+
+```json
+"correspondance_pieces": {
+  "sejour_cuisine": ["coin_repas", "salon", "cuisine"],
+  "chambre_sacha": ["chambre_1"]
+}
+```
+
+Un seul gabarit lu sur `/api/template` découvre les capteurs de température, d'humidité, de CO2 (`carbon_dioxide`),
+de particules (`pm25`, `pm10`), d'indice de qualité d'air (`aqi`) et de composés organiques volatils, plus la
+luminosité pour savoir qu'une pièce n'a que cela. La zone d'un capteur est celle de l'entité, sinon celle de son appareil
+dans Home Assistant : il suffit donc que les capteurs soient rangés dans les bonnes zones, aucune entité ne s'écrit
+dans la configuration. Plusieurs capteurs de même type dans une pièce : le thermomètre dédié (un appareil qui n'expose
+que la température et l'humidité) l'emporte, sinon la moyenne.
+
+Seuils, qui ne se règlent pas dans la configuration : CO2 en ppm, bon sous 800, correct jusqu'à 1000 compris, médiocre
+jusqu'à 1500 compris, mauvais au-delà. Particules PM2.5 en µg/m3, mêmes mots à 9, 35,4 et 55,4. Température : frais
+sous 19°, agréable de 19° à 24° compris, chaud au-dessus. L'air d'une pièce prend le pire des deux mots, et une alerte
+« Aère la pièce X » apparaît dès « médiocre ». Une mesure muette depuis plus de 2 h n'est plus colorée.
+
+Sécurité : une pièce dont l'identifiant, le nom ou une zone figure dans `securite.zones_protegees` ne montre aucune
+valeur (« pièce protégée »), que `PROTEGER_OCCUPANT` soit coupé ou non. Le gabarit écarte aussi ces zones dès Home
+Assistant, leurs mesures ne quittent donc pas la maison.
 
 ## 3. Le dictionnaire commandes.yaml
 

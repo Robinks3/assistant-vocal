@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.45.0 (2026-10-26), mesures par pièce
+Mineure. Session S-L6 du plan. Appli Home Assistant 0.45.0, pendant de l'appli 0.44.0.
+- Nouvelle demande `mesures` (capacité `mesures`, pas pour le rôle invité) : température, humidité, CO2 et
+  particules fines par pièce, lues sur Home Assistant par un seul gabarit posté sur `/api/template`.
+- Seuils de l'air communs avec l'appli (`poc/tests/cas_mesures.json`) : CO2 800, 1000 et 1500 ppm, PM2.5 9, 35,4
+  et 55,4. Température en trois mots (frais, agréable, chaud), le chiffre reste affiché.
+- Les zones de `securite.zones_protegees` sont écartées dès Home Assistant, leurs pièces ne portent aucune valeur.
+- Nouvelle clé `correspondance_pieces` (pièce de la carte vers zones de Home Assistant). Sans elle, aucune mesure.
+
 ## Serveur 0.44.2 (2026-10-26), repli Assist coupé par défaut
 Correctif. Session S-D9 du plan (décision D8, dette I9). Appli Home Assistant 0.44.2, appli Android inchangée.
 - Le repli vers Assist de Home Assistant est coupé par défaut. Le réglage `securite.assist_repli` (booléen `true`
