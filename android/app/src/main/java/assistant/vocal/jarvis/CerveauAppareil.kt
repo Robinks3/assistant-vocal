@@ -44,10 +44,11 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
     )
 
     /** Appareil pilotable : identifiant, nom affiché, état, pièce. */
-    private class Appareil(val id: String, val nom: String, val etat: String, val piece: String)
+    internal class Appareil(val id: String, val nom: String, val etat: String, val piece: String)
 
     private val renommer = HashMap<String, String>()
     private val masquer = HashSet<String>()
+    private val notes = HashMap<String, String>()
     private val permis = HashMap<String, Set<String>>()
     private var inventaire: List<Appareil> = emptyList()
     private var inventaireLe = 0L
@@ -59,6 +60,7 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
         val llm = j.optJSONObject("llm") ?: JSONObject()
         llm.optJSONObject("renommer")?.let { o -> o.keys().forEach { renommer[it] = o.getString(it) } }
         llm.optJSONArray("masquer")?.let { a -> for (i in 0 until a.length()) masquer.add(a.getString(i)) }
+        notes.putAll(lireNotes(llm))
         j.optJSONObject("services_permis")?.let { o ->
             o.keys().forEach { d -> permis[d] = o.getJSONArray(d).let { a -> (0 until a.length()).map { a.getString(it) }.toSet() } }
         }
@@ -86,15 +88,7 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
         inventaireLe = System.currentTimeMillis()
     }
 
-    private fun systeme(): String {
-        fun lignes(filtre: (String) -> Boolean) = inventaire.filter { filtre(it.id) }.joinToString("\n") { a ->
-            "- ${a.nom}" + (if (a.piece.isNotBlank()) " (${a.piece})" else "") + " : ${a.id}"
-        }.ifBlank { "- (aucun)" }
-        return CONSIGNE
-            .replace("{lumieres}", lignes { it.startsWith("light.") })
-            .replace("{medias}", lignes { it.startsWith("media_player.") })
-            .replace("{autres}", lignes { !it.startsWith("light.") && !it.startsWith("media_player.") })
-    }
+    private fun systeme(): String = construireSysteme(CONSIGNE, inventaire, notes)
 
     fun decider(texte: String): Decision {
         val t0 = System.currentTimeMillis()
@@ -187,6 +181,29 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
     override fun close() = modele.close()
 
     companion object {
+        /** Notes de llm.notes (entité vers texte), comme le LLM du serveur. Valeurs vides ou non textuelles ignorées. */
+        internal fun lireNotes(llm: JSONObject): Map<String, String> {
+            val o = llm.optJSONObject("notes") ?: return emptyMap()
+            val r = HashMap<String, String>()
+            o.keys().forEach { id -> (o.opt(id) as? String)?.trim()?.takeIf { it.isNotEmpty() }?.let { r[id] = it } }
+            return r
+        }
+
+        /** Ligne d'un appareil dans la consigne : nom, note entre crochets (comme sur le serveur), pièce, identifiant. */
+        internal fun ligneAppareil(a: Appareil, notes: Map<String, String>): String =
+            "- ${a.nom}" + (notes[a.id]?.let { " [$it]" } ?: "") +
+                (if (a.piece.isNotBlank()) " (${a.piece})" else "") + " : ${a.id}"
+
+        /** Consigne système complète : appareils groupés par type, avec la note de chacun quand la configuration en donne une. */
+        internal fun construireSysteme(consigne: String, inventaire: List<Appareil>, notes: Map<String, String>): String {
+            fun lignes(filtre: (String) -> Boolean) = inventaire.filter { filtre(it.id) }
+                .joinToString("\n") { ligneAppareil(it, notes) }.ifBlank { "- (aucun)" }
+            return consigne
+                .replace("{lumieres}", lignes { it.startsWith("light.") })
+                .replace("{medias}", lignes { it.startsWith("media_player.") })
+                .replace("{autres}", lignes { !it.startsWith("light.") && !it.startsWith("media_player.") })
+        }
+
         private val DOMAINES = setOf("light", "media_player", "script", "scene", "vacuum", "fan", "cover", "climate", "input_boolean")
 
         /** Consigne C du banc du 13/10/2026 (banc_llm_maison.py, outils de la configuration de la maison), à garder identique aux deux endroits. */
