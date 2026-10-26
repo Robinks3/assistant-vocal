@@ -4,6 +4,29 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.35.0 (2026-10-26), météo marine : sources désactivables, côte et plan 3D reproductibles
+Session S-D2 du plan 1.2.0. Une configuration existante se comporte comme avant : tout ce qui est ajouté est
+facultatif ou n'écrit qu'un avertissement.
+- Clé `actif` par source météo ou mer (C9) : `modele_principal`, `modele_second`, `mfwam`, `vagues_regional` (entier et
+  chacun de ses lieux), `station`, et côté vent `balises`, chaque balise, `stations_officielles`, `station`. Absent vaut
+  vrai. Une source `actif: false` n'est pas interrogée, n'est pas comptée en panne et disparaît des erreurs et des
+  crédits. Modèle principal inactif ou toutes les sources de vent inactives : le module s'éteint. Les lignes de
+  démarrage du serveur satellite ne citent que les sources actives.
+- Avertissement de démarrage (C1) : section `mer` active sans source de vent utilisable (section `vent` absente,
+  inactive ou sans aucune source), `poc/maison.py` écrit une phrase claire sur la sortie d'erreur. Aucune exception.
+- `mer.nom` sert de titre par défaut de la mer (C3), après `mer.titre` et avant « Mer ». Le titre choisi est servi dans
+  `donnees["titre"]` (clé additive). L'appli Android calcule encore le sien, voir les points ouverts du rapport.
+- Nouveau `carte/vent/generer_cote.py` (C10) : trait de côte et terre de la carte du vent depuis un GeoJSON de données
+  ouvertes passé en argument, jamais téléchargé. Jonction des lignes, fermeture de la terre le long du cadre, îles,
+  marge hors cadre, simplification facultative, sortie déterministe. Cadre, taille et chemins lus dans `maison.json`.
+- `config-exemple/carte/cote_source.geojson` (fictif) et `golfe_cote.txt` et `golfe_terre.txt` régénérés par le
+  générateur, qui les reproduit octet pour octet. `LISEZMOI.txt` mis à jour.
+- `carte/3d/generer_3d.py` (C11) : exécution de bout en bout sur `config-exemple/` en dossier temporaire et sortie
+  identique d'une exécution à l'autre, vérifiées par test.
+- `docs/CONFIGURER.md` : clés `mer.nom`, `mer.titre` et `actif`, avertissement, nouvelle section « Régénérer la
+  côte et le plan 3D ». `carte/README.md` et `docs/FAQ.md` renvoient vers le générateur.
+- Tests ajoutés : `test_meteo_actif.py` (34), `test_generer_cote.py` (20), `test_generer_3d.py` (4).
+
 ## Serveur 0.34.4 (2026-10-26), garde-fou piloté par une liste, documentation sans référence à un projet tiers
 Session S-C4 du plan 1.2.0. Aucun changement de comportement pour une configuration existante.
 - `.githooks/garde-fou.sh` lit `config/mots-interdits.txt` (une chaîne par ligne, lignes vides et lignes commençant

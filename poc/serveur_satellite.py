@@ -192,13 +192,15 @@ class Moteur:
         # Météo marine du plan d'eau (section « mer » de maison.json) pour la page « Mer » (0.22.0) : sources
         # publiques, aucune donnée personnelle, dans les deux profils. METEO_MER=0 l'éteint (voir meteo_mer.py).
         self.meteo_mer = MM.depuis_env()
-        print("  météo marine : " + (f"{MM.NOM_PRINCIPAL}, {MM.NOM_SECOND}, MFWAM, VaguesRegional et station" if self.meteo_mer
-                                     else "éteinte (" + ("METEO_MER=0" if MM.ACTIF and MM.POINTS
-                                                         else "pas de section « mer » active dans maison.json") + ")"))
+        print("  météo marine : " + (", ".join(MM.libelle_sources()) if self.meteo_mer
+                                     else "éteinte (" + (
+                                         "METEO_MER=0" if MM.ACTIF and MM.POINTS and MM.eteinte_par_env()
+                                         else "modèle principal désactivé (actif: false)" if MM.ACTIF and MM.POINTS
+                                         else "pas de section « mer » active dans maison.json") + ")"))
         # Vent réellement mesuré sur le plan d'eau (section « vent ») (0.24.0) : sources publiques, aucune donnée
         # personnelle, dans les deux profils. VENT_MESURE=0 ou METEO_MER=0 l'éteint (voir vent_mesure.py).
         self.vent_mesure = VM.depuis_env()
-        print("  vent mesuré : " + ("Balises, StationsOfficielles et station" if self.vent_mesure
+        print("  vent mesuré : " + (", ".join(VM.libelle_sources()) if self.vent_mesure
                                     else "éteint (" + causes_vent_eteint() + ")"))
 
     def refus_sante(self, sat):

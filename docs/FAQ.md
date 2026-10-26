@@ -75,8 +75,8 @@ modèle sans sa licence (`<mot>.onnx.LICENSE`) : ajoutez-la à côté.
 ```
 
 Avec `vent.actif` à `true`, les fichiers nommés par `vent.carte.cote` et `vent.carte.terre` doivent
-exister dans `genere/android/` de la configuration. Copiez ceux de votre plan d'eau, ou passez
-`vent.actif` à `false`.
+exister dans `genere/android/` de la configuration. Produisez ceux de votre plan d'eau avec
+`carte/vent/generer_cote.py` (voir `docs/CONFIGURER.md`), ou passez `vent.actif` à `false`.
 
 ### Gradle signale un jeton absent
 

@@ -363,10 +363,10 @@ n'existe que si `"actif": true` (un vrai booléen JSON). Le détail de l'activat
 | `station` | `{url, nom, point}` | Station à terre : vent mesuré affiché dans le bloc du moment du `point` indiqué. |
 | `alias` | liste de paires `[mot, point]` | Mots qui désignent un point dans une question, cherchés dans l'ordre. |
 | `mots_lieu` | liste de textes | Autres noms du plan d'eau acceptés après "à" dans une question. |
-| `titre` | texte | Titre par défaut de la page (par défaut : `Mer`). |
+| `titre` | texte | Titre par défaut de la page. Absent, c'est `nom`, et sans `nom`, `Mer`. |
 | `libelle_terre` | texte | Libellé de la page météo à terre vu depuis la mer (par défaut : `Météo`). |
 | `attribution` | texte | Crédit des sources en pied de page. |
-| `nom` | texte | Présent dans l'exemple, lu par aucun code. |
+| `nom` | texte | Nom du plan d'eau. Sert de titre à la page quand `titre` est absent. Le titre choisi est aussi renvoyé au client dans les données de la mer (clé `titre`). |
 
 Champs d'un point :
 
@@ -396,10 +396,26 @@ Champs d'un point :
 }
 ```
 
-Les sources interrogées sont fixées par le code : les deux modèles d'Open-Meteo, Open-Meteo Marine, les
-lieux VaguesRegional et la station. Une source dont l'adresse manque ou ne répond pas reste en panne, son
-libellé s'affiche dans les erreurs et les autres continuent. Le module ne renvoie une erreur que si le
-modèle principal n'a jamais pu être lu.
+Les sources possibles sont fixées par le code : les deux modèles d'Open-Meteo, Open-Meteo Marine, les
+lieux VaguesRegional et la station. Chacune est interrogée par défaut. Une source dont l'adresse manque ou ne
+répond pas reste en panne, son libellé s'affiche dans les erreurs et les autres continuent. Le module ne
+renvoie une erreur que si le modèle principal n'a jamais pu être lu.
+
+Pour retirer une source sans effacer sa fiche, ajouter `"actif": false` dans sa fiche. Absent, `actif` vaut
+vrai (contrairement à celui de la section, qui doit être écrit). Une source retirée n'est pas interrogée,
+n'est pas comptée en panne et n'apparaît pas dans les erreurs ni dans les crédits. Cela marche sur
+`modele_principal`, `modele_second`, `vagues_regional` (entier), chacun des `lieux` de VaguesRegional, le bloc
+`mfwam` (vagues Open-Meteo Marine) et `station` :
+
+```json
+"vagues_regional": {"url": "https://exemple.invalid/{lieu}", "actif": false},
+"station": {"url": "https://exemple.invalid/mer", "nom": "Station", "point": "prado", "actif": false}
+```
+
+Avec `modele_principal` inactif, le module de la mer n'a plus de source de base et reste éteint, comme sans
+point. Section `mer` active sans section `vent` utilisable (absente, inactive ou sans aucune source), le
+serveur écrit un avertissement dans son journal au démarrage : la page météo marine fonctionne, mais le vent
+mesuré (carte, balises, station) est absent. L'avertissement n'arrête rien.
 
 ### `vent`
 
@@ -443,8 +459,11 @@ Champs de `carte` :
 }
 ```
 
-Le serveur interroge toujours ses trois sources (Balises, StationsOfficielles et la station). Une source en échec
-est réessayée après 1, 2, 4, 8 puis 15 minutes au plus, et son libellé apparaît dans les erreurs.
+Le serveur interroge par défaut ses trois sources (Balises, StationsOfficielles et la station). Pour en retirer
+une, y ajouter `"actif": false` (absent vaut vrai), sur `balises`, sur une seule balise de `balises`,
+sur `stations_officielles` ou sur `station`. Une source retirée n'est pas interrogée et n'apparaît pas dans les erreurs,
+et quand toutes les sources sont retirées le vent mesuré reste éteint. Une source en échec est réessayée
+après 1, 2, 4, 8 puis 15 minutes au plus, et son libellé apparaît dans les erreurs.
 
 ### `reveil`
 
@@ -839,10 +858,11 @@ Pour les activer :
 3. Le trait de côte et la terre dans `genere/android/`, aux chemins de `vent.carte.cote` et
    `vent.carte.terre`. Ce sont deux fichiers texte contenant un chemin SVG (`M x,y L x,y ...`), en
    coordonnées de la carte : `x = (lon - lon_min) / (lon_max - lon_min) * largeur` et
-   `y = (lat_max - lat) / (lat_max - lat_min) * hauteur`. Le moteur ne fournit pas d'outil pour les
-   produire. Ceux de l'exemple sont un tracé simplifié de la rade de Marseille, dessiné à la main.
-   Pour un vrai plan d'eau, utiliser un trait de côte exact (par exemple OpenStreetMap, `natural=coastline`,
-   licence ODbL, à créditer dans `vent.carte.attribution`).
+   `y = (lat_max - lat) / (lat_max - lat_min) * hauteur`. Le script `carte/vent/generer_cote.py` les
+   produit depuis un fichier GeoJSON de données ouvertes, voir
+   [Régénérer la côte et le plan 3D](#régénérer-la-côte-et-le-plan-3d). Ceux de l'exemple sont une côte
+   fictive qui rappelle la rade de Marseille. Pour un vrai plan d'eau, utiliser un trait de côte exact (par
+   exemple OpenStreetMap, `natural=coastline`, licence ODbL, à créditer dans `vent.carte.attribution`).
 4. Recompiler l'APK, qui refuse de se fabriquer si `vent` est actif sans ces deux fichiers.
 
 L'appli n'affiche les deux pages que si `mer` et `vent` sont actives ensemble. Le serveur, lui, sert la
@@ -858,6 +878,55 @@ Pour les éteindre :
 | `VENT_MESURE=0` dans `poc/.env` | Le serveur ne sert plus le vent mesuré, la météo marine reste servie. |
 
 L'appli demande ces données au serveur du PC s'il les annonce, sinon à l'appli Home Assistant.
+
+### Régénérer la côte et le plan 3D
+
+Les deux fichiers de la carte du vent (côte et terre) et la vue 3D se fabriquent à partir de vos propres
+données, sans que le moteur télécharge quoi que ce soit.
+
+Pour la côte, récupérer d'abord un fichier GeoJSON de votre plan d'eau en longitude et latitude WGS84, des
+lignes de côte ou des contours. Un export OpenStreetMap (`natural=coastline`, par exemple depuis Overpass
+turbo), un découpage IGN ou Natural Earth convient. Puis, sous PowerShell :
+
+```powershell
+$env:ASSISTANT_VOCAL_CONFIG = "config"
+.venv\Scripts\python carte/vent/generer_cote.py ma_cote.geojson
+```
+
+Sous Linux ou macOS : `ASSISTANT_VOCAL_CONFIG=config .venv/bin/python carte/vent/generer_cote.py ma_cote.geojson`.
+
+Le script lit le cadre (`vent.cadre`), la taille de la carte (`vent.carte.largeur` et `hauteur`) et les
+chemins de sortie (`vent.carte.cote` et `vent.carte.terre`, sous `genere/android/`) dans `maison.json`. Il
+joint les lignes qui se touchent, referme la terre le long du cadre (la terre est à gauche du sens de la
+ligne, comme dans OpenStreetMap), et traite les contours fermés comme des îles. Il écrit les deux fichiers et
+dit en une ligne ce qu'il a trouvé. Deux exécutions sur la même entrée donnent les mêmes octets. Options :
+
+| Option | Effet |
+|---|---|
+| `--cadre LAT_MIN LAT_MAX LON_MIN LON_MAX` | Autre cadre que `vent.cadre`. |
+| `--taille LARGEUR HAUTEUR` | Autre taille que celle de `vent.carte`. |
+| `--sortie DOSSIER` | Autre dossier que `genere/android/`. |
+| `--cote CHEMIN`, `--terre CHEMIN` | Autres noms de fichiers que ceux de `vent.carte`. |
+| `--marge PIXELS` | Marge tracée hors cadre pour que la côte ne s'arrête pas au bord (60 par défaut). |
+| `--tolerance PIXELS` | Allège le tracé (Douglas-Peucker), 0 par défaut pour tout garder. |
+| `--terre-a-droite` | Pour une source dont la terre est à droite du sens de la ligne. |
+
+Une entrée illisible, sans côte ou hors du cadre donne un message clair et aucun fichier n'est écrit. La côte
+d'exemple se régénère avec
+`ASSISTANT_VOCAL_CONFIG=config-exemple python carte/vent/generer_cote.py config-exemple/carte/cote_source.geojson`,
+et les fichiers qui en sortent sont ceux du dépôt. Le fichier source de l'exemple est entièrement fictif.
+
+Pour le plan 3D, après avoir décrit le logement dans `carte/` (`pieces.json`, `meubles.json`, `lampes.json`) :
+
+```powershell
+.venv\Scripts\python carte/3d/generer_3d.py
+```
+
+Il produit `carte/modele.glb` et `genere/android/maison3d/vue3d.html`, avec le dossier de configuration
+choisi par `ASSISTANT_VOCAL_CONFIG`. Sur la même description, deux exécutions donnent les mêmes fichiers. Le
+détail du plan 2D et de la vue 3D est dans
+[Régénérer le plan 2D et la vue 3D](#régénérer-le-plan-2d-et-la-vue-3d). Après l'un ou l'autre, recompiler
+l'APK.
 
 ### Mot de réveil
 

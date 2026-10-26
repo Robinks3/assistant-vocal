@@ -11,6 +11,7 @@ un petit appartement fictif de quatre pièces.
 |---|---|---|
 | `generer_plan.py` | ici | Recalcule les surfaces et régénère `plan.svg` et `plan.png` à partir de `pieces.json` (Python 3 et Pillow). |
 | `3d/` | ici | Générateur de la vue 3D, voir `3d/README.md`. |
+| `vent/` | ici | Générateur du trait de côte et de la terre de la carte du vent, depuis un GeoJSON de données ouvertes passé en argument (`vent/generer_cote.py`). Voir `docs/CONFIGURER.md`, section « Régénérer la côte et le plan 3D ». |
 | `pieces.json` | configuration, `carte/` | Source de vérité : pièces, polygones en mètres, surfaces, porte d'entrée, repère. |
 | `meubles.json`, `lampes.json` | configuration, `carte/` | Meubles, ouvertures, télé et enceintes, ampoules de Home Assistant, pour la vue 3D. |
 | `plan.svg`, `plan.png` | configuration, `carte/` | Plan généré, une balise `<polygon id="...">` par pièce (l'`id` est celui de `pieces.json`), 80 pixels par mètre plus 60 pixels de marge. |
