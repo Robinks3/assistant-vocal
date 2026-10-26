@@ -20,6 +20,7 @@ défaut).
 """
 import json
 import os
+import sys
 from pathlib import Path
 
 ICI = Path(__file__).resolve().parent
@@ -106,3 +107,42 @@ def actif(section):
     "true", faux pour tout le reste, "false" et "0" compris (0.27.3, bool("false") valait vrai)."""
     v = (section or {}).get("actif")
     return v is True or (isinstance(v, str) and v.strip().lower() == "true")
+
+
+def source_active(source):
+    """Champ « actif » d'une source météo ou mer (point, balise, station, modèle). Contrairement à une section,
+    une source sans clé « actif » est interrogée : seul `false` (ou la chaîne "false", "0", "non") l'éteint.
+    Un élément qui n'est pas un objet reste actif (liste de lieux sous forme de nombres, par exemple)."""
+    if not isinstance(source, dict) or "actif" not in source:
+        return True
+    v = source["actif"]
+    if isinstance(v, str):
+        return v.strip().lower() not in ("false", "0", "non", "no", "")
+    return v is not False and v != 0
+
+
+def avertissements_meteo(config=None):
+    """Incohérences de configuration entre les sections « mer » et « vent », en phrases pour le journal.
+
+    Une source mer sans source de vent est permise (la page météo marine marche seule), mais le vent mesuré
+    n'apparaîtra ni sur la carte ni dans les bilans : le dire clairement au démarrage plutôt que de laisser
+    l'utilisateur chercher pourquoi. Ne lève jamais d'exception."""
+    cfg = CONFIG if config is None else config
+    mer = cfg.get("mer") if isinstance(cfg.get("mer"), dict) else {}
+    vent = cfg.get("vent") if isinstance(cfg.get("vent"), dict) else {}
+    if not actif(mer):
+        return []
+    vent_utilisable = actif(vent) and bool(
+        isinstance(vent.get("balises"), dict) or isinstance(vent.get("stations_officielles"), dict)
+        or isinstance(vent.get("station"), dict))
+    if vent_utilisable:
+        return []
+    cause = ("la section « vent » est absente" if not vent
+             else "la section « vent » est inactive" if not actif(vent)
+             else "la section « vent » ne déclare aucune source (balises, stations_officielles ou station)")
+    return [f"maison : la section « mer » est active mais {cause} : la page météo marine fonctionne sans le "
+            "vent mesuré (carte du vent, balises et station absentes). Renseigner « vent » pour les obtenir."]
+
+
+for _phrase in avertissements_meteo():
+    print(_phrase, file=sys.stderr)
