@@ -163,8 +163,8 @@ class AccueilDispositionTest {
     @Test
     fun libelleDuVolume() {
         fun l(id: String, membres: Set<String> = emptySet()) = Etat.Lecteur(id, "Enceintes", "playing", "", "", "", 0.0, 0.0, 0L, 0.3, membres)
-        assertEquals("Volume du salon", TextesCourts.volume(l("media_player.salon")))
-        assertEquals("Volume du salon et de la cuisine", TextesCourts.volume(l("media_player.salon", setOf("media_player.chambre"))))
+        assertEquals("Volume du salon", TextesCourts.volume(l("media_player.barre_son_salon")))
+        assertEquals("Volume du salon et de la cuisine", TextesCourts.volume(l("media_player.barre_son_salon", setOf("media_player.enceinte_cuisine"))))
         assertEquals("Volume", TextesCourts.volume(l("media_player.autre")))
     }
 }

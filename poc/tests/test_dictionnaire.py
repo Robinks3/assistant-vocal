@@ -50,9 +50,9 @@ def test_outils_enum():
 def test_entite_hors_liste_refusee():
     ha = A.HomeAssistant("http://exemple.invalid", "x")
     ha.essai = True
-    ha.entites_llm = {"light.exemple6"}
+    ha.entites_llm = {"light.salon_plafond"}
     assert "erreur" in ha.service("light", "turn_on", "light.inconnue")
-    assert ha.service("light", "turn_on", "light.exemple6") == {"ok": True}
+    assert ha.service("light", "turn_on", "light.salon_plafond") == {"ok": True}
 
 
 def test_outil_musique():

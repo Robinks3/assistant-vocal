@@ -6,7 +6,7 @@ import java.util.Locale
  * Historique lisible (0.17.0), logique pure testée sur la machine (HistoriqueLisibleTest).
  *
  * Les lignes « Fait » s'écrivaient avec les identifiants de Home Assistant (« light.turn_off
- * light.exemple6 light.cuisine »). Elles s'affichent maintenant avec les noms des appareils et un
+ * light.salon_plafond light.cuisine_suspensions »). Elles s'affichent maintenant avec les noms des appareils et un
  * verbe en français (« Salon et Cuisine : éteintes »), les mentions d'essai, de refus et d'action
  * écartée gardées. La ligne brute reste dans les données (journal, retours au serveur).
  * Une même commande reçue deux fois (historique complet puis ajout, vu à 23:27:38 le 21/10) n'est

@@ -40,17 +40,17 @@ class Maison3dPontTest {
     @Test
     fun etatsNeGardeQueLesLumieresEtLesAttributsUtiles() {
         val brut = JSONArray()
-            .put(JSONObject().put("entity_id", "light.cuisine").put("state", "on")
+            .put(JSONObject().put("entity_id", "light.cuisine_suspensions").put("state", "on")
                 .put("attributes", JSONObject().put("brightness", 128).put("friendly_name", "Cuisine")
                     .put("rgb_color", JSONArray(listOf(255, 200, 100))).put("color_temp_kelvin", JSONObject.NULL)))
             .put(JSONObject().put("entity_id", "switch.prise").put("state", "on"))
-            .put(JSONObject().put("entity_id", "light.exemple17").put("state", "off"))
+            .put(JSONObject().put("entity_id", "light.couloir_plafond").put("state", "off"))
         val script = Maison3dPont.scriptEtats(brut)
         assertTrue(script.startsWith("maison3d.etats(") && script.endsWith(")"))
         val l = JSONArray(script.removePrefix("maison3d.etats(").removeSuffix(")"))
         assertEquals(2, l.length())
         val cuisine = l.getJSONObject(0)
-        assertEquals("light.cuisine", cuisine.getString("entity_id"))
+        assertEquals("light.cuisine_suspensions", cuisine.getString("entity_id"))
         assertEquals("on", cuisine.getString("state"))
         val a = cuisine.getJSONObject("attributes")
         assertEquals(128, a.getInt("brightness"))
@@ -64,26 +64,26 @@ class Maison3dPontTest {
     fun entiteEchappeeDansLeScript() {
         val s = Maison3dPont.scriptEtat("light.a\"b", JSONObject().put("state", "on"))
         assertEquals("maison3d.etat(\"light.a\\\"b\", {\"state\":\"on\"})", s)
-        assertEquals("maison3d.montrer([\"light.cuisine\",\"chambre_sacha\"])",
-            Maison3dPont.scriptMontrer(listOf("light.cuisine", "chambre_sacha")))
+        assertEquals("maison3d.montrer([\"light.cuisine_suspensions\",\"chambre_sacha\"])",
+            Maison3dPont.scriptMontrer(listOf("light.cuisine_suspensions", "chambre_sacha")))
     }
 
     @Test
     fun actionGardeLEffetEtLEtatReduit() {
         val effets = JSONObject()
-            .put("light.exemple6", JSONObject().put("effet", "allumer").put("state", "on")
+            .put("light.salon_plafond", JSONObject().put("effet", "allumer").put("state", "on")
                 .put("attributes", JSONObject().put("brightness", 102).put("friendly_name", "Salon")))
-            .put("light.cuisine", JSONObject().put("effet", "eteindre"))
+            .put("light.cuisine_suspensions", JSONObject().put("effet", "eteindre"))
         val s = Maison3dPont.scriptAction(effets)
         assertTrue(s.startsWith("maison3d.action("))
         val o = JSONObject(s.removePrefix("maison3d.action(").removeSuffix(")"))
-        val salon = o.getJSONObject("light.exemple6")
+        val salon = o.getJSONObject("light.salon_plafond")
         assertEquals("allumer", salon.getString("effet"))
         assertEquals("on", salon.getString("state"))
         assertEquals(102, salon.getJSONObject("attributes").getInt("brightness"))
         assertFalse(salon.getJSONObject("attributes").has("friendly_name"))
-        assertEquals("eteindre", o.getJSONObject("light.cuisine").getString("effet"))
-        assertFalse(o.getJSONObject("light.cuisine").has("state"))
+        assertEquals("eteindre", o.getJSONObject("light.cuisine_suspensions").getString("effet"))
+        assertFalse(o.getJSONObject("light.cuisine_suspensions").has("state"))
     }
 
     @Test
@@ -129,9 +129,9 @@ class Maison3dPontTest {
     @Test
     fun etatsLaissentPasserLaTeleEtLesEnceintesAvecLeurVolume() {
         val brut = JSONArray()
-            .put(JSONObject().put("entity_id", "media_player.exemple20").put("state", "on")
+            .put(JSONObject().put("entity_id", "media_player.tele_salon").put("state", "on")
                 .put("attributes", JSONObject().put("friendly_name", "Télé")))
-            .put(JSONObject().put("entity_id", "media_player.salon").put("state", "playing")
+            .put(JSONObject().put("entity_id", "media_player.barre_son_salon").put("state", "playing")
                 .put("attributes", JSONObject().put("volume_level", 0.3).put("media_title", "Titre")))
         val l = JSONArray(Maison3dPont.scriptEtats(brut).removePrefix("maison3d.etats(").removeSuffix(")"))
         assertEquals(2, l.length())

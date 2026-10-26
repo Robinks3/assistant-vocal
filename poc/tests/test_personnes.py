@@ -53,12 +53,12 @@ class FausseHA:
     """Inventaire de HA simulé : la vraie méthode HomeAssistant.inventaire sur un faux client."""
 
     def __init__(self):
-        lignes = ["light.exemple6\tSalon\tSéjour\ton",
-                  "light.exemple14\tPlafond Sacha\tChambre Sacha\toff",
-                  "light.chambre_camille\tChambre Camille\tChambre Camille\ton",
-                  "light.exemple18\tChevet Camille\tChambre Camille\toff",
-                  "Exemple44\tRéveil\tChambre Camille\ton",
-                  "sensor.exemple65\tTempérature\tSalle de bain Camille\t21 °C"]
+        lignes = ["light.salon_plafond\tSalon\tSéjour\ton",
+                  "light.chambre_sacha_plafond\tPlafond Sacha\tChambre Sacha\toff",
+                  "light.chambre_camille_plafonds\tChambre Camille\tChambre Camille\ton",
+                  "light.chambre_camille_chevet\tChevet Camille\tChambre Camille\toff",
+                  "automation.alarme_matin\tRéveil\tChambre Camille\ton",
+                  "sensor.telecommande_chevet_batterie\tBatterie\tSalle de bain Camille\t80 %"]
         reponse = SimpleNamespace(text="\n".join(lignes), raise_for_status=lambda: None)
         self.ha = A.HomeAssistant.__new__(A.HomeAssistant)
         self.ha.url, self.ha.vue_llm, self.ha.entites_llm, self.ha.personne = "", {}, set(), None
@@ -78,18 +78,18 @@ def test_inventaire_selon_la_personne():
     assert "camille" not in liste.lower()
     ha.personne = "Camille"
     liste, _ = ha.inventaire()
-    assert "light.chambre_camille " in liste and "light.exemple18" in liste
-    assert "Exemple44" not in liste and "sensor.camille" not in liste
-    assert ha.entites_llm == {"light.exemple6", "light.exemple14", "light.chambre_camille",
-                              "light.exemple18"}
+    assert "light.chambre_camille_plafonds " in liste and "light.chambre_camille_chevet" in liste
+    assert "automation.alarme_matin" not in liste and "sensor.telecommande_chevet_batterie" not in liste
+    assert ha.entites_llm == {"light.salon_plafond", "light.chambre_sacha_plafond", "light.chambre_camille_plafonds",
+                              "light.chambre_camille_chevet"}
 
 
 def test_indication_pour_le_llm():
     a = A.Assistant.__new__(A.Assistant)
     a.dico = DICO
     assert a.indication(None) == ""
-    assert "Camille" in a.indication("Camille") and "light.exemple18" in a.indication("Camille")
-    assert "light.exemple14" in a.indication("Sacha")
+    assert "Camille" in a.indication("Camille") and "light.chambre_camille_chevet" in a.indication("Camille")
+    assert "light.chambre_sacha_plafond" in a.indication("Sacha")
     assert "n'a pas reconnue" in a.indication("inconnu") and "n'a pas reconnue" in a.indication("Lou")
     assert "voix" not in a.indication("inconnu")
     for p in ("Camille", "Sacha", "inconnu"):
@@ -102,10 +102,10 @@ def test_pas_d_apprentissage_d_une_action_de_camille(tmp_path):
     a.essai = False
     appris = []
     a.dico = SimpleNamespace(apprendre=lambda *x: appris.append(x) or True)
-    a.cerveau = SimpleNamespace(dernieres_actions=[{"service": "light.turn_on", "entity_id": ["light.chambre_camille"]}])
+    a.cerveau = SimpleNamespace(dernieres_actions=[{"service": "light.turn_on", "entity_id": ["light.chambre_camille_plafonds"]}])
     a.apprendre("allume ma lampe", "C'est allumé.")
     assert not appris
-    a.cerveau.dernieres_actions = [{"service": "light.turn_on", "entity_id": ["light.exemple6"]}]
+    a.cerveau.dernieres_actions = [{"service": "light.turn_on", "entity_id": ["light.salon_plafond"]}]
     a.apprendre("allume le salon stp", "C'est allumé.")
     assert appris
 
@@ -113,9 +113,9 @@ def test_pas_d_apprentissage_d_une_action_de_camille(tmp_path):
 @pytest.mark.skipif(not securite.PROTEGER_OCCUPANT, reason="règle 1 levée le 22/10/2026")
 def test_passerelle_avec_la_personne():
     import acces
-    corps = {"entity_id": "light.chambre_camille"}
+    corps = {"entity_id": "light.chambre_camille_plafonds"}
     assert acces.verifier_requete_ha("POST", "/api/services/light/turn_on", corps)
     assert acces.verifier_requete_ha("POST", "/api/services/light/turn_on", corps, personne="Sacha")
     assert acces.verifier_requete_ha("POST", "/api/services/light/turn_on", corps, personne="Camille") is None
     assert acces.verifier_requete_ha("POST", "/api/services/automation/trigger",
-                                     {"entity_id": "Exemple44"}, personne="Camille")
+                                     {"entity_id": "automation.alarme_matin"}, personne="Camille")

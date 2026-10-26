@@ -1166,7 +1166,7 @@ class MoteurLocal(
         private val HEURE = SimpleDateFormat("HH:mm:ss", Locale.FRANCE)
         private val JOUR = SimpleDateFormat("yyyy-MM-dd", Locale.FRANCE)
 
-        /** « light.turn_on light.exemple7 (color_name=purple) », comme resume_action du serveur. */
+        /** « light.turn_on light.salon_lampe_tele (color_name=purple) », comme resume_action du serveur. */
         fun resumeAction(a: JSONObject): String {
             val cible = a.opt("entity_id")?.let { e ->
                 if (e is org.json.JSONArray) (0 until e.length()).joinToString(" ") { e.optString(it) } else e.toString()

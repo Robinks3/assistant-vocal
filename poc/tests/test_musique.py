@@ -6,8 +6,8 @@ import pytest
 
 import assistant as A
 
-GROUPE, SPOTIFY = "media_player.exemple22", "media_player.exemple41"
-SALON, CUISINE = "media_player.exemple21", "media_player.exemple31"
+GROUPE, SPOTIFY = "media_player.enceintes_maison", "media_player.spotify_sacha"
+SALON, CUISINE = "media_player.barre_son_salon_enceintes", "media_player.enceinte_cuisine_enceintes"
 MJ = {"nom": "Artiste Fictif", "uri": "spotify--D7ai9Jsy://artist/3fMbdgg4jU18AjLCKBhRSm",
       "titre": "Artiste Fictif", "artistes": [], "type": "artist"}
 
@@ -163,7 +163,7 @@ def test_jamais_lance_sans_confirmation(journal_musique_temporaire):
 
 def test_ma_qui_affiche_playing_sans_son():
     # Repli par MA (une seule enceinte) : le lecteur de MA dit « playing », l'enceinte Enceintes est en pause.
-    etats = {SPOTIFY: etat("idle", source_list=[]), "media_player.salon": etat("playing", media_title="Billie Jean"),
+    etats = {SPOTIFY: etat("idle", source_list=[]), "media_player.barre_son_salon": etat("playing", media_title="Billie Jean"),
              SALON: etat("paused", media_title="Billie Jean", media_artist="Artiste Fictif")}
     ha = ha_avec(FauxHA(etats))
     ha.chercher_musique = lambda r, t, a="", fin=None: {"nom": "Billie Jean de Artiste Fictif", "uri": "spotify://track/x",
@@ -365,7 +365,7 @@ def test_spotify_signale_la_cuisine_hors_ligne(journal_musique_temporaire):
 
 def test_enceinte_nommee_sans_remarque(journal_musique_temporaire):
     """Une enceinte nommée ne fait pas signaler les autres."""
-    etats = {SALON: etat("idle"), CUISINE: etat("unavailable"), "media_player.salon": etat("idle")}
+    etats = {SALON: etat("idle"), CUISINE: etat("unavailable"), "media_player.barre_son_salon": etat("idle")}
 
     def lancer(e, c):
         e[SALON] = etat("playing", media_artist="Artiste Fictif", media_title="Billie Jean")
@@ -398,7 +398,7 @@ def test_transfert_ne_signale_rien(journal_musique_temporaire):
     """Seul le script de lancement vise tout le groupe : un transfert peut viser une seule enceinte."""
     etats = {GROUPE: etat("playing"), SALON: etat("playing"), CUISINE: etat("idle")}
     ha = ha_avec(FauxHA(etats))
-    assert ha.confirmer("script.turn_on", {"entity_id": "script.exemple33"}) == []
+    assert ha.confirmer("script.turn_on", {"entity_id": "script.deplacer_musique"}) == []
     assert ha.manquantes == []
 
 

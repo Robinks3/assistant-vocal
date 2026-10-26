@@ -1260,8 +1260,8 @@ function demo() {
 }
 let jour = false;
 document.getElementById("b-demo").onclick = demo;
-document.getElementById("b-act-on").onclick = () => { cadrer(); action({ "light.exemple6": "allumer" }); };
-document.getElementById("b-act-off").onclick = () => { cadrer(); action({ "light.exemple6": "eteindre" }); };
+document.getElementById("b-act-on").onclick = () => { cadrer(); action({ "light.salon_plafond": "allumer" }); };
+document.getElementById("b-act-off").onclick = () => { cadrer(); action({ "light.salon_plafond": "eteindre" }); };
 document.getElementById("b-tout").onclick = () => lampes.forEach(lp => changer(lp, true));
 document.getElementById("b-rien").onclick = () => lampes.forEach(lp => changer(lp, false));
 document.getElementById("b-vue").onclick = ev => { vueDessus = !vueDessus; ev.target.textContent = vueDessus ? "Vue en perspective" : "Vue de dessus"; cadrer(); };
@@ -1619,12 +1619,12 @@ if (params.get("regime") !== null) regler(+params.get("regime"));
 // ?zone=x,y,largeur,hauteur et ?rotation=periode,amplitude,angle : réglages de l'accueil, pour les captures
 if (params.get("zone")) { const [x, y, largeur, hauteur] = params.get("zone").split(",").map(Number); disposition({ x, y, largeur, hauteur }); }
 if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.maison3d.rotation(p, 10, 1, a, g); }
-// ?medias=media_player.exemple20:on,media_player.salon:playing:0.5 : télé et enceintes (0.6.0)
+// ?medias=media_player.tele_salon:on,media_player.barre_son_salon:playing:0.5 : télé et enceintes (0.6.0)
 if (params.get("medias")) params.get("medias").split(",").forEach(s => {
   const [e, st, vol] = s.trim().split(":");
   etat(e, { state: st, attributes: vol ? { volume_level: +vol } : {} }, true);
 });
-// ?allumer=light.exemple6,light.cuisine : lampes allumées d'emblée, pour les captures des maquettes
+// ?allumer=light.salon_plafond,light.cuisine_suspensions : lampes allumées d'emblée, pour les captures des maquettes
 if (params.get("allumer")) poser(Object.fromEntries(params.get("allumer").split(",").map(e => [e.trim(), "on"])));
 if (params.get("fondu") === "1") document.body.classList.add("fondu");
 // l'appli peut maintenant envoyer les états initiaux

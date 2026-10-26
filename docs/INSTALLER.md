@@ -274,7 +274,7 @@ Le plan 2D (`carte/plan.svg` et `carte/plan.png`), qui demande Pillow :
 
 Si la section `vent` est active, la carte du vent mesuré attend le trait de côte et la terre de votre
 plan d'eau dans `genere/android/`, aux chemins donnés par `vent.carte.cote` et `vent.carte.terre`.
-Ceux de l'exemple couvrent un seul golfe : aucun outil du dépôt ne les produit pour un autre lieu.
+Ceux de l'exemple couvrent la seule rade de Marseille : aucun outil du dépôt ne les produit pour un autre lieu.
 
 ## 5. Le fichier poc/.env, variable par variable
 
@@ -897,7 +897,7 @@ La sortie doit contenir une ligne de cette forme, qui montre que le dictionnaire
 que la sécurité l'a laissée passer :
 
 ```text
-  [dictionnaire (allume le salon)] Salon allumé.   actions : light.turn_on light.exemple6
+  [dictionnaire (allume le salon)] Salon allumé.   actions : light.turn_on light.salon_plafond
 ```
 
 Retirez ensuite la variable comme plus haut, et refaites l'essai avec une phrase de votre propre

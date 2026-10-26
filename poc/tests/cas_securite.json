@@ -1,10 +1,10 @@
 {
-  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure de Marseille. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages.",
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages.",
   "actions": [
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.exemple6"
+        "entity_id": "light.salon_plafond"
       },
       "heure": 14,
       "refus": false,
@@ -13,7 +13,7 @@
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.chambre_camille_plafond"
+        "entity_id": "light.chambre_camille_plafond_1"
       },
       "heure": 14,
       "refus": false,
@@ -23,8 +23,8 @@
       "service": "light.turn_off",
       "donnees": {
         "entity_id": [
-          "light.exemple6",
-          "light.exemple63"
+          "light.salon_plafond",
+          "light.chambre_camille_chevet"
         ]
       },
       "heure": 14,
@@ -61,7 +61,7 @@
     {
       "service": "automation.trigger",
       "donnees": {
-        "entity_id": "Exemple44"
+        "entity_id": "automation.alarme_matin"
       },
       "heure": 14,
       "refus": false,
@@ -70,7 +70,7 @@
     {
       "service": "script.turn_on",
       "donnees": {
-        "entity_id": "script.exemple40"
+        "entity_id": "script.extinction_generale"
       },
       "heure": 20,
       "refus": false,
@@ -79,7 +79,7 @@
     {
       "service": "media_player.turn_on",
       "donnees": {
-        "entity_id": "media_player.exemple20"
+        "entity_id": "media_player.tele_salon"
       },
       "heure": 2,
       "refus": false,
@@ -88,7 +88,7 @@
     {
       "service": "media_player.turn_on",
       "donnees": {
-        "entity_id": "media_player.exemple20"
+        "entity_id": "media_player.tele_salon"
       },
       "heure": 9,
       "refus": false,
@@ -97,7 +97,7 @@
     {
       "service": "media_player.turn_off",
       "donnees": {
-        "entity_id": "media_player.exemple20"
+        "entity_id": "media_player.tele_salon"
       },
       "heure": 2,
       "refus": false,
@@ -106,7 +106,7 @@
     {
       "service": "media_player.volume_down",
       "donnees": {
-        "entity_id": "media_player.exemple22"
+        "entity_id": "media_player.enceintes_maison"
       },
       "heure": 3,
       "refus": false,
@@ -115,7 +115,7 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.exemple22",
+        "entity_id": "media_player.enceintes_maison",
         "volume_level": 0.4
       },
       "heure": 3,
@@ -125,7 +125,7 @@
     {
       "service": "media_player.volume_up",
       "donnees": {
-        "entity_id": "media_player.exemple22"
+        "entity_id": "media_player.enceintes_maison"
       },
       "heure": 15,
       "refus": false,
@@ -134,7 +134,7 @@
     {
       "service": "media_player.volume_up",
       "donnees": {
-        "entity_id": "media_player.exemple22"
+        "entity_id": "media_player.enceintes_maison"
       },
       "heure": 15,
       "plafond_volume": 50,
@@ -144,7 +144,7 @@
     {
       "service": "media_player.volume_up",
       "donnees": {
-        "entity_id": "media_player.exemple22"
+        "entity_id": "media_player.enceintes_maison"
       },
       "heure": 15,
       "plafond_volume": 100,
@@ -154,7 +154,7 @@
     {
       "service": "media_player.volume_mute",
       "donnees": {
-        "entity_id": "media_player.exemple22",
+        "entity_id": "media_player.enceintes_maison",
         "is_volume_muted": false
       },
       "heure": 3,
@@ -164,7 +164,7 @@
     {
       "service": "media_player.volume_mute",
       "donnees": {
-        "entity_id": "media_player.exemple22",
+        "entity_id": "media_player.enceintes_maison",
         "is_volume_muted": true
       },
       "heure": 3,
@@ -199,7 +199,7 @@
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.chambre_camille"
+        "entity_id": "light.chambre_camille_plafonds"
       },
       "heure": 21,
       "personne": "Camille",
@@ -209,7 +209,7 @@
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.exemple18",
+        "entity_id": "light.chambre_camille_chevet",
         "brightness_pct": 30
       },
       "heure": 23,
@@ -220,7 +220,7 @@
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.chambre_camille"
+        "entity_id": "light.chambre_camille_plafonds"
       },
       "heure": 21,
       "personne": "Sacha",
@@ -230,7 +230,7 @@
     {
       "service": "light.turn_on",
       "donnees": {
-        "entity_id": "light.chambre_camille"
+        "entity_id": "light.chambre_camille_plafonds"
       },
       "heure": 21,
       "refus": false,
@@ -239,7 +239,7 @@
     {
       "service": "automation.trigger",
       "donnees": {
-        "entity_id": "Exemple44"
+        "entity_id": "automation.alarme_matin"
       },
       "heure": 21,
       "personne": "Camille",
@@ -269,7 +269,7 @@
     {
       "service": "switch.turn_on",
       "donnees": {
-        "entity_id": "switch.exemple64"
+        "entity_id": "switch.chambre_camille_prise"
       },
       "heure": 21,
       "personne": "Camille",
@@ -339,11 +339,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.8
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.5
       },
       "note": "plafond de 50 % : volume à 80 % ramené à 50 %"
@@ -352,11 +352,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 1
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.5
       },
       "note": "plafond de 50 % : volume à fond ramené à 50 %"
@@ -365,11 +365,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.5
       },
       "attendu": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.5
       },
       "note": "plafond de 50 % : pile au plafond, inchangé"
@@ -378,11 +378,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.exemple20",
+        "entity_id": "media_player.tele_salon",
         "volume_level": 0.3
       },
       "attendu": {
-        "entity_id": "media_player.exemple20",
+        "entity_id": "media_player.tele_salon",
         "volume_level": 0.3
       },
       "note": "plafond de 50 % : volume de la télé sous le plafond, inchangé"
@@ -391,11 +391,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": "0.9"
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.5
       },
       "note": "plafond de 50 % : volume écrit en texte, plafonné aussi"
@@ -404,11 +404,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": -0.2
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0
       },
       "note": "plafond de 50 % : volume négatif ramené à 0"
@@ -417,10 +417,10 @@
       "service": "media_player.volume_down",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "media_player.salon"
+        "entity_id": "media_player.barre_son_salon"
       },
       "attendu": {
-        "entity_id": "media_player.salon"
+        "entity_id": "media_player.barre_son_salon"
       },
       "note": "plafond de 50 % : baisser le volume, rien à plafonner"
     },
@@ -428,11 +428,11 @@
       "service": "light.turn_on",
       "plafond_volume": 50,
       "donnees": {
-        "entity_id": "light.exemple6",
+        "entity_id": "light.salon_plafond",
         "brightness_pct": 80
       },
       "attendu": {
-        "entity_id": "light.exemple6",
+        "entity_id": "light.salon_plafond",
         "brightness_pct": 80
       },
       "note": "plafond de 50 % : luminosité à 80 %, pas concernée"
@@ -440,11 +440,11 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.8
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.8
       },
       "note": "sans plafond (le défaut) : volume à 80 %, inchangé"
@@ -452,11 +452,11 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 1
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 1
       },
       "note": "sans plafond : volume à fond, inchangé"
@@ -464,11 +464,11 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 1.5
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 1
       },
       "note": "sans plafond : volume au-delà du maximum ramené à 1"
@@ -476,11 +476,11 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": "0.9"
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.9
       },
       "note": "sans plafond : volume écrit en texte, lu en nombre"
@@ -488,11 +488,11 @@
     {
       "service": "media_player.volume_set",
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": -0.2
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0
       },
       "note": "sans plafond : volume négatif ramené à 0"
@@ -501,11 +501,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 100,
       "donnees": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.9
       },
       "attendu": {
-        "entity_id": "media_player.salon",
+        "entity_id": "media_player.barre_son_salon",
         "volume_level": 0.9
       },
       "note": "plafond réglé à 100 % : volume à 90 %, inchangé"
@@ -514,11 +514,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 30,
       "donnees": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.5
       },
       "attendu": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.3
       },
       "note": "plafond de 30 % : volume à 50 % ramené à 30 %"
@@ -527,11 +527,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 72.5,
       "donnees": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.9
       },
       "attendu": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.725
       },
       "note": "plafond de 72,5 % : volume à 90 % ramené à 72,5 %"
@@ -540,11 +540,11 @@
       "service": "media_player.volume_set",
       "plafond_volume": 0,
       "donnees": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0.4
       },
       "attendu": {
-        "entity_id": "media_player.chambre",
+        "entity_id": "media_player.enceinte_cuisine",
         "volume_level": 0
       },
       "note": "plafond de 0 % : tout volume ramené à 0"

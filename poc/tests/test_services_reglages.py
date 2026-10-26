@@ -4,7 +4,7 @@ import pytest
 import acces
 import assistant as A
 
-TELE = "media_player.exemple70"
+TELE = "media_player.tele_salon"
 V = acces.verifier_requete_ha
 
 # (domaine, service, corps) de chaque service ouvert au lot 1
@@ -87,10 +87,10 @@ def test_controle_https_limite_a_launch_app():
 
 
 def test_light_turn_on_flash_et_effect_passent():
-    corps = {"entity_id": "light.exemple6", "flash": "short", "effect": "colorloop"}
+    corps = {"entity_id": "light.salon_plafond", "flash": "short", "effect": "colorloop"}
     assert V("POST", "/api/services/light/turn_on", corps) is None
     donnees = {"flash": "short", "effect": "colorloop"}
-    assert _ha().service("light", "turn_on", "light.exemple6", donnees) == {"ok": True}
+    assert _ha().service("light", "turn_on", "light.salon_plafond", donnees) == {"ok": True}
 
 
 def test_llm_ne_voit_pas_les_domaines_de_reglage():

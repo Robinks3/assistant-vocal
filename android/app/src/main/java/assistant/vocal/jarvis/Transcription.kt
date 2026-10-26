@@ -200,7 +200,7 @@ class TranscriptionPc(
     }
 
     /**
-     * Météo marine du golfe de Marseille (0.25.0, `{"type": "meteo_mer", "id": n}`) : la réponse entière du serveur, ou
+     * Météo marine de la rade de Marseille (0.25.0, `{"type": "meteo_mer", "id": n}`) : la réponse entière du serveur, ou
      * null sans capacité, sans connexion ou sans réponse dans le délai. Appel bloquant.
      */
     fun meteoMer(delaiMs: Long): JSONObject? {

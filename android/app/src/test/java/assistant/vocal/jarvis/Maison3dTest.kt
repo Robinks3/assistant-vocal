@@ -6,7 +6,7 @@ import org.junit.Test
 
 class Maison3dTest {
     private fun lampe(etat: String, lum: Int?) = Appareils.Appareil(
-        id = "light.exemple6", nom = "Salon", etat = etat, zone = "sejour", piece = "Séjour", luminosite = lum)
+        id = "light.salon_plafond", nom = "Salon", etat = etat, zone = "sejour", piece = "Séjour", luminosite = lum)
 
     @Test
     fun lampeAllumeeAvecLuminosite() {

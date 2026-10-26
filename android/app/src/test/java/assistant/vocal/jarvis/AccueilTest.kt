@@ -127,15 +127,15 @@ class AccueilTest {
 
     @Test
     fun lieuDeLaMusique() {
-        assertEquals("Dans le salon", Accueil.lieuMusique(lecteur("media_player.salon")))
-        assertEquals("Dans la cuisine", Accueil.lieuMusique(lecteur("media_player.chambre", "paused")))
-        // Un groupe Enceintes qui joue sur le salon et la cuisine.
+        assertEquals("Dans le salon", Accueil.lieuMusique(lecteur("media_player.barre_son_salon")))
+        assertEquals("Dans la cuisine", Accueil.lieuMusique(lecteur("media_player.enceinte_cuisine", "paused")))
+        // Un groupe d'enceintes qui joue sur le salon et la cuisine.
         assertEquals(
             "Dans le salon et la cuisine",
-            Accueil.lieuMusique(lecteur("media_player.salon", membres = setOf("media_player.salon", "media_player.chambre"))),
+            Accueil.lieuMusique(lecteur("media_player.barre_son_salon", membres = setOf("media_player.barre_son_salon", "media_player.enceinte_cuisine"))),
         )
         // Lecteur hors de la sortie du son : son nom tel que HA le donne.
-        assertEquals("Sur Enceintes Maison", Accueil.lieuMusique(lecteur("media_player.enceintes", nom = "Enceintes Maison")))
+        assertEquals("Sur Enceintes maison", Accueil.lieuMusique(lecteur("media_player.groupe_maison", nom = "Enceintes maison")))
         assertEquals("l'entrée", Accueil.article("Entrée"))
         assertEquals("le bureau", Accueil.article("Bureau"))
         assertEquals("la chambre Sacha", Accueil.article("Chambre Sacha"))

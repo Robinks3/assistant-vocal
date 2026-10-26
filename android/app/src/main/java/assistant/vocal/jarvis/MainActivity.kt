@@ -719,7 +719,7 @@ class MainActivity : Activity() {
     /**
      * Démonstration de l'animation d'une action sur des lumières (0.17.5), sans rien envoyer à Home
      * Assistant, pour la voir ou la filmer sans toucher à l'appartement :
-     * `adb shell am start -n assistant.vocal.jarvis/.MainActivity --es demo_lumieres light.exemple6 --es demo_effet allumer`
+     * `adb shell am start -n assistant.vocal.jarvis/.MainActivity --es demo_lumieres light.salon_plafond --es demo_effet allumer`
      * (effet : allumer, eteindre ou regler). Une carte « démonstration » naît de l'orbe et l'aperçu 3D
      * joue l'effet, les lampes visées gardant l'état joué au lieu de celui de HA.
      */
@@ -791,7 +791,7 @@ class MainActivity : Activity() {
             }
         }
         // Pièces allumées sur le plan de l'accueil (0.18.0), sans rien envoyer à Home Assistant, 20 s :
-        // `--es demo_repos light.exemple6,light.exemple7`.
+        // `--es demo_repos light.salon_plafond,light.salon_lampe_tele`.
         i.getStringExtra("demo_repos")?.let { r ->
             i.removeExtra("demo_repos")
             val ids = r.split(',').map { it.trim() }.filter { Regex("""^light\.[a-z0-9_]+$""").matches(it) }.toSet()

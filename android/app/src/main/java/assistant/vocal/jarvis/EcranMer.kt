@@ -27,11 +27,11 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Page Mer du panneau Météo (0.23.0, maquettes `MeteoMer`, `MeteoMerExemple3` et `MeteoMerQuestion` relues le
+ * Page Mer du panneau Météo (0.23.0, maquettes `MeteoMer`, `MeteoMerPharo` et `MeteoMerQuestion` relues le
  * 22/10), sous la page Terre, placée en pixels de maquette par [CadreMaquette] :
- * - en haut, le chevron vers le vent mesuré (0.29.0), le titre du point (« Mer à Exemple4 ») et « Fermer » ;
- * - le vent du moment en grand, en nœuds, sa direction (« Variable » sous 3 nœuds), rafales et HARMONIE, puis la
- *   station à terre de Exemple4 quand sa mesure a moins de 15 min, sinon les vagues et l'eau ;
+ * - en haut, le chevron vers le vent mesuré (0.29.0), le titre du point (« Mer au Prado ») et « Fermer » ;
+ * - le vent du moment en grand, en nœuds, sa direction (« Variable » sous 3 nœuds), rafales et AROME, puis la
+ *   station à terre du Prado quand sa mesure a moins de 15 min, sinon les vagues et l'eau ;
  * - en haut à droite, la synthèse de la journée de navigation, ou la réponse à la question posée ;
  * - la frise horaire ([FriseMer]) de l'heure en cours à 20 h puis les jours suivants de 7 h à 20 h, et la ligne
  *   de détail de l'heure touchée ou de la plage ;
@@ -322,7 +322,7 @@ internal class EcranMer(private val ctx: Context, private val surFermer: () -> U
 /**
  * Frise de la page Mer : heure, grande flèche du vent (là où il va, grise quand il est variable), vent moyen,
  * « nœuds » sous la première colonne, rafales, barre du vent (moyen plein, rafales en transparence au-dessus,
- * trait blanc de HARMONIE) sur une échelle commune de 12 nœuds au moins, vagues et période, pluie ou orage s'il y
+ * trait blanc d'AROME) sur une échelle commune de 12 nœuds au moins, vagues et période, pluie ou orage s'il y
  * en a. Repères « Maintenant », le nom du jour à chaque nuit sautée, coucher du soleil en pointillé.
  */
 internal class FriseMer(ctx: Context) : FriseHoraire(ctx) {
@@ -451,7 +451,7 @@ internal class FriseMer(ctx: Context) : FriseHoraire(ctx) {
             PictosMeteo.rafale(c, gauche, haut + 106f * s + (1.22f * 15f - 10f) / 2f * s, 13f * s, pTexte.color)
             c.drawText(t, gauche + 16f * s + lt / 2f, base(pTexte, haut + 106f * s, 15f * s), pTexte)
         }
-        // Barre : moyen plein, rafales en transparence au-dessus, trait de HARMONIE.
+        // Barre : moyen plein, rafales en transparence au-dessus, trait d'AROME.
         val k = 66.0 / echelleVent
         val bas = haut + 196f * s
         val hb = max(2.0, (v ?: 0.0) * k).toFloat() * s

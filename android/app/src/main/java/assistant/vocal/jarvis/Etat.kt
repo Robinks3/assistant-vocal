@@ -371,7 +371,7 @@ object Etat {
     var actionSante: (((org.json.JSONObject?) -> Unit) -> Unit)? = null
 
     /**
-     * Météo marine du golfe de Marseille (0.25.0, page Mer) demandée au serveur (message `meteo_mer`, serveur 0.22.0) :
+     * Météo marine de la rade de Marseille (0.25.0, page Mer) demandée au serveur (message `meteo_mer`, serveur 0.22.0) :
      * au PC, sinon à l'appli de l'assistant sur HA. La réponse du serveur, ou null, sur le fil principal. Posé par le service.
      */
     @Volatile

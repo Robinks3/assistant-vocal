@@ -9,7 +9,7 @@ import pytest
 import acces
 import assistant as A
 
-ENTITE = "light.exemple68"
+ENTITE = "light.essai"
 
 
 class ClientEnregistreur:

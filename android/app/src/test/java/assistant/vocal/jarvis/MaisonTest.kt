@@ -9,21 +9,21 @@ class MaisonTest {
     @Test
     fun groupeQuiContientLesAutres() {
         val l = Maison.regrouperLecteurs(listOf(
-            Maison.Lecteur("media_player.exemple22", "Enceintes Maison", "Titre", "Artiste",
-                setOf("media_player.exemple22", "media_player.cuisine")),
-            Maison.Lecteur("media_player.cuisine", "Cuisine", "Titre", "Artiste"),
+            Maison.Lecteur("media_player.enceintes_maison", "Enceintes maison", "Titre", "Artiste",
+                setOf("media_player.enceintes_maison", "media_player.enceinte_cuisine")),
+            Maison.Lecteur("media_player.enceinte_cuisine", "Cuisine", "Titre", "Artiste"),
         ))
-        assertEquals(listOf("Titre, Artiste sur Enceintes Maison"), l)
+        assertEquals(listOf("Titre, Artiste sur Enceintes maison"), l)
     }
 
     @Test
     fun memeMorceauSansGroupe() {
         val l = Maison.regrouperLecteurs(listOf(
-            Maison.Lecteur("media_player.a", "Enceintes Maison", "Titre", "Artiste"),
+            Maison.Lecteur("media_player.a", "Enceintes maison", "Titre", "Artiste"),
             Maison.Lecteur("media_player.b", "Cuisine", "titre", "artiste"),
             Maison.Lecteur("media_player.c", "Chambre", "Autre", ""),
         ))
-        assertEquals(listOf("Titre, Artiste sur Enceintes Maison et Cuisine", "Autre sur Chambre"), l)
+        assertEquals(listOf("Titre, Artiste sur Enceintes maison et Cuisine", "Autre sur Chambre"), l)
     }
 
     @Test
@@ -41,25 +41,25 @@ class MaisonTest {
     @Test
     fun effetsDesLumieres() {
         val e = Maison.effetsLumieres(listOf(
-            action("light.turn_on", "light.exemple6"),
-            action("light.turn_off", "light.cuisine"),
-            action("light.turn_on", "light.exemple7", mapOf("brightness_pct" to "40")),
-            action("light.toggle", "light.exemple17"),
-            action("light.turn_on", "light.exemple14", mapOf("transition" to "2")),
-            action("media_player.media_pause", "media_player.salon"),
+            action("light.turn_on", "light.salon_plafond"),
+            action("light.turn_off", "light.cuisine_suspensions"),
+            action("light.turn_on", "light.salon_lampe_tele", mapOf("brightness_pct" to "40")),
+            action("light.toggle", "light.couloir_plafond"),
+            action("light.turn_on", "light.chambre_sacha_plafond", mapOf("transition" to "2")),
+            action("media_player.media_pause", "media_player.barre_son_salon"),
         ))
         assertEquals(mapOf(
-            "light.exemple6" to "allumer", "light.cuisine" to "eteindre", "light.exemple7" to "regler",
-            "light.exemple17" to "basculer", "light.exemple14" to "allumer",
+            "light.salon_plafond" to "allumer", "light.cuisine_suspensions" to "eteindre", "light.salon_lampe_tele" to "regler",
+            "light.couloir_plafond" to "basculer", "light.chambre_sacha_plafond" to "allumer",
         ), e)
     }
 
     @Test
     fun effetsParAssist() {
         val e = Maison.effetsLumieres(listOf(
-            action("assist.HassTurnOff", "light.exemple6"),
+            action("assist.HassTurnOff", "light.salon_plafond"),
             action("assist.HassTurnOn", "switch.prise"),
         ))
-        assertEquals(mapOf("light.exemple6" to "eteindre"), e)
+        assertEquals(mapOf("light.salon_plafond" to "eteindre"), e)
     }
 }
