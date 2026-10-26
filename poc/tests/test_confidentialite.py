@@ -94,6 +94,46 @@ ATTENDUS = {
     # Le mot interdit de CLAUDE.md est encore écrit en dur dans le garde-fou. D12 : S-C4 le fait lire dans
     # config/mots-interdits.txt, le mot disparaît alors du fichier.
     ("prive", ".githooks/garde-fou.sh"): "S-C4",
+    # Volet privé : alias SSH et adresses du parc réel dans le code et les tests réseau. S-C2 les remplace par
+    # des valeurs d'exemple (hôtes fictifs, réseaux de documentation).
+    ("prive", "poc/.env.exemple"): "S-C2",
+    ("prive", "poc/sante.py"): "S-C2",
+    ("prive", "poc/sante_hist.py"): "S-C2",
+    ("prive", "poc/tests/test_failles_acces.py"): "S-C2",
+    # Volet privé : le lieu réel (ville, mer) dans l'exemple, la documentation, le code météo et les tests.
+    # S-C3 réécrit l'exemple sur un lieu fictif et le code lit le lieu dans la configuration.
+    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Etat.kt"): "S-C3",
+    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/MeteoMer.kt"): "S-C3",
+    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Transcription.kt"): "S-C3",
+    ("prive", "config-exemple/genere/android/carte/LISEZMOI.txt"): "S-C3",
+    ("prive", "config-exemple/maison.json"): "S-C3",
+    ("prive", "docs/CONFIGURER.md"): "S-C3",
+    ("prive", "poc/meteo_mer.py"): "S-C3",
+    ("prive", "poc/vent_mesure.py"): "S-C3",
+    ("prive", "poc/tests/cas_securite.json"): "S-C3",
+    ("prive", "poc/tests/test_aiguillage.py"): "S-C3",
+    ("prive", "poc/tests/test_meteo_mer.py"): "S-C3",
+    ("prive", "poc/tests/test_vent_mesure.py"): "S-C3",
+    # Volet privé : le mot de réveil du projet d'origine et les prénoms réels dans le code, les notes et les
+    # journaux de versions. S-C4 les retire partout et le garde-fou lit la liste privée (D12).
+    ("prive", "CLAUDE.md"): "S-C4",
+    ("prive", "LICENCES-TIERS.md"): "S-C4",
+    ("prive", "README.md"): "S-C4",
+    ("prive", "VERSION.md"): "S-C4",
+    ("prive", "android/VERSION.md"): "S-C4",
+    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Reconnaissance.kt"): "S-C4",
+    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/SatelliteService.kt"): "S-C4",
+    ("prive", "docs/principes-design.md"): "S-C4",
+    ("prive", "inspirations/comparatif-projet_inspiration.md"): "S-C4",
+    ("prive", "poc/acces.py"): "S-C4",
+    ("prive", "poc/assistant.py"): "S-C4",
+    ("prive", "poc/serveur_satellite.py"): "S-C4",
+    ("prive", "poc/vad.py"): "S-C4",
+    ("prive", "poc/vision.py"): "S-C4",
+    ("prive", "poc/outils/essai_vad_reveil.py"): "S-C4",
+    ("prive", "poc/outils/faux_telephone.py"): "S-C4",
+    ("prive", "poc/outils/mesures.py"): "S-C4",
+    ("prive", "poc/tests/test_reveil.py"): "S-C4",
 }
 
 # --- Lecture du dépôt -------------------------------------------------------------------------------------------
@@ -155,11 +195,31 @@ def ip_permise(adresse, prefixe):
     return any(ip in reseau for reseau in RESEAUX_PERMIS)
 
 
+def dans_colonne_version(texte, position):
+    """Vrai si la position tombe dans la cellule d'un tableau Markdown dont l'en-tête de colonne parle de version
+    (un numéro à quatre composantes y est une version de paquet, pas une adresse)."""
+    debut_ligne = texte.rfind("\n", 0, position) + 1
+    if not texte[debut_ligne:position].lstrip().startswith("|"):
+        return False
+    colonne = texte[debut_ligne:position].count("|")
+    entete = None
+    for ligne in reversed(texte[:debut_ligne].splitlines()):
+        if not ligne.lstrip().startswith("|"):
+            break
+        entete = ligne
+    if entete is None:
+        return False
+    cellules = entete.split("|")
+    return colonne < len(cellules) and "version" in cellules[colonne].lower()
+
+
 def trouver_ip(texte):
     """Lignes où figure une adresse IPv4 qui n'est pas permise."""
     trouvees = []
     for m in IPV4.finditer(texte):
         if CONTEXTE_VERSION.search(texte[max(0, m.start() - 12):m.start()]):
+            continue
+        if dans_colonne_version(texte, m.start()):
             continue
         if not ip_permise(m.group(1), m.group(2)):
             trouvees.append(ligne_de(texte, m.start()))
@@ -323,7 +383,7 @@ def chaines_sensibles(maison, texte_maison, texte_exemple):
     candidates.update(m.group(0) for m in COORDONNEE.finditer(texte_maison))
     candidates = {c.strip() for c in candidates if len(c.strip()) >= LONGUEUR_MIN}
     # Une chaîne que l'exemple public contient déjà est publique par définition (Europe/Paris, salon...).
-    return sorted(c for c in candidates if c in IP_PERMISES or not motif_mot([c]).search(texte_exemple) and c not in IP_PERMISES)
+    return sorted(c for c in candidates if c not in IP_PERMISES and not motif_mot([c]).search(texte_exemple))
 
 
 def lire_mots_interdits(chemin):
@@ -355,6 +415,20 @@ def chercher_chaines(textes, chaines, mots_interdits):
     return trouvees
 
 
+class ContextePrive:
+    """Chaînes et mots à chercher. Le repr est neutre : pytest l'affiche dans les traces d'échec."""
+
+    def __init__(self, chaines, mots):
+        self.chaines = chaines
+        self.mots = mots
+
+    def __iter__(self):
+        return iter((self.chaines, self.mots))
+
+    def __repr__(self):
+        return f"<contexte privé : {len(self.chaines)} chaînes, {len(self.mots)} mots>"
+
+
 @pytest.fixture(scope="module")
 def contexte_prive():
     maison = DOSSIER_PRIVE / "maison.json"
@@ -364,7 +438,7 @@ def contexte_prive():
     texte_exemple = (RACINE / "config-exemple" / "maison.json").read_text(encoding="utf-8")
     chaines = chaines_sensibles(json.loads(texte_maison), texte_maison, texte_exemple)
     mots = lire_mots_interdits(DOSSIER_PRIVE / "mots-interdits.txt")
-    return chaines, mots
+    return ContextePrive(chaines, mots)
 
 
 def decrire_prive(trouvees):
@@ -423,6 +497,12 @@ def test_numeros_de_version_ne_sont_pas_des_adresses():
     assert trouver_ip("version 10.20.30.40") == []
     assert trouver_ip("1.2.3.4.5") == []
     assert trouver_ip("2026.10.25.1") == []
+    version = fragments("5.0.", "0.93")
+    tableau = f"| Paquet | Version | Licence |\n|---|---|---|\n| opencv | {version} | Apache 2.0 |\n"
+    assert trouver_ip(tableau) == []
+    ip = fragments("93.184", ".216.", "34")
+    assert trouver_ip(f"| Machine | Adresse |\n|---|---|\n| pc | {ip} |\n") == [3]
+    assert trouver_ip(f"| Paquet | Version |\n|---|---|\n| pc | 1.2.3 | {ip} |\n") == [3]
 
 
 def test_detecte_les_noms_d_hote_reels():
@@ -462,19 +542,19 @@ def test_ne_lit_que_des_textes_suivis():
 
 def test_volet_prive_sur_une_configuration_fictive():
     """Le volet privé trouve les chaînes d'une configuration, sans afficher leurs valeurs, et épargne l'exemple."""
-    prenom = fragments("Ro", "main")
-    entite = fragments("light.", "bureau_de_", "Exemple2")
+    prenom = fragments("Ys", "olde")
+    entite = fragments("light.", "bureau_de_", "ysolde")
     ip = fragments("10.77", ".5.", "9")
     maison = {
         "securite": {"nom_occupant": prenom, "mots_proteges": [prenom.lower(), "ab"], "zones_protegees": ["salon"]},
-        "reseau": {"ssh_ha": fragments("ha-", "Exemple2"), "ha_url": f"http://{ip}:8123"},
+        "reseau": {"ssh_ha": fragments("ha-", "ysolde"), "ha_url": f"http://{ip}:8123"},
         "appareils": {entite: "Bureau", "tele": "media_player.exemple20"},
         "mer": {"lat": "43.2965", "lon": "5.3698"},
     }
     texte = json.dumps(maison)
     exemple = '{"securite": {"zones_protegees": ["salon"]}, "appareils": {"tele": "media_player.exemple20"}}'
     chaines = chaines_sensibles(maison, texte, exemple)
-    assert {prenom, prenom.lower(), entite, ip, fragments("ha-", "Exemple2"), "43.2965", "5.3698"} <= set(chaines)
+    assert {prenom, prenom.lower(), entite, ip, fragments("ha-", "ysolde"), "43.2965", "5.3698"} <= set(chaines)
     assert "salon" not in chaines and "media_player.exemple20" not in chaines and "ab" not in chaines
     textes = {
         "docs/propre.md": "Rien ici.\n",
