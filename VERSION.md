@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Documentation (2026-10-26), maquettes du socle du client web (S-W0a), sans changement de version
+Aucun code ni numéro de version ne change : le serveur et l'appli gardent leur numéro.
+- `docs/maquettes/client-web/` : planches HTML autonomes (CSS inclus, aucune ressource distante, aucun script),
+  lisibles en clair, en sombre et en ambiance du soir : Accueil, appairage en trois écrans (nouveau navigateur,
+  propriétaire avec rôle, confirmation par clé d'accès), Réglages, révocation d'un appareil, composants et états.
+  Noms fictifs de `config-exemple/maison.json`. Version des maquettes : 1.0.0.
+- `docs/principes-design.md` : section Client web (palette en variables CSS, typographie, espacements, états,
+  composants réutilisables, accessibilité).
+
 ## Serveur 0.34.1 (2026-10-26), licences : MIT pour le code, modèles non commerciaux téléchargés
 Session S-C5 du plan 1.2.0 (décision D2). Aucun changement de comportement du serveur. Le numéro `VERSION` de
 `poc/assistant.py` reste à passer à 0.34.1 à la fusion (fichier à écrivain unique, non touché par cette branche).
