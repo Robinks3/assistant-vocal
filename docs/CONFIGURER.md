@@ -122,7 +122,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `mer` | `poc/meteo_mer.py`, `MeteoMer.kt`, `MeteoQuestion.kt`, `EcranMeteo.kt` | Météo marine éteinte. |
 | `vent` | `poc/vent_mesure.py`, `MeteoVent.kt`, `EcranVent.kt`, `build.gradle.kts` | Vent mesuré éteint. Dans l'appli, la page Mer disparaît aussi. |
 | `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Sans section, le mot vaut "assistant" (ou `MOT_REVEIL`), avec repli sur "Hey Jarvis" si son modèle manque. |
-| `reglages` | `poc/liste_blanche.py`, `ReglageTele.kt` | Aucune appli ni aucun interrupteur en plus, volet de la télé sans tuiles de sources. |
+| `reglages` | `poc/liste_blanche.py`, `ReglageTele.kt`, `Maison3d.kt` | Aucune appli ni aucun interrupteur en plus, volet de la télé sans tuiles de sources, vue 3D sans correspondance d'entités. |
 
 Aucune autre section n'est lue par le code.
 
@@ -662,6 +662,30 @@ toucher à `poc/securite.py` ni à `Securite.kt`. Après un changement, régén�
 L'état affiché (allumée, source, volume) vient de Home Assistant. La source lue étant peu fiable sur certaines
 télés, elle s'affiche au conditionnel (« allumée, sans doute Netflix »). La sortie audio (barre de son ou haut-parleurs
 de la télé) n'est pas lue : le curseur règle toujours le volume de l'entité de la télé.
+
+### `reglages.vue3d` (appli 0.42.0)
+
+Retour d'état dans la vue 3D : l'appli envoie à la page l'état allumé ou éteint des lampes avec leur couleur (ou leur
+chaleur en kelvins) et celui de la télé et des enceintes. La page reconnaît les objets par les entités de
+`carte/3d/` (`lampes.json`, `meubles.json`). Quand Home Assistant appelle une entité autrement que la maquette,
+`correspondances` fait le lien. Cette section ne change aucune règle de sécurité.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `correspondances` | objet | Clé : entité de Home Assistant. Valeur : entité que connaît la maison 3D. Une clé vide ou qui commence par `_` est ignorée. Sans cette clé, chaque entité garde son nom. |
+
+```json
+"reglages": {
+  "vue3d": {
+    "correspondances": {
+      "media_player.tele_famille_fictive": "media_player.tele_salon"
+    }
+  }
+}
+```
+
+Un toucher sur un objet de la vue 3D renvoie l'entité de la maquette : l'appli retrouve l'appareil de Home Assistant
+par la même correspondance, à l'envers. Une lampe indisponible ou inconnue est montrée éteinte, sans couleur périmée.
 
 ## 3. Le dictionnaire commandes.yaml
 

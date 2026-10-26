@@ -141,6 +141,127 @@ class Maison3dPontTest {
         assertFalse(a.has("media_title"))
     }
 
+    private fun lampeHa(vararg paires: Pair<String, Any?>, etat: String = "on"): JSONObject {
+        val a = JSONObject()
+        for ((k, v) in paires) a.put(k, v ?: JSONObject.NULL)
+        return JSONObject().put("state", etat).put("attributes", a)
+    }
+
+    private fun attributs(r: JSONObject): JSONObject = r.getJSONObject("attributes")
+
+    @Test
+    fun etatSansAttributsOuAvecEtatVideDevientInconnu() {
+        assertEquals("{\"state\":\"on\"}", Maison3dPont.etatReduit(JSONObject().put("state", "on")).toString())
+        assertEquals("unknown", Maison3dPont.etatReduit(JSONObject()).getString("state"))
+        assertEquals("unknown", Maison3dPont.etatReduit(JSONObject().put("state", "  ")).getString("state"))
+        assertEquals("on", Maison3dPont.etatReduit(JSONObject().put("state", " ON ")).getString("state"))
+    }
+
+    @Test
+    fun lampeIndisponibleOuInconnueNePorteNiCouleurNiLuminosite() {
+        for (etat in listOf("unavailable", "unknown")) {
+            val r = Maison3dPont.etatReduit(lampeHa("brightness" to 200, "rgb_color" to JSONArray(listOf(1, 2, 3)),
+                "color_temp_kelvin" to 3000, etat = etat))
+            assertEquals(etat, r.getString("state"))
+            assertEquals(0, attributs(r).length())
+        }
+    }
+
+    @Test
+    fun modeTemperatureEnvoieLesKelvinsEtLeRgbDeduitReste() {
+        val r = Maison3dPont.etatReduit(lampeHa("color_mode" to "color_temp", "color_temp_kelvin" to 2700,
+            "rgb_color" to JSONArray(listOf(255, 180, 107))))
+        val a = attributs(r)
+        assertEquals(2700, a.getInt("color_temp_kelvin"))
+        assertFalse(a.has("rgb_color"))
+    }
+
+    @Test
+    fun modeCouleurEnvoieLeRgbMemeAvecUneTemperature() {
+        val r = Maison3dPont.etatReduit(lampeHa("color_mode" to "rgb", "color_temp_kelvin" to 4000,
+            "rgb_color" to JSONArray(listOf(10, 20, 30))))
+        val a = attributs(r)
+        assertEquals(20, a.getJSONArray("rgb_color").getInt(1))
+        assertFalse(a.has("color_temp_kelvin"))
+    }
+
+    @Test
+    fun temperatureSeuleSansRgbEstGardee() {
+        val a = attributs(Maison3dPont.etatReduit(lampeHa("color_temp_kelvin" to 6500)))
+        assertEquals(6500, a.getInt("color_temp_kelvin"))
+    }
+
+    @Test
+    fun bornesDesKelvinsDeLaLuminositeEtDuRgb() {
+        assertEquals(Maison3dPont.KELVIN_MIN, attributs(Maison3dPont.etatReduit(lampeHa("color_temp_kelvin" to 50))).getInt("color_temp_kelvin"))
+        assertEquals(Maison3dPont.KELVIN_MAX, attributs(Maison3dPont.etatReduit(lampeHa("color_temp_kelvin" to 999999))).getInt("color_temp_kelvin"))
+        // zéro ou négatif : pas de température
+        assertFalse(attributs(Maison3dPont.etatReduit(lampeHa("color_temp_kelvin" to 0))).has("color_temp_kelvin"))
+        assertFalse(attributs(Maison3dPont.etatReduit(lampeHa("color_temp_kelvin" to -300))).has("color_temp_kelvin"))
+        assertEquals(255, attributs(Maison3dPont.etatReduit(lampeHa("brightness" to 900))).getInt("brightness"))
+        assertEquals(0, attributs(Maison3dPont.etatReduit(lampeHa("brightness" to -4))).getInt("brightness"))
+        assertEquals(128, attributs(Maison3dPont.etatReduit(lampeHa("brightness" to "127.6"))).getInt("brightness"))
+        val rgb = attributs(Maison3dPont.etatReduit(lampeHa("rgb_color" to JSONArray(listOf(300, -5, 128))))).getJSONArray("rgb_color")
+        assertEquals(listOf(255, 0, 128), listOf(rgb.getInt(0), rgb.getInt(1), rgb.getInt(2)))
+    }
+
+    @Test
+    fun rgbMalFormeEstIgnore() {
+        for (mauvais in listOf(JSONArray(listOf(1, 2)), JSONArray(listOf(1, 2, 3, 4)), JSONArray(listOf("a", "b", "c")),
+            JSONArray(listOf(1, JSONObject.NULL, 3)), JSONArray())) {
+            assertFalse(attributs(Maison3dPont.etatReduit(lampeHa("rgb_color" to mauvais))).has("rgb_color"))
+        }
+        // une valeur qui n'est pas un tableau ne casse rien
+        assertFalse(attributs(Maison3dPont.etatReduit(lampeHa("rgb_color" to "255,0,0"))).has("rgb_color"))
+    }
+
+    @Test
+    fun luminositeEtVolumeNonNumeriquesSontIgnores() {
+        val a = attributs(Maison3dPont.etatReduit(lampeHa("brightness" to "fort", "volume_level" to JSONObject.NULL)))
+        assertFalse(a.has("brightness"))
+        assertFalse(a.has("volume_level"))
+        assertEquals(1.0, attributs(Maison3dPont.etatReduit(lampeHa("volume_level" to 7))).getDouble("volume_level"), 1e-9)
+    }
+
+    @Test
+    fun etatMediaGardeEtatEtVolumeSeulement() {
+        val r = Maison3dPont.etatMedia("playing", 0.25)
+        assertEquals("playing", r.getString("state"))
+        assertEquals(0.25, attributs(r).getDouble("volume_level"), 1e-9)
+        assertEquals("{\"state\":\"off\"}", Maison3dPont.etatMedia("off", null).toString())
+        val indispo = Maison3dPont.etatMedia("unavailable", 0.5)
+        assertEquals("unavailable", indispo.getString("state"))
+        assertEquals(0, attributs(indispo).length())
+    }
+
+    @Test
+    fun correspondancesChangentLEntiteEnvoyeeALaPage() {
+        val corr = mapOf("media_player.tele_famille_fictive" to "media_player.tele_salon")
+        val brut = JSONArray()
+            .put(JSONObject().put("entity_id", "media_player.tele_famille_fictive").put("state", "on"))
+            .put(JSONObject().put("entity_id", "light.salon_plafond").put("state", "on"))
+        val l = JSONArray(Maison3dPont.scriptEtats(brut, corr).removePrefix("maison3d.etats(").removeSuffix(")"))
+        assertEquals("media_player.tele_salon", l.getJSONObject(0).getString("entity_id"))
+        assertEquals("light.salon_plafond", l.getJSONObject(1).getString("entity_id"))
+        assertEquals("maison3d.etat(\"media_player.tele_salon\", {\"state\":\"on\"})",
+            Maison3dPont.scriptEtat("media_player.tele_famille_fictive", JSONObject().put("state", "on"), corr))
+        assertEquals("maison3d.montrer([\"media_player.tele_salon\",\"chambre_sacha\"])",
+            Maison3dPont.scriptMontrer(listOf("media_player.tele_famille_fictive", "chambre_sacha"), corr))
+        val action = Maison3dPont.scriptAction(JSONObject().put("media_player.tele_famille_fictive", "allumer"), corr)
+        assertTrue(JSONObject(action.removePrefix("maison3d.action(").removeSuffix(")")).has("media_player.tele_salon"))
+        val poser = Maison3dPont.scriptPoser(JSONObject().put("media_player.tele_famille_fictive", JSONObject().put("state", "off")), corr)
+        assertTrue(JSONObject(poser.removePrefix("maison3d.poser(").removeSuffix(")")).has("media_player.tele_salon"))
+        assertEquals("media_player.tele_famille_fictive", Maison3dPont.entiteVue("media_player.tele_famille_fictive", emptyMap()))
+    }
+
+    @Test
+    fun laConfigurationDExempleDonneSaCorrespondance() {
+        // config-exemple/maison.json : reglages.vue3d.correspondances
+        assertEquals("media_player.tele_salon", Maison3d.CORRESPONDANCES["media_player.tele_famille_fictive"])
+        assertEquals("media_player.tele_salon", Maison3dPont.entiteVue("media_player.tele_famille_fictive"))
+        assertEquals("light.salon_plafond", Maison3dPont.entiteVue("light.salon_plafond"))
+    }
+
     @Test
     fun scriptsDeLaSecondePasse() {
         assertEquals("maison3d.rotation(600, 10, 1, 25, 75)", Maison3dPont.scriptRotation(600, 10, 1f, 25f, 75f))

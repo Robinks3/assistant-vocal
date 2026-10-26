@@ -536,10 +536,6 @@ internal class PlanAmbiant(private val ctx: Context) {
         private val ETEINTE: JSONObject get() = JSONObject().put("state", "off").put("attributes", JSONObject())
 
         /** État d'une télé ou d'une enceinte pour la page : `state` et `volume_level` quand il est connu. */
-        fun etatMedia(a: Appareils.Appareil): JSONObject {
-            val attributs = JSONObject()
-            a.volume?.let { attributs.put("volume_level", it) }
-            return JSONObject().put("state", a.etat).put("attributes", attributs)
-        }
+        fun etatMedia(a: Appareils.Appareil): JSONObject = Maison3d.etatMedia(a)
     }
 }

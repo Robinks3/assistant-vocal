@@ -46,6 +46,23 @@ def test_c11_tourne_de_bout_en_bout_sur_l_exemple(copie):
     assert "modele.glb" in r.stdout and "nœuds" in r.stdout
 
 
+def test_s_l5_la_page_porte_le_retour_d_etat(copie):
+    """0.42.0 : couche neutralisante sous la tache, pas de halo dans la maison entière, état posé sans animation
+    quand la page est en pause (requestAnimationFrame gelé par la WebView masquée)."""
+    assert lancer(copie).returncode == 0
+    html = sorties(copie)[1].read_text(encoding="utf-8")
+    # couche neutralisante, réglée par jeu de teintes
+    assert "neutre" in html and html.count("forceNeutre") >= 3
+    # maison entière : plus de halo ni de tache, et le calcul est refait à chaque changement de vue
+    assert "grandEtat.actif && !grandEtat.piece" in html
+    assert "!vueEntiere && lp.halo.material.opacity" in html and "!vueEntiere && lp.flaque.material.opacity" in html
+    assert html.count("majVueEntiere()") >= 3
+    # état reçu en pause : posé tout de suite
+    assert "if (enPause) instant = true;" in html
+    # kelvins convertis par la page, couleur de la lampe prise telle que l'appli l'envoie
+    assert "kelvinVersCouleur(a.color_temp_kelvin)" in html and "a.rgb_color" in html
+
+
 def test_c11_deux_executions_donnent_la_meme_sortie(copie):
     premiere = []
     for _ in range(2):

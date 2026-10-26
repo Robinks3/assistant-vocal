@@ -108,6 +108,8 @@ const JEUX = {
     meubleSombre: "#222428", meubleClair: "#2E3034", support: "#26282C", ampoule: "#3A3A3A",
     lumiere: "#FFA757", poussiere: "#F0B46A", flux: "#6B9EFF", braise: "#FF6B1F",
     meublesReels: false, forceLampes: 120, forceTache: 0.42, forceHalo: 0.95, ambiante: 1,
+    // 0.42.0 : couche neutralisante sous la tache au sol (un sol orangé ne doit pas teinter un blanc froid)
+    forceNeutre: 0.5,
     // 0.6.0 : écran de la télé allumée (lumière froide) et signe du son (rôle « musique » de la palette)
     ecran: "#AFC6FF", musique: "#6FD3C1", forceEcran: 60,
   },
@@ -121,6 +123,7 @@ const JEUX = {
     // 0.5.2 : plafond des blancs à 0,8 (aucun canal au-delà de 204) au lieu d'une ambiante baissée partout :
     // les couleurs saturées et l'ombrage restent entiers, seuls les blancs descendent
     meublesReels: true, forceLampes: 6, forceTache: 0.1, forceHalo: 0.3, ambiante: 1, plafondBlanc: 0.8,
+    forceNeutre: 0.3,
     ecran: "#AFC6FF", musique: "#6FD3C1", forceEcran: 8,
   },
 };
@@ -329,6 +332,13 @@ for (const l of DONNEES.lampes) {
   flaque.rotation.x = -Math.PI / 2; flaque.position.set(pos.x, 0.012, pos.z);
   const rayonFlaque = l.type === "lampe" ? 1.1 : 1.9;
   flaque.scale.setScalar(rayonFlaque); groupe.add(flaque);
+  // couche neutralisante (0.42.0) : un disque sombre, juste sous la tache, qui ternit le sol coloré. Sans lui, le
+  // sol orangé du salon teinterait un blanc froid ou un bleu. Opacité réglée dans appliquer() selon l'écart de
+  // couleur entre la lampe et le sol.
+  const neutre = new T.Mesh(new T.CircleGeometry(1, 40), new T.MeshBasicMaterial({ map: HALO, color: 0x000000,
+    transparent: true, depthWrite: false, opacity: 0 }));
+  neutre.rotation.x = -Math.PI / 2; neutre.position.set(pos.x, 0.01, pos.z);
+  neutre.scale.setScalar(rayonFlaque); neutre.visible = false; groupe.add(neutre);
   const onde = new T.Mesh(new T.RingGeometry(0.9, 1, 48), new T.MeshBasicMaterial({ color: BLANC_CHAUD,
     blending: T.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0, side: T.DoubleSide }));
   onde.rotation.x = -Math.PI / 2; onde.position.set(pos.x, 0.015, pos.z); groupe.add(onde);
@@ -339,7 +349,7 @@ for (const l of DONNEES.lampes) {
   const zone = new T.Mesh(new T.SphereGeometry(0.3, 8, 6), new T.MeshBasicMaterial({ visible: false }));
   zone.position.copy(pos); zone.userData.entite = l.entite; groupe.add(zone); cibles.push(zone);
   scene.add(groupe);
-  lampes.set(l.entite, { def: l, ampoule, halo, flaque, onde, onde2, implo, lumiere, tailleHalo, rayonFlaque,
+  lampes.set(l.entite, { def: l, ampoule, halo, flaque, neutre, onde, onde2, implo, lumiere, tailleHalo, rayonFlaque,
     on: false, niveau: 1, couleur: BLANC_CHAUD.clone(), couleurHA: false, v: 0, depart: 0, de: 0, vers: 0, t0: 0, duree: 1, onde0: -1,
     // étendue de la lumière (0,15 éteinte, 1 allumée), éclat de l'allumage, seconde onde, onde qui se
     // referme, braise de l'ampoule après l'extinction, pulsation d'un réglage, chorégraphie d'une action
@@ -463,6 +473,13 @@ const cGris = new T.Color();
 // la nuit (intensité basse), les surfaces sombres absorbent : les lampes éclairent plus fort pour que
 // les pièces allumées rayonnent (jusqu'à x3,5 à intensité 0, rien ne change à intensité 1)
 const nuitLampes = () => 1 + 2.5 * (1 - intensite);
+// Vue de la maison entière (0.42.0) : ni halo, ni tache, ni couche neutralisante, le détail d'une lampe n'y
+// est pas lisible. Mise à jour par majVueEntiere() (grand, choisir), déclarée ici pour appliquer().
+let vueEntiere = false;
+// Teinte approchée du sol chaud du salon, repère de la couche neutralisante
+const SOL_CHAUD = new T.Color(1, 0.6, 0.3);
+// 0 pour une lumière aussi chaude que le sol, 1 pour son opposé (un blanc froid ou un bleu)
+const ecartAuSol = c => Math.min(1, Math.hypot(c.r - SOL_CHAUD.r, c.g - SOL_CHAUD.g, c.b - SOL_CHAUD.b) / 1.1);
 function appliquer(lp) {
   const v = Math.max(0, lp.v), m = Math.min(1, v), b = lp.braise * (1 - m);
   let c = lp.couleur;
@@ -476,11 +493,15 @@ function appliquer(lp) {
   // la tache au sol s'étale à l'allumage et se resserre à l'extinction
   lp.flaque.material.color.copy(c); lp.flaque.material.opacity = TEINTES.forceTache * nuitLampes() * v;
   lp.flaque.scale.setScalar(lp.rayonFlaque * (0.2 + 0.8 * lp.e));
+  // couche neutralisante : sombre sous la tache, d'autant plus que la lumière s'écarte du sol chaud
+  lp.neutre.material.opacity = Math.min(1, (TEINTES.forceNeutre ?? 0.45) * m * ecartAuSol(c));
+  lp.neutre.scale.setScalar(lp.rayonFlaque * (0.2 + 0.8 * lp.e));
   lp.lumiere.color.copy(c); lp.lumiere.intensity = TEINTES.forceLampes * nuitLampes() * v;
   lp.onde.material.color.copy(c); lp.onde2.material.color.copy(c); lp.implo.material.color.copy(c);
   // à zéro, halo et tache ne sont pas dessinés (la lumière ponctuelle, elle, reste toujours visible)
-  lp.halo.visible = lp.halo.material.opacity > 0.002;
-  lp.flaque.visible = lp.flaque.material.opacity > 0.002;
+  lp.halo.visible = !vueEntiere && lp.halo.material.opacity > 0.002;
+  lp.flaque.visible = !vueEntiere && lp.flaque.material.opacity > 0.002;
+  lp.neutre.visible = !vueEntiere && lp.neutre.material.opacity > 0.002;
   // sans son disque, l'ampoule éteinte d'un plafonnier flotterait seule au-dessus des murs bas
   if (lp.def.type === "plafonnier") lp.ampoule.visible = m > 0.002 || b > 0.002;
 }
@@ -571,6 +592,9 @@ function lireEtat(e) {
   return { on, niveau, couleur };
 }
 function etat(entite, e, instant) {
+  // page en pause (vue masquée) : requestAnimationFrame est gelé, un fondu ne se jouerait jamais. L'état reçu
+  // est posé tel quel, sans animation, pour que la vue soit juste dès qu'elle revient.
+  if (enPause) instant = true;
   // télé et enceintes (0.6.0) : mêmes appels que les lampes, états on, off, playing, paused, idle
   if (String(entite).startsWith("media_player.")) return etatMedia(entite, e, instant);
   const membres = DONNEES.groupes[entite] || [entite], s = lireEtat(e);
@@ -578,6 +602,8 @@ function etat(entite, e, instant) {
     const lp = lampes.get(m); if (!lp) continue;
     // pendant une action, le vrai état attend la bascule de la chorégraphie
     if (lp.choreo) { lp.choreo.etat = s; continue; }
+    // allumée sans couleur donnée : elle reprend la lumière chaude, pas la dernière couleur reçue (0.42.0)
+    if (s.on && !s.couleur) { lp.couleurHA = false; lp.couleur.copy(BLANC_CHAUD); }
     if (instant) poserLampe(lp, s.on, s.niveau, s.couleur); else changer(lp, s.on, s.niveau, s.couleur);
   }
   if (instant) { majListe(); demander(); }
@@ -1325,6 +1351,13 @@ const AMBRE = "#F2994A";
 // cadenas discret devant le nom d'une pièce protégée (drapeau de l'occupant remis), dessiné au trait
 const CADENAS = '<svg viewBox="0 0 24 24" width="0.8em" height="0.8em" style="vertical-align:-0.05em;margin-right:0.35em" fill="none" stroke="#D6CFC3" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
 let voileSale = false;
+// Maison entière (grand actif, aucune pièce choisie) : halos, taches et couches neutralisantes disparaissent
+function majVueEntiere() {
+  const v = grandEtat.actif && !grandEtat.piece;
+  if (v === vueEntiere) return;
+  vueEntiere = v;
+  lampes.forEach(appliquer);
+}
 function grand(actif) {
   actif = !!actif;
   if (actif === grandEtat.actif) return;
@@ -1338,6 +1371,7 @@ function grand(actif) {
     grandEtat.piece = null; grandEtat.pastilles = []; grandEtat.etiquettes = [];
     voiler(0, 0);
   }
+  majVueEntiere();
   construireCouche();
   demander();
 }
@@ -1359,6 +1393,7 @@ function choisir(id, duree) {
     ensemble(d);
     voiler(0, d ? 300 : 0);
   }
+  majVueEntiere();
   construireCouche();
   demander();
   return true;

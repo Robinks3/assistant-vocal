@@ -186,9 +186,9 @@ internal class EcranMaison(private val ctx: Context, private val fermer: () -> U
                 envoyes3d.clear()
                 val lot = org.json.JSONObject()
                 for (a in appareils3d) {
-                    if (a.domaine != "light") continue
-                    envoyes3d[a.id] = "${a.etat}|${a.luminosite}"
-                    lot.put(a.id, Maison3d.etatHa(a))
+                    val e = Maison3d.etat3d(a) ?: continue
+                    envoyes3d[a.id] = e.toString()
+                    lot.put(a.id, e)
                 }
                 nouvelle.poser(lot)
             }
@@ -198,22 +198,24 @@ internal class EcranMaison(private val ctx: Context, private val fermer: () -> U
         envoyer3d(liste)
     }
 
-    /** Ne renvoie à la page que les lumières dont l'état ou la luminosité ont changé (la vue met en
-     *  file d'attente tant que la page n'est pas prête, puis surPrete renvoie tout). */
+    /** Ne renvoie à la page que les lampes, télés et enceintes dont ce qu'elle affiche a changé : état, luminosité,
+     *  couleur, chaleur, volume (la clé est l'état réduit lui-même, 0.42.0). La vue met en file d'attente
+     *  tant que la page n'est pas prête, puis surPrete renvoie tout. */
     private fun envoyer3d(liste: List<Appareils.Appareil>) {
         val v = vue3d ?: return
         for (a in liste) {
-            if (a.domaine != "light") continue
-            val cle = "${a.etat}|${a.luminosite}"
+            val e = Maison3d.etat3d(a) ?: continue
+            val cle = e.toString()
             if (envoyes3d[a.id] == cle) continue
             envoyes3d[a.id] = cle
-            v.etat(a.id, Maison3d.etatHa(a))
+            v.etat(a.id, e)
         }
     }
 
     /** Toucher une lampe en 3D : même chemin qu'un toucher de tuile, la page attend le vrai état. */
     private fun touche3d(entite: String, on: Boolean) {
-        val a = appareils3d.firstOrNull { it.id == entite }
+        // La page parle de ses propres entités : on retrouve l'appareil HA derrière (correspondances, 0.42.0).
+        val a = appareils3d.firstOrNull { it.id == entite } ?: appareils3d.firstOrNull { Maison3dPont.entiteVue(it.id) == entite }
         if (a == null) {
             montrer("Lampe inconnue de Home Assistant : $entite")
             return
