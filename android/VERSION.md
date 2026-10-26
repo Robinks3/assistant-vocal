@@ -6,6 +6,13 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.2 (2026-10-26), commentaires sans référence à un projet tiers
+Session S-C4 du plan 1.2.0. Aucun changement visible.
+- `Reconnaissance.kt` et `SatelliteService.kt` ne citent plus de projet tiers dans leurs commentaires.
+- Migration de la préférence du seuil du mot de réveil personnalisé : l'ancienne clé (jusqu'à la 0.30.x) est repérée
+  par son préfixe `seuil_reveil_` au lieu d'un nom en dur, puis recopiée une fois sous `seuil_reveil_perso`. Le
+  résultat est le même pour une installation existante.
+
 ## 0.37.1 (2026-10-26), tests sur l'exemple fictif et pages Mer et Vent sans lieu en dur
 Session S-C3 du plan 1.2.0. Aucun changement visible avec une configuration existante.
 - `MeteoMer.kt`, `MeteoVent.kt`, `EcranMer.kt`, `EcranVent.kt`, `Etat.kt` et `Transcription.kt` ne citent plus de lieu
@@ -25,7 +32,7 @@ Session S-C3 du plan 1.2.0. Aucun changement visible avec une configuration exis
   le volet de réglage et un second toucher le replie. Le volet s'ouvre sur l'onglet du mode réel de la lampe (Couleur
   si elle est en couleur, Blanc sinon), même après un choix d'onglet fait lors d'une ouverture précédente. Une lampe
   sans réglage (marche / arrêt seulement) ou hors ligne garde le toucher de ligne qui bascule. Le chevron n'est plus
-  qu'un indice. Disposition retenue par Alex sur maquette (variante C) : le chevron suit le nom et la piste d'intensité
+  qu'un indice. Disposition retenue par le propriétaire sur maquette (variante C) : le chevron suit le nom et la piste d'intensité
   prend toute la largeur restante de la ligne, toujours visible.
 - Volet : onglets, pastilles et pistes à 48 dp au moins, valeur actuelle en tête (« 2700 K chaud » ou nom de la
   couleur), y compris pour une lampe à un seul mode (valeur hors des onglets) et éteinte (dernière valeur, sinon
@@ -121,7 +128,7 @@ Session S-C3 du plan 1.2.0. Aucun changement visible avec une configuration exis
   « Assistant » sans la section.
 - Identifiants neutres : pont de la page 3D `window.maison3d` et `Maison3dAndroid` (page 3D à régénérer
   avec `carte/3d/generer_3d.py`), mot de réveil personnalisé `perso` (`segmentPerso`, `CLE_SEUIL_PERSO`).
-  L'ancien seuil `seuil_reveil_assistant` est recopié une fois au démarrage, l'ancien choix enregistré reste
+  L'ancien seuil du mot de réveil personnalisé est recopié une fois au démarrage, l'ancien choix enregistré reste
   lu comme mot personnalisé.
 - Sons d'écoute : commentaire ICMT des WAV neutre, son inchangé.
 - Test `ConfigMaisonTest`. versionCode 56.

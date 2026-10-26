@@ -125,24 +125,12 @@ serveur compris, est dans [docs/INSTALLER.md](docs/INSTALLER.md).
 
 Versions et changements : `VERSION.md` pour le serveur, `android/VERSION.md` pour l'appli.
 
-## Inspiration : assistant, des auteurs inspiration
+## Remerciements
 
-Ce projet doit beaucoup à [assistant](https://github.com/projet-voisin/assistant), le miroir intelligent de la
-famille des auteurs inspiration (un projet voisin, chaîne YouTube
-[Les auteurs inspiration](https://www.exemple.invalid projet voisin)). Leur code est sous licence PolyForm
-Noncommercial 1.0.0, leur modèle de mot de réveil sous CC BY-NC-SA 4.0.
-
-- Le nom assistant, que l'auteur donne à son assistant dans sa configuration, vient de chez eux. Le moteur, lui,
-  lit le nom affiché dans la section `assistant` de la configuration.
-- Leur mot de réveil "assistant", fabriqué par leur
-  [générateur de mots de réveil](https://github.com/projet-voisin/wakeword-generator), n'est pas dans ce dépôt :
-  chacun range le sien dans sa configuration (voir [docs/CONFIGURER.md](docs/CONFIGURER.md)).
-- Plusieurs idées viennent de leur code : Silero VAD, liaison des téléphones durcie, arbitre entre appareils,
-  entités permises données au LLM en liste fermée, état confirmé après chaque action, cas de test communs aux
-  deux langages. Elles ont été réécrites, aucun fichier de leur code n'a été copié. Le comparatif est dans
-  [inspirations/comparatif-projet_inspiration.md](inspirations/comparatif-projet_inspiration.md).
+Merci aux auteurs des projets ouverts dont ce dépôt s'inspire ou qu'il utilise. Les idées reprises ont été
+réécrites, aucun code tiers n'a été copié, et les composants embarqués gardent leur propre licence.
 
 ## Licence
 
-Aucune licence pour l'instant : le code est de Alex Exemple1, tous droits réservés. Les modèles et le code
-tiers gardent leur propre licence, détaillée dans [LICENCES-TIERS.md](LICENCES-TIERS.md).
+Le code de ce dépôt est publié sous licence MIT, voir [LICENSE](LICENSE). Les modèles et le code tiers gardent
+leur propre licence, détaillée dans [LICENCES-TIERS.md](LICENCES-TIERS.md).

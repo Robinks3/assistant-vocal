@@ -48,7 +48,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.34.3"
+VERSION = "0.34.4"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -323,7 +323,7 @@ class HomeAssistant:
         self.essai = False
         self.vue_llm = {}
         # Entités de la liste donnée au LLM (dernier inventaire) : les seules qu'il peut viser.
-        # Idée reprise des auteurs inspiration : la liste part aussi en enum dans le schéma de l'outil.
+        # Idée reprise d'un projet d'inspiration : la liste part aussi en enum dans le schéma de l'outil.
         self.entites_llm = set()
         self.personne = None
 

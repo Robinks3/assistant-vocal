@@ -24,6 +24,7 @@ d'entité, un prénom, une pièce ou une coordonnée : ajouter une clé à `mais
   secrets, les données d'usage et les fichiers de plus de 5 Mo. Ne jamais le contourner (`--no-verify`)
   sans l'accord du propriétaire du dépôt.
 - Ne jamais lire `poc/.env` ni `android/local.properties` : ils contiennent des secrets.
-- Aucun nom de dépôt, de dossier ni de variable ne contient « assistant » : c'est le nom du projet des
-  auteurs inspiration, cité comme inspiration. Le mot de réveil « assistant » n'est qu'un réglage de configuration.
+- Aucun nom de dépôt, de dossier ni de variable ne contient un mot de `config/mots-interdits.txt` (une chaîne par
+  ligne, fichier privé ignoré par git, lu par le garde-fou et par `poc/tests/test_confidentialite.py`). Le mot de
+  réveil n'est qu'un réglage de configuration.
 - Textes en français avec accents, sans tiret cadratin, sans point-virgule en phrase, sans emoji.

@@ -9,7 +9,7 @@ Dernière vérification : 26/10/2026 (version 0.34.1). Chaque ligne dit ce qui a
 
 | Élément | Où | Licence | Remarque |
 |---|---|---|---|
-| Mot de réveil personnalisé de l'installation | Dans la configuration privée (`reveil/`), jamais dans ce dépôt | CC BY-NC-SA 4.0, Les auteurs inspiration (un projet voisin) | Pas d'usage commercial, partage dans les mêmes conditions. Chacun range son propre modèle dans `reveil/` de sa configuration. Licence reprise de l'ancienne version de ce document, non revérifiée à la source. |
+| Mot de réveil personnalisé de l'installation | Dans la configuration privée (`reveil/`), jamais dans ce dépôt | CC BY-NC-SA 4.0, auteurs du modèle d'origine | Pas d'usage commercial, partage dans les mêmes conditions. Chacun range son propre modèle dans `reveil/` de sa configuration. Licence reprise de l'ancienne version de ce document, non revérifiée à la source. |
 | Mot de réveil « Hey Jarvis » (`hey_jarvis_v0.1.onnx`) | `android/app/src/main/assets/reveil/` | CC BY-NC-SA 4.0 (openWakeWord, David Scripka) | À retirer de l'instantané public, voir plus bas. Licence lue dans les métadonnées de la roue openwakeword 0.6.0 : le code est sous Apache 2.0, tous les modèles pré-entraînés sous CC BY-NC-SA 4.0. |
 | Prétraitement openWakeWord (`embedding_model.onnx`, `melspectrogram.onnx`) | `android/app/src/main/assets/reveil/` | CC BY-NC-SA 4.0 (openWakeWord, David Scripka) | Même cas, à retirer de l'instantané public. |
 | Silero VAD v5.1.2 | `poc/modeles/silero_vad.onnx`, `android/.../assets/vad/` | MIT (snakers4/silero-vad) | Licence prise dans les commentaires du code. Le dépôt ne contient pas de fichier de licence pour ce modèle, or la MIT demande de livrer la mention. À ajouter, voir « Reste à confirmer ». |
@@ -20,7 +20,7 @@ Dernière vérification : 26/10/2026 (version 0.34.1). Chaque ligne dit ce qui a
 | Canary 1B v2 | téléchargé par onnx-asr au premier lancement | CC BY 4.0 (NVIDIA) | Licence reprise de l'ancienne version de ce document, non revérifiée à la source. |
 | three.js r170 (0.170.0, vue 3D de l'appartement) | `android/.../assets/maison3d/vue3d.html`, `carte/3d/vendor/` | MIT (three.js authors) | Fichier `carte/3d/vendor/LICENSE-three.txt` à côté, vérifié. |
 | Police Big Shoulders Display (heure de l'accueil et de l'AOD de la tablette) | `android/.../res/font/big_shoulders_display_200.ttf`, `big_shoulders_display_300.ttf`, `big_shoulders_display_400.ttf` (panneau Météo, 0.20.0) | SIL Open Font License 1.1, The Big Shoulders Project Authors (github.com/xotypeco/big_shoulders), fichier `assets/polices/OFL-BigShouldersDisplay.txt` | Prise dans le dépôt google/fonts (`ofl/bigshouldersdisplay`) le 22/10/2026. Depuis l'appli 0.18.1, instance statique de la police variable à la graisse 200 (fontTools `varLib.instancer`, aucun dessin modifié), chargée par `resources.getFont`. |
-| Police Instrument Sans (texte de la tablette) | `android/.../res/font/instrument_sans_400.ttf`, `instrument_sans_500.ttf`, `instrument_sans_italique_400.ttf` | SIL Open Font License 1.1, The Instrument Sans Project Authors (github.com/Instrument/instrument-sans), fichier `assets/polices/OFL-InstrumentSans.txt` | Prise dans le dépôt google/fonts (`ofl/instrumentsans`) le 22/10/2026. Depuis l'appli 0.18.1, instances statiques (Exemple2 400 et 500, italique 400) de la police variable (fontTools `varLib.instancer`, aucun dessin modifié). La page 3D ne l'embarque plus (plan 0.4.1). |
+| Police Instrument Sans (texte de la tablette) | `android/.../res/font/instrument_sans_400.ttf`, `instrument_sans_500.ttf`, `instrument_sans_italique_400.ttf` | SIL Open Font License 1.1, The Instrument Sans Project Authors (github.com/Instrument/instrument-sans), fichier `assets/polices/OFL-InstrumentSans.txt` | Prise dans le dépôt google/fonts (`ofl/instrumentsans`) le 22/10/2026. Depuis l'appli 0.18.1, instances statiques (droit 400 et 500, italique 400) de la police variable (fontTools `varLib.instancer`, aucun dessin modifié). La page 3D ne l'embarque plus (plan 0.4.1). |
 
 ## Modèles à retirer de l'instantané public
 
@@ -112,4 +112,4 @@ Points que la vérification du 26/10/2026 n'a pas pu clore, faute de réseau ou 
 
 ## Idées reprises d'un projet tiers
 
-Des idées viennent du projet des auteurs inspiration (PolyForm Noncommercial 1.0.0). Le code a été réécrit, aucun fichier n'a été copié. Le comparatif est dans `inspirations/comparatif-projet_inspiration.md`.
+Des idées viennent d'un projet tiers publié sous PolyForm Noncommercial 1.0.0. Le code a été réécrit, aucun fichier n'a été copié.
