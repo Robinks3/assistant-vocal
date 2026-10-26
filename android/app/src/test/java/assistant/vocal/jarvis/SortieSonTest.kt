@@ -9,9 +9,9 @@ import org.junit.Test
 /** Sortie du son de l'écran Musique (0.17.0) : groupe, cases, commandes et sécurité de nuit. */
 class SortieSonTest {
 
-    private val salon = "media_player.salon"
-    private val cuisine = "media_player.chambre"
-    private val bureau = "media_player.bureau"
+    private val salon = "media_player.barre_son_salon"
+    private val cuisine = "media_player.enceinte_cuisine"
+    private val bureau = "media_player.enceinte_bureau"
 
     private fun e(id: String, etat: String, membres: Set<String> = emptySet(), regroupable: Boolean = true) =
         SortieSon.Enceinte(id, id, etat, 0.3, membres, regroupable)

@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
  * - à gauche, la carte du golfe ([CarteVent]) avec une flèche par station (plus longue quand le vent est plus fort,
  *   rond creux quand la mesure est trop vieille), la station choisie cerclée dans la teinte météo ;
  * - à droite, la fiche de la station choisie (vent, âge, direction, rafale, moyenne et rafale max sur 15 min, prévision
- *   Exemple5 de l'heure), puis les autres stations ([ListeVent]), qu'on touche pour les choisir ;
+ *   ARPEGE de l'heure), puis les autres stations ([ListeVent]), qu'on touche pour les choisir ;
  * - en bas, la courbe des 3 dernières heures ([CourbeVent]) avec le curseur temporel : glisser fixe un instant pour
  *   la carte, la fiche et la liste, « Revenir au direct » ramène au présent ;
  * - le chevron vers les prévisions de la journée et l'attribution des sources.
@@ -479,7 +479,7 @@ internal class CarteVent(ctx: Context) : View(ctx) {
 
         private fun alpha(c: Int, a: Float): Int = ((255 * a).toInt().coerceIn(0, 255) shl 24) or (c and 0xFFFFFF)
 
-        /** Chemin SVG d'un asset (trait de côte OpenStreetMap), vide s'il manque. */
+        /** Chemin SVG d'un asset (trait de côte), vide s'il manque. */
         private fun lire(ctx: Context, nom: String): Path = try {
             CheminSvg.chemin(CheminSvg.lire(ctx.assets.open(nom).bufferedReader().use { it.readText() }))
         } catch (_: Exception) {
@@ -605,7 +605,7 @@ internal class ListeVent(ctx: Context) : View(ctx) {
 }
 
 /**
- * Courbe des 3 dernières heures de la station choisie : vent mesuré (trait), rafales (zone claire), prévision Exemple5
+ * Courbe des 3 dernières heures de la station choisie : vent mesuré (trait), rafales (zone claire), prévision ARPEGE
  * de son point (pointillés), sur un axe qui s'adapte à la plus forte rafale. Le curseur suit le doigt et fixe un
  * instant, revenu au direct quand on le lâche dans les 2 dernières minutes.
  */
@@ -717,7 +717,7 @@ internal class CourbeVent(ctx: Context) : View(ctx) {
             pPlein.color = (0x38 shl 24) or (Palette.meteo and 0xFFFFFF)
             c.drawPath(p, pPlein)
         }
-        // Prévision Exemple5 du point de la station, en pointillés.
+        // Prévision ARPEGE du point de la station, en pointillés.
         mer?.points?.firstOrNull { it.id == st.point }?.let { pt ->
             val hs = pt.heures.filter { it.vent != null }.map { it.t.atZone(MeteoMer.ZONE).toEpochSecond() to it.vent!! }
                 .filter { it.first >= debut() - 3600 && it.first <= maintenantS + 3600 }

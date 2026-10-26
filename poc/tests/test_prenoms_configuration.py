@@ -77,7 +77,7 @@ def test_le_refus_nomme_l_occupant_de_la_configuration(monkeypatch):
     monkeypatch.setattr(securite, "PROTEGER_OCCUPANT", True)
     monkeypatch.setattr(securite, "NOM_OCCUPANT", "Camille")
     monkeypatch.setattr(securite, "MOTS_PROTEGES", ("camille",))
-    refus = securite.verifier("light.turn_on", {"entity_id": "light.chambre_camille"})
+    refus = securite.verifier("light.turn_on", {"entity_id": "light.chambre_camille_plafonds"})
     assert refus and "Camille" in refus
     refus = securite.phrase_protegee("allume la chambre de camille")
     assert refus and "Camille" in refus

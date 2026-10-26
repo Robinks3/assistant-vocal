@@ -3,7 +3,7 @@
 Les données de l'appartement sont dans le dossier carte/ de la configuration de la maison (ASSISTANT_VOCAL_CONFIG,
 sinon config/ à la racine du dépôt, voir poc/maison.py). Sorties :
 - carte/modele.glb de la configuration : murs, sols, meubles et ampoules. Chaque ampoule est un nœud
-  nommé d'après l'objet Home Assistant (convention de 3DHome : `sejour_salon` pour `light.exemple6`),
+  nommé d'après l'objet Home Assistant (convention de 3DHome : `sejour_salon` pour `light.salon_plafond`),
   avec `extras.haEntity`. Repère glTF : y vers le haut, x et -z = x et y du plan.
 - genere/android/maison3d/vue3d.html de la configuration : page autonome (three.js inclus, aucune
   connexion requise) qui affiche la scène et anime les lampes, rangée dans les assets de l'APK par

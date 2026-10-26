@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 RACINE = Path(__file__).resolve().parents[2]
-TAILLE_MAX = 2 * 1024 * 1024  # au-delà : dictionnaire généré, que S-C3 retire du suivi
+TAILLE_MAX = 2 * 1024 * 1024  # au-delà : fichier trop gros pour être balayé (le dictionnaire d'exemple, 1,7 Mo, reste balayé)
 
 # --- Volet générique : valeurs permises ------------------------------------------------------------------------
 
@@ -75,35 +75,9 @@ PREFIXES_ENTITES = ("poc/tests/", "android/app/src/test/", "docs/")
 # Échecs constatés sur le dépôt, à corriger par la fiche nommée. (catégorie, chemin) -> fiche.
 # Catégories : ip, hote, entite (volet générique), prive (volet privé).
 ATTENDUS = {
-    # Identifiants d'entités du logement réel dans les tests et la documentation. S-C3 réécrit l'exemple avec les
-    # identifiants fictifs des notes de conception, puis les tests et les notes parlent des mêmes entités.
-    ("entite", "android/app/src/test/java/assistant/vocal/jarvis/AccueilTest.kt"): "S-C3",
-    ("entite", "android/app/src/test/java/assistant/vocal/jarvis/AppareilsTest.kt"): "S-C3",
-    ("entite", "android/app/src/test/java/assistant/vocal/jarvis/MaisonTest.kt"): "S-C3",
-    ("entite", "docs/CONFIGURER.md"): "S-C3",
-    ("entite", "docs/plan/PLAN.md"): "S-C3",
-    ("entite", "docs/plan/conception/lampes-tele.md"): "S-C3",
-    ("entite", "docs/plan/conception/routines.md"): "S-C3",
-    ("entite", "poc/tests/cas_securite.json"): "S-C3",
-    ("entite", "poc/tests/test_aiguillage.py"): "S-C3",
-    ("entite", "poc/tests/test_personnes.py"): "S-C3",
-    ("entite", "poc/tests/test_services_reglages.py"): "S-C3",
     # Le mot interdit de CLAUDE.md est encore écrit en dur dans le garde-fou. D12 : S-C4 le fait lire dans
     # config/mots-interdits.txt, le mot disparaît alors du fichier.
     ("prive", ".githooks/garde-fou.sh"): "S-C4",
-    # Volet privé : le lieu réel (ville, mer) dans l'exemple, la documentation, le code météo et les tests.
-    # S-C3 réécrit l'exemple sur un lieu fictif et le code lit le lieu dans la configuration.
-    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Etat.kt"): "S-C3",
-    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/MeteoMer.kt"): "S-C3",
-    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Transcription.kt"): "S-C3",
-    ("prive", "config-exemple/genere/android/carte/LISEZMOI.txt"): "S-C3",
-    ("prive", "config-exemple/maison.json"): "S-C3",
-    ("prive", "docs/CONFIGURER.md"): "S-C3",
-    ("prive", "poc/meteo_mer.py"): "S-C3",
-    ("prive", "poc/vent_mesure.py"): "S-C3",
-    ("prive", "poc/tests/cas_securite.json"): "S-C3",
-    ("prive", "poc/tests/test_meteo_mer.py"): "S-C3",
-    ("prive", "poc/tests/test_vent_mesure.py"): "S-C3",
     # Volet privé : le mot de réveil du projet d'origine et les prénoms réels dans le code, les notes et les
     # journaux de versions. S-C4 les retire partout et le garde-fou lit la liste privée (D12).
     ("prive", "CLAUDE.md"): "S-C4",
@@ -538,14 +512,14 @@ def test_volet_prive_sur_une_configuration_fictive():
     maison = {
         "securite": {"nom_occupant": prenom, "mots_proteges": [prenom.lower(), "ab"], "zones_protegees": ["salon"]},
         "reseau": {"ssh_ha": fragments("ha-", "ysolde"), "ha_url": f"http://{ip}:8123"},
-        "appareils": {entite: "Bureau", "tele": "media_player.exemple20"},
+        "appareils": {entite: "Bureau", "tele": "media_player.tele_salon"},
         "mer": {"lat": "43.2965", "lon": "5.3698"},
     }
     texte = json.dumps(maison)
-    exemple = '{"securite": {"zones_protegees": ["salon"]}, "appareils": {"tele": "media_player.exemple20"}}'
+    exemple = '{"securite": {"zones_protegees": ["salon"]}, "appareils": {"tele": "media_player.tele_salon"}}'
     chaines = chaines_sensibles(maison, texte, exemple)
     assert {prenom, prenom.lower(), entite, ip, fragments("ha-", "ysolde"), "43.2965", "5.3698"} <= set(chaines)
-    assert "salon" not in chaines and "media_player.exemple20" not in chaines and "ab" not in chaines
+    assert "salon" not in chaines and "media_player.tele_salon" not in chaines and "ab" not in chaines
     textes = {
         "docs/propre.md": "Rien ici.\n",
         "docs/fuite.md": f"un\ndeux\nl'adresse {ip}\n",

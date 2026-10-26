@@ -6,6 +6,14 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.1 (2026-10-26), tests sur l'exemple fictif et pages Mer et Vent sans lieu en dur
+Session S-C3 du plan 1.2.0. Aucun changement visible avec une configuration existante.
+- `MeteoMer.kt`, `MeteoVent.kt`, `EcranMer.kt`, `EcranVent.kt`, `Etat.kt` et `Transcription.kt` ne citent plus de lieu
+  réel. Le fuseau, les modèles, les points et le fond de carte viennent de `maison.json`.
+- Les tests (accueil, appareils, maison, historique, météo, sécurité, maison 3D) utilisent les identifiants fictifs
+  de l'exemple et la rade de Marseille. Les prévisions de `MeteoMerTest` sont des valeurs d'exemple.
+- Le trait de côte de l'exemple est un tracé simplifié dessiné à la main.
+
 ## 0.37.0 (2026-10-25), code d'invitation à 6 chiffres
 - Écran Appareils : le champ de saisie accepte un code à 6 chiffres (invitation affichée dans la page d'administration
   de Home Assistant, valable 2 minutes) en plus du code à 8 chiffres du journal du serveur (amorçage). Seul le nombre de

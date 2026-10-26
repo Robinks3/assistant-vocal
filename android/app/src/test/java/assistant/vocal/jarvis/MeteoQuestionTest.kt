@@ -68,11 +68,11 @@ class MeteoQuestionTest {
         val soir = q("Il fera combien ce soir ?")!!
         assertEquals(MeteoQuestion.Sujet.TEMPERATURE, soir.sujet)
         assertEquals(MeteoQuestion.Plage(0, 18, 23, "ce soir"), soir.plage)
-        val mer = q("Quelles conditions en mer à Exemple4 ?")!!
+        val mer = q("Quelles conditions en mer à Prado ?")!!
         assertEquals(MeteoQuestion.Sujet.MER, mer.sujet)
-        assertEquals("Exemple4", mer.point)
+        assertEquals("prado", mer.point)
         assertEquals(MeteoQuestion.Plage(0, 7, 20, "aujourd'hui", jourEntier = true), mer.plage)
-        assertEquals("Exemple3", q("quel vent devant Exemple3 demain")!!.point)
+        assertEquals("pharo", q("quel vent devant Pharo demain")!!.point)
     }
 
     @Test
@@ -97,7 +97,7 @@ class MeteoQuestionTest {
     fun laissePasserCeQuiNEstPasUneQuestionDeMeteo() {
         assertNull(q("allume le salon demain"))
         assertNull(q("rappelle-moi demain de regarder la météo"))
-        assertNull(q("combien de temps pour aller à Paris demain"))
+        assertNull(q("combien de temps pour aller à Lyon demain"))
         assertNull(q("allume le chauffage il fait froid"))
         assertNull(q("mets de la musique"))
         assertNull(q("j'ai froid"))
@@ -109,7 +109,7 @@ class MeteoQuestionTest {
         assertNull(q("quelle est la température du salon"))
         assertNull(q("combien il reste de lumières allumées"))
         assertNull(q("quel est le temps de cuisson des pâtes"))
-        assertNull(q("quel temps à Paris demain"))
+        assertNull(q("quel temps à Lyon demain"))
         assertNotNull(q("quel temps à Lille demain"))
         assertNotNull(q("quel temps fera-t-il à midi"))
     }

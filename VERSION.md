@@ -4,6 +4,27 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.34.3 (2026-10-26), exemple de configuration entièrement fictif
+Session S-C3 du plan 1.2.0. Aucun changement de comportement pour une configuration existante.
+- `config-exemple/` ne contient plus aucune valeur réelle. Les identifiants d'entités de `maison.json`,
+  `commandes.yaml`, `carte/lampes.json` et `carte/meubles.json` suivent la conception de `docs/plan/conception/`
+  (lumières du salon, de la cuisine, du couloir et des chambres de Sacha et de Camille, télévision, barre de son,
+  enceintes, groupe d'enceintes). Les tests, les cas de sécurité et la documentation citent les mêmes identifiants.
+- Le plan d'eau de l'exemple est la rade de Marseille (cadre, balises, stations, points de vagues, coordonnées
+  arrondies à deux décimales, fuseau Europe/Paris). Le trait de côte de `genere/android/carte/` est un tracé simplifié
+  dessiné à la main, sans donnée importée. `LISEZMOI.txt` le dit.
+- `poc/meteo_mer.py` et `poc/vent_mesure.py` ne nomment plus aucun lieu. Le nom, le fuseau, les modèles (ARPEGE et
+  AROME dans l'exemple), les points, les lieux de vagues et la station à terre sont lus dans la configuration. Les
+  noms de variables `FUSEAU` et `paris()` deviennent `LOCAL` et `heure_locale()`.
+- `poc/.env.exemple` : les noms de stations et de balises sont remplacés par des clés génériques commentées.
+- `config-exemple/genere/android/dictionnaire.json` est régénéré (17 099 formes, 1,7 Mo). Il reste suivi, car
+  `test_export_exemple_a_jour` le compare à l'export neuf et `android/app/build.gradle.kts` le lit.
+- `docs/CONFIGURER.md`, `docs/INSTALLER.md`, `docs/QUOI-TOURNE-OU.md` et `carte/3d/README.md` ne décrivent plus que
+  l'exemple fictif.
+- `test_confidentialite.py` : toutes les attentes d'échec de S-C3 sont retirées, il ne reste que celles de S-C4. Les
+  deux volets (générique et privé) passent sans elles. Le fichier de 1,7 Mo du dictionnaire est balayé comme le reste.
+- Tests : 481 réussis, 5 ignorés, 19 échecs attendus (tous S-C4).
+
 ## Serveur 0.34.2 (2026-10-26), tests sur des valeurs fictives et volet privé nettoyé
 Session S-C2 du plan 1.2.0. Aucun changement de comportement du serveur.
 - Tests Python : les adresses précises d'appareils sont remplacées par des adresses génériques de même nature

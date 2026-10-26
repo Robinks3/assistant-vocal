@@ -20,17 +20,17 @@ Pour déplacer une lampe ou un meuble : corriger `lampes.json` ou `meubles.json`
 - `?demo=1` : lance la démonstration au chargement.
 - `?jeu=couleur&intensite=0.4` : jeu de teintes et clarté au chargement (0.5.0), pour essayer dans un navigateur.
 - `?zone=0.278,0.27,0.444,0.46` et `?rotation=600,25,75` : zone de `disposition` et balancement de l'accueil (0.5.2).
-- `?medias=media_player.exemple20:on,media_player.salon:playing:0.5` : télé et enceintes posées d'emblée, volume facultatif (0.6.0).
+- `?medias=media_player.tele_salon:on,media_player.barre_son_salon:playing:0.5` : télé et enceintes posées d'emblée, volume facultatif (0.6.0).
 - `?regime=0` ou `1` : régime de l'accueil au chargement (0.7.0).
 - `?angle=75` : angle de la vue fixe en degrés (0.6.0, -31,5 par défaut).
-- `?allumer=light.exemple6,light.cuisine` : lampes allumées d'emblée, sans animation (0.5.0), pour les captures des maquettes.
+- `?allumer=light.salon_plafond,light.cuisine_suspensions` : lampes allumées d'emblée, sans animation (0.5.0), pour les captures des maquettes.
 - `?pr=1.25` : résolution de la toile en pixels réels par pixel CSS (1,25 sur l'accueil de la tablette, 1,5 sans le paramètre), jamais au-dessus de celle de l'écran.
 
 ## Interface JavaScript `window.maison3d`
 
 | Appel | Effet |
 |---|---|
-| `maison3d.etat(entite, e)` | Change une lampe ou un groupe (`light.cuisine`, `light.exemple11`, `light.chambre_camille` sont développés en ampoules). `e` accepte un état Home Assistant (`{state: "on", attributes: {brightness, rgb_color, color_temp_kelvin}}`), `{on: true, niveau: 0.5}`, `"on"`/`"off"` ou un booléen. Allumage : montée avec un petit éclat, halo, tache de lumière au sol et onde qui s'élargit. Extinction : fondu. |
+| `maison3d.etat(entite, e)` | Change une lampe ou un groupe (`light.cuisine_suspensions`, `light.chambre_sacha_chevets`, `light.chambre_camille_plafonds` sont développés en ampoules). `e` accepte un état Home Assistant (`{state: "on", attributes: {brightness, rgb_color, color_temp_kelvin}}`), `{on: true, niveau: 0.5}`, `"on"`/`"off"` ou un booléen. Allumage : montée avec un petit éclat, halo, tache de lumière au sol et onde qui s'élargit. Extinction : fondu. |
 | `maison3d.etats(x)` | Plusieurs à la fois : tableau d'états Home Assistant (la réponse de `/api/states` telle quelle, les autres entités sont ignorées) ou objet `{entite: e}`. |
 | `maison3d.poser(x)` | Comme `etats`, sans animation (premier affichage). |
 | `maison3d.action({entite: effet})` | Action de l'assistant, jouée en entier par la page. Effet : `"allumer"`, `"eteindre"` ou `"regler"`, seul ou `{effet, state, attributes}` avec l'état lu dans Home Assistant. La lampe repart de son état d'avant, la caméra vole vers elle, un flux de particules se resserre sur l'ampoule, puis elle bascule à 1,15 s (éclat, lumière au sol, ondes, ou onde qui se referme et braises). Un état reçu pendant l'action attend la bascule. |
@@ -52,7 +52,7 @@ Pour déplacer une lampe ou un meuble : corriger `lampes.json` ou `meubles.json`
 | `maison3d.nomsAuSol(bool)` | Montre ou cache les noms des pièces écrits au sol. |
 | `maison3d.vue("dessus" ou "iso")`, `maison3d.murs(h)`, `maison3d.jour(bool)`, `maison3d.panneau(bool)`, `maison3d.demo()` | Réglages d'affichage. |
 | `maison3d.lampes()` | Liste des ampoules avec leur état affiché. |
-| `maison3d.etat("media_player....", e)` | 0.6.0 : télé et enceintes, par les mêmes `etat` et `etats` que les lampes (la réponse de `/api/states` peut être passée telle quelle). Entités connues dans `meubles.json` de la configuration (`medias`, avec les alias Music Assistant, et `groupes_medias` : `media_player.exemple22` vise les deux enceintes). État lu dans `state` (`on`, `off`, `playing`, `paused`, `idle`...), volume dans `attributes.volume_level` (0 à 1). Télé : tout état sauf off, standby, unavailable, unknown l'allume. Enceinte : ondes au sol si `playing`, lueur seule si `paused`, rien sinon. Teintes `ecran` et `musique` dans `teintes`. |
+| `maison3d.etat("media_player....", e)` | 0.6.0 : télé et enceintes, par les mêmes `etat` et `etats` que les lampes (la réponse de `/api/states` peut être passée telle quelle). Entités connues dans `meubles.json` de la configuration (`medias`, avec les alias Music Assistant, et `groupes_medias` : `media_player.enceintes_maison` vise les deux enceintes). État lu dans `state` (`on`, `off`, `playing`, `paused`, `idle`...), volume dans `attributes.volume_level` (0 à 1). Télé : tout état sauf off, standby, unavailable, unknown l'allume. Enceinte : ondes au sol si `playing`, lueur seule si `paused`, rien sinon. Teintes `ecran` et `musique` dans `teintes`. |
 | `maison3d.regime(niveau, duree_ms)` | 0.7.0 : régime de l'accueil, 1 vivant (fond en dégradé, ombre et flaque de lumière sous l'appartement, grain, particules dans la moitié droite, appartement saturé), 0 en retrait (noir pur, appartement désaturé), transition en `duree_ms`. Le soir (intensité 0,2 et moins), fond presque noir et effets à 45 %. Aussi par postMessage `{type: "regime", niveau, duree_ms}`. |
 | `maison3d.version()`, `maison3d.dateVersion()` | 0.7.1 : version de la page et date des données. Dans l'appli, le libellé de version de la page est masqué, l'appli l'affiche avec ces appels. |
 | `maison3d.medias()` | 0.6.0 : télé et enceintes, avec l'état et le volume montrés. |
@@ -72,7 +72,7 @@ Sans pont Android et hors iframe (ouverture directe dans un navigateur), un touc
 
 ## Repère
 
-Données en mètres dans le repère de `pieces.json` (z la hauteur). Dans `modele.glb`, repère glTF : X = x, Y = hauteur, Z = -y. Chaque ampoule y est un nœud nommé d'après l'objet Home Assistant sans le préfixe (`sejour_salon` pour `light.exemple6`) avec `extras.haEntity`, la convention de [3DHome](https://github.com/lukevink/3DHome).
+Données en mètres dans le repère de `pieces.json` (z la hauteur). Dans `modele.glb`, repère glTF : X = x, Y = hauteur, Z = -y. Chaque ampoule y est un nœud nommé d'après l'objet Home Assistant sans le préfixe (`salon_plafond` pour `light.salon_plafond`) avec `extras.haEntity`, la convention de [3DHome](https://github.com/lukevink/3DHome).
 
 ## Limites
 

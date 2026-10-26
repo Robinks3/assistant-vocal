@@ -14,7 +14,7 @@ class CarteEnCoursSuiviTest {
 
     @Test
     fun uneEnceinteQuiJouePasseAvantSpotify() {
-        val spotify = l("media_player.exemple41", "playing", 1.0)
+        val spotify = l("media_player.spotify_sacha", "playing", 1.0)
         val lecteurs = listOf(spotify, l(cuisine, "playing", 0.3), l(salon, "playing", 0.3, setOf(salon, cuisine)))
         // Le meneur du groupe, pas le premier lecteur ni le compte Spotify à 100 %.
         assertEquals(salon, CarteEnCours.suivi(lecteurs).id)
@@ -32,7 +32,7 @@ class CarteEnCoursSuiviTest {
 
     @Test
     fun sansEnceinteQuiJoueLeRestePareil() {
-        val spotify = l("media_player.exemple41", "playing", 1.0)
+        val spotify = l("media_player.spotify_sacha", "playing", 1.0)
         assertEquals(spotify.id, CarteEnCours.suivi(listOf(l(salon, "idle", 0.3), spotify)).id)
         assertEquals(salon, CarteEnCours.suivi(listOf(l(cuisine, "idle", 0.3), l(salon, "paused", 0.3))).id)
     }

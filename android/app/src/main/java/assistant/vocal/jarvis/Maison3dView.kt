@@ -24,7 +24,7 @@ import org.json.JSONObject
 @SuppressLint("SetJavaScriptEnabled", "ViewConstructor")
 class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(context) {
 
-    /** Toucher sur une lampe : entité de l'ampoule (`light.exemple6`) et état voulu. Fil principal. */
+    /** Toucher sur une lampe : entité de l'ampoule (`light.salon_plafond`) et état voulu. Fil principal. */
     var surBasculer: ((String, Boolean) -> Unit)? = null
     /** La page est prête (scène construite) : le moment d'envoyer les états courants. Fil principal. */
     var surPrete: (() -> Unit)? = null
@@ -157,7 +157,7 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
     /** Tableau brut de `/api/states` : seules les lumières, la télé et les enceintes sont transmises à la page. */
     fun etats(json: JSONArray) = appeler(Maison3dPont.scriptEtats(json))
 
-    /** Une lumière ou un groupe HA (`light.cuisine` allume ses deux ampoules dans la vue), la télé ou une enceinte. */
+    /** Une lumière ou un groupe HA (`light.cuisine_suspensions` allume ses deux ampoules dans la vue), la télé ou une enceinte. */
     fun etat(entite: String, etatHA: JSONObject) = appeler(Maison3dPont.scriptEtat(entite, etatHA))
 
     /** Vol de caméra vers des lumières, des groupes ou des pièces (`chambre_sacha`). */

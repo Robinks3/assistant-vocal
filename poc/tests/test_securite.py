@@ -60,7 +60,7 @@ def test_configuration_sans_plafond():
     assert securite.VOLUME_MAX == 1.0
     assert not securite.plafond_actif()
     assert securite.plafonner_volume(0.8) == 0.8
-    assert securite.verifier("media_player.volume_up", {"entity_id": "media_player.salon"}) is None
+    assert securite.verifier("media_player.volume_up", {"entity_id": "media_player.barre_son_salon"}) is None
     assert "volume_up" in assistant.SERVICES_PERMIS["media_player"]
     assert assistant.consigne_plafond() == ""
     assert "@PLAFOND@" not in assistant.CONSIGNE and "plafonn" not in assistant.CONSIGNE
@@ -99,7 +99,7 @@ def test_passerelle_plafonne_le_volume(monkeypatch, plafond, attendu):
     # Passerelle de la tablette (acces.py) : le corps vérifié est celui transmis à HA.
     import acces
     regler_plafond(monkeypatch, plafond)
-    corps = {"entity_id": "media_player.salon", "volume_level": 0.9}
+    corps = {"entity_id": "media_player.barre_son_salon", "volume_level": 0.9}
     assert acces.verifier_requete_ha("POST", "/api/services/media_player/volume_set", corps) is None
     assert corps["volume_level"] == attendu
 
@@ -112,15 +112,15 @@ def test_volume_up_refuse_avec_plafond(monkeypatch):
     """0.20.4 : monter le son par pas passerait au-dessus du plafond, seul un volume précis passe. Depuis le
     25/10/2026, seulement quand la configuration règle un plafond, dont le message dit la valeur."""
     regler_plafond(monkeypatch, 50)
-    refus = securite.verifier("media_player.volume_up", {"entity_id": "media_player.salon"})
+    refus = securite.verifier("media_player.volume_up", {"entity_id": "media_player.barre_son_salon"})
     assert refus == securite.refus_volume_up() and "plafonné à 50 %" in refus
-    assert securite.verifier("media_player.volume_down", {"entity_id": "media_player.salon"}) is None
+    assert securite.verifier("media_player.volume_down", {"entity_id": "media_player.barre_son_salon"}) is None
     regler_plafond(monkeypatch, 72.5)
-    assert "plafonné à 72,5 %" in securite.verifier("media_player.volume_up", {"entity_id": "media_player.salon"})
+    assert "plafonné à 72,5 %" in securite.verifier("media_player.volume_up", {"entity_id": "media_player.barre_son_salon"})
 
 
 def test_volume_up_permis_sans_plafond(monkeypatch):
     regler_plafond(monkeypatch, 100)
-    assert securite.verifier("media_player.volume_up", {"entity_id": "media_player.salon"}) is None
+    assert securite.verifier("media_player.volume_up", {"entity_id": "media_player.barre_son_salon"}) is None
     # Les autres sécurités restent : un appareil visé par son identifiant brut est toujours refusé.
     assert securite.verifier("media_player.volume_up", {"device_id": "abc"}) is not None

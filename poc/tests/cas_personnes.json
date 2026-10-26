@@ -5,8 +5,8 @@
       "phrase": "allume les lumières de ma chambre",
       "cibles": [
         [
-          "light.exemple14",
-          "light.exemple11"
+          "light.chambre_sacha_plafond",
+          "light.chambre_sacha_chevets"
         ]
       ],
       "securite_refus": false,
@@ -17,8 +17,8 @@
       "personne": "Sacha",
       "cibles": [
         [
-          "light.exemple14",
-          "light.exemple11"
+          "light.chambre_sacha_plafond",
+          "light.chambre_sacha_chevets"
         ]
       ],
       "securite_refus": false,
@@ -29,8 +29,8 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.chambre_camille",
-          "light.exemple18"
+          "light.chambre_camille_plafonds",
+          "light.chambre_camille_chevet"
         ]
       ],
       "securite_refus": false,
@@ -41,7 +41,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple18"
+          "light.chambre_camille_chevet"
         ]
       ],
       "service": "light.turn_off",
@@ -63,7 +63,7 @@
       "personne": "camille",
       "cibles": [
         [
-          "light.chambre_camille"
+          "light.chambre_camille_plafonds"
         ]
       ],
       "securite_refus": false,
@@ -74,7 +74,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.chambre_camille"
+          "light.chambre_camille_plafonds"
         ]
       ],
       "securite_refus": false,
@@ -85,8 +85,8 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple14",
-          "light.exemple11"
+          "light.chambre_sacha_plafond",
+          "light.chambre_sacha_chevets"
         ]
       ],
       "securite_refus": false,
@@ -97,7 +97,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple14"
+          "light.chambre_sacha_plafond"
         ]
       ],
       "securite_refus": false,
@@ -120,7 +120,7 @@
       "personne": "inconnu",
       "cibles": [
         [
-          "light.exemple6"
+          "light.salon_plafond"
         ]
       ],
       "securite_refus": false,
@@ -131,7 +131,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple6"
+          "light.salon_plafond"
         ]
       ],
       "securite_refus": false,
@@ -142,14 +142,14 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple6",
-          "light.cuisine",
-          "light.exemple15",
-          "light.exemple16",
-          "light.exemple7",
-          "light.exemple17",
-          "light.exemple14",
-          "light.exemple11"
+          "light.salon_plafond",
+          "light.cuisine_suspensions",
+          "light.cuisine_suspension_1",
+          "light.cuisine_suspension_2",
+          "light.salon_lampe_tele",
+          "light.couloir_plafond",
+          "light.chambre_sacha_plafond",
+          "light.chambre_sacha_chevets"
         ]
       ],
       "securite_refus": false,
@@ -160,7 +160,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple18"
+          "light.chambre_camille_chevet"
         ]
       ],
       "securite_refus": false,
@@ -171,7 +171,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.chambre_camille"
+          "light.chambre_camille_plafonds"
         ]
       ],
       "securite_refus": false,
@@ -182,7 +182,7 @@
       "personne": "Sacha",
       "cibles": [
         [
-          "light.exemple14"
+          "light.chambre_sacha_plafond"
         ]
       ],
       "securite_refus": false,
@@ -193,7 +193,7 @@
       "personne": "Camille",
       "cibles": [
         [
-          "light.exemple18"
+          "light.chambre_camille_chevet"
         ]
       ],
       "securite_refus": false,

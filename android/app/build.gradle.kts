@@ -8,7 +8,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.37.0"
+val versionApplication = "0.37.1"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -137,7 +137,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 66
+        versionCode = 67
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))

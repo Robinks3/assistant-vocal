@@ -36,7 +36,7 @@ def moteur_ha(essai):
 
 def test_passerelle_essai_ne_transmet_pas_les_services():
     moteur, client = moteur_ha(True)
-    corps = {"entity_id": "light.exemple6"}
+    corps = {"entity_id": "light.salon_plafond"}
     r = S.passerelle_ha(moteur, {"id": 1, "methode": "POST", "chemin": "/api/services/light/turn_on", "corps": corps})
     assert (r["code"], r["corps"]) == (200, "[]") and client.appels == []
     S.passerelle_ha(moteur, {"id": 2, "methode": "GET", "chemin": "/api/states"})
@@ -53,5 +53,5 @@ def test_passerelle_essai_ne_transmet_pas_les_services():
 def test_passerelle_reel_transmet_les_services():
     moteur, client = moteur_ha(False)
     S.passerelle_ha(moteur, {"id": 1, "methode": "POST", "chemin": "/api/services/light/turn_on",
-                             "corps": {"entity_id": "light.exemple6"}})
+                             "corps": {"entity_id": "light.salon_plafond"}})
     assert len(client.appels) == 1

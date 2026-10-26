@@ -139,8 +139,8 @@ class SecuriteTest {
         // est refusé. Depuis le 25/10/2026 le plafond est réglable (aucun par défaut) : sans plafond, volume_up passe.
         val avant = Securite.volumeLu
         try {
-            Securite.volumeLu = { id -> if (id == "media_player.salon") 0.48 else null }
-            val salon = JSONObject().put("entity_id", "media_player.salon")
+            Securite.volumeLu = { id -> if (id == "media_player.barre_son_salon") 0.48 else null }
+            val salon = JSONObject().put("entity_id", "media_player.barre_son_salon")
             val inconnu = JSONObject().put("entity_id", "media_player.inconnu")
             // Plafond de 50 % réglé dans la configuration.
             val (s, d) = Securite.monterSansDepasser("media_player.volume_up", salon, 0.5)

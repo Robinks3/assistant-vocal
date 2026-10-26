@@ -211,7 +211,7 @@ dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le d
   "heures_calmes": {"debut": 0, "fin": 9},
   "plafond_volume": 100,
   "permis_personne": {
-    "camille": {"entites": ["light.chambre_camille"], "services": ["light.turn_on", "light.turn_off"]}
+    "camille": {"entites": ["light.chambre_camille_plafonds"], "services": ["light.turn_on", "light.turn_off"]}
   }
 }
 ```
@@ -249,12 +249,12 @@ Un titre Spotify demandé sur le groupe `toutes` part par Spotify Connect quand 
 
 ```json
 "appareils": {
-  "tele": "media_player.exemple20",
+  "tele": "media_player.tele_salon",
   "musique": {
-    "enceintes": {"toutes": "media_player.exemple22", "salon": "media_player.salon"},
+    "enceintes": {"toutes": "media_player.enceintes_maison", "salon": "media_player.barre_son_salon"},
     "script_lancer": "script.lancer_musique"
   },
-  "sortie_son": [{"entite": "media_player.salon", "nom": "Salon"}],
+  "sortie_son": [{"entite": "media_player.barre_son_salon", "nom": "Salon"}],
   "ordre_pieces": ["séjour", "entrée", "couloir"]
 }
 ```
@@ -278,10 +278,10 @@ l'appareil (mode "Cet appareil").
 ```json
 "llm": {
   "lieu": "l'appartement de Sacha",
-  "consignes": ["La télé du séjour est media_player.exemple20."],
+  "consignes": ["La télé du séjour est media_player.tele_salon."],
   "exemples_appareil": [
     ["allume la cuisine à moitié",
-     "{\"actions\": [{\"service\": \"light.turn_on\", \"entity_id\": \"light.cuisine\", \"donnees\": {\"brightness_pct\": 50}}], \"reponse\": \"La cuisine est allumée à moitié.\"}"]
+     "{\"actions\": [{\"service\": \"light.turn_on\", \"entity_id\": \"light.cuisine_suspensions\", \"donnees\": {\"brightness_pct\": 50}}], \"reponse\": \"La cuisine est allumée à moitié.\"}"]
   ]
 }
 ```
@@ -301,7 +301,7 @@ Lu seulement par `python ha-app/configurer-ha.py`, qui pousse le dictionnaire da
 ```json
 "ha": {
   "alias": {"vacuum.robot": ["aspirateur"]},
-  "exposer": ["media_player.salon"]
+  "exposer": ["media_player.barre_son_salon"]
 }
 ```
 
@@ -387,11 +387,11 @@ Champs d'un point :
   "actif": true,
   "fuseau": "Europe/Paris",
   "points": [
-    {"id": "Exemple4", "nom": "Exemple4", "lat": "11.111", "lon": "11.111", "soleil": true,
-     "titre": "Mer à Exemple4", "stations": ["Exemple4", "Exemple24"], "defaut": true}
+    {"id": "prado", "nom": "Prado", "lat": "43.25", "lon": "5.36", "soleil": true,
+     "titre": "Mer au Prado", "stations": ["prado", "callelongue"], "defaut": true}
   ],
-  "modele_principal": {"modele": "Exemple46", "nom": "Exemple5"},
-  "modele_second": {"modele": "Exemple47", "nom": "HARMONIE"},
+  "modele_principal": {"modele": "meteofrance_arpege_europe", "nom": "ARPEGE"},
+  "modele_second": {"modele": "meteofrance_arome_france_hd", "nom": "AROME"},
   "titre": "Mer à Marseille"
 }
 ```
@@ -435,10 +435,10 @@ Champs de `carte` :
 ```json
 "vent": {
   "actif": true,
-  "cadre": [11.111, 11.111, 11.1, 5.33],
-  "station": {"url": "https://exemple.invalid/station", "id": "cds", "nom": "Station à terre",
-              "genre": "station à terre", "type": "terre", "lat": 11.1111, "lon": 11.1111, "point": "Exemple4"},
-  "points_proches": {"Exemple4": [11.111, 11.11]},
+  "cadre": [43.2, 43.32, 5.22, 5.47],
+  "station": {"url": "https://exemple.invalid/station", "id": "port", "nom": "Vieux-Port",
+              "genre": "station à terre", "type": "terre", "lat": 43.3, "lon": 5.37, "point": "prado"},
+  "points_proches": {"prado": [43.25, 5.36]},
   "carte": {"largeur": 640, "hauteur": 423, "cote": "carte/golfe_cote.txt", "terre": "carte/golfe_terre.txt"}
 }
 ```
@@ -476,11 +476,11 @@ Quatre sections, toutes facultatives sauf `commandes`.
 ```yaml
 llm:            # ce que voit le LLM, sans rien changer dans Home Assistant
   renommer:
-    light.exemple7: "Lampe TV (lampe posée près de la télé, ce n'est pas la télé)"
+    light.salon_lampe_tele: "Lampe TV (lampe posée près de la télé, ce n'est pas la télé)"
   notes:        # ajoutées en bout de ligne de l'appareil (LLM du PC seulement)
-    media_player.exemple20: "entrées via media_player.select_source"
+    media_player.tele_salon: "entrées via media_player.select_source"
   masquer:
-    - media_player.tv
+    - media_player.tele
 
 personnes:      # "ma chambre" selon qui parle, voir plus bas
   defaut: sacha
@@ -492,10 +492,10 @@ emplacements:   # listes de valeurs, utilisées par {nom} dans les phrases
 
 commandes:
   - phrases: ["(éteins|coupe|ferme) [la] (télé|télévision|tv) [du séjour|du salon]"]
-    action: {service: media_player.turn_off, entity_id: media_player.exemple20}
+    action: {service: media_player.turn_off, entity_id: media_player.tele_salon}
     reponse: "J'éteins la télé."
   - phrases: ["(mets|passe) [la télé] sur [l'entrée] hdmi {hdmi}"]
-    action: {service: media_player.select_source, entity_id: media_player.exemple20, source: "{hdmi}"}
+    action: {service: media_player.select_source, entity_id: media_player.tele_salon, source: "{hdmi}"}
     reponse: "Je passe la télé sur l'entrée demandée."
 ```
 
@@ -577,10 +577,10 @@ personnes:
   sans_chambre: "Je ne sais pas quelle chambre est la tienne."
   camille:
     remplacer:
-      light.exemple14: light.chambre_camille
-      light.exemple11: light.exemple18
+      light.chambre_sacha_plafond: light.chambre_camille_plafonds
+      light.chambre_sacha_chevets: light.chambre_camille_chevet
       script.lampes_nuit_eteindre:
-        {service: light.turn_off, entity_id: light.exemple18, transition: 5,
+        {service: light.turn_off, entity_id: light.chambre_camille_chevet, transition: 5,
          reponse: "J'éteins ton chevet. Bonne nuit."}
 ```
 
@@ -623,12 +623,12 @@ de la machine (`JARVIS_DONNEES`, `poc/` par défaut sur le PC, `/data` dans l'ap
 
 ```yaml
 apprises:
-- phrase: allume la lampe du bureau en bleu
+- phrase: allume la lampe de la télé en bleu
   action:
   - service: light.turn_on
-    entity_id: light.bureau
+    entity_id: light.salon_lampe_tele
     color_name: blue
-  reponse: La lampe du bureau est bleue.
+  reponse: La lampe de la télé est bleue.
   appris_le: 2026-10-20 18:42
 ```
 
@@ -734,7 +734,7 @@ Une entrée par ampoule. C'est le lien entre la vue 3D et Home Assistant.
 `groupes` (obligatoire, même vide) relie une entité de groupe Home Assistant à ses ampoules :
 
 ```json
-"groupes": {"light.cuisine": ["light.exemple15", "light.exemple16"]}
+"groupes": {"light.cuisine_suspensions": ["light.cuisine_suspension_1", "light.cuisine_suspension_2"]}
 ```
 
 Un état reçu pour le groupe s'applique à toutes ses ampoules. Dans le panneau de la maison en grand, un
@@ -840,8 +840,9 @@ Pour les activer :
    `vent.carte.terre`. Ce sont deux fichiers texte contenant un chemin SVG (`M x,y L x,y ...`), en
    coordonnées de la carte : `x = (lon - lon_min) / (lon_max - lon_min) * largeur` et
    `y = (lat_max - lat) / (lat_max - lat_min) * hauteur`. Le moteur ne fournit pas d'outil pour les
-   produire. Ceux de l'exemple viennent d'OpenStreetMap (`natural=coastline`, licence ODbL, à créditer
-   dans `vent.carte.attribution`).
+   produire. Ceux de l'exemple sont un tracé simplifié de la rade de Marseille, dessiné à la main.
+   Pour un vrai plan d'eau, utiliser un trait de côte exact (par exemple OpenStreetMap, `natural=coastline`,
+   licence ODbL, à créditer dans `vent.carte.attribution`).
 4. Recompiler l'APK, qui refuse de se fabriquer si `vent` est actif sans ces deux fichiers.
 
 L'appli n'affiche les deux pages que si `mer` et `vent` sont actives ensemble. Le serveur, lui, sert la

@@ -450,7 +450,7 @@ serveur n'y est donc pas disponible.
 
    ```yaml
    - phrases: ["(éteins|coupe) [la] (télé|télévision)"]
-     action: {service: media_player.turn_off, entity_id: media_player.exemple20}
+     action: {service: media_player.turn_off, entity_id: media_player.tele_salon}
      reponse: "J'éteins la télé."
    ```
 

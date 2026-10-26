@@ -61,33 +61,33 @@ def test_jeton_en_entete_et_ancienne_forme():
 def test_passerelle_ha():
     v = acces.verifier_requete_ha
     assert v("GET", "/api/states", None) is None
-    assert v("GET", "/api/states/light.exemple6", None) is None
+    assert v("GET", "/api/states/light.salon_plafond", None) is None
     assert v("POST", "/api/template", {"template": "{{ 1 }}"}) is None
-    assert v("POST", "/api/services/light/turn_on", {"entity_id": "light.exemple6"}) is None
+    assert v("POST", "/api/services/light/turn_on", {"entity_id": "light.salon_plafond"}) is None
     import securite
     if securite.PROTEGER_OCCUPANT:  # règle 1, levée le 22/10/2026
-        assert v("POST", "/api/services/light/turn_on", {"entity_id": "light.chambre_camille"})
+        assert v("POST", "/api/services/light/turn_on", {"entity_id": "light.chambre_camille_plafonds"})
     assert v("POST", "/api/services/lock/unlock", {"entity_id": "lock.porte"})
     assert v("POST", "/api/services/homeassistant/restart", {})
     assert v("GET", "/api/config", None)
     assert v("DELETE", "/api/states/light.x", None)
     assert v("POST", "/api/services/../config", {})
-    assert v("GET", "/api/media_player_proxy/media_player.exemple22?token=abc&cache=12", None) is None
+    assert v("GET", "/api/media_player_proxy/media_player.enceintes_maison?token=abc&cache=12", None) is None
     assert v("GET", "/api/media_player_proxy/../config", None)
 
 
 def test_passerelle_retour_a_la_ligne_et_majuscules():
     v = acces.verifier_requete_ha
-    corps = {"entity_id": "light.exemple6"}
+    corps = {"entity_id": "light.salon_plafond"}
     assert v("POST", "/api/services/light/turn_on\n", corps) == "chemin non permis"
     assert v("POST", "/api/services/light/turn_on\r\n", corps) == "chemin non permis"
     assert v("POST", "/api/services/LIGHT/turn_on", corps) == "chemin non permis"
     assert v("POST", "/api/services/light/TURN_ON", corps) == "chemin non permis"
     assert v("POST", "/API/services/light/turn_on", corps) == "chemin non permis"
     assert v("GET", "/api/states\n", None)
-    assert v("GET", "/api/states/light.exemple6\n", None)
-    assert v("GET", "/api/states/Exemple6", None)
-    assert v("GET", "/api/media_player_proxy/media_player.exemple22\n", None)
+    assert v("GET", "/api/states/light.salon_plafond\n", None)
+    assert v("GET", "/api/states/LIGHT.salon_plafond", None)
+    assert v("GET", "/api/media_player_proxy/media_player.enceintes_maison\n", None)
     assert v("POST", "/api/services/weather/get_forecasts?return_response\n",
              {"entity_id": "weather.forecast_maison", "type": "hourly"})
     assert v("POST", "/api/services/WEATHER/get_forecasts?return_response",

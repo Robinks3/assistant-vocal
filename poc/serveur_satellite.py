@@ -671,7 +671,7 @@ class Noms:
 
 
 def actions_lisibles(texte_actions, noms):
-    """« light.turn_on ['light.exemple7'] » devient « allumer Lampe TV »."""
+    """« light.turn_on ['light.salon_lampe_tele'] » devient « allumer Lampe TV »."""
     sortie = []
     for brut in [a.strip() for a in (texte_actions or "").split(" | ") if a.strip()]:
         if brut.startswith("ha "):  # action faite par Home Assistant lui-même : « ha entity light.x » ou « ha area Séjour »

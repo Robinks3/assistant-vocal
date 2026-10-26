@@ -35,12 +35,12 @@ object MeteoQuestion {
 
     /**
      * Question comprise. [lieu] : nom d'un autre lieu météo dit dans la phrase (« Lille »), [point] : point en mer.
-     * [mesure] (0.29.0) : une question sur le vent en mer maintenant (« quel vent à Exemple4 »), à laquelle répondent
+     * [mesure] (0.29.0) : une question sur le vent en mer maintenant (« quel vent au Prado »), à laquelle répondent
      * d'abord les mesures réelles ([MeteoVent]).
      */
     data class Question(
         val sujet: Sujet, val plage: Plage, val lieu: String? = null, val point: String = MeteoMer.DEFAUT, val mesure: Boolean = false,
-        /** Le point en mer a été nommé (« à Exemple4 »), et non pris par défaut. */
+        /** Le point en mer a été nommé (« au Prado »), et non pris par défaut. */
         val pointDit: Boolean = false,
     )
 
