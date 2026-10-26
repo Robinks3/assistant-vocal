@@ -6,6 +6,17 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.4 (2026-10-26), heures calmes qui passent minuit
+Session S-D1 du plan 1.2.0 (versionCode 70). La règle des heures calmes reste coupée (`HEURE_CALME_ACTIVE` à
+`false`), seul son calcul change.
+- `Securite.enHeureCalme(heure, debut, fin)` : une plage dont le début est après la fin (22 h à 7 h) couvre la
+  soirée et le début de matinée, comme `en_heure_calme` de `securite.py`. Avant, `heure in debut until fin` ne
+  couvrait jamais rien pour une telle plage.
+- `Securite.verifier` accepte un paramètre `plageCalme` (début, fin) qui force la règle sur cette plage, réservé
+  aux tests, sans effet sur les appels existants.
+- `SecuriteTest` : trois tests lisent la section `heures_calmes_nuit` de `poc/tests/cas_securite.json` (21 h, 22 h,
+  3 h, 6 h, 7 h de la plage 22 h à 7 h), partagée avec `test_securite.py`.
+
 ## 0.37.3 (2026-10-26), titre de la page Mer, mot de réveil de l'exemple
 Session S-D3 du plan 1.2.0.
 - `MeteoMer.kt` : le titre par défaut de la page Mer est `titre`, sinon `nom`, de la section `mer`, sinon « Mer »

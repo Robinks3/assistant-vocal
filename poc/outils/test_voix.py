@@ -140,7 +140,7 @@ def main():
                     print(f"  {A.VERT + 'OK' if ok else A.JAUNE + 'ÉCHEC'}{A.RAZ} : {e} attendu {attendu}, "
                           f"lu {lire(ha, e)[0]}" + (f" en {t_effet:.1f} s" if ok else ""))
                 bilan.append(ok)
-                w.writerow([datetime.now().isoformat(timespec="seconds"), A.VERSION, a.essai, phrase, texte, exact,
+                w.writerow([A.maison.maintenant().strftime(A.maison.FORMAT_HORODATAGE), A.VERSION, a.essai, phrase, texte, exact,
                             reponse, e, attendu, ok, f"{t_stt:.2f}", f"{t_cerveau:.2f}",
                             f"{t_effet:.2f}" if t_effet else ""])
                 f.flush()

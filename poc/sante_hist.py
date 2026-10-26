@@ -31,7 +31,7 @@ Réglages facultatifs dans poc/.env : SANTE_SEUIL_PAS (6000 par défaut, choix d
 SANTE_FC_MAX (FC max de référence pour les bornes des zones, sinon bornes à null). Même contrôle
 d'accès que « sante » (sante.refus avant tout appel), capacité « sante_historique » par connexion.
 
-Dates : tout est en datetime.date, aujourd'hui à l'heure de Paris (sante.date_du_jour), jamais par
+Dates : tout est en datetime.date, aujourd'hui à l'heure de la maison (sante.date_du_jour), jamais par
 soustraction de secondes (le 25/10/2026 dure 25 h). Semaines du lundi par weekday(). Une nuit est
 rattachée au jour de son réveil, comme sante-api et le tableau de bord. Aujourd'hui est toujours
 inclus et marqué « en_cours » : il est exclu de toutes les moyennes, mais compté dans les totaux de
@@ -94,7 +94,7 @@ sante_seances {jours: 7|30|90|365 (30 par défaut), sport: "tous" ou une clé de
   snowboard, exclus du total comme ailleurs.
   seances [100 au plus, de la plus récente à la plus ancienne] de la forme :
     {seance_id, date, debut_local ("AAAA-MM-JJTHH:MM", depuis detail.debut et son décalage, repli
-     Europe/Paris), minutes, sport, nom, distance_m, allure_s_par_km (course seulement), fc_moyenne,
+     fuseau de la maison), minutes, sport, nom, distance_m, allure_s_par_km (course seulement), fc_moyenne,
      fc_max, trimp, avec_fc}
 sante_seance {seance_id}
   la forme d'une séance de la liste, plus fin_local, titre, type, type_code, kcal, fc_min,
@@ -119,7 +119,7 @@ sante_jour {date: "AAAA-MM-JJ"}
   kcal, fc_moyenne, fc_min, fc_max, spo2_min, sommeil_estime, seance, nuit {debut_local,
   au_lit_minutes, sommeil_minutes, profond_minutes, stades {nom: minutes}, seq [[décalage_min,
   durée_min, code]]} ou null, codes_stades {code: nom}, seances [forme de la liste, sans courbe].
-  nuit.debut_local est à l'heure de Paris : sleepStages ne porte pas le décalage de la mesure.
+  nuit.debut_local est à l'heure de la maison : sleepStages ne porte pas le décalage de la mesure.
 """
 import asyncio
 import json
@@ -346,16 +346,13 @@ def instant(iso):
         return None
 
 
-def paris():
-    try:
-        from zoneinfo import ZoneInfo
-        return ZoneInfo("Europe/Paris")
-    except Exception:
-        return None  # astimezone(None) : heure du PC
+def fuseau_maison():
+    """Fuseau de maison.json (UTC en repli), jamais l'heure de la machine."""
+    return maison.ZONE
 
 
 def fuseau(decalage):
-    """Fuseau du décalage porté par l'enregistrement (« +02:00 »), sinon Europe/Paris."""
+    """Fuseau du décalage porté par l'enregistrement (« +02:00 »), sinon le fuseau de la maison."""
     if decalage == "Z":
         return timezone.utc
     m = DECALAGE.fullmatch(decalage or "")
@@ -363,11 +360,11 @@ def fuseau(decalage):
         minutes = int(m[2]) * 60 + int(m[3])
         if minutes <= 14 * 60:
             return timezone(timedelta(minutes=-minutes if m[1] == "-" else minutes))
-    return paris()
+    return fuseau_maison()
 
 
 def heure_locale(iso, decalage=None):
-    """« AAAA-MM-JJTHH:MM » à l'heure locale de la mesure (Europe/Paris sans décalage), ou None."""
+    """« AAAA-MM-JJTHH:MM » à l'heure locale de la mesure (fuseau de la maison sans décalage), ou None."""
     t = instant(iso)
     if t is None:
         return None
@@ -810,7 +807,7 @@ def vue_jour(d, x, aujourdhui):
         stades = {}
         for _, du, code in j.nuit.seq:
             stades[STADES[code]] = stades.get(STADES[code], 0) + du
-        # sleepStages ne porte pas le décalage de la mesure : heure de Paris (ingest-auto.mjs inchangé).
+        # sleepStages ne porte pas le décalage de la mesure : heure de la maison (ingest-auto.mjs inchangé).
         nuit = {"debut_local": heure_locale(j.nuit.debut), "au_lit_minutes": j.au_lit, "sommeil_minutes": j.sommeil,
                 "profond_minutes": j.profond, "stades": stades, "seq": [list(p) for p in j.nuit.seq]}
     return {**base, "distance_m": j.distance_m, "kcal": j.kcal, "fc_max": j.fc_max, "spo2_min": j.spo2_min,
@@ -1027,7 +1024,7 @@ class Historique:
             raise ErreurSante(f"le tableau de bord ne répond pas (délai de {DELAI} s)") from None
         except httpx.HTTPError as e:
             raise ErreurSante(f"tableau de bord injoignable ({e.__class__.__name__})") from None
-        donnees = reduire_fichier(bytes(corps), datetime.now().isoformat(timespec="seconds"), self._maintenant())
+        donnees = reduire_fichier(bytes(corps), maison.maintenant().strftime(maison.FORMAT_HORODATAGE), self._maintenant())
         del corps
         return donnees, (nouvel if ETAG.fullmatch(nouvel or "") else None)
 
@@ -1044,7 +1041,7 @@ class Historique:
             raise ErreurSante(self._erreur) from None
         else:
             if nouvelles is None:  # 304 : le cache est encore bon pour 10 min
-                self._donnees.lu_a = datetime.now().isoformat(timespec="seconds")
+                self._donnees.lu_a = maison.maintenant().strftime(maison.FORMAT_HORODATAGE)
                 self._donnees.lu_ts = self._maintenant()
             else:
                 self._donnees, self._etag = nouvelles, etag

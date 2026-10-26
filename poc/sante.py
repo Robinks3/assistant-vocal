@@ -25,9 +25,9 @@ mémoire. Une panne est gardée 30 s, et il n'y a jamais deux appels à sante-ap
 journaux du serveur ne disent que « santé : résumé servi (N jours) » ou l'erreur, jamais une valeur.
 
 Datation, vérifiée dans serveur/agregats.mjs de sante-api : une journée va de minuit à minuit à
-l'heure de l'appareil qui a mesuré (à défaut Europe/Paris), et une nuit est rattachée au jour de
+l'heure de l'appareil qui a mesuré (à défaut le fuseau de la maison), et une nuit est rattachée au jour de
 son RÉVEIL, comme le fait Samsung Health. La nuit dernière est donc celle du jour d'aujourd'hui
-(sante-api y ajoute les siestes du jour). Aujourd'hui se compte à l'heure de Paris, celle du service de santé.
+(sante-api y ajoute les siestes du jour). Aujourd'hui se compte à l'heure de la maison (fuseau de maison.json).
 
 Forme de « donnees » renvoyées à la tablette (tout nombre peut valoir null) :
   date        "AAAA-MM-JJ", aujourd'hui
@@ -266,12 +266,8 @@ def refus(relais, chiffre, identite, permises):
 
 # ---------------------------------------------------------------- appel de sante-api et cache
 def date_du_jour():
-    """Aujourd'hui à l'heure de Paris (sante-api), ou à l'heure du PC sans tzdata."""
-    try:
-        from zoneinfo import ZoneInfo
-        return datetime.now(ZoneInfo("Europe/Paris")).date()
-    except Exception:
-        return datetime.now().date()
+    """Aujourd'hui à l'heure de la maison (fuseau de maison.json, celui du service de santé), jamais à celle de la machine."""
+    return maison.maintenant().date()
 
 
 def resoudre_dns(hote):
@@ -375,7 +371,7 @@ class Relais:
             self._erreur, self._t_erreur = f"erreur inattendue ({e.__class__.__name__})", self._horloge()
             raise ErreurSante(self._erreur) from None
         else:
-            donnees["lu_a"] = datetime.now().isoformat(timespec="seconds")
+            donnees["lu_a"] = maison.maintenant().strftime(maison.FORMAT_HORODATAGE)
             self._cache, self._t, self._erreur = donnees, self._horloge(), None
             return donnees
         finally:

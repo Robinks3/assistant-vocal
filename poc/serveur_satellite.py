@@ -830,7 +830,7 @@ def enregistrer_seuil(seuil):
     with open(journal, "a", encoding="utf-8") as f:
         if neuf:
             f.write("horodatage;version;seuil\n")
-        f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')};{A.VERSION};{seuil}\n")
+        f.write(f"{maison.maintenant().strftime(maison.FORMAT_HORODATAGE)};{A.VERSION};{seuil}\n")
 
 
 class Arbitre:

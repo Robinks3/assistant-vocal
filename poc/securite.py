@@ -27,15 +27,11 @@ Assist de Home Assistant agit sans qu'on puisse vérifier sa cible avant : il es
 SECURITE_ACTIVE est vrai, une phrase inconnue va directement au LLM dont chaque action passe ici.
 """
 import math
-from datetime import datetime
 
 import maison
 
-try:  # l'app HA tourne en UTC : l'heure calme se compte toujours à l'heure du fuseau de la maison
-    from zoneinfo import ZoneInfo
-    FUSEAU = ZoneInfo(maison.FUSEAU)
-except Exception:
-    FUSEAU = None
+# L'app HA tourne en UTC : l'heure calme se compte toujours à l'heure du fuseau de la maison (maison.maintenant).
+FUSEAU = maison.ZONE
 
 SECURITE_ACTIVE = True
 # Levées le 22/10/2026 à la demande du propriétaire (voir en tête). À True, chaque règle revient telle quelle.
@@ -60,6 +56,17 @@ SERVICES_SILENCIEUX = {"media_player.turn_off", "media_player.media_pause", "med
                        "media_player.volume_down", "media_player.volume_mute", "script.turn_off"}
 HEURE_CALME_DEBUT = int((maison.SECURITE.get("heures_calmes") or {}).get("debut", 0))
 HEURE_CALME_FIN = int((maison.SECURITE.get("heures_calmes") or {}).get("fin", 9))
+
+
+def en_heure_calme(heure, debut, fin):
+    """Vrai si [heure] (0 à 23) tombe dans la plage calme [debut, fin[. Une plage qui passe minuit (début après
+    la fin, par exemple 22 h à 7 h) couvre la soirée et le début de matinée. Début égal à la fin : plage vide.
+    Même calcul que Securite.enHeureCalme (cas communs « heures_calmes »)."""
+    if debut <= fin:
+        return debut <= heure < fin
+    return heure >= debut or heure < fin
+
+
 # Plage dite dans le refus, tirée de heures_calmes (0.27.3, « entre minuit et 9 h » était écrit en dur).
 PLAGE_CALME = "entre {} et {}".format(*("minuit" if h % 24 == 0 else f"{h} h" for h in (HEURE_CALME_DEBUT, HEURE_CALME_FIN)))
 
@@ -196,8 +203,8 @@ def verifier(service, donnees, maintenant=None, personne=None):
         return f"je ne touche jamais aux pièces de {NOM_OCCUPANT} (sécurité)"
     if protege(service) or any(protege(e) and not permis_pour(personne, service, e) for e in entites):
         return f"je ne touche jamais à ce qui appartient à {NOM_OCCUPANT} (sécurité)"
-    heure = (maintenant or datetime.now(FUSEAU)).hour
-    if HEURE_CALME_ACTIVE and HEURE_CALME_DEBUT <= heure < HEURE_CALME_FIN:
+    heure = (maintenant or maison.maintenant()).hour
+    if HEURE_CALME_ACTIVE and en_heure_calme(heure, HEURE_CALME_DEBUT, HEURE_CALME_FIN):
         silencieux = service in SERVICES_SILENCIEUX
         if service == "media_player.volume_mute" and donnees.get("is_volume_muted") is False:
             silencieux = False

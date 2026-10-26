@@ -51,7 +51,7 @@ class HAVerrouille(A.HomeAssistant):
 def lire(ha, e):
     d = ha.client.get(f"{ha.url}/api/states/{e}").json()
     lum = d["attributes"].get("brightness")
-    return d["state"], (round(lum / 5.55) if lum is not None else None)
+    return d["state"], (round(lum / 2.55) if lum is not None else None)
 
 
 def attendre(ha, e, etat, lum, delai=6.0):
@@ -107,7 +107,7 @@ def main():
                   + (f"\n      actions : {actions}" if actions else "")
                   + f"\n      {e} attendu {attendu}, lu {lu[0]} {lu[1] if lu[1] is not None else ''}"
                   f" (cerveau {t_cerveau:.2f} s, effet {t_effet:.2f} s)\n")
-            w.writerow([datetime.now().isoformat(timespec="seconds"), A.VERSION, voie, phrase, reelle,
+            w.writerow([A.maison.maintenant().strftime(A.maison.FORMAT_HORODATAGE), A.VERSION, voie, phrase, reelle,
                         reponse, actions, e, attendu, f"{lu[0]} {lu[1]}", ok,
                         f"{t_cerveau:.2f}", f"{t_effet:.2f}"])
             time.sleep(0.5)

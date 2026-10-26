@@ -1,5 +1,5 @@
 {
-  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages.",
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages. heures_calmes_nuit : plage qui passe minuit (22 h à 7 h), corrigée le 26/10/2026 (S-D1). « cas » passe par verifier avec la règle 2 forcée sur plage_nuit (elle reste coupée dans la configuration, seul le calcul est vérifié). « en_heure_calme » donne le calcul seul pour des plages quelconques (securite.en_heure_calme, Securite.enHeureCalme). heure = heure pleine (21 vaut 21 h 59).",
   "actions": [
     {
       "service": "light.turn_on",
@@ -640,5 +640,217 @@
       "niveau": 0.3333,
       "attendu": "33,3"
     }
-  ]
+  ],
+  "heures_calmes_nuit": {
+    "plage_nuit": {
+      "debut": 22,
+      "fin": 7
+    },
+    "cas": [
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 21,
+        "refus": false,
+        "note": "plage 22 h à 7 h, 21 h 59 : encore permis"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 22,
+        "refus": true,
+        "note": "plage 22 h à 7 h, 22 h : début compris"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 23,
+        "refus": true,
+        "note": "plage 22 h à 7 h, 23 h"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 0,
+        "refus": true,
+        "note": "plage 22 h à 7 h, minuit : la plage passe minuit"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 3,
+        "refus": true,
+        "note": "plage 22 h à 7 h, 3 h"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 6,
+        "refus": true,
+        "note": "plage 22 h à 7 h, 6 h 59 : dernière heure calme"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 7,
+        "refus": false,
+        "note": "plage 22 h à 7 h, 7 h : fin exclue"
+      },
+      {
+        "service": "media_player.media_play",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 14,
+        "refus": false,
+        "note": "plage 22 h à 7 h, l'après-midi"
+      },
+      {
+        "service": "media_player.volume_down",
+        "donnees": {
+          "entity_id": "media_player.enceintes_maison"
+        },
+        "heure": 3,
+        "refus": false,
+        "note": "plage 22 h à 7 h, baisser le son reste permis"
+      },
+      {
+        "service": "light.turn_on",
+        "donnees": {
+          "entity_id": "light.salon_plafond"
+        },
+        "heure": 23,
+        "refus": false,
+        "note": "plage 22 h à 7 h, hors du salon sonore"
+      }
+    ],
+    "en_heure_calme": [
+      {
+        "debut": 22,
+        "fin": 7,
+        "heure": 21,
+        "attendu": false,
+        "note": "22 h à 7 h, 21 h"
+      },
+      {
+        "debut": 22,
+        "fin": 7,
+        "heure": 22,
+        "attendu": true,
+        "note": "22 h à 7 h, 22 h"
+      },
+      {
+        "debut": 22,
+        "fin": 7,
+        "heure": 3,
+        "attendu": true,
+        "note": "22 h à 7 h, 3 h"
+      },
+      {
+        "debut": 22,
+        "fin": 7,
+        "heure": 6,
+        "attendu": true,
+        "note": "22 h à 7 h, 6 h"
+      },
+      {
+        "debut": 22,
+        "fin": 7,
+        "heure": 7,
+        "attendu": false,
+        "note": "22 h à 7 h, 7 h"
+      },
+      {
+        "debut": 0,
+        "fin": 9,
+        "heure": 0,
+        "attendu": true,
+        "note": "0 h à 9 h, 0 h"
+      },
+      {
+        "debut": 0,
+        "fin": 9,
+        "heure": 8,
+        "attendu": true,
+        "note": "0 h à 9 h, 8 h"
+      },
+      {
+        "debut": 0,
+        "fin": 9,
+        "heure": 9,
+        "attendu": false,
+        "note": "0 h à 9 h, 9 h"
+      },
+      {
+        "debut": 0,
+        "fin": 9,
+        "heure": 23,
+        "attendu": false,
+        "note": "0 h à 9 h, 23 h"
+      },
+      {
+        "debut": 13,
+        "fin": 18,
+        "heure": 12,
+        "attendu": false,
+        "note": "13 h à 18 h, 12 h"
+      },
+      {
+        "debut": 13,
+        "fin": 18,
+        "heure": 13,
+        "attendu": true,
+        "note": "13 h à 18 h, 13 h"
+      },
+      {
+        "debut": 13,
+        "fin": 18,
+        "heure": 17,
+        "attendu": true,
+        "note": "13 h à 18 h, 17 h"
+      },
+      {
+        "debut": 13,
+        "fin": 18,
+        "heure": 18,
+        "attendu": false,
+        "note": "13 h à 18 h, 18 h"
+      },
+      {
+        "debut": 5,
+        "fin": 5,
+        "heure": 0,
+        "attendu": false,
+        "note": "début égal à la fin : plage vide, 0 h"
+      },
+      {
+        "debut": 5,
+        "fin": 5,
+        "heure": 5,
+        "attendu": false,
+        "note": "début égal à la fin : plage vide, 5 h"
+      },
+      {
+        "debut": 5,
+        "fin": 5,
+        "heure": 23,
+        "attendu": false,
+        "note": "début égal à la fin : plage vide, 23 h"
+      }
+    ]
+  }
 }

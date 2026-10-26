@@ -215,14 +215,14 @@ class Appareils:
                 return nom, nom
         for a in self.liste:
             if hmac.compare_digest(a["empreinte"], e):
-                a["dernier"] = datetime.now().isoformat(timespec="seconds")
+                a["dernier"] = maison.maintenant().strftime(maison.FORMAT_HORODATAGE)
                 self.enregistrer()
                 return a["nom"], f"appareil:{a['id']}"
         return None, None
 
     def noter_refus(self, cause, ip):
         """Garde les 20 derniers refus de connexion, vus par les administrateurs dans l'écran Appareils."""
-        self.refus.append({"cause": cause, "ip": str(ip), "heure": datetime.now().isoformat(timespec="seconds")})
+        self.refus.append({"cause": cause, "ip": str(ip), "heure": maison.maintenant().strftime(maison.FORMAT_HORODATAGE)})
         del self.refus[:-20]
 
     def demande(self, nom, ip, futur):
@@ -239,7 +239,7 @@ class Appareils:
             return None
         jeton = secrets.token_urlsafe(32)
         self.liste.append({"id": ident, "nom": d["nom"], "empreinte": empreinte(jeton), "role": role,
-                           "cree": datetime.now().isoformat(timespec="seconds"), "dernier": ""})
+                           "cree": maison.maintenant().strftime(maison.FORMAT_HORODATAGE), "dernier": ""})
         self.enregistrer()
         d["futur"].set_result(jeton)
         return d["nom"]

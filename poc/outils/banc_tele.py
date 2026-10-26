@@ -103,7 +103,7 @@ def main():
                 reussis += ok
                 print(f"{'OK ' if ok else 'ÉCHEC'} [{voie}] allumer : {rep}\n      allumée en "
                       f"{t_on if t_on is None else round(t_on, 1)} s, sourdine {'ok' if muet else 'NON CONFIRMÉE'}\n")
-                w.writerow([datetime.now().isoformat(timespec="seconds"), A.VERSION, voie, "allumer",
+                w.writerow([A.maison.maintenant().strftime(A.maison.FORMAT_HORODATAGE), A.VERSION, voie, "allumer",
                             rep, ok, f"{t_on:.1f}" if t_on else "", muet])
                 if not ok:
                     continue
@@ -115,7 +115,7 @@ def main():
                 reussis += ok
                 print(f"{'OK ' if ok else 'ÉCHEC'} [{voie}] éteindre : {rep}\n      éteinte en "
                       f"{t_off if t_off is None else round(t_off, 1)} s\n")
-                w.writerow([datetime.now().isoformat(timespec="seconds"), A.VERSION, voie, "éteindre",
+                w.writerow([A.maison.maintenant().strftime(A.maison.FORMAT_HORODATAGE), A.VERSION, voie, "éteindre",
                             rep, ok, f"{t_off:.1f}" if t_off else "", ""])
                 time.sleep(3)
     finally:
