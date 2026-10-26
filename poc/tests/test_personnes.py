@@ -61,23 +61,28 @@ class FausseHA:
                   "sensor.telecommande_chevet_batterie\tBatterie\tSalle de bain Camille\t80 %"]
         reponse = SimpleNamespace(text="\n".join(lignes), raise_for_status=lambda: None)
         self.ha = A.HomeAssistant.__new__(A.HomeAssistant)
-        self.ha.url, self.ha.vue_llm, self.ha.entites_llm, self.ha.personne = "", {}, set(), None
+        self.ha.url, self.ha.vue_llm, self.ha.entites_llm = "", {}, set()
         self.ha.client = SimpleNamespace(post=lambda *a, **k: reponse)
 
 
 @pytest.mark.skipif(not securite.PROTEGER_OCCUPANT, reason="règle 1 levée le 22/10/2026")
 def test_inventaire_selon_la_personne():
     ha = FausseHA().ha
+
+    def inventaire_pour(personne):  # la personne vient du contexte de la requête, pas d'un champ de ha
+        jeton = A.REQUETE.set(A.Requete(personne=personne))
+        try:
+            return ha.inventaire()
+        finally:
+            A.REQUETE.reset(jeton)
+
     liste, _ = ha.inventaire()
     assert "camille" not in liste.lower()
-    ha.personne = "Sacha"
-    liste, _ = ha.inventaire()
+    liste, _ = inventaire_pour("Sacha")
     assert "camille" not in liste.lower()
-    ha.personne = "inconnu"
-    liste, _ = ha.inventaire()
+    liste, _ = inventaire_pour("inconnu")
     assert "camille" not in liste.lower()
-    ha.personne = "Camille"
-    liste, _ = ha.inventaire()
+    liste, _ = inventaire_pour("Camille")
     assert "light.chambre_camille_plafonds " in liste and "light.chambre_camille_chevet" in liste
     assert "automation.alarme_matin" not in liste and "sensor.telecommande_chevet_batterie" not in liste
     assert ha.entites_llm == {"light.salon_plafond", "light.chambre_sacha_plafond", "light.chambre_camille_plafonds",

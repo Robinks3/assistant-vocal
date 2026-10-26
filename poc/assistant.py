@@ -23,14 +23,21 @@ from typing import NamedTuple
 
 
 class Requete:
-    """Ce qui vaut le temps d'une commande : essai effectif, personne qui parle, appareil d'origine.
+    """Ce qui vaut le temps d'une commande : essai effectif, personne qui parle, appareil d'origine, rôle et canal.
 
     Porté par une variable de contexte et non plus par les objets partagés (0.28.0) : une commande du
     client web et une phrase de la tablette ne se prennent plus leur essai ni leur personne.
-    asyncio.to_thread copie le contexte, la requête suit donc la commande dans son fil."""
+    asyncio.to_thread copie le contexte, la requête suit donc la commande dans son fil.
 
-    def __init__(self, essai=False, personne=None, appareil=None, indication=""):
+    role : rôle effectif de l'appareil d'origine (acces.role_effectif : administrateur, habitant, partage ou
+    invite), « local » pour le micro du PC, vide si inconnu. canal : voix, texte, appli ou web, vide si inconnu
+    (0.40.0). Ni l'un ni l'autre ne vient du texte d'un message : le rôle sort de l'identité de la session, le
+    canal de la voie par laquelle la commande est arrivée. La personne suit la même règle
+    (acces.personne_effective)."""
+
+    def __init__(self, essai=False, personne=None, appareil=None, indication="", role="", canal=""):
         self.essai, self.personne, self.appareil, self.indication = bool(essai), personne or None, appareil, indication
+        self.role, self.canal = role or "", canal or ""
 
 
 REQUETE = contextvars.ContextVar("requete", default=None)
@@ -49,7 +56,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.39.0"
+VERSION = "0.40.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -525,7 +532,6 @@ class HomeAssistant:
         # Entités de la liste donnée au LLM (dernier inventaire) : les seules qu'il peut viser.
         # Idée reprise d'un projet d'inspiration : la liste part aussi en enum dans le schéma de l'outil.
         self.entites_llm = set()
-        self.personne = None
         # Services que HA expose en plus de SERVICES_PERMIS (charger_services), vide tant que HA n'a pas répondu.
         self.services_dynamiques = {}
 
@@ -560,13 +566,10 @@ class HomeAssistant:
 
     @property
     def personne(self):
-        """Qui parle, d'après la tablette (champ « personne », règle 3 de securite.py)."""
+        """Qui parle d'après la session (règle 3 de securite.py) : celle de la requête en cours, personne hors
+        requête. Lecture seule depuis 0.40.0, plus aucun réglage direct sur l'objet partagé."""
         r = REQUETE.get()
-        return r.personne if r else getattr(self, "_personne", None)
-
-    @personne.setter
-    def personne(self, valeur):
-        self._personne = valeur
+        return r.personne if r else None
 
     def conversation(self, texte):
         """Intentions locales de HA (agent intégré, aucun LLM)."""
@@ -632,19 +635,19 @@ class HomeAssistant:
     def service(self, domaine, service, entity_id=None, donnees=None, confirmer=True):
         """Service demandé par le LLM ou rejoué par une routine (confirmer=False : pas d'attente
         de l'état, la routine enchaîne ses étapes)."""
-        if domaine in acces.DOMAINES_INTERDITS:
-            return {"erreur": f"refusé : domaine {domaine} interdit. Ne réessaie pas autrement, dis-le simplement."}
-        if service not in self.services_permis(domaine):
-            permis = ", ".join(sorted(self.services_permis(domaine))) or "aucun"
-            return {"erreur": f"service {domaine}.{service} inexistant ou interdit. "
-                              f"Services permis pour {domaine} : {permis}. "
-                              "Luminosité : light.turn_on avec donnees {\"brightness_pct\": N}."}
         corps = dict(donnees or {})
         if entity_id:
             corps["entity_id"] = entity_id
-        refus = (acces.refus_launch_app(f"{domaine}.{service}", corps)
-                 or securite.verifier(f"{domaine}.{service}", corps, personne=self.personne))
-        if refus:  # sécurité en dur (occupant protégé, son la nuit), même en essai
+        # Point de contrôle unique (acces.controler_service), avec la liste blanche du LLM.
+        refus = acces.controler_service(domaine, service, corps, personne=self.personne,
+                                        services_permis=self.services_permis(domaine))
+        if refus and refus.genre == "domaine":
+            return {"erreur": f"refusé : domaine {domaine} interdit. Ne réessaie pas autrement, dis-le simplement."}
+        if refus and refus.genre == "service":
+            permis = ", ".join(sorted(self.services_permis(domaine))) or "aucun"
+            return {"erreur": f"{refus}. Services permis pour {domaine} : {permis}. "
+                              "Luminosité : light.turn_on avec donnees {\"brightness_pct\": N}."}
+        if refus:  # schéma des données, launch_app, sécurité en dur (occupant protégé, son la nuit), même en essai
             return {"erreur": f"refusé : {refus}. Ne réessaie pas autrement, dis-le simplement."}
         # Les cibles du corps envoyé à HA, pas seulement l'argument : un entity_id glissé dans les données compte aussi.
         inconnues = [e for e in securite.cibles(corps.get("entity_id")) if self.entites_llm and e not in self.entites_llm]
@@ -811,7 +814,7 @@ class HomeAssistant:
             return {"erreur": "aucune enceinte de musique configurée (appareils.musique.enceintes de maison.json)"}
         type_media = type_media if type_media in ("track", "artist", "album", "playlist") else "track"
         cible = self.ENCEINTES_MUSIQUE.get(enceinte or "toutes") or self.ENCEINTES_MUSIQUE["toutes"]
-        refus = securite.verifier("music_assistant.play_media", {"entity_id": cible}, personne=self.personne)
+        refus = acces.controler_service("music_assistant", "play_media", {"entity_id": cible}, personne=self.personne)
         if refus:
             return {"erreur": f"refusé : {refus}. Ne réessaie pas autrement, dis-le simplement."}
         try:
@@ -1595,19 +1598,22 @@ class Assistant:
         self._essai = bool(valeur)
 
     @contextlib.contextmanager
-    def requete(self, essai=None, personne=None, appareil=None):
-        """Le temps d'une commande : essai, personne qui parle et appareil, pour la sécurité, l'inventaire,
-        la consigne et l'historique. Rien n'est écrit sur les objets partagés."""
+    def requete(self, essai=None, personne=None, appareil=None, role=None, canal=None):
+        """Le temps d'une commande : essai, personne qui parle, appareil, rôle et canal, pour la sécurité,
+        l'inventaire, la consigne et l'historique. Rien n'est écrit sur les objets partagés.
+        Le rôle vient de l'appareil appairé (ROLE_DE) sauf si l'appelant le donne."""
         if essai is None:
             essai = getattr(self, "_essai", False)
-        jeton = REQUETE.set(Requete(essai, personne, appareil, self.indication(personne)))
+        if role is None:
+            role = role_du_contexte(appareil)
+        jeton = REQUETE.set(Requete(essai, personne, appareil, self.indication(personne), role, canal))
         try:
             yield
         finally:
             REQUETE.reset(jeton)
 
-    def traiter(self, texte, t_stt=0.0, personne=None, appareil=None, essai=None):
-        with self.requete(essai=essai, personne=personne, appareil=appareil):
+    def traiter(self, texte, t_stt=0.0, personne=None, appareil=None, essai=None, canal=None):
+        with self.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
             return self._traiter(texte, t_stt, personne)
 
     def _traiter(self, texte, t_stt, personne):
@@ -1643,7 +1649,9 @@ class Assistant:
             for a in liste:
                 actions.append(resume_action(a["service"], a.get("entity_id"),
                                              {k: v for k, v in a.items() if k not in ("service", "entity_id")}))
-                refus = securite.verifier(a["service"], {k: v for k, v in a.items() if k != "service"}, personne=personne)
+                dom, _, srv = a["service"].partition(".")
+                refus = acces.controler_service(dom, srv, {k: v for k, v in a.items() if k != "service"},
+                                                personne=personne)
                 if refus:
                     parole, voie = f"Je ne le fais pas : {refus}.", voie + " refus sécurité"
                     actions[-1] += " (refusé : sécurité)"
@@ -1736,12 +1744,11 @@ class Assistant:
     def executer(self, action, personne=None):
         """Action du dictionnaire : écrite par le propriétaire, donc pas de liste blanche."""
         domaine, service = action["service"].split(".", 1)
-        if domaine in acces.DOMAINES_INTERDITS:  # même sur la voie du dictionnaire (0.28.0)
-            raise RefusSecurite(f"le domaine {domaine} est interdit")
         corps = {k: v for k, v in action.items() if k != "service"}
-        refus = securite.verifier(action["service"], corps, personne=personne)
+        # Point de contrôle unique (0.40.0), sans liste blanche : le dictionnaire est écrit par le propriétaire.
+        refus = acces.controler_service(domaine, service, corps, personne=personne)
         if refus:
-            raise RefusSecurite(refus)
+            raise RefusSecurite(f"le domaine {domaine} est interdit" if refus.genre == "domaine" else refus)
         if not self.ha:
             raise RuntimeError("HA non connecté")
         r = self.ha.client.post(f"{self.ha.url}/api/services/{domaine}/{service}", json=corps)

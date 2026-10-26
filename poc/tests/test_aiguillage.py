@@ -29,7 +29,7 @@ class ClientEnregistreur:
 
 def faux_ha(monkeypatch):
     ha = A.HomeAssistant.__new__(A.HomeAssistant)
-    ha.url, ha.client, ha.essai, ha.personne, ha.vue_llm = "http://ha", ClientEnregistreur(), False, None, {}
+    ha.url, ha.client, ha.essai, ha.vue_llm = "http://ha", ClientEnregistreur(), False, {}
     ha.entites_llm = {ENTITE}
     ha.confirmer = lambda *a, **k: []
     monkeypatch.setattr(ha, "inventaire", lambda: (f"{ENTITE} : salon", f"{ENTITE} éteinte"), raising=False)
