@@ -4,6 +4,33 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.37.0 (2026-10-26), liste blanche des services élargie
+Session S-F1 du plan 1.2.0, décision D6 du 26/10/2026 : tout ce que Home Assistant expose est permis, sauf les
+cibles par `device_id`, `floor_id` et `label_id`, les domaines interdits et ce qui exige déjà une confirmation.
+- `SERVICES_PERMIS` (`poc/assistant.py`) passe de 8 domaines à une table qui couvre les domaines d'équipement :
+  `light`, `switch`, `fan`, `cover` (inclinaison comprise), `climate`, `humidifier`, `water_heater`, `valve`,
+  `siren`, `media_player`, `music_assistant`, `vacuum`, `lawn_mower`, `camera` (marche, arrêt, détection de
+  mouvement), `scene` (`turn_on`), `script`, `automation`, `input_boolean`, `input_number`, `input_select`,
+  `input_text`, `input_datetime`, `input_button`, `button`, `number`, `text`, `timer`, `counter`, `remote`,
+  `select` et `domaine_tele`. Un commentaire renvoie à la page `home-assistant.io/integrations/<domaine>` de
+  chacun.
+- Complément pris à Home Assistant : au démarrage, `GET /api/services` ajoute les services d'entité que le socle ne
+  connaît pas (`HomeAssistant.charger_services`, `services_depuis_ha`). Un service n'entre que si sa cible est une
+  entité de son propre domaine, sans champ qui désigne un autre appareil, hors domaines interdits et hors
+  rechargements. Si Home Assistant ne répond pas, le socle statique suffit et le démarrage continue.
+- Reste refusé : `device_id`, `floor_id` et `label_id` partout, les `DOMAINES_INTERDITS` (`lock`,
+  `alarm_control_panel`, `homeassistant`, `hassio`, `shell_command`, `rest_command`, `python_script`, `notify`,
+  `persistent_notification`, `recorder`, `system_log`), tous les `reload*`, `camera.snapshot`, `camera.record`,
+  `camera.play_stream`, `scene.apply`, `scene.create`, `input_select.set_options`, `remote.learn_command`,
+  `remote.delete_command`, `media_player.play_media` et `join` (la musique passe par `jouer_musique`),
+  `music_assistant.transfer_queue` et `vacuum.send_command`.
+- Inchangés : le périmètre du LLM (`DOMAINES_LLM`, `DOMAINES_CONTEXTE`, énumération de l'outil `appeler_service`,
+  l'aiguillage refuse un domaine hors de ce périmètre), le plafond de volume, la règle `volume_up` (jamais ajoutée
+  sous plafond, y compris par le complément), `PROTEGER_OCCUPANT` et `HEURE_CALME_ACTIVE`.
+- Tests : `poc/tests/cas_securite.json` gagne 74 cas d'action (par domaine ajouté un cas accepté et un refusé par
+  `device_id`, `floor_id` ou `label_id`) et un bloc `services` de 101 cas lus aussi par l'appli. Nouveau
+  `poc/tests/test_services_permis.py`. L'export `config-exemple/genere/android/dictionnaire.json` est régénéré.
+
 ## Serveur 0.36.3 (2026-10-26), build et outillage
 Session S-D4 du plan 1.2.0. Le numéro 0.36.2 est réservé à S-D1 (fuseau et heures calmes), menée en parallèle.
 Aucun changement de comportement du serveur, seuls l'outillage, la documentation et deux outils de test bougent.

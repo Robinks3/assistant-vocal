@@ -44,8 +44,10 @@ def test_device_id_toujours_refuse(domaine, service, corps):
 
 
 def test_service_voisin_non_ouvert():
-    for domaine, service in (("domaine_tele", "reboot"), ("remote", "turn_off"), ("select", "select_first"),
-                             ("remote", "learn_command")):
+    # Depuis la décision D6 (26/10/2026), remote.turn_off et select.select_first sont permis : restent fermés
+    # ce qui écrit la mémoire de la télécommande ou n'existe pas.
+    for domaine, service in (("domaine_tele", "reboot"), ("remote", "learn_command"),
+                             ("remote", "delete_command"), ("select", "reload")):
         assert service not in A.SERVICES_PERMIS[domaine]
         assert "erreur" in _ha().service(domaine, service, "x.y")
 

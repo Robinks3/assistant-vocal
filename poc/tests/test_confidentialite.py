@@ -61,14 +61,15 @@ DOMAINES_TESTES = ("light", "cover", "switch", "media_player", "climate", "senso
 IDS_GENERIQUES = frozenset({
     "light.a", "light.b", "light.x", "light.y", "light.z", "light.essai", "light.inconnue", "light.tout",
     "media_player.a", "media_player.b", "media_player.c", "media_player.autre", "media_player.inconnu",
-    "switch.prise",
+    "switch.prise", "climate.essai",
 })
 # Services de Home Assistant (domaine.service) : ce ne sont pas des entités.
 SERVICES = frozenset({
     "turn_on", "turn_off", "toggle", "volume_up", "volume_down", "volume_set", "volume_mute", "media_play",
     "media_pause", "media_stop", "media_next_track", "media_previous_track", "play_media", "select_source",
     "join", "unjoin", "open_cover", "close_cover", "stop_cover", "set_cover_position", "set_temperature",
-    "set_hvac_mode", "reload",
+    "set_hvac_mode", "reload", "open_cover_tilt", "set_cover_tilt_position", "set_fan_mode", "set_humidity",
+    "select_sound_mode", "shuffle_set",
 })
 
 # Fichiers où l'on cherche des identifiants d'entités : tests et documentation.

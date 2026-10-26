@@ -1,5 +1,5 @@
 {
-  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages. heures_calmes_nuit : plage qui passe minuit (22 h à 7 h), corrigée le 26/10/2026 (S-D1). « cas » passe par verifier avec la règle 2 forcée sur plage_nuit (elle reste coupée dans la configuration, seul le calcul est vérifié). « en_heure_calme » donne le calcul seul pour des plages quelconques (securite.en_heure_calme, Securite.enHeureCalme). heure = heure pleine (21 vaut 21 h 59).",
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages. heures_calmes_nuit : plage qui passe minuit (22 h à 7 h), corrigée le 26/10/2026 (S-D1). « cas » passe par verifier avec la règle 2 forcée sur plage_nuit (elle reste coupée dans la configuration, seul le calcul est vérifié). « en_heure_calme » donne le calcul seul pour des plages quelconques (securite.en_heure_calme, Securite.enHeureCalme). heure = heure pleine (21 vaut 21 h 59). services : liste blanche des services de Home Assistant (décision D6 du 26/10/2026, S-F1). « permis » dit si domaine.service est dans SERVICES_PERMIS de poc/assistant.py (test_services_permis.py) et dans le services_permis du dictionnaire.json exporté pour l'appli (SecuriteTest.kt). Un service permis n'échappe jamais à la sécurité en dur : les cas « actions » refusent device_id, floor_id et label_id pour chaque domaine ajouté.",
   "actions": [
     {
       "service": "light.turn_on",
@@ -304,6 +304,688 @@
       "personne": "Sacha",
       "refus": true,
       "note": "label_id interdit"
+    },
+    {
+      "service": "fan.oscillate",
+      "donnees": {
+        "entity_id": "fan.salon"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "fan.oscillate sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "fan.oscillate",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "fan.oscillate visé par device_id : refusé"
+    },
+    {
+      "service": "cover.set_cover_tilt_position",
+      "donnees": {
+        "entity_id": "cover.chambre_sacha"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "cover.set_cover_tilt_position sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "cover.set_cover_tilt_position",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "cover.set_cover_tilt_position visé par device_id : refusé"
+    },
+    {
+      "service": "climate.set_fan_mode",
+      "donnees": {
+        "entity_id": "climate.essai"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "climate.set_fan_mode sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "climate.set_fan_mode",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "climate.set_fan_mode visé par device_id : refusé"
+    },
+    {
+      "service": "humidifier.set_humidity",
+      "donnees": {
+        "entity_id": "humidifier.chambre"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "humidifier.set_humidity sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "humidifier.set_humidity",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "humidifier.set_humidity visé par device_id : refusé"
+    },
+    {
+      "service": "water_heater.set_operation_mode",
+      "donnees": {
+        "entity_id": "water_heater.cumulus"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "water_heater.set_operation_mode sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "water_heater.set_operation_mode",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "water_heater.set_operation_mode visé par device_id : refusé"
+    },
+    {
+      "service": "valve.set_valve_position",
+      "donnees": {
+        "entity_id": "valve.arrosage"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "valve.set_valve_position sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "valve.set_valve_position",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "valve.set_valve_position visé par device_id : refusé"
+    },
+    {
+      "service": "siren.turn_on",
+      "donnees": {
+        "entity_id": "siren.alarme_test"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "siren.turn_on sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "siren.turn_on",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "siren.turn_on visé par device_id : refusé"
+    },
+    {
+      "service": "lawn_mower.dock",
+      "donnees": {
+        "entity_id": "lawn_mower.jardin"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "lawn_mower.dock sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "lawn_mower.dock",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "lawn_mower.dock visé par device_id : refusé"
+    },
+    {
+      "service": "camera.turn_off",
+      "donnees": {
+        "entity_id": "camera.entree"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "camera.turn_off sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "camera.turn_off",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "camera.turn_off visé par device_id : refusé"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "entity_id": "automation.arrosage"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "automation.trigger sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "automation.trigger visé par device_id : refusé"
+    },
+    {
+      "service": "script.turn_off",
+      "donnees": {
+        "entity_id": "script.bonne_nuit"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "script.turn_off sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "script.turn_off",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "script.turn_off visé par device_id : refusé"
+    },
+    {
+      "service": "scene.turn_on",
+      "donnees": {
+        "entity_id": "scene.soiree"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "scene.turn_on sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "scene.turn_on",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "scene.turn_on visé par device_id : refusé"
+    },
+    {
+      "service": "input_number.set_value",
+      "donnees": {
+        "entity_id": "input_number.consigne"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_number.set_value sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_number.set_value",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_number.set_value visé par device_id : refusé"
+    },
+    {
+      "service": "input_select.select_next",
+      "donnees": {
+        "entity_id": "input_select.mode"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_select.select_next sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_select.select_next",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_select.select_next visé par device_id : refusé"
+    },
+    {
+      "service": "input_text.set_value",
+      "donnees": {
+        "entity_id": "input_text.message"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_text.set_value sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_text.set_value",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_text.set_value visé par device_id : refusé"
+    },
+    {
+      "service": "input_datetime.set_datetime",
+      "donnees": {
+        "entity_id": "input_datetime.reveil"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_datetime.set_datetime sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_datetime.set_datetime",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_datetime.set_datetime visé par device_id : refusé"
+    },
+    {
+      "service": "input_button.press",
+      "donnees": {
+        "entity_id": "input_button.sonnette_test"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_button.press sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_button.press",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_button.press visé par device_id : refusé"
+    },
+    {
+      "service": "input_boolean.toggle",
+      "donnees": {
+        "entity_id": "input_boolean.invites"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "input_boolean.toggle sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "input_boolean.toggle",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "input_boolean.toggle visé par device_id : refusé"
+    },
+    {
+      "service": "number.set_value",
+      "donnees": {
+        "entity_id": "number.reglage"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "number.set_value sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "number.set_value",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "number.set_value visé par device_id : refusé"
+    },
+    {
+      "service": "text.set_value",
+      "donnees": {
+        "entity_id": "text.affichage"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "text.set_value sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "text.set_value",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "text.set_value visé par device_id : refusé"
+    },
+    {
+      "service": "timer.start",
+      "donnees": {
+        "entity_id": "timer.cuisson"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "timer.start sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "timer.start",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "timer.start visé par device_id : refusé"
+    },
+    {
+      "service": "counter.increment",
+      "donnees": {
+        "entity_id": "counter.compteur"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "counter.increment sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "counter.increment",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "counter.increment visé par device_id : refusé"
+    },
+    {
+      "service": "remote.turn_on",
+      "donnees": {
+        "entity_id": "remote.salon"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "remote.turn_on sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "remote.turn_on",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "remote.turn_on visé par device_id : refusé"
+    },
+    {
+      "service": "select.select_first",
+      "donnees": {
+        "entity_id": "select.salon_mode"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "select.select_first sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "select.select_first",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "select.select_first visé par device_id : refusé"
+    },
+    {
+      "service": "switch.toggle",
+      "donnees": {
+        "entity_id": "switch.prise"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "switch.toggle sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "switch.toggle",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "switch.toggle visé par device_id : refusé"
+    },
+    {
+      "service": "button.press",
+      "donnees": {
+        "entity_id": "button.actualiser"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "button.press sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "button.press",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "button.press visé par device_id : refusé"
+    },
+    {
+      "service": "media_player.toggle",
+      "donnees": {
+        "entity_id": "media_player.tele_salon"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "media_player.toggle sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "media_player.toggle",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "media_player.toggle visé par device_id : refusé"
+    },
+    {
+      "service": "music_assistant.play_announcement",
+      "donnees": {
+        "entity_id": "media_player.enceintes_maison"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "music_assistant.play_announcement sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "music_assistant.play_announcement",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "music_assistant.play_announcement visé par device_id : refusé"
+    },
+    {
+      "service": "vacuum.clean_spot",
+      "donnees": {
+        "entity_id": "vacuum.robot"
+      },
+      "heure": 14,
+      "refus": false,
+      "note": "vacuum.clean_spot sur une entité nommée (liste blanche élargie, S-F1)"
+    },
+    {
+      "service": "vacuum.clean_spot",
+      "donnees": {
+        "device_id": "abc123"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "vacuum.clean_spot visé par device_id : refusé"
+    },
+    {
+      "service": "cover.set_cover_tilt_position",
+      "donnees": {
+        "entity_id": "cover.chambre_sacha",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "cover.set_cover_tilt_position avec floor_id : refusé"
+    },
+    {
+      "service": "cover.set_cover_tilt_position",
+      "donnees": {
+        "entity_id": "cover.chambre_sacha",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "cover.set_cover_tilt_position avec label_id : refusé"
+    },
+    {
+      "service": "climate.set_fan_mode",
+      "donnees": {
+        "entity_id": "climate.essai",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "climate.set_fan_mode avec floor_id : refusé"
+    },
+    {
+      "service": "climate.set_fan_mode",
+      "donnees": {
+        "entity_id": "climate.essai",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "climate.set_fan_mode avec label_id : refusé"
+    },
+    {
+      "service": "camera.turn_off",
+      "donnees": {
+        "entity_id": "camera.entree",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "camera.turn_off avec floor_id : refusé"
+    },
+    {
+      "service": "camera.turn_off",
+      "donnees": {
+        "entity_id": "camera.entree",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "camera.turn_off avec label_id : refusé"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "entity_id": "automation.arrosage",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "automation.trigger avec floor_id : refusé"
+    },
+    {
+      "service": "automation.trigger",
+      "donnees": {
+        "entity_id": "automation.arrosage",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "automation.trigger avec label_id : refusé"
+    },
+    {
+      "service": "valve.set_valve_position",
+      "donnees": {
+        "entity_id": "valve.arrosage",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "valve.set_valve_position avec floor_id : refusé"
+    },
+    {
+      "service": "valve.set_valve_position",
+      "donnees": {
+        "entity_id": "valve.arrosage",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "valve.set_valve_position avec label_id : refusé"
+    },
+    {
+      "service": "media_player.toggle",
+      "donnees": {
+        "entity_id": "media_player.tele_salon",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "media_player.toggle avec floor_id : refusé"
+    },
+    {
+      "service": "media_player.toggle",
+      "donnees": {
+        "entity_id": "media_player.tele_salon",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "media_player.toggle avec label_id : refusé"
+    },
+    {
+      "service": "vacuum.clean_spot",
+      "donnees": {
+        "entity_id": "vacuum.robot",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "vacuum.clean_spot avec floor_id : refusé"
+    },
+    {
+      "service": "vacuum.clean_spot",
+      "donnees": {
+        "entity_id": "vacuum.robot",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "vacuum.clean_spot avec label_id : refusé"
+    },
+    {
+      "service": "script.turn_off",
+      "donnees": {
+        "entity_id": "script.bonne_nuit",
+        "floor_id": "rez_de_chaussee"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "script.turn_off avec floor_id : refusé"
+    },
+    {
+      "service": "script.turn_off",
+      "donnees": {
+        "entity_id": "script.bonne_nuit",
+        "label_id": "tout_eteindre"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "script.turn_off avec label_id : refusé"
     }
   ],
   "phrases": [
@@ -852,5 +1534,613 @@
         "note": "début égal à la fin : plage vide, 23 h"
       }
     ]
-  }
+  },
+  "services": [
+    {
+      "domaine": "fan",
+      "service": "oscillate",
+      "permis": true,
+      "note": "fan.oscillate permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "fan",
+      "service": "set_preset_mode",
+      "permis": true,
+      "note": "fan.set_preset_mode permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "fan",
+      "service": "increase_speed",
+      "permis": true,
+      "note": "fan.increase_speed permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "cover",
+      "service": "toggle",
+      "permis": true,
+      "note": "cover.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "cover",
+      "service": "set_cover_tilt_position",
+      "permis": true,
+      "note": "cover.set_cover_tilt_position permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "cover",
+      "service": "open_cover_tilt",
+      "permis": true,
+      "note": "cover.open_cover_tilt permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "climate",
+      "service": "set_fan_mode",
+      "permis": true,
+      "note": "climate.set_fan_mode permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "climate",
+      "service": "set_humidity",
+      "permis": true,
+      "note": "climate.set_humidity permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "climate",
+      "service": "toggle",
+      "permis": true,
+      "note": "climate.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "humidifier",
+      "service": "set_humidity",
+      "permis": true,
+      "note": "humidifier.set_humidity permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "humidifier",
+      "service": "set_mode",
+      "permis": true,
+      "note": "humidifier.set_mode permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "water_heater",
+      "service": "set_temperature",
+      "permis": true,
+      "note": "water_heater.set_temperature permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "water_heater",
+      "service": "set_operation_mode",
+      "permis": true,
+      "note": "water_heater.set_operation_mode permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "valve",
+      "service": "open_valve",
+      "permis": true,
+      "note": "valve.open_valve permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "valve",
+      "service": "set_valve_position",
+      "permis": true,
+      "note": "valve.set_valve_position permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "siren",
+      "service": "turn_on",
+      "permis": true,
+      "note": "siren.turn_on permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "lawn_mower",
+      "service": "start_mowing",
+      "permis": true,
+      "note": "lawn_mower.start_mowing permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "lawn_mower",
+      "service": "dock",
+      "permis": true,
+      "note": "lawn_mower.dock permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "camera",
+      "service": "turn_off",
+      "permis": true,
+      "note": "camera.turn_off permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "camera",
+      "service": "enable_motion_detection",
+      "permis": true,
+      "note": "camera.enable_motion_detection permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "automation",
+      "service": "turn_on",
+      "permis": true,
+      "note": "automation.turn_on permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "automation",
+      "service": "trigger",
+      "permis": true,
+      "note": "automation.trigger permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "script",
+      "service": "turn_off",
+      "permis": true,
+      "note": "script.turn_off permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "script",
+      "service": "toggle",
+      "permis": true,
+      "note": "script.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "scene",
+      "service": "turn_on",
+      "permis": true,
+      "note": "scene.turn_on permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_number",
+      "service": "set_value",
+      "permis": true,
+      "note": "input_number.set_value permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_select",
+      "service": "select_next",
+      "permis": true,
+      "note": "input_select.select_next permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_text",
+      "service": "set_value",
+      "permis": true,
+      "note": "input_text.set_value permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_datetime",
+      "service": "set_datetime",
+      "permis": true,
+      "note": "input_datetime.set_datetime permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_button",
+      "service": "press",
+      "permis": true,
+      "note": "input_button.press permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "input_boolean",
+      "service": "toggle",
+      "permis": true,
+      "note": "input_boolean.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "number",
+      "service": "set_value",
+      "permis": true,
+      "note": "number.set_value permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "text",
+      "service": "set_value",
+      "permis": true,
+      "note": "text.set_value permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "timer",
+      "service": "start",
+      "permis": true,
+      "note": "timer.start permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "timer",
+      "service": "cancel",
+      "permis": true,
+      "note": "timer.cancel permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "counter",
+      "service": "increment",
+      "permis": true,
+      "note": "counter.increment permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "counter",
+      "service": "reset",
+      "permis": true,
+      "note": "counter.reset permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "remote",
+      "service": "turn_on",
+      "permis": true,
+      "note": "remote.turn_on permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "remote",
+      "service": "send_command",
+      "permis": true,
+      "note": "remote.send_command permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "select",
+      "service": "select_first",
+      "permis": true,
+      "note": "select.select_first permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "select",
+      "service": "select_option",
+      "permis": true,
+      "note": "select.select_option permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "switch",
+      "service": "toggle",
+      "permis": true,
+      "note": "switch.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "button",
+      "service": "press",
+      "permis": true,
+      "note": "button.press permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "media_player",
+      "service": "toggle",
+      "permis": true,
+      "note": "media_player.toggle permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "media_player",
+      "service": "shuffle_set",
+      "permis": true,
+      "note": "media_player.shuffle_set permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "media_player",
+      "service": "select_sound_mode",
+      "permis": true,
+      "note": "media_player.select_sound_mode permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "media_player",
+      "service": "volume_set",
+      "permis": true,
+      "note": "media_player.volume_set permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "music_assistant",
+      "service": "play_media",
+      "permis": true,
+      "note": "music_assistant.play_media permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "music_assistant",
+      "service": "play_announcement",
+      "permis": true,
+      "note": "music_assistant.play_announcement permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "vacuum",
+      "service": "clean_spot",
+      "permis": true,
+      "note": "vacuum.clean_spot permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "vacuum",
+      "service": "set_fan_speed",
+      "permis": true,
+      "note": "vacuum.set_fan_speed permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "light",
+      "service": "turn_on",
+      "permis": true,
+      "note": "light.turn_on permis (liste blanche élargie, S-F1)"
+    },
+    {
+      "domaine": "fan",
+      "service": "reload",
+      "permis": false,
+      "note": "fan.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "cover",
+      "service": "reload",
+      "permis": false,
+      "note": "cover.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "climate",
+      "service": "reload",
+      "permis": false,
+      "note": "climate.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "humidifier",
+      "service": "reload",
+      "permis": false,
+      "note": "humidifier.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "water_heater",
+      "service": "reload",
+      "permis": false,
+      "note": "water_heater.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "valve",
+      "service": "reload",
+      "permis": false,
+      "note": "valve.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "siren",
+      "service": "reload",
+      "permis": false,
+      "note": "siren.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "lawn_mower",
+      "service": "reload",
+      "permis": false,
+      "note": "lawn_mower.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "camera",
+      "service": "snapshot",
+      "permis": false,
+      "note": "camera.snapshot refusé : écrit un fichier"
+    },
+    {
+      "domaine": "camera",
+      "service": "record",
+      "permis": false,
+      "note": "camera.record refusé : écrit un fichier"
+    },
+    {
+      "domaine": "camera",
+      "service": "play_stream",
+      "permis": false,
+      "note": "camera.play_stream refusé : vise un autre lecteur"
+    },
+    {
+      "domaine": "automation",
+      "service": "reload",
+      "permis": false,
+      "note": "automation.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "script",
+      "service": "reload",
+      "permis": false,
+      "note": "script.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "scene",
+      "service": "apply",
+      "permis": false,
+      "note": "scene.apply refusé : pose l'état d'entités quelconques"
+    },
+    {
+      "domaine": "scene",
+      "service": "create",
+      "permis": false,
+      "note": "scene.create refusé : crée une scène"
+    },
+    {
+      "domaine": "scene",
+      "service": "reload",
+      "permis": false,
+      "note": "scene.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "input_number",
+      "service": "reload",
+      "permis": false,
+      "note": "input_number.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "input_select",
+      "service": "set_options",
+      "permis": false,
+      "note": "input_select.set_options refusé : modifie la liste du choix"
+    },
+    {
+      "domaine": "input_text",
+      "service": "reload",
+      "permis": false,
+      "note": "input_text.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "input_datetime",
+      "service": "reload",
+      "permis": false,
+      "note": "input_datetime.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "input_button",
+      "service": "reload",
+      "permis": false,
+      "note": "input_button.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "number",
+      "service": "reload",
+      "permis": false,
+      "note": "number.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "text",
+      "service": "reload",
+      "permis": false,
+      "note": "text.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "timer",
+      "service": "reload",
+      "permis": false,
+      "note": "timer.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "counter",
+      "service": "reload",
+      "permis": false,
+      "note": "counter.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "remote",
+      "service": "learn_command",
+      "permis": false,
+      "note": "remote.learn_command refusé : écrit la mémoire de la télécommande"
+    },
+    {
+      "domaine": "remote",
+      "service": "delete_command",
+      "permis": false,
+      "note": "remote.delete_command refusé : efface la mémoire de la télécommande"
+    },
+    {
+      "domaine": "select",
+      "service": "reload",
+      "permis": false,
+      "note": "select.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "switch",
+      "service": "reload",
+      "permis": false,
+      "note": "switch.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "button",
+      "service": "reload",
+      "permis": false,
+      "note": "button.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "input_boolean",
+      "service": "reload",
+      "permis": false,
+      "note": "input_boolean.reload refusé : rechargement de configuration"
+    },
+    {
+      "domaine": "media_player",
+      "service": "play_media",
+      "permis": false,
+      "note": "media_player.play_media refusé : la musique passe par jouer_musique"
+    },
+    {
+      "domaine": "media_player",
+      "service": "join",
+      "permis": false,
+      "note": "media_player.join refusé : désigne d'autres lecteurs dans les données"
+    },
+    {
+      "domaine": "music_assistant",
+      "service": "transfer_queue",
+      "permis": false,
+      "note": "music_assistant.transfer_queue refusé : désigne un autre lecteur"
+    },
+    {
+      "domaine": "vacuum",
+      "service": "send_command",
+      "permis": false,
+      "note": "vacuum.send_command refusé : commande brute de l'appareil"
+    },
+    {
+      "domaine": "lock",
+      "service": "unlock",
+      "permis": false,
+      "note": "lock.unlock refusé : domaine interdit"
+    },
+    {
+      "domaine": "lock",
+      "service": "open",
+      "permis": false,
+      "note": "lock.open refusé : domaine interdit"
+    },
+    {
+      "domaine": "lock",
+      "service": "lock",
+      "permis": false,
+      "note": "lock.lock refusé : domaine interdit"
+    },
+    {
+      "domaine": "alarm_control_panel",
+      "service": "alarm_disarm",
+      "permis": false,
+      "note": "alarm_control_panel.alarm_disarm refusé : domaine interdit"
+    },
+    {
+      "domaine": "homeassistant",
+      "service": "restart",
+      "permis": false,
+      "note": "homeassistant.restart refusé : domaine interdit"
+    },
+    {
+      "domaine": "homeassistant",
+      "service": "turn_off",
+      "permis": false,
+      "note": "homeassistant.turn_off refusé : domaine interdit"
+    },
+    {
+      "domaine": "shell_command",
+      "service": "arrosage",
+      "permis": false,
+      "note": "shell_command.arrosage refusé : domaine interdit"
+    },
+    {
+      "domaine": "notify",
+      "service": "notify",
+      "permis": false,
+      "note": "notify.notify refusé : domaine interdit"
+    },
+    {
+      "domaine": "persistent_notification",
+      "service": "create",
+      "permis": false,
+      "note": "persistent_notification.create refusé : domaine interdit"
+    },
+    {
+      "domaine": "hassio",
+      "service": "addon_start",
+      "permis": false,
+      "note": "hassio.addon_start refusé : domaine interdit"
+    },
+    {
+      "domaine": "python_script",
+      "service": "exec",
+      "permis": false,
+      "note": "python_script.exec refusé : domaine interdit"
+    },
+    {
+      "domaine": "rest_command",
+      "service": "appel",
+      "permis": false,
+      "note": "rest_command.appel refusé : domaine interdit"
+    },
+    {
+      "domaine": "recorder",
+      "service": "purge",
+      "permis": false,
+      "note": "recorder.purge refusé : domaine interdit"
+    },
+    {
+      "domaine": "system_log",
+      "service": "write",
+      "permis": false,
+      "note": "system_log.write refusé : domaine interdit"
+    }
+  ]
 }

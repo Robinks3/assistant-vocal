@@ -91,6 +91,28 @@ class SecuriteTest {
     }
 
     @Test
+    fun servicesDeLaListeBlanche() {
+        // Décision D6 (26/10/2026, S-F1) : mêmes cas que test_services_permis.py, contre le services_permis
+        // du dictionnaire exporté pour l'appli (poc/tests/cas_securite.json, bloc « services »).
+        val dossier = System.getProperty("maison.dossier") ?: error("propriété système maison.dossier absente (voir build.gradle.kts)")
+        val permis = JSONObject(File(dossier, "genere/android/dictionnaire.json").readText(Charsets.UTF_8))
+            .getJSONObject("services_permis")
+        val liste = cas.getJSONArray("services")
+        assertTrue("aucun cas de service lu", liste.length() > 0)
+        for (i in 0 until liste.length()) {
+            val c = liste.getJSONObject(i)
+            val domaine = c.getString("domaine")
+            val service = c.getString("service")
+            var present = false
+            val services = permis.optJSONArray(domaine)
+            if (services != null) {
+                for (j in 0 until services.length()) if (services.getString(j) == service) present = true
+            }
+            assertEquals(c.getString("note"), c.getBoolean("permis"), present)
+        }
+    }
+
+    @Test
     fun phrases() {
         val liste = cas.getJSONArray("phrases")
         assertTrue("aucun cas de phrase lu", liste.length() > 0)

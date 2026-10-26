@@ -49,7 +49,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.36.3"
+VERSION = "0.37.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -64,38 +64,164 @@ RETOURS = DONNEES / "journal" / "retours.jsonl"
 MUSIQUE = DONNEES / "journal" / "musique.jsonl"
 TAUX = 16000
 
-# Domaines et services que le LLM a le droit d'appeler. Rien qui ouvre une porte
-# ou désarme une alarme.
+# Services de Home Assistant permis (décision D6 du 26/10/2026, session S-F1) : tout ce que HA expose pour les
+# domaines courants, sauf ce que la sécurité en dur refuse ailleurs : les cibles par device_id, floor_id et
+# label_id (securite.verifier), les domaines de acces.DOMAINES_INTERDITS (serrures, alarme, notifications,
+# commandes système) et les services qui écrivent un fichier, changent la configuration ou désignent d'autres
+# appareils dans leurs données (que securite.verifier ne voit pas), laissés de côté un par un ci-dessous.
+# Chaque liste suit la page du domaine sur https://www.home-assistant.io/integrations/<domaine>/.
+# Cette table est le socle : HomeAssistant.charger_services() y ajoute ce que HA expose en plus (voir
+# services_depuis_ha). Elle part aussi dans dictionnaire.json pour l'appli (CerveauAppareil.kt).
 SERVICES_PERMIS = {
+    # Éclairage, prises, ventilation, ouvrants, chauffage
     "light": {"turn_on", "turn_off", "toggle"},
     "switch": {"turn_on", "turn_off", "toggle"},
-    "fan": {"turn_on", "turn_off", "toggle", "set_percentage"},
-    "cover": {"open_cover", "close_cover", "stop_cover", "set_cover_position"},
-    "climate": {"set_temperature", "set_hvac_mode", "turn_on", "turn_off"},
-    "media_player": {"turn_on", "turn_off", "media_play", "media_pause", "media_stop",
-                     "media_next_track", "media_previous_track", "volume_set",
-                     "volume_mute", "volume_down", "select_source"},
-    "music_assistant": {"play_media"},
-    "vacuum": {"start", "pause", "stop", "return_to_base", "locate"},
+    "fan": {"turn_on", "turn_off", "toggle", "set_percentage", "increase_speed", "decrease_speed", "oscillate",
+            "set_direction", "set_preset_mode"},
+    "cover": {"open_cover", "close_cover", "stop_cover", "toggle", "set_cover_position", "open_cover_tilt",
+              "close_cover_tilt", "stop_cover_tilt", "toggle_cover_tilt", "set_cover_tilt_position"},
+    "climate": {"turn_on", "turn_off", "toggle", "set_temperature", "set_hvac_mode", "set_fan_mode",
+                "set_preset_mode", "set_swing_mode", "set_swing_horizontal_mode", "set_humidity"},
+    "humidifier": {"turn_on", "turn_off", "toggle", "set_humidity", "set_mode"},
+    "water_heater": {"turn_on", "turn_off", "set_temperature", "set_operation_mode"},
+    "valve": {"open_valve", "close_valve", "stop_valve", "toggle", "set_valve_position"},
+    "siren": {"turn_on", "turn_off", "toggle"},
+    # Lecteurs. Sans media_player.play_media ni join : la musique passe par jouer_musique (Music Assistant),
+    # et group_members désigne d'autres lecteurs dans les données, hors de la vue de securite.verifier.
+    "media_player": {"turn_on", "turn_off", "toggle", "media_play", "media_pause", "media_play_pause", "media_stop",
+                     "media_next_track", "media_previous_track", "media_seek", "volume_set", "volume_mute",
+                     "volume_down", "select_source", "select_sound_mode", "shuffle_set", "repeat_set",
+                     "clear_playlist", "unjoin"},
+    "music_assistant": {"play_media", "play_announcement"},
+    # Robots, tondeuses, caméras. Sans camera.snapshot, record ni play_stream, qui écrivent un fichier ou
+    # visent un autre lecteur.
+    "vacuum": {"start", "pause", "stop", "return_to_base", "locate", "clean_spot", "set_fan_speed"},
+    "lawn_mower": {"start_mowing", "pause", "dock"},
+    "camera": {"turn_on", "turn_off", "enable_motion_detection", "disable_motion_detection"},
+    # Scènes, scripts, automatisations. Sans scene.apply ni scene.create, qui posent l'état d'entités quelconques,
+    # et sans reload.
     "scene": {"turn_on"},
-    "script": {"turn_on"},
+    "script": {"turn_on", "turn_off", "toggle"},
+    "automation": {"turn_on", "turn_off", "toggle", "trigger"},
+    # Entrées et réglages créés dans HA. Sans input_select.set_options (modifie la liste du choix).
     "input_boolean": {"turn_on", "turn_off", "toggle"},
+    "input_number": {"set_value", "increment", "decrement"},
+    "input_select": {"select_option", "select_first", "select_last", "select_next", "select_previous"},
+    "input_text": {"set_value"},
+    "input_datetime": {"set_datetime"},
+    "input_button": {"press"},
     "button": {"press"},
+    "number": {"set_value"},
+    "text": {"set_value"},
+    "timer": {"start", "pause", "cancel", "finish", "change"},
+    "counter": {"increment", "decrement", "reset", "set_value"},
     # Réglages fins de la télé téléviseur et des lampes (0.30.0) : pour l'appli et la passerelle, jamais pour le LLM
-    # (DOMAINES_HORS_LLM : hors enum de l'outil, hors contexte, refusés à l'appel).
+    # (DOMAINES_HORS_LLM : hors enum de l'outil, hors contexte, refusés à l'appel). Sans remote.learn_command ni
+    # delete_command, qui écrivent la mémoire de la télécommande.
     "domaine_tele": {"launch_app", "send_text_input", "set_picture_setting"},
-    "remote": {"send_command"},
-    "select": {"select_option"},
+    "remote": {"send_command", "turn_on", "turn_off", "toggle"},
+    "select": {"select_option", "select_first", "select_last", "select_next", "select_previous"},
 }
 DOMAINES_HORS_LLM = {"domaine_tele", "remote", "select"}
 # Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
 # quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
 if not securite.plafond_actif():
     SERVICES_PERMIS["media_player"].add("volume_up")
+# Ce que le LLM voit dans la liste d'appareils, et le seul périmètre de ses appels (26/10/2026, D6) : la table
+# s'élargit, pas la vue du LLM. Les entités des domaines ajoutés grossiraient le prompt de Qwen 9B sans mesure
+# sur la vraie maison, et il ne peut viser que ce qu'il voit (HomeAssistant.service refuse le reste). Pour
+# l'élargir : ajouter le domaine ici, après mesure de la latence (banc llm_maison) sur la vraie maison.
 # Les boutons (36 chez aspirateur) gonflent le prompt sans servir à la voix.
 # Ni boutons ni interrupteurs : dans la maison d'origine, ce sont des réglages (enceintes, aspirateur) qui embrouillent
 # Qwen 9B (« Lecture automatique TV » pris pour la télé, banc du 12/10). Le dictionnaire les couvre.
-DOMAINES_CONTEXTE = sorted((set(SERVICES_PERMIS) - ({"button", "switch"} | DOMAINES_HORS_LLM)) | {"sensor", "binary_sensor", "weather"})
+DOMAINES_LLM = {"climate", "cover", "fan", "input_boolean", "light", "media_player", "music_assistant", "scene",
+                "script", "vacuum"}
+DOMAINES_CONTEXTE = sorted(DOMAINES_LLM | {"sensor", "binary_sensor", "weather"})
+# Domaines de l'outil appeler_service : ceux du contexte, plus button et switch qui ont toujours été permis
+# au LLM sans figurer dans sa liste.
+DOMAINES_OUTIL_LLM = DOMAINES_LLM | {"button", "switch"}
+
+
+def services_depuis_ha(liste):
+    """Services que HA expose en plus de SERVICES_PERMIS, d'après la réponse de GET /api/services.
+
+    Un service n'entre que s'il agit sur les entités de son propre domaine (cible « entity » filtrée sur ce
+    domaine ou sur l'intégration du même nom) et ne désigne pas d'autres appareils dans ses données. Rien d'un
+    domaine interdit, d'un domaine d'administration, ni d'un service de la liste SERVICES_ECARTES. Les services
+    sans cible (mqtt.publish, logger.set_level, backup.create...) n'y entrent donc jamais. Une réponse illisible
+    donne une table vide : le socle statique suffit."""
+    trouves = {}
+    if not isinstance(liste, list):
+        return trouves
+    for bloc in liste:
+        domaine = bloc.get("domain") if isinstance(bloc, dict) else None
+        services = bloc.get("services") if isinstance(bloc, dict) else None
+        if not isinstance(domaine, str) or not isinstance(services, dict):
+            continue
+        if domaine in acces.DOMAINES_INTERDITS or domaine in DOMAINES_ADMIN:
+            continue
+        for nom, fiche in services.items():
+            if not isinstance(nom, str) or not isinstance(fiche, dict) or not re.fullmatch(r"[a-z0-9_]+", nom):
+                continue
+            if nom in NOMS_ECARTES or nom.startswith("reload") or f"{domaine}.{nom}" in SERVICES_ECARTES:
+                continue
+            if nom in SERVICES_PERMIS.get(domaine, set()) or not _cible_son_domaine(domaine, fiche.get("target")):
+                continue
+            if _champ_vers_un_appareil(fiche.get("fields")):
+                continue
+            if f"{domaine}.{nom}" == "media_player.volume_up" and securite.plafond_actif():
+                continue
+            trouves.setdefault(domaine, set()).add(nom)
+    return trouves
+
+
+# Domaines d'administration ou de communication : jamais ajoutés d'après HA.
+DOMAINES_ADMIN = {"update", "tts", "stt", "conversation", "assist_satellite", "backup", "cloud", "config", "mqtt",
+                  "zha", "zwave_js", "matter", "mobile_app", "ios", "device_tracker", "person", "logbook", "logger",
+                  "file", "ffmpeg", "hardware", "websocket_api", "frontend", "browser"}
+# Noms de service qui écrivent, créent, suppriment ou installent, quel que soit le domaine.
+NOMS_ECARTES = {"install", "skip", "clear_skipped", "snapshot", "record", "learn_command", "delete_command",
+                "set_options", "apply", "create", "remove", "delete", "set_usercode", "clear_usercode"}
+# Services écartés un par un : la musique a son propre chemin, et join désigne d'autres lecteurs.
+SERVICES_ECARTES = {"media_player.play_media", "media_player.join", "camera.play_stream"}
+
+
+def _cible_son_domaine(domaine, cible):
+    """Vrai si la cible du service est « entity » filtrée sur ce domaine ou sur l'intégration de ce nom."""
+    if not isinstance(cible, dict):
+        return False
+    filtres = cible.get("entity")
+    if isinstance(filtres, dict):
+        filtres = [filtres]
+    if not isinstance(filtres, list):
+        return False
+    for f in filtres:
+        if not isinstance(f, dict):
+            continue
+        domaines = f.get("domain")
+        domaines = [domaines] if isinstance(domaines, str) else (domaines if isinstance(domaines, list) else [])
+        if domaine in domaines or f.get("integration") == domaine:
+            return True
+    return False
+
+
+# Sélecteurs de HA qui désignent un appareil, une pièce, un étage ou une étiquette dans les données d'un service.
+SELECTEURS_VERS_UN_APPAREIL = {"entity", "device", "area", "floor", "label", "target", "config_entry"}
+
+
+def _champ_vers_un_appareil(champs):
+    """Vrai si un champ du service (hors entity_id, la cible vérifiée) désigne d'autres appareils."""
+    if not isinstance(champs, dict):
+        return False
+    for nom, champ in champs.items():
+        if nom == "entity_id" or not isinstance(champ, dict):
+            continue
+        selecteur = champ.get("selector")
+        if isinstance(selecteur, dict) and SELECTEURS_VERS_UN_APPAREIL & set(selecteur):
+            return True
+        if "entity_id" in str(nom) or str(nom).endswith(("_entity_id", "_device_id", "_area_id")):
+            return True
+    return False
 
 
 # Valeurs sûres d'un moteur sans poc/.env (0.36.0) : le micro est le périphérique d'entrée par défaut du système,
@@ -386,6 +512,9 @@ def attributs_lus(attrs):
 
 
 class HomeAssistant:
+    # Services ajoutés d'après HA (charger_services), remplacés en bloc et jamais modifiés sur place.
+    services_dynamiques = {}
+
     def __init__(self, url, token):
         import httpx
         self.url = url
@@ -397,6 +526,26 @@ class HomeAssistant:
         # Idée reprise d'un projet d'inspiration : la liste part aussi en enum dans le schéma de l'outil.
         self.entites_llm = set()
         self.personne = None
+        # Services que HA expose en plus de SERVICES_PERMIS (charger_services), vide tant que HA n'a pas répondu.
+        self.services_dynamiques = {}
+
+    def charger_services(self):
+        """Complète SERVICES_PERMIS avec ce que HA expose (GET /api/services, filtré par services_depuis_ha).
+
+        Appelé une fois au démarrage. HA injoignable, réponse illisible ou en erreur : aucune erreur, le socle
+        statique suffit. Rend le nombre de services ajoutés."""
+        try:
+            r = self.client.get(f"{self.url}/api/services", timeout=5)
+            r.raise_for_status()
+            self.services_dynamiques = services_depuis_ha(r.json())
+        except Exception as e:
+            self.services_dynamiques = {}
+            print(f"  services de HA non chargés ({type(e).__name__}) : socle statique seul")
+        return sum(len(s) for s in self.services_dynamiques.values())
+
+    def services_permis(self, domaine):
+        """Services permis pour un domaine : le socle statique plus ce que HA expose en plus."""
+        return SERVICES_PERMIS.get(domaine, set()) | self.services_dynamiques.get(domaine, set())
 
     # Essai de la commande en cours (Requete) ou du serveur : le réglage direct (ha.essai = True) est un
     # plancher, aucune requête ne le lève.
@@ -485,8 +634,8 @@ class HomeAssistant:
         de l'état, la routine enchaîne ses étapes)."""
         if domaine in acces.DOMAINES_INTERDITS:
             return {"erreur": f"refusé : domaine {domaine} interdit. Ne réessaie pas autrement, dis-le simplement."}
-        if service not in SERVICES_PERMIS.get(domaine, set()):
-            permis = ", ".join(sorted(SERVICES_PERMIS.get(domaine, set()))) or "aucun"
+        if service not in self.services_permis(domaine):
+            permis = ", ".join(sorted(self.services_permis(domaine))) or "aucun"
             return {"erreur": f"service {domaine}.{service} inexistant ou interdit. "
                               f"Services permis pour {domaine} : {permis}. "
                               "Luminosité : light.turn_on avec donnees {\"brightness_pct\": N}."}
@@ -497,7 +646,8 @@ class HomeAssistant:
                  or securite.verifier(f"{domaine}.{service}", corps, personne=self.personne))
         if refus:  # sécurité en dur (occupant protégé, son la nuit), même en essai
             return {"erreur": f"refusé : {refus}. Ne réessaie pas autrement, dis-le simplement."}
-        inconnues = [e for e in securite.cibles(entity_id) if self.entites_llm and e not in self.entites_llm]
+        # Les cibles du corps envoyé à HA, pas seulement l'argument : un entity_id glissé dans les données compte aussi.
+        inconnues = [e for e in securite.cibles(corps.get("entity_id")) if self.entites_llm and e not in self.entites_llm]
         if inconnues:
             return {"erreur": f"entité absente de la liste des appareils : {', '.join(inconnues)}. "
                               "Choisis un entity_id exact de la liste."}
@@ -951,7 +1101,7 @@ OUTILS = [
         "name": "appeler_service",
         "description": "Agit sur un appareil de la maison via un service Home Assistant.",
         "parameters": {"type": "object", "properties": {
-            "domaine": {"type": "string", "enum": sorted(set(SERVICES_PERMIS) - DOMAINES_HORS_LLM)},
+            "domaine": {"type": "string", "enum": sorted(DOMAINES_OUTIL_LLM)},
             "service": {"type": "string", "description": "ex. turn_on, turn_off, volume_set, start. "
                         "La luminosité se règle avec light.turn_on, il n'existe pas de brightness_set."},
             "entity_id": {"type": ["string", "array"], "items": {"type": "string"},
@@ -1096,7 +1246,11 @@ class Cerveau:
         if nom not in noms or not self.ha:
             return dict(INDISPONIBLE)
         if nom == "appeler_service":
-            if args.get("domaine") in DOMAINES_HORS_LLM:
+            domaine = args.get("domaine")
+            # Le LLM n'appelle que les domaines de son schéma (DOMAINES_OUTIL_LLM), même si la table en permet d'autres
+            # (D6) : l'enum du schéma, qu'un modèle peut contourner, n'est pas le seul garde.
+            if domaine in DOMAINES_HORS_LLM or (isinstance(domaine, str) and domaine not in DOMAINES_OUTIL_LLM
+                                                and self.ha.services_permis(domaine)):
                 return {"erreur": f"domaine {args.get('domaine')} non disponible par la voix. Dis-le simplement."}
             refus = garde_fou_volume(texte, args)
             if refus:
@@ -1396,6 +1550,9 @@ class Assistant:
         if self.ha:
             self.ha.essai = essai
             self.ha.vue_llm = self.dico.llm
+            ajoutes = self.ha.charger_services()
+            if ajoutes:
+                print(f"  services de HA : {ajoutes} ajoutés au socle statique")
         else:
             print("  ! HA_TOKEN absent de poc/.env : pilotage de la maison désactivé, LLM seul.")
         if cfg.get("llm_fournisseur") == "claude":
