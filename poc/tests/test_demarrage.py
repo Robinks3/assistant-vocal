@@ -16,7 +16,7 @@ import pytest
 RACINE = Path(__file__).resolve().parents[2]
 HARNAIS = Path(__file__).resolve().parent / "demarrage_a_vide.py"
 DUREE_ECOUTE = 4.0
-DELAI_MAX = 90  # imports compris (onnxruntime, numpy) ; le test ne dépasse jamais ce délai
+DELAI_MAX = 90  # imports compris (onnxruntime, numpy), le test ne dépasse jamais ce délai
 
 # Variables de l'environnement passées au sous-processus : le strict nécessaire pour lancer Python.
 # Ni clé, ni jeton, ni réglage de l'utilisateur : le serveur démarre comme sur un poste vierge.
