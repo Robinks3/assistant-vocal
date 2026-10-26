@@ -75,12 +75,12 @@ def test_le_nom_change_avec_la_configuration(tmp_path):
 
 def test_le_refus_nomme_l_occupant_de_la_configuration(monkeypatch):
     monkeypatch.setattr(securite, "PROTEGER_OCCUPANT", True)
-    monkeypatch.setattr(securite, "NOM_OCCUPANT", "Noa")
-    monkeypatch.setattr(securite, "MOTS_PROTEGES", ("noa",))
-    refus = securite.verifier("light.turn_on", {"entity_id": "light.exemple71"})
-    assert refus and "Noa" in refus
-    refus = securite.phrase_protegee("allume la chambre de noa")
-    assert refus and "Noa" in refus
+    monkeypatch.setattr(securite, "NOM_OCCUPANT", "Camille")
+    monkeypatch.setattr(securite, "MOTS_PROTEGES", ("camille",))
+    refus = securite.verifier("light.turn_on", {"entity_id": "light.chambre_camille"})
+    assert refus and "Camille" in refus
+    refus = securite.phrase_protegee("allume la chambre de camille")
+    assert refus and "Camille" in refus
 
 
 def fichiers_de_code():
