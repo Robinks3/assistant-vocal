@@ -13,6 +13,17 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def routines_temporaires(tmp_path, monkeypatch):
+    """Le fichier et le journal des routines sont ailleurs que dans poc/, et le registre repart de zéro."""
+    import routines
+    monkeypatch.setattr(routines, "FICHIER", tmp_path / "routines.json")
+    monkeypatch.setattr(routines, "JOURNAL", tmp_path / "journal" / "routines.jsonl")
+    routines.reinitialiser()
+    yield tmp_path / "routines.json"
+    routines.reinitialiser()
+
+
+@pytest.fixture(autouse=True)
 def journal_musique_temporaire(tmp_path, monkeypatch):
     """Les essais de musique écrivent leur ligne de journal ailleurs que dans poc/journal."""
     import assistant

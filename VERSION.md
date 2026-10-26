@@ -4,6 +4,31 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.42.0 (2026-10-26), moteur de routines, lot 1
+Session S-R1 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.42.0.
+- Nouveau module `poc/routines.py` : une phrase de déclenchement lance une suite d'étapes (service Home Assistant,
+  annonce, question, pause, musique). Stockage dans `routines.json` du dossier de données, journal dans
+  `journal/routines.jsonl`. Le moteur n'importe pas `assistant.py`.
+- Création à la voix : `INTENTION_ROUTINE` reconnaît « quand je dis X, fais Y » et « crée une routine », le cerveau
+  propose, le serveur reformule et attend un « oui » (`delai_confirmation_s`, absorption d'un « oui » tardif).
+  `Assistant.routines_avant` passe avant le dictionnaire.
+- Une routine ne permet jamais plus qu'une commande directe : chaque étape de service passe par
+  `acces.controler_service` à la création et à chaque lancement, avec la personne qui lance. Cibles par pièce,
+  étage, appareil, étiquette, `all`, joker ou `target` refusées. Routine revalidée au chargement, coupée et marquée
+  « à revoir » si une étape est devenue refusée. `securite.py`, `Securite.kt` et `cas_securite.json` inchangés.
+- Droits : le propriétaire crée, lance, gère et exporte tout, un habitant crée et gère les siennes, un invité et un
+  appareil partagé lancent seulement. Une routine est « pour tous » ou « pour son auteur ».
+- Protocole (port chiffré 8766 seulement, table `acces.TYPES_PAR_ROLE`) : `routines`, `routine_lancer`,
+  `routine_texte` (tous les rôles), `routine_activer`, `routine_supprimer` (habitant et administrateur),
+  `routines_export` (administrateur). Signal `routines_maj` (version seule). Capacité `routines` annoncée.
+  Catégorie `routine` dans l'historique.
+- Nouvelle section facultative `routines` de `maison.json` (12 clés, toutes facultatives), exemple fictif dans
+  `config-exemple/`. Sans la section, comportement par défaut.
+- `ha-app/deployer.sh` copie maintenant `routines.py`, et aussi `liste_blanche.py`, oublié à la 0.41.0 alors que
+  `acces.py` l'importe (l'appli Home Assistant n'aurait pas démarré).
+- Reste pour S-R2 : gestion à la voix (lister, couper, supprimer), écrans des clients.
+- Tests : `test_routines.py` et `cas_routines.json`. Documentation : `docs/CONFIGURER.md`, `docs/ARCHITECTURE.md`.
+
 ## Serveur 0.41.1 (2026-10-26), correctif du déploiement Home Assistant
 Appli Home Assistant 0.41.1, appli Android inchangée (0.38.1).
 - `ha-app/deployer.sh` ne copiait pas `poc/liste_blanche.py`, nouveau en 0.41.0 : l'appli Home Assistant 0.41.0

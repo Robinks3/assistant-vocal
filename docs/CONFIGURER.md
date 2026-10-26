@@ -110,6 +110,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `_lisez_moi` | Personne | Texte d'aide, ignoré par le code. |
 | `reseau` | `poc/maison.py`, `poc/assistant.py`, `poc/sante.py`, `poc/sante_hist.py`, `poc/serveur_satellite.py`, `ha-app/*`, `build.gradle.kts` | Adresses vides. `deployer.sh` s'arrête. |
 | `acces` | `poc/acces.py`, `poc/maison.py`, `poc/serveur_satellite.py` | Écoute sur `0.0.0.0`, réseaux privés et tailnet autorisés, ancien accès permis, propriétaire seul administrateur. |
+| `routines` | `poc/routines.py`, `poc/assistant.py`, `poc/serveur_satellite.py` | Routines actives avec les limites par défaut décrites plus bas. |
 | `journal` | `poc/assistant.py` | Historique gardé 30 jours, journal des durées limité à 512 Ko sur 5 fichiers, phrases absentes de la console. |
 | `fuseau` | `poc/securite.py`, `poc/assistant.py`, `Securite.kt` | `UTC`. |
 | `securite` | `poc/securite.py`, `Securite.kt` | Listes vides. |
@@ -248,6 +249,50 @@ Partout ailleurs, `X-Forwarded-Host` est ignoré.
 Aucune règle de pare-feu n'est posée ni modifiée par le serveur, et aucun port n'est fermé. La fermeture de 8765
 attend sept jours de tablette sur 8766 et un mot du propriétaire (décision D7 du plan). Tant que ce n'est pas
 fait, `acces.ancien_acces` et `reseaux_autorises` sont les seuls leviers.
+
+### `routines`
+
+Les routines à la voix (serveur 0.42.0) : une phrase déclenche une suite d'étapes (services Home Assistant,
+annonce, question, pause, musique). Toute la section est facultative, chaque champ aussi. Les routines
+elles-mêmes ne sont pas ici : elles vivent dans `routines.json`, dans le dossier de données du serveur
+(`JARVIS_DONNEES`, sinon `poc/`), avec leur journal dans `journal/routines.jsonl`.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `active` | booléen | `false` coupe toute la fonction : plus de création, de lancement ni de message réseau, la capacité `routines` annoncée aux appareils passe à faux. Défaut : true. |
+| `delai_confirmation_s` | entier | Temps dont dispose la personne pour répondre « oui » à la reformulation d'une routine. Défaut : 30. |
+| `absorption_s` | entier | Durée pendant laquelle un « oui » isolé arrivé trop tard est absorbé au lieu de partir au LLM. Défaut : 120. |
+| `nombre_max` | entier | Nombre total de routines. Défaut : 30. |
+| `etapes_max` | entier | Étapes par routine. Défaut : 8. |
+| `variantes_max` | entier | Variantes de phrase gardées en plus de la phrase principale. Défaut : 5. |
+| `lettres_min` | entier | Nombre minimal de lettres d'une phrase de déclenchement. Défaut : 6. |
+| `pause_max_s` | entier | Durée maximale d'une pause. Défaut : 600. |
+| `duree_max_s` | entier | Somme maximale des pauses d'une routine. Défaut : 1800. |
+| `intervalle_min_s` | entier | Délai minimal entre deux lancements de la même routine. Défaut : 10. |
+| `question_delai_s` | entier | Délai accordé à une étape question. Défaut : 10. |
+| `phrases_interdites` | liste de textes | Phrases qui ne peuvent jamais déclencher une routine, en plus de la liste écrite en dur (oui, non, stop, formules de gestion). Défaut : vide. |
+
+```json
+"routines": {
+  "active": true,
+  "etapes_max": 8,
+  "phrases_interdites": ["bonne nuit sacha"]
+}
+```
+
+Une valeur absente, mal typée, nulle ou négative rend le défaut.
+
+Ce que la section ne règle pas : une routine ne permet jamais plus qu'une commande directe. Chaque étape qui
+appelle un service Home Assistant passe par `acces.controler_service`, comme une commande dite, à la création
+puis à chaque lancement. Serrures, alarmes, domaines interdits, liste blanche de services, réglages refusés de
+`liste_blanche` et sécurité en dur s'appliquent donc telles quelles, et aucune clé de cette section ne les
+desserre. Une étape qui vise une pièce, un étage, un appareil, une étiquette, `all` ou un joker est refusée.
+Une routine dont une étape devient refusée après un changement de configuration est coupée au chargement et
+marquée « à revoir ».
+
+Qui peut quoi : le propriétaire crée, lance, gère et exporte tout. Un habitant crée et gère les siennes. Un
+invité et une personne non reconnue ne créent rien. Une routine « pour tous » se lance par tout le monde, une
+routine « pour son auteur » seulement par lui.
 
 ### `journal`
 
