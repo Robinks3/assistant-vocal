@@ -17,6 +17,8 @@ import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, time
 import acces
 import maison
 import securite
+from liste_blanche import (SERVICES_PERMIS, DOMAINES_HORS_LLM, DOMAINES_ADMIN, NOMS_ECARTES, SERVICES_ECARTES,
+                           SELECTEURS_VERS_UN_APPAREIL, _cible_son_domaine, _champ_vers_un_appareil)
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import NamedTuple
@@ -56,7 +58,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.40.0"
+VERSION = "0.41.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -71,69 +73,8 @@ RETOURS = DONNEES / "journal" / "retours.jsonl"
 MUSIQUE = DONNEES / "journal" / "musique.jsonl"
 TAUX = 16000
 
-# Services de Home Assistant permis (décision D6 du 26/10/2026, session S-F1) : tout ce que HA expose pour les
-# domaines courants, sauf ce que la sécurité en dur refuse ailleurs : les cibles par device_id, floor_id et
-# label_id (securite.verifier), les domaines de acces.DOMAINES_INTERDITS (serrures, alarme, notifications,
-# commandes système) et les services qui écrivent un fichier, changent la configuration ou désignent d'autres
-# appareils dans leurs données (que securite.verifier ne voit pas), laissés de côté un par un ci-dessous.
-# Chaque liste suit la page du domaine sur https://www.home-assistant.io/integrations/<domaine>/.
-# Cette table est le socle : HomeAssistant.charger_services() y ajoute ce que HA expose en plus (voir
-# services_depuis_ha). Elle part aussi dans dictionnaire.json pour l'appli (CerveauAppareil.kt).
-SERVICES_PERMIS = {
-    # Éclairage, prises, ventilation, ouvrants, chauffage
-    "light": {"turn_on", "turn_off", "toggle"},
-    "switch": {"turn_on", "turn_off", "toggle"},
-    "fan": {"turn_on", "turn_off", "toggle", "set_percentage", "increase_speed", "decrease_speed", "oscillate",
-            "set_direction", "set_preset_mode"},
-    "cover": {"open_cover", "close_cover", "stop_cover", "toggle", "set_cover_position", "open_cover_tilt",
-              "close_cover_tilt", "stop_cover_tilt", "toggle_cover_tilt", "set_cover_tilt_position"},
-    "climate": {"turn_on", "turn_off", "toggle", "set_temperature", "set_hvac_mode", "set_fan_mode",
-                "set_preset_mode", "set_swing_mode", "set_swing_horizontal_mode", "set_humidity"},
-    "humidifier": {"turn_on", "turn_off", "toggle", "set_humidity", "set_mode"},
-    "water_heater": {"turn_on", "turn_off", "set_temperature", "set_operation_mode"},
-    "valve": {"open_valve", "close_valve", "stop_valve", "toggle", "set_valve_position"},
-    "siren": {"turn_on", "turn_off", "toggle"},
-    # Lecteurs. Sans media_player.play_media ni join : la musique passe par jouer_musique (Music Assistant),
-    # et group_members désigne d'autres lecteurs dans les données, hors de la vue de securite.verifier.
-    "media_player": {"turn_on", "turn_off", "toggle", "media_play", "media_pause", "media_play_pause", "media_stop",
-                     "media_next_track", "media_previous_track", "media_seek", "volume_set", "volume_mute",
-                     "volume_down", "select_source", "select_sound_mode", "shuffle_set", "repeat_set",
-                     "clear_playlist", "unjoin"},
-    "music_assistant": {"play_media", "play_announcement"},
-    # Robots, tondeuses, caméras. Sans camera.snapshot, record ni play_stream, qui écrivent un fichier ou
-    # visent un autre lecteur.
-    "vacuum": {"start", "pause", "stop", "return_to_base", "locate", "clean_spot", "set_fan_speed"},
-    "lawn_mower": {"start_mowing", "pause", "dock"},
-    "camera": {"turn_on", "turn_off", "enable_motion_detection", "disable_motion_detection"},
-    # Scènes, scripts, automatisations. Sans scene.apply ni scene.create, qui posent l'état d'entités quelconques,
-    # et sans reload.
-    "scene": {"turn_on"},
-    "script": {"turn_on", "turn_off", "toggle"},
-    "automation": {"turn_on", "turn_off", "toggle", "trigger"},
-    # Entrées et réglages créés dans HA. Sans input_select.set_options (modifie la liste du choix).
-    "input_boolean": {"turn_on", "turn_off", "toggle"},
-    "input_number": {"set_value", "increment", "decrement"},
-    "input_select": {"select_option", "select_first", "select_last", "select_next", "select_previous"},
-    "input_text": {"set_value"},
-    "input_datetime": {"set_datetime"},
-    "input_button": {"press"},
-    "button": {"press"},
-    "number": {"set_value"},
-    "text": {"set_value"},
-    "timer": {"start", "pause", "cancel", "finish", "change"},
-    "counter": {"increment", "decrement", "reset", "set_value"},
-    # Réglages fins de la télé téléviseur et des lampes (0.30.0) : pour l'appli et la passerelle, jamais pour le LLM
-    # (DOMAINES_HORS_LLM : hors enum de l'outil, hors contexte, refusés à l'appel). Sans remote.learn_command ni
-    # delete_command, qui écrivent la mémoire de la télécommande.
-    "domaine_tele": {"launch_app", "send_text_input", "set_picture_setting"},
-    "remote": {"send_command", "turn_on", "turn_off", "toggle"},
-    "select": {"select_option", "select_first", "select_last", "select_next", "select_previous"},
-}
-DOMAINES_HORS_LLM = {"domaine_tele", "remote", "select"}
-# Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
-# quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
-if not securite.plafond_actif():
-    SERVICES_PERMIS["media_player"].add("volume_up")
+# Services de Home Assistant permis : la table et ses listes d'exclusion vivent dans liste_blanche.py (0.41.0),
+# lues aussi par la passerelle de l'appli (acces.controler_service). Importées en tête de fichier.
 # Ce que le LLM voit dans la liste d'appareils, et le seul périmètre de ses appels (26/10/2026, D6) : la table
 # s'élargit, pas la vue du LLM. Les entités des domaines ajoutés grossiraient le prompt de Qwen 9B sans mesure
 # sur la vraie maison, et il ne peut viser que ce qu'il voit (HomeAssistant.service refuse le reste). Pour
@@ -180,55 +121,6 @@ def services_depuis_ha(liste):
                 continue
             trouves.setdefault(domaine, set()).add(nom)
     return trouves
-
-
-# Domaines d'administration ou de communication : jamais ajoutés d'après HA.
-DOMAINES_ADMIN = {"update", "tts", "stt", "conversation", "assist_satellite", "backup", "cloud", "config", "mqtt",
-                  "zha", "zwave_js", "matter", "mobile_app", "ios", "device_tracker", "person", "logbook", "logger",
-                  "file", "ffmpeg", "hardware", "websocket_api", "frontend", "browser"}
-# Noms de service qui écrivent, créent, suppriment ou installent, quel que soit le domaine.
-NOMS_ECARTES = {"install", "skip", "clear_skipped", "snapshot", "record", "learn_command", "delete_command",
-                "set_options", "apply", "create", "remove", "delete", "set_usercode", "clear_usercode"}
-# Services écartés un par un : la musique a son propre chemin, et join désigne d'autres lecteurs.
-SERVICES_ECARTES = {"media_player.play_media", "media_player.join", "camera.play_stream"}
-
-
-def _cible_son_domaine(domaine, cible):
-    """Vrai si la cible du service est « entity » filtrée sur ce domaine ou sur l'intégration de ce nom."""
-    if not isinstance(cible, dict):
-        return False
-    filtres = cible.get("entity")
-    if isinstance(filtres, dict):
-        filtres = [filtres]
-    if not isinstance(filtres, list):
-        return False
-    for f in filtres:
-        if not isinstance(f, dict):
-            continue
-        domaines = f.get("domain")
-        domaines = [domaines] if isinstance(domaines, str) else (domaines if isinstance(domaines, list) else [])
-        if domaine in domaines or f.get("integration") == domaine:
-            return True
-    return False
-
-
-# Sélecteurs de HA qui désignent un appareil, une pièce, un étage ou une étiquette dans les données d'un service.
-SELECTEURS_VERS_UN_APPAREIL = {"entity", "device", "area", "floor", "label", "target", "config_entry"}
-
-
-def _champ_vers_un_appareil(champs):
-    """Vrai si un champ du service (hors entity_id, la cible vérifiée) désigne d'autres appareils."""
-    if not isinstance(champs, dict):
-        return False
-    for nom, champ in champs.items():
-        if nom == "entity_id" or not isinstance(champ, dict):
-            continue
-        selecteur = champ.get("selector")
-        if isinstance(selecteur, dict) and SELECTEURS_VERS_UN_APPAREIL & set(selecteur):
-            return True
-        if "entity_id" in str(nom) or str(nom).endswith(("_entity_id", "_device_id", "_area_id")):
-            return True
-    return False
 
 
 # Valeurs sûres d'un moteur sans poc/.env (0.36.0) : le micro est le périphérique d'entrée par défaut du système,
@@ -1218,15 +1110,28 @@ class Cerveau:
         import httpx
         self.cfg, self.ha = cfg, ha
         self.client = httpx.Client(timeout=60)
-        # Une conversation par personne et par appareil (0.28.0) : « éteins-la » de l'un ne vise jamais
-        # ce dont parlait l'autre, même quand deux commandes se croisent.
+        # Une conversation par appareil de la session et par personne (0.28.0, resserré en 0.41.0) : « éteins-la »
+        # de l'un ne vise jamais ce dont parlait l'autre, même quand deux commandes se croisent.
         self.historiques = {}  # clé -> (heure du dernier échange, messages)
         self.dernieres_actions = []  # actions réussies de la dernière réponse, au format du dictionnaire
 
     @staticmethod
     def cle_conversation():
+        """(personne, appareil) de la requête en cours, tels que la session les a posés (Assistant.requete) :
+        l'appareil est l'identité appairée du téléphone ou de la tablette, la personne vient d'acces.personne_effective.
+        Jamais le texte du message. Hors requête : (None, None)."""
         r = REQUETE.get()
         return (r.personne, r.appareil) if r else (None, None)
+
+    @staticmethod
+    def cle_historique():
+        """Clé de l'historique du LLM, ou None quand la requête n'a pas d'identité d'appareil (0.41.0) : sans
+        identité, rien n'est gardé d'une demande à l'autre, puisqu'une clé vide serait partagée par toutes les
+        demandes anonymes."""
+        personne, appareil = Cerveau.cle_conversation()
+        if not appareil:
+            return None
+        return (personne, appareil)
 
     @property
     def indication_personne(self):
@@ -1236,12 +1141,17 @@ class Cerveau:
 
     @property
     def historique(self):
-        t, messages = self.historiques.get(self.cle_conversation(), (0.0, []))
+        cle = self.cle_historique()
+        if cle is None:
+            return []
+        t, messages = self.historiques.get(cle, (0.0, []))
         return [] if time.time() - t > 120 else messages  # conversation oubliée après 2 min de silence
 
     @historique.setter
     def historique(self, messages):
-        self.historiques[self.cle_conversation()] = (time.time(), list(messages)[-6:])
+        cle = self.cle_historique()
+        if cle is not None:
+            self.historiques[cle] = (time.time(), list(messages)[-6:])
 
     def executer_outil(self, nom, args, texte, noms, actions, musiques):
         """Aiguillage fermé : seul un outil de la liste du tour s'exécute, tout autre nom reçoit

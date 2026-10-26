@@ -4,6 +4,24 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.41.0 (2026-10-26), historique par appareil et liste blanche commune
+Session S-F5 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.41.0.
+- L'historique du LLM est tenu par appareil : la clé (`Cerveau.cle_historique`) est `(personne, appareil)` tirés du
+  contexte de requête, donc de la session, jamais d'un nom écrit dans le message. Une requête sans identité d'appareil
+  n'a plus d'historique persistant (le micro local du PC, sans appareil, ne garde donc rien d'une demande à l'autre).
+  « Qu'est-ce qu'on t'a demandé juste avant » ne rend que les phrases du même appareil.
+- Liste blanche commune : nouveau module `poc/liste_blanche.py`, seule copie de `SERVICES_PERMIS`,
+  `DOMAINES_HORS_LLM`, des domaines d'administration et des services écartés. `assistant.py` la réexporte.
+- Nouvelle section facultative `reglages` de `maison.json` (clés `applis`, `interrupteurs`, `attributs_refuses`),
+  lue par `liste_blanche.refus_reglage`, appelée par `acces.controler_service` : les deux voies (LLM et passerelle de
+  l'appli) donnent donc la même réponse sur les mêmes cas. Clé absente, règle inactive. L'exemple ouvre cinq applis.
+- La passerelle applique aussi la table des services aux trois domaines réservés à l'appli (`domaine_tele`,
+  `remote`, `select`) : `domaine_tele.reboot` ou `remote.learn_command` y sont refusés comme par le LLM.
+- `securite.py`, `Securite.kt` et `cas_securite.json` sont inchangés : `device_id`, domaines interdits (serrure,
+  alarme) et liste blanche sont intacts.
+- Tests : `test_historique_appareil.py` (historique par appareil, personne annoncée) et
+  `test_liste_blanche_commune.py` (parité des deux filtres). Documentation : `docs/ARCHITECTURE.md`.
+
 ## Serveur 0.40.0 (2026-10-26), contexte de requête et point de contrôle unique
 Session S-F4 du plan 1.2.0. Appli Android 0.38.1 (versionCode 73, `Securite.kt` seul), appli Home Assistant 0.40.0.
 - Contexte de requête (`REQUETE`, existant depuis la 0.28.0) complété : `Requete` porte aussi le `role` (pris de
