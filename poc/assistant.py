@@ -49,7 +49,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.36.2"
+VERSION = "0.36.3"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -278,6 +278,19 @@ def annoncer_repli_reveil():
     if r.repli:
         print(f"  {r.repli}")
     return r
+
+
+def prononciation_reveil():
+    """Couple (texte, langue) à faire dire par une voix de synthèse pour déclencher le mot de réveil réellement
+    guetté (outils de test dire.py et faux_telephone.py). Même source que le serveur : reglage_reveil().
+    Langue « en » pour le modèle de repli (« Hey Jarvis » se prononce à l'anglaise) et pour un mot dont
+    `reveil.langue` commence par « en », « fr » sinon (« fr », « français », ou langue non renseignée)."""
+    r = reglage_reveil()
+    if r.modele == MODELE_REPLI:
+        return f"{r.nom}!", "en"
+    section = maison.CONFIG.get("reveil")
+    langue = str(section.get("langue") or "").strip().lower() if isinstance(section, dict) else ""
+    return f"{r.nom}!", "en" if langue.startswith("en") else "fr"
 
 
 class Reveil:

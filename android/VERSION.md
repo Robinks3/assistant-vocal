@@ -6,6 +6,17 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.5 (2026-10-26), dossier de compilation par système, signature facultative
+Session S-D4 du plan 1.2.0 (versionCode 71). Le numéro 0.37.4 est réservé à S-D1, menée en parallèle. Aucun
+changement de comportement de l'appli.
+- `build.gradle.kts` (racine) : le dossier de compilation `C:/Dev/assistant-vocal-build` n'est plus imposé qu'à Windows
+  (Defender et Windows Search). Ailleurs, chaque module garde son dossier `build/` standard, ignoré par git.
+  `-PdossierBuild=...` reste possible partout. Le paramètre n'est plus obligatoire hors de Windows.
+- `app/build.gradle.kts` : signature de publication facultative. Si `android/keystore.properties` existe (ignoré
+  par git, jamais versionné), la variante release est signée avec les clés `storeFile`, `storePassword`,
+  `keyAlias` et `keyPassword`, et la compilation s'arrête si l'une manque. Sans le fichier, rien ne change. Aucun
+  secret dans le dépôt ni dans un script.
+- `outils/pousser_canary.sh` : installe une version d'essai par `adb`, voir `docs/INSTALLER.md`.
 ## 0.37.4 (2026-10-26), heures calmes qui passent minuit
 Session S-D1 du plan 1.2.0 (versionCode 70). La règle des heures calmes reste coupée (`HEURE_CALME_ACTIVE` à
 `false`), seul son calcul change.

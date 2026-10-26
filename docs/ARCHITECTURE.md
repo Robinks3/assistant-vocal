@@ -98,7 +98,7 @@ la tâche `copierReveil` copie `reveil/<mot>.onnx` et sa licence, et `SATELLITE_
 
 | Fichier | Rôle |
 |---|---|
-| `jarvis/config.yaml` | Manifeste de l'appli `local_jarvis` : version, `arch: amd64`, ports 8765 et 8766, options (`anthropic_api_key`, `satellite_jeton`, `essai`, `ancien_acces`, `stt_api_*`) |
+| `jarvis/config.yaml` | Manifeste de l'appli `local_jarvis` : version, `arch: amd64` et `aarch64`, ports 8765 et 8766, options (`anthropic_api_key`, `satellite_jeton`, `essai`, `ancien_acces`, `stt_api_*`) |
 | `jarvis/Dockerfile`, `jarvis/requirements.txt` | Image `python:5.12-slim`, sans OpenCV ni modèle de transcription |
 | `jarvis/app/demarrage.py` | Options vers variables : `JARVIS_PROFIL=ha`, `JARVIS_DONNEES=/data`, `ASSISTANT_VOCAL_CONFIG=/app/config`, `HA_URL=http://supervisor/core`, jeton du superviseur, `LLM_FOURNISSEUR=claude`, puis lance `serveur_satellite.py` |
 | `deployer.sh` | Copie les modules de `poc/`, `maison.json`, `commandes.yaml`, Silero et les phrases apprises, puis les pousse par SSH (`reseau.ssh_ha`) dans `/local_apps/jarvis` |

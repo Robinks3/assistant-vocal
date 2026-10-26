@@ -1,5 +1,6 @@
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Properties
 import java.util.TimeZone
 
 plugins {
@@ -8,7 +9,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.37.4"
+val versionApplication = "0.37.5"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -124,6 +125,22 @@ fun reseauMaison(cle: String): String = ((maison["reseau"] as? Map<*, *>)?.get(c
 // Plus de jeton Home Assistant dans l'APK depuis la 0.15.0 : le mode « Cet appareil » passe par
 // la passerelle de l'app Jarvis sur HA, qui garde son propre jeton (voir PasserelleHa.kt).
 
+// Signature de publication facultative : android/keystore.properties (ignoré par git, voir docs/INSTALLER.md).
+// Le fichier n'est lu que s'il existe, et seules ses quatre clés sont retenues. Si une clé manque, la
+// compilation s'arrête avec un message clair plutôt que de produire une APK mal signée.
+val proprietesSignature = Properties().apply {
+    val fichier = rootProject.file("keystore.properties")
+    if (fichier.exists()) fichier.inputStream().use { load(it) }
+}
+val signatureFournie: Boolean = rootProject.file("keystore.properties").exists()
+if (signatureFournie) {
+    val manquantes = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        .filter { proprietesSignature.getProperty(it).isNullOrBlank() }
+    if (manquantes.isNotEmpty()) {
+        throw GradleException("android/keystore.properties : clé(s) manquante(s) ${manquantes.joinToString(", ")}.")
+    }
+}
+
 fun chaineJava(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
@@ -137,7 +154,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 70
+        versionCode = 71
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
@@ -161,9 +178,24 @@ android {
         }
     }
 
+    // Signature de publication : seulement si android/keystore.properties existe (ignoré par git, jamais
+    // versionné). Clés attendues : storeFile (chemin du fichier de clés), storePassword, keyAlias, keyPassword.
+    // Sans ce fichier, la variante release reste non signée et debug garde la clé de débogage d'Android.
+    if (signatureFournie) {
+        signingConfigs {
+            create("publication") {
+                storeFile = rootProject.file(proprietesSignature.getProperty("storeFile"))
+                storePassword = proprietesSignature.getProperty("storePassword")
+                keyAlias = proprietesSignature.getProperty("keyAlias")
+                keyPassword = proprietesSignature.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (signatureFournie) signingConfig = signingConfigs.getByName("publication")
         }
     }
 

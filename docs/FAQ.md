@@ -125,10 +125,10 @@ Configuration de la maison illisible (<dossier>/maison.json) : <détail>
 `maison.json` n'est pas du JSON valide. Le détail donne la ligne fautive. Une virgule en trop en fin de
 liste est l'erreur la plus courante.
 
-### Sous Linux ou macOS, la compilation part dans un dossier étrange
+### Où la compilation Android écrit-elle ses fichiers
 
-Passez `-PdossierBuild="$HOME/assistant-vocal-build"` : le dossier de compilation par défaut, `C:/Dev/assistant-vocal-build`,
-n'a de sens que sous Windows.
+Sous Windows, dans `C:/Dev/assistant-vocal-build`, hors du dépôt. Sous Linux ou macOS, dans le dossier `build/`
+habituel de Gradle. `-PdossierBuild=<chemin>` impose un autre dossier dans les deux cas.
 
 ### L'APK compilée ne s'installe pas
 
@@ -491,8 +491,8 @@ absent de `~/.ssh/config`, ou une appli SSH qui refuse la clé.
 
 Le script copie l'appli dans `/local_apps/jarvis`. Dans Home Assistant, demandez une recherche de mises
 à jour dans la boutique des applis pour faire apparaître les applis locales. Si votre appli SSH range
-les applis locales ailleurs, adaptez le chemin dans `ha-app/deployer.sh`. L'appli n'est déclarée que pour
-`amd64` : un Home Assistant sur Raspberry Pi ne la propose pas.
+les applis locales ailleurs, adaptez le chemin dans `ha-app/deployer.sh`. L'appli est déclarée pour
+`amd64` et `aarch64`, un Home Assistant sur Raspberry Pi la propose donc aussi.
 
 ### Le journal de l'appli dit ABSENT
 
@@ -670,11 +670,12 @@ panne : la configuration doit en tenir compte.
   dictionnaire ne connaît pas part directement au LLM.
 - La copie du modèle de transcription Canary sur la tablette n'a pas d'outil. Elle se fait à la main par
   `adb push` dans le dossier de l'appli.
-- L'APK n'a pas de signature de publication : elle se signe avec la clé de débogage d'Android Studio.
+- Sans `android/keystore.properties`, l'APK se signe avec la clé de débogage d'Android Studio. Avec ce
+  fichier (voir la section Signature de `INSTALLER.md`), `assembleRelease` signe avec votre clé.
 
 ### Appli Home Assistant
 
-- Elle n'est déclarée que pour `amd64` : un Home Assistant sur Raspberry Pi ne la propose pas.
+- Elle est déclarée pour `amd64` et `aarch64`. Le démarrage n'a été essayé que sur `amd64`.
 - `ha-app/deployer.sh` ne copie pas le dossier `reveil/` de la configuration, et les options de l'appli
   n'ont ni `CLAUDE_MODELE` ni de jeton `SATELLITE_JETON_<NOM>` pour un second téléphone.
 

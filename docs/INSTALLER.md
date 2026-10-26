@@ -6,14 +6,15 @@ Python, la configuration de la maison, les secrets, la liaison chiffrée, l'appl
 PC, l'appli Home Assistant, les vérifications, puis la mise à jour. Une variante sans PC puissant est
 décrite à la fin.
 
-Versions décrites : serveur 0.33.0 (`poc/assistant.py`, `ha-app/jarvis/config.yaml`), appli Android
-0.35.0 (`android/app/build.gradle.kts`). Le détail de chaque fichier de configuration est dans
+Versions décrites : serveur 0.36.3 (`poc/assistant.py`, `ha-app/jarvis/config.yaml`), appli Android
+0.37.5 (`android/app/build.gradle.kts`). Le détail de chaque fichier de configuration est dans
 [`CONFIGURER.md`](CONFIGURER.md), le dépannage dans [`FAQ.md`](FAQ.md).
 
 Toutes les commandes se lancent depuis la racine du dépôt, sauf mention contraire. Les commandes Windows
 sont écrites pour PowerShell. Les variantes Linux et macOS sont données quand elles sont simples, mais
-le dépôt n'a été mené jusqu'au bout que sous Windows : les scripts `.bat` et `.ps1`, le dossier de
-compilation par défaut `C:/Dev/assistant-vocal-build` et le lanceur du LLM local sont propres à Windows.
+le dépôt n'a été mené jusqu'au bout que sous Windows : les scripts `.bat` et `.ps1` et le lanceur du
+LLM local sont propres à Windows. Le dossier de compilation par défaut `C:/Dev/assistant-vocal-build` ne vaut que
+sous Windows, ailleurs Gradle écrit dans `android/build/` comme d'habitude.
 
 ## Sommaire
 
@@ -83,7 +84,7 @@ SFace par OpenCV), et en option le relais santé, la météo marine, le vent mes
 | Musique | Facultative. Le code appelle `music_assistant.play_media` et `music_assistant.search` (intégration Music Assistant), et décrit les enceintes Enceintes natives derrière chaque lecteur. Sans enceinte « toutes » dans `appareils.musique`, les commandes de musique sont refusées proprement. |
 | Applis Wyoming | Facultatives : Speech-to-Phrase, Piper et openWakeWord (Whisper pour essai). Le serveur les joint sous les noms `core-speech-to-phrase:10300`, `core-piper:10200`, `core-openwakeword:10400` et `core-whisper:10300`. Elles sont nécessaires à l'appli Home Assistant de l'assistant (profil sans modèle local) et au choix de transcription « Sur Home Assistant ». |
 | Appli SSH | Pour `ha-app/deployer.sh` et `ha-app/configurer-options.py` : une session SSH sur Home Assistant qui dispose de `tar`, `curl`, `nc` et de la variable `SUPERVISOR_TOKEN`. |
-| Processeur | L'appli Home Assistant de l'assistant n'est déclarée que pour `amd64` (`ha-app/jarvis/config.yaml`). Un Home Assistant sur Raspberry Pi (`aarch64`) ne peut pas l'installer telle quelle. |
+| Processeur | L'appli Home Assistant de l'assistant est déclarée pour `amd64` et `aarch64` (`ha-app/jarvis/config.yaml`), donc un Home Assistant sur Raspberry Pi peut l'installer. L'image de base `python:5.12-slim` existe pour les deux. Les dépendances Python du profil `ha` sont pures ou fournissent une roue `aarch64`, mais le démarrage n'a pas été essayé sur une carte ARM : vérifiez le journal de l'appli au premier lancement. |
 
 ## 2. Récupérer le moteur et activer le garde-fou
 
@@ -225,7 +226,7 @@ jamais le mêler au moteur. Adaptez ensuite chaque fichier en suivant [`CONFIGUR
 | `config/maison.json` | Adresses, fuseau, propriétaire, appareils, consignes du LLM, alias exposés à Assist, listes de sécurité, et en option `mer`, `vent` et `reveil`. Le champ `_lisez_moi` décrit chaque section. |
 | `config/commandes.yaml` | Dictionnaire des phrases et des actions Home Assistant. |
 | `config/carte/` | Plan du logement : `pieces.json`, `meubles.json`, `lampes.json`. |
-| `config/reveil/` | Facultatif : modèle du mot de réveil `<mot>.onnx` et sa licence `<mot>.onnx.LICENSE`. |
+| `config/reveil/` | Facultatif : modèle du mot de réveil `<mot>.onnx` et sa licence `<mot>.onnx.LICENSE`. Sans le modèle du mot réglé dans `reveil.mot`, le serveur se replie sur le modèle Hey Jarvis en le disant au journal. `deployer.sh` ne copie pas ce dossier : sur Home Assistant, le réveil passe par l'appli openWakeWord. |
 | `config/genere/` | Fichiers produits pour l'appli, à refaire quand la source change. |
 
 Pour garder la configuration ailleurs, réglez `ASSISTANT_VOCAL_CONFIG` dans l'environnement du terminal,
@@ -330,14 +331,16 @@ Pour inventer un jeton de satellite solide :
 ```
 
 Ajoutez une ligne `SATELLITE_JETON_<NOM>=...` par personne qui aura sa propre APK (voir `-Putilisateur` à
-l'étape 7). Supprimer la ligne d'une personne lui coupe l'accès au prochain démarrage du serveur.
+l'étape 7). Le serveur déduit la clé de la personne du nom en minuscules, `SATELLITE_JETON_CAMILLE` donnant
+`camille`, et ignore sans le dire toute valeur de moins de 16 caractères. Supprimer la ligne d'une personne
+lui coupe l'accès au prochain démarrage du serveur.
 
 ### Variables lues par le code mais absentes du modèle
 
 | Variable | Rôle | Défaut | Où la régler |
 |---|---|---|---|
-| `SATELLITE_JETON_<NOM>` | Jeton fixe d'une autre personne | aucun | `poc/.env` |
-| `CLAUDE_MODELE` | Modèle Claude du repli | `claude-haiku-5-5` | `poc/.env` |
+| `SATELLITE_JETON_<NOM>` | Jeton fixe d'une autre personne, au moins 16 caractères. `<NOM>` est le nom de `-Putilisateur` en majuscules | aucun | `poc/.env`. L'appli Home Assistant n'a qu'une option `satellite_jeton`, celle du propriétaire. |
+| `CLAUDE_MODELE` | Modèle Claude du repli (`LLM_FOURNISSEUR=claude`), identifiant de l'API d'Anthropic | `claude-haiku-5-5` | `poc/.env`. L'appli Home Assistant n'a pas d'option pour lui et garde le défaut. |
 | `VOIX` | Fichier de la voix Piper du PC | `poc/voix/fr_FR-siwis-medium.onnx` | `poc/.env` |
 | `SEUIL_REVEIL` | Score du mot de réveil, de 0 à 1 | `0.5` | `poc/.env`. Écrit par le calibrage guidé. |
 | `STT_API_URL` | Adresse de la transcription en ligne | `https://api.mistral.ai/v1/audio/transcriptions` | `poc/.env` |
@@ -513,16 +516,22 @@ cd android
 ```
 
 ```bash
-./gradlew assembleDebug -PdossierBuild="$HOME/assistant-vocal-build"
+./gradlew assembleDebug
 ```
 
-Le dossier de compilation est écrit hors du dépôt, par défaut dans `C:/Dev/assistant-vocal-build` (pour éviter
-les blocages de l'antivirus quand le dépôt est sous Documents). L'option `-PdossierBuild` en choisit un
-autre, et elle est indispensable hors de Windows, où le chemin par défaut n'a pas de sens. L'APK de
-débogage est alors dans :
+Sous Windows, le dossier de compilation est écrit hors du dépôt, par défaut dans `C:/Dev/assistant-vocal-build`
+(pour éviter les blocages de l'antivirus quand le dépôt est sous Documents). Ailleurs, sans option, Gradle
+utilise le dossier habituel `android/build/` et `app/build/`. L'option `-PdossierBuild` impose un dossier
+dans les deux cas, elle n'est obligatoire nulle part. L'APK de débogage est alors dans :
 
 ```text
 <dossierBuild>/SatelliteJarvis-app/outputs/apk/debug/app-debug.apk
+```
+
+ou, sans dossier de compilation imposé hors de Windows :
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Autres propriétés utiles :
@@ -531,7 +540,7 @@ Autres propriétés utiles :
 |---|---|
 | `-Putilisateur=camille` | APK d'une autre personne : jeton `SATELLITE_JETON_CAMILLE` de `poc/.env`, version suffixée `-camille`. Lettres minuscules, chiffres et `_` seulement. |
 | `-PconfigDossier=<chemin>` | Dossier de configuration, prioritaire sur `ASSISTANT_VOCAL_CONFIG`. |
-| `-PdossierBuild=<chemin>` | Dossier de compilation. |
+| `-PdossierBuild=<chemin>` | Dossier de compilation. Sans lui : `C:/Dev/assistant-vocal-build` sous Windows, `build/` standard ailleurs. |
 | `-PmaisonTests=reel` | Tests unitaires sur la vraie configuration au lieu de `config-exemple/` (les cas écrits pour l'exemple y échouent, c'est attendu). |
 
 L'APK contient le jeton du satellite et la configuration de la maison : ne la faites pas circuler.
@@ -541,10 +550,22 @@ L'APK contient le jeton du satellite et la configuration de la maison : ne la fa
 `assembleDebug` signe l'APK avec la clé de débogage qu'Android Studio crée sur la machine. C'est le
 chemin prévu par le dépôt.
 
-Le dépôt ne déclare aucune signature de publication : `assembleRelease` produit une APK non signée, qui
-ne s'installe pas. Pour une version signée, créez votre propre keystore hors du dépôt et signez l'APK
-avec `apksigner` du SDK. Les fichiers `*.jks`, `*.keystore` et `keystore.properties` sont ignorés par git
-et refusés par le garde-fou. Passer d'une signature à une autre oblige à désinstaller l'appli, ce qui
+Pour une version signée avec votre propre clé, créez un keystore hors du dépôt et décrivez-le dans
+`android/keystore.properties`, un fichier ignoré par git et refusé par le garde-fou, qui n'existe pas
+dans le dépôt :
+
+```properties
+storeFile=C\:\\Cles\\assistant.jks
+storePassword=<mot de passe du keystore>
+keyAlias=<alias de la clé>
+keyPassword=<mot de passe de la clé>
+```
+
+`storeFile` est un chemin absolu, ou relatif au dossier `android/`. Quand le fichier existe, `assembleRelease`
+signe l'APK avec cette clé. Les quatre clés sont obligatoires, et Gradle s'arrête en nommant celle qui manque.
+Sans le fichier, rien ne change : `assembleDebug` garde la clé de débogage et `assembleRelease` produit une
+APK non signée, qui ne s'installe pas. Les fichiers `*.jks` et `*.keystore` sont eux aussi ignorés par git.
+Passer d'une signature à une autre oblige à désinstaller l'appli, ce qui
 efface ses réglages, la clé retenue du serveur, le jeton d'appairage et les visages enregistrés
 (l'appli interdit la sauvegarde Android).
 
@@ -562,6 +583,21 @@ Installez ou remplacez l'appli :
 ```powershell
 adb install -r C:\Dev\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debug\app-debug.apk
 ```
+
+### Version d'essai par adb
+
+`android/outils/pousser_canary.sh` pose une version d'essai sur un appareil branché. Il prend l'appareil
+tel que `adb devices` le nomme et, facultativement, le chemin d'une APK. Sans chemin, il prend l'APK de
+débogage de la dernière compilation : celle du dossier de compilation sous Windows, sinon
+`android/app/build/outputs/apk/debug/app-debug.apk`.
+
+```bash
+bash android/outils/pousser_canary.sh <appareil adb>
+```
+
+Le script ne compile rien, ne contient aucun secret et ne lit ni `poc/.env` ni `local.properties` : l'adresse
+du serveur et le jeton du satellite sont déjà dans l'APK. Il lance `adb install -r`, qui garde les réglages
+de l'appli, puis affiche la version installée. La variable `ADB` désigne un `adb` hors du `PATH`.
 
 ### Premier lancement et permissions
 
@@ -774,7 +810,9 @@ bash ha-app/deployer.sh
 Le script copie le code de `poc/`, `maison.json` et `commandes.yaml` de la configuration, le modèle Silero
 et, s'il existe, `poc/commandes_apprises.yaml` comme graine, dans `/local_apps/jarvis`. Il refuse de
 partir sans configuration réelle, pour ne jamais déployer les listes fictives de l'exemple. Le dossier
-`reveil/` n'est pas copié : l'appli Home Assistant n'annonce que « Hey Jarvis ».
+`reveil/` n'est pas copié : l'appli Home Assistant n'a donc aucun modèle de mot de réveil de la
+configuration. Elle se replie sur Hey Jarvis, que l'appli openWakeWord de Home Assistant sait guetter, et le
+journal de l'appli le dit au démarrage. Un autre mot se guette sur la tablette, avec le modèle compilé dans l'APK.
 
 ### Installation dans Home Assistant
 
@@ -855,12 +893,16 @@ cd android
 ```
 
 ```powershell
-.\gradlew.bat testDebugUnitTest -PdossierBuild=C:/Dev/assistant-vocal-build
+.\gradlew.bat testDebugUnitTest
 ```
 
 ```bash
-./gradlew testDebugUnitTest -PdossierBuild="$HOME/assistant-vocal-build"
+./gradlew testDebugUnitTest
 ```
+
+Sans `-PdossierBuild`, la compilation se fait dans `C:/Dev/assistant-vocal-build` sous Windows et dans `build/`
+ailleurs. Ajoutez `-PdossierBuild=<chemin>` pour la placer ailleurs, par exemple à côté d'une autre copie
+du dépôt qui compile en même temps.
 
 ### Serveur en essai sur la configuration d'exemple
 
@@ -990,7 +1032,7 @@ Cette variante se passe de PC allumé en permanence et de carte graphique. Le PC
 
 | Pièce | Où elle tourne |
 |---|---|
-| Home Assistant | Une petite machine `amd64` (l'appli de l'assistant n'existe pas pour `aarch64`). |
+| Home Assistant | Une petite machine `amd64` ou `aarch64` (Raspberry Pi 4 ou 5). |
 | Serveur de l'assistant | L'appli Home Assistant, profil `ha` : aucun modèle local lourd. |
 | Mot de réveil | Sur la tablette (« Sur cet appareil »), ou par l'appli openWakeWord de Home Assistant. |
 | Transcription | Speech-to-Phrase de Home Assistant, et en option un service en ligne. Ou Canary sur la tablette si elle en a la mémoire. |

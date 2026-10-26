@@ -81,3 +81,27 @@ def test_mot_avec_chemin_refuse(monkeypatch, tmp_path):
     """Un mot qui sort du dossier reveil/ (../) n'ouvre jamais un fichier : repli."""
     _configuration(monkeypatch, tmp_path, {"mot": "../secret"})
     assert A.modele_reveil() == ("hey_jarvis", "Hey Jarvis")
+
+
+# Outils de test dire.py et faux_telephone.py (0.36.3) : ils disent le mot réellement guetté, plus « Hey Jarvis » en dur.
+def test_prononciation_repli_hey_jarvis_a_l_anglaise(monkeypatch, tmp_path):
+    _configuration(monkeypatch, tmp_path, {"mot": "assistant", "nom": "Assistant", "langue": "fr"})
+    monkeypatch.delenv("MOT_REVEIL", raising=False)
+    assert A.prononciation_reveil() == ("Hey Jarvis!", "en")  # modèle absent : on déclenche le repli, en anglais
+
+
+def test_prononciation_du_mot_configure_dans_sa_langue(monkeypatch, tmp_path):
+    monkeypatch.delenv("MOT_REVEIL", raising=False)
+    _configuration(monkeypatch, tmp_path, {"mot": "assistant", "nom": "Assistant", "langue": "fr"}, ["assistant"])
+    assert A.prononciation_reveil() == ("Assistant!", "fr")
+    _configuration(monkeypatch, tmp_path, {"mot": "assistant", "nom": "Assistant", "langue": "français"}, ["assistant"])
+    assert A.prononciation_reveil() == ("Assistant!", "fr")
+    _configuration(monkeypatch, tmp_path, {"mot": "assistant", "nom": "Assistant"}, ["assistant"])
+    assert A.prononciation_reveil() == ("Assistant!", "fr")  # langue non renseignée : français
+    _configuration(monkeypatch, tmp_path, {"mot": "assistant", "nom": "Assistant", "langue": "en"}, ["assistant"])
+    assert A.prononciation_reveil() == ("Assistant!", "en")
+
+
+def test_prononciation_hey_jarvis_choisi_explicitement(monkeypatch, tmp_path):
+    _configuration(monkeypatch, tmp_path, {"mot": "hey_jarvis", "langue": "fr"})
+    assert A.prononciation_reveil() == ("Hey Jarvis!", "en")
