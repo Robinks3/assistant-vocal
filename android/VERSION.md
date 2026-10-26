@@ -6,6 +6,17 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.37.3 (2026-10-26), titre de la page Mer, mot de réveil de l'exemple
+Session S-D3 du plan 1.2.0.
+- `MeteoMer.kt` : le titre par défaut de la page Mer est `titre`, sinon `nom`, de la section `mer`, sinon « Mer »
+  (point laissé par S-D2).
+- C14 : recherche d'un prénom ou d'un « Hey Jarvis » en dur dans `java/assistant/vocal/jarvis/` et `res/` qui devrait suivre
+  la configuration. Rien à faire : les seuls textes affichés sont le nom du modèle de repli (« Hey Jarvis », le nom
+  réel de ce modèle) et le mot annoncé par le serveur, et les prénoms ne figurent que dans des commentaires.
+  `assistant.vocal.jarvis` et les noms de fichiers ne changent pas.
+- `ReveilConfigTest` : `config-exemple/` décrit maintenant le mot « assistant » (nom « Assistant »), « Hey Jarvis »
+  reste le modèle de repli.
+
 ## 0.37.2 (2026-10-26), commentaires sans référence à un projet tiers
 Session S-C4 du plan 1.2.0. Aucun changement visible.
 - `Reconnaissance.kt` et `SatelliteService.kt` ne citent plus de projet tiers dans leurs commentaires.

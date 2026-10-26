@@ -1,8 +1,8 @@
 """Serveur des satellites vocaux (téléphone téléphone posé dans un coin).
 
 Le téléphone envoie le son de son micro en continu (PCM 16 bits, 16 kHz, mono) par WebSocket.
-Le serveur guette le mot de réveil (openWakeWord, section reveil, sinon modèle hey_jarvis), découpe la phrase qui suit,
-la passe dans la chaîne du POC (Canary, dictionnaire, HA, LLM) et renvoie la réponse en WAV
+Le serveur guette le mot de réveil (openWakeWord, section reveil de maison.json, sinon le modèle de repli),
+découpe la phrase qui suit, la passe dans la chaîne du POC (Canary, dictionnaire, HA, LLM) et renvoie la réponse en WAV
 (voix Piper). Le téléphone la joue, puis signale la fin de lecture pour que le serveur se
 remette à écouter sans se déclencher sur sa propre voix.
 
@@ -146,6 +146,7 @@ class Moteur:
             self.stt = A.Transcripteur()
             self.voix = A.Voix(cfg["voix"], "")
             print(f"  transcription et voix chargées en {time.perf_counter() - t:.1f} s")
+            A.annoncer_repli_reveil()  # modèle du mot de réveil absent : repli sur le modèle de secours, dit au journal
         else:
             self.stt = self.voix = None
             print("  profil ha : Speech-to-Phrase, Piper et openWakeWord des applis de Home Assistant")
@@ -226,7 +227,7 @@ class Moteur:
                              "api": f"En ligne ({os.getenv('STT_API_NOM', 'API')})"},
                 "cerveau": ["claude", "local"] if self.profil == "pc" else ["claude"],
                 "reveil_appareil": True,
-                "mot_reveil": A.modele_reveil()[1] if self.profil == "pc" else "Hey Jarvis",
+                "mot_reveil": A.modele_reveil()[1] if self.profil == "pc" else A.NOM_REPLI,
                 "vad": "silero" if V.disponible() else "energie",
                 "passerelle_ha": self.assistant.ha is not None, "appairage": bool(self.empreinte_tls),
                 "vision": self.vision is not None,
@@ -558,7 +559,8 @@ def synthetiser_ha(texte, delai=60):
 
 
 class ReveilWyoming:
-    """Mot de réveil par l'appli openWakeWord de HA : flux continu, événement Detection en retour."""
+    """Mot de réveil par l'appli openWakeWord de HA : flux continu, événement Detection en retour. Cette appli ne
+    porte que le modèle de repli (A.MODELE_REPLI), le dossier reveil/ de la configuration ne lui est pas copié."""
 
     def __init__(self, sur_detection):
         self.sur_detection = sur_detection
@@ -568,7 +570,7 @@ class ReveilWyoming:
         from wyoming.wake import Detect
         from wyoming.audio import AudioStart
         self.canal = await CanalWyoming(REVEIL_HA).__aenter__()
-        await self.canal.ecrire(Detect(names=["hey_jarvis"]).event())
+        await self.canal.ecrire(Detect(names=[A.MODELE_REPLI]).event())
         await self.canal.ecrire(AudioStart(rate=TAUX, width=2, channels=1).event())
         self.tache = asyncio.create_task(self.ecouter())
 
@@ -741,7 +743,7 @@ class Calibration:
     """Calibrage guidé du mot de réveil (option --calibrer), aucune commande n'est exécutée.
 
     Phase bruit : 45 s de vie normale de la pièce, on relève le plus haut score obtenu à tort.
-    Phase mot : l'utilisateur dit le mot de réveil (MOT_REVEIL) 10 fois, un essai = un pic de score au-dessus de 0,1.
+    Phase mot : l'utilisateur dit le mot de réveil de la configuration 10 fois, un essai = un pic de score au-dessus de 0,1.
     Le seuil recommandé est placé entre les deux, puis écrit dans SEUIL_REVEIL (poc/.env)."""
 
     DUREE_BRUIT = 45.0

@@ -229,8 +229,9 @@ Vérifiez dans l'ordre :
 
 1. Où il est guetté. Dans l'appli, section Voix et réveil : Sur cet appareil (modèle de l'APK) ou Sur le
    serveur (modèle du PC, ou appli openWakeWord de Home Assistant en profil `ha`).
-2. Quel mot est actif. Le PC prend `MOT_REVEIL` de `poc/.env`, mais retombe sans le dire sur « Hey
-   Jarvis » si `reveil/<mot>.onnx` est absent de la configuration. L'appli ne propose le mot de la
+2. Quel mot est actif. Le PC prend `reveil.mot` de `maison.json`, sinon `MOT_REVEIL` de `poc/.env`, sinon
+   « assistant ». Si `reveil/<mot>.onnx` est absent de la configuration, il retombe sur « Hey Jarvis » et
+   l'écrit au démarrage (`modèle de réveil absent pour le mot ..., repli sur Hey Jarvis`). L'appli ne propose le mot de la
    configuration que s'il a été compilé dans l'APK (section `reveil` et modèle présents à la
    compilation). L'appli Home Assistant ne connaît que « Hey Jarvis ».
 3. Le seuil. Lancez `Calibrer le mot de réveil.bat` (serveur arrêté), suivez les deux étapes, puis
@@ -655,11 +656,13 @@ panne : la configuration doit en tenir compte.
 
 ### Serveur et installation
 
-- `MICRO` vaut `fifine` quand la ligne manque dans `poc/.env` : réglez-la avec un morceau du nom de votre
-  micro, ou laissez-la vide pour le micro par défaut de Windows.
-- `MOT_REVEIL` sans modèle `reveil/<mot>.onnx` dans le dossier de configuration retombe sur « Hey Jarvis »
-  sans le dire. Dans le profil ha, Home Assistant guette toujours « Hey Jarvis » par Wyoming, quel que soit
-  le mot de la configuration.
+- `MICRO` vaut `defaut` (micro par défaut de Windows) quand la ligne manque ou reste vide dans `poc/.env` :
+  pour un autre micro, réglez-la avec un morceau de son nom. `VOIX` désigne le fichier `.onnx` de la voix Piper,
+  par défaut `poc/voix/fr_FR-siwis-medium.onnx` : si ce fichier manque, le serveur s'arrête avec un message qui
+  le dit (`python poc/outils/telecharger_modeles.py` le télécharge).
+- Un mot de réveil sans modèle `reveil/<mot>.onnx` dans le dossier de configuration retombe sur « Hey Jarvis »
+  et le dit au démarrage. Dans le profil ha, Home Assistant guette toujours « Hey Jarvis » par Wyoming, quel que
+  soit le mot de la configuration.
 - `poc/lancer-llm.ps1`, qui démarre llama-server pour le cerveau local, contient les chemins de la machine
   d'origine. Adaptez-les avant le premier essai. Sous Linux et macOS, le démarrage et l'arrêt automatiques
   du LLM local (`powershell`, `taskkill`) échouent : lancez llama-server vous-même.
