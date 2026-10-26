@@ -4,6 +4,25 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.43.1 (2026-10-26), boucle d'outils commune et commentaires
+Session S-D6 du plan 1.2.0 (correctif, aucun changement de comportement). Appli Android inchangée (0.38.1), appli
+Home Assistant 0.43.1.
+- Les deux boucles d'appel d'outils de `poc/assistant.py` (`Cerveau.repondre` pour le serveur local, format OpenAI
+  `tool_calls`, et `CerveauClaude.repondre` pour Claude, format Anthropic `tool_use`) partagent maintenant
+  `Cerveau.boucle_outils` : limite de six tours, exécution des outils par l'aiguillage fermé `executer_outil`, parole
+  fixée par une routine, phrase de repli. La fin d'une demande (garde-fou de musique, historique) est dans
+  `Cerveau.terminer_tour`. Chaque format ne garde qu'un adaptateur mince (appel à l'API, lecture d'un appel, ajout
+  aux messages) autour du type `TourLLM`. La relance unique du modèle local (« j'ai allumé » sans outil) reste dans
+  son adaptateur, la mesure des appels et le refus du modèle dans celui de Claude.
+- Nouveau `poc/tests/test_boucle_outils.py` (34 tests, écrits d'abord et vérifiés sur l'ancien code) : les deux
+  chemins sont joués avec de faux clients, sur les mêmes cas (réponse directe, outil puis réponse, plusieurs appels,
+  outil inconnu, domaine interdit, volume non demandé, musique non confirmée, parole fixée, modes isolés,
+  historique, limite de six tours, relance, refus du modèle, arguments illisibles). Suite complète : 1537 réussis,
+  8 ignorés.
+- Commentaires corrigés : repère de substitution de `CONSIGNE` remis à côté de ce qu'il décrit, docstring de
+  `Cerveau` ajoutée, source de la clé de `CerveauClaude` complète (option de l'appli HA, jeton), nombre de tours du
+  LLM pour la musique, renvoi vers la note de conception des routines.
+
 ## Serveur 0.43.0 (2026-10-26), routines, lot 2 : gestion à la voix
 Session S-R2 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assistant 0.43.0.
 - Commandes de gestion sans LLM, par un petit analyseur de `poc/routines.py` (`analyser`, `gerer`) : « quelles sont
