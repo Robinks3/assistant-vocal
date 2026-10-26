@@ -110,6 +110,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `_lisez_moi` | Personne | Texte d'aide, ignoré par le code. |
 | `reseau` | `poc/maison.py`, `poc/assistant.py`, `poc/sante.py`, `poc/sante_hist.py`, `poc/serveur_satellite.py`, `ha-app/*`, `build.gradle.kts` | Adresses vides. `deployer.sh` s'arrête. |
 | `acces` | `poc/acces.py`, `poc/maison.py`, `poc/serveur_satellite.py` | Écoute sur `0.0.0.0`, réseaux privés et tailnet autorisés, ancien accès permis, propriétaire seul administrateur. |
+| `journal` | `poc/assistant.py` | Historique gardé 30 jours, journal des durées limité à 512 Ko sur 5 fichiers, phrases absentes de la console. |
 | `fuseau` | `poc/securite.py`, `poc/assistant.py`, `Securite.kt` | `UTC`. |
 | `securite` | `poc/securite.py`, `Securite.kt` | Listes vides. |
 | `appareils` | `poc/assistant.py`, `SortieSon.kt`, `Appareils.kt`, `MaisonEnGrand.kt`, outils de banc | Musique refusée proprement, écran Musique sans enceinte. |
@@ -163,6 +164,9 @@ Qui peut se connecter au serveur du PC et qui peut le gouverner. Chaque champ es
 | `ancien_acces` | booléen | Accepte `ws://...:8765/?jeton=` sur le port en clair. Permis par défaut. `JARVIS_ANCIEN_ACCES` de `poc/.env` (ou l'option `ancien_acces` de l'appli Home Assistant), quand il est réglé, passe devant. Le jeton en en-tête `Authorization: Bearer` marche toujours. |
 | `administrateurs` | liste de textes | Identités administrateurs en plus du propriétaire (`proprietaire.cle`), par exemple `appareil:ab12cd34` pour un appareil appairé (l'identifiant s'affiche dans l'écran Appareils et accès). |
 | `roles` | objet | Rôle de chaque jeton fixe de `poc/.env` : clé de l'identité (le nom du jeton, en minuscules) vers `habitant`, `partage` ou `invite`. Un jeton absent de la liste est `habitant`. Une valeur inconnue vaut `invite`. La clé du propriétaire reste `administrateur` quoi qu'on écrive ici (la valeur contraire est ignorée, avec un avertissement au démarrage), et `administrateur` n'est pas une valeur permise ici. |
+| `invitation_essais_par_ip` | entier | Essais de code d'invitation permis à une même adresse source dans la fenêtre ci-dessous, puis cette adresse seule est bloquée. Défaut : 3. Une valeur absente, nulle ou illisible rend le défaut. |
+| `invitation_fenetre_s` | entier | Durée en secondes de la fenêtre glissante où les essais d'une adresse sont comptés. Défaut : 120. |
+| `invitation_essais_global` | entier | Filet toutes adresses confondues : au-delà, le code d'invitation est détruit (balayage depuis de nombreuses adresses). Défaut : 30. |
 
 ```json
 "acces": {
@@ -209,6 +213,68 @@ La liste des habitants se déclare à la racine de `maison.json` :
 ```json
 "habitants": ["sacha", "camille"]
 ```
+
+#### Messages permis par rôle (0.39.0)
+
+Sur le port chiffré 8766, chaque message est contrôlé contre une table unique (`acces.TYPES_PAR_ROLE`). Un type
+absent de la ligne du rôle est refusé : l'appareil reçoit `{"etat":"refuse","type":...,"message":"type de message
+non permis pour ce rôle"}` (pour la santé, la forme `erreur` que l'appli attend), et le journal note le type, le
+rôle et rien du contenu. Un message sans type exploitable est ignoré sans réponse.
+
+| Rôle | Types permis |
+|---|---|
+| `invite` | `lecture_finie`, `parler`, `reveil`, `llm`, `ha`, `meteo_mer`, `vent_mesure`, `retour`, `transcrire`, `historique` |
+| `partage` | ceux de `invite`, plus `vision` et `manque` |
+| `habitant` | ceux de `partage`, plus les messages `sante*` |
+| `administrateur` | tous, plus `appareils`, `appairer`, `refuser_appareil`, `revoquer`, `changer_role`, `changer_personne`, `inviter`, `annuler_invitation`, `transcription`, `mode`, `cerveau`, `manques` |
+
+Le port en clair 8765 (ancien accès `?jeton=`) ne consulte pas cette table. La liste des habitants et le
+filtre fin de la santé (`securite.permis_personne`) continuent de s'appliquer en plus.
+
+L'historique des échanges est filtré selon le destinataire, pour la réponse au message `historique` comme
+pour la diffusion `historique_ajout`. Règle la plus fermée : l'administrateur voit tout, l'habitant voit les
+échanges de son appareil, de sa personne et ceux des appareils partagés (sans personne), le partage et l'invité
+ne voient que ceux de leur propre appareil. Une entrée sans appareil connu (micro du PC, entrée écrite avant la
+0.39.0) n'est vue que d'un administrateur.
+
+#### Origin et Ingress (0.39.0)
+
+Derrière le proxy de Home Assistant (`172.30.32.2`), l'en-tête `Origin` du navigateur peut différer de `Host`.
+Le serveur accepte alors `Origin` égal à `X-Forwarded-Host`, seulement si la connexion vient de cette adresse.
+Partout ailleurs, `X-Forwarded-Host` est ignoré.
+
+#### Pare-feu des ports 8765 et 8766 (décision D7)
+
+Aucune règle de pare-feu n'est posée ni modifiée par le serveur, et aucun port n'est fermé. La fermeture de 8765
+attend sept jours de tablette sur 8766 et un mot du propriétaire (décision D7 du plan). Tant que ce n'est pas
+fait, `acces.ancien_acces` et `reseaux_autorises` sont les seuls leviers.
+
+### `journal`
+
+Ce que le serveur écrit sur ce qui se dit, et combien de temps. Chaque champ est facultatif.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `conserver_jours` | entier | Durée de garde des fichiers `journal/assistant-AAAA-MM-JJ.jsonl`, les seuls à contenir les phrases dites et répondues (l'écran Historique de l'appli les lit). Plus ancien, le fichier est supprimé. Défaut : 30. |
+| `taille_max_ko` | entier | Taille à partir de laquelle `journal/latences.csv` tourne vers `latences.1.csv`, `latences.2.csv`, etc. Défaut : 512. |
+| `fichiers_max` | entier | Nombre de fichiers de rotation gardés à côté de `latences.csv`. Défaut : 5. |
+| `phrases_dans_la_console` | booléen | Remet les phrases dans la sortie du serveur (diagnostic). Défaut : false, la console ne montre que le nombre de caractères. `JARVIS_DIAGNOSTIC=1` dans `poc/.env` l'emporte. Seul `true` ouvre. |
+
+```json
+"journal": {
+  "conserver_jours": 30,
+  "taille_max_ko": 512,
+  "fichiers_max": 5,
+  "phrases_dans_la_console": false
+}
+```
+
+Une valeur absente, nulle, négative ou illisible rend le défaut. `latences.csv` ne contient plus aucune phrase
+ni réponse : horodatage, version, voie (catégorie seule), durées, rôle, issue (`ok`, `non compris`, `erreur`,
+`refus`, `non confirmé`), nombre d'actions et indicateur d'essai. Un ancien `latences.csv` qui contenait les
+phrases est mis de côté sous `latences-ancien-<date>.csv` au premier lancement, puis soumis à la rotation.
+`manques.jsonl`, `retours.jsonl` et `musique.jsonl` gardent leurs phrases (ce sont des données
+d'apprentissage) et ne sont pas purgés par ce réglage.
 
 ### `fuseau`
 

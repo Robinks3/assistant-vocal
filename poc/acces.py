@@ -121,15 +121,46 @@ def est_administrateur(identite, appareils=None):
 SUPERVISEUR = "172.30.32.2"
 
 # Rôles (0.38.0). Le rôle effectif d'une identité (role_effectif) borne ses droits : seul l'administrateur gère les
-# appareils et les réglages (serveur_satellite.TYPES_ADMINISTRATEUR). La liste blanche des autres messages par
-# rôle viendra ensuite (conception du client web, étape 0a). « administrateur » ne s'attribue ni depuis la page
-# d'administration, ni par une invitation, ni à l'appairage : il vient de proprietaire.cle et de acces.administrateurs.
+# appareils et les réglages (TYPES_ADMINISTRATION). Depuis 0.39.0, la liste blanche de tous les autres messages
+# par rôle est la table TYPES_PAR_ROLE plus bas, consultée par type_permis (conception du client web, étape 0a).
+# « administrateur » ne s'attribue ni depuis la page d'administration, ni par une invitation, ni à l'appairage : il
+# vient de proprietaire.cle et de acces.administrateurs.
 ROLES = ("administrateur", "habitant", "partage", "invite")
 ROLES_ATTRIBUABLES = ("habitant", "partage", "invite")
 # Rôle d'une acceptation ou d'une invitation sans précision, et d'un jeton fixe absent de acces.roles.
 ROLE_PAR_DEFAUT = "habitant"
 # Rôle d'une entrée d'appareils.json sans champ « role » (d'avant 0.34.0) ou au rôle inconnu : le moins de droits.
 ROLE_SANS_CHAMP = "invite"
+
+# Liste blanche des types de messages du port chiffré (0.39.0), UNE seule table : tout type qui n'y figure pas pour
+# le rôle effectif de l'appareil est refusé (serveur_satellite.Satellite.recevoir_texte), même si le serveur sait le
+# traiter. Le port en clair (ancien accès ?jeton=) garde son comportement d'avant et ne la consulte pas.
+# Administration : gérer les appareils, les rôles, les invitations et les réglages du serveur.
+TYPES_ADMINISTRATION = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
+                                  "changer_personne", "inviter", "annuler_invitation", "transcription", "mode",
+                                  "cerveau", "manques"})
+# Communs à tous les rôles : parler à l'assistant, piloter la maison par lui, météo, lecture d'une réponse, réglage
+# de l'écoute, retours sur une réponse. « historique » est permis à tous mais la réponse est filtrée par rôle
+# (entrees_visibles). « transcrire » : la tablette en mode « Cet appareil » transcrit pour un invité aussi.
+TYPES_COMMUNS = frozenset({"lecture_finie", "parler", "reveil", "llm", "ha", "meteo_mer", "vent_mesure", "retour",
+                           "transcrire", "historique"})
+# Santé : réservée aux rôles administrateur et habitant. La barrière fine (SANTE_PERSONNES, serveur_satellite.
+# refus_sante) s'ajoute : un habitant n'obtient les données d'une personne que si elle l'y autorise.
+TYPES_SANTE = frozenset({"sante", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour"})
+# Reconnaissance des visages (tablette) et signalement de commandes non comprises : pas pour l'invité.
+TYPES_FOYER = frozenset({"vision", "manque"})
+TYPES_PAR_ROLE = {
+    "administrateur": TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER | TYPES_ADMINISTRATION,
+    "habitant": TYPES_COMMUNS | TYPES_SANTE | TYPES_FOYER,
+    "partage": TYPES_COMMUNS | TYPES_FOYER,
+    "invite": TYPES_COMMUNS,
+}
+
+
+def type_permis(role, genre):
+    """Vrai si un message de type [genre] est accepté d'un appareil de rôle effectif [role] sur le port chiffré.
+    Seule fonction qui consulte TYPES_PAR_ROLE. Rôle inconnu, type absent ou qui n'est pas une chaîne : refusé."""
+    return isinstance(genre, str) and genre in TYPES_PAR_ROLE.get(role, frozenset())
 
 
 def role_de(entree):
@@ -274,15 +305,23 @@ def controle_ingress(ip, entetes):
     return (ident, nom or ident), None
 
 
-def origine_acceptee(entetes):
-    """Vrai si l'en-tête Origin d'une WebSocket est présent et d'un hôte égal à Host (ou X-Forwarded-Host) :
-    une page d'un autre site ne peut pas ouvrir la connexion avec les droits de l'utilisateur."""
+def origine_acceptee(entetes, ip=None):
+    """Vrai si l'en-tête Origin d'une WebSocket est présent et d'un hôte égal à Host : une page d'un autre site ne
+    peut pas ouvrir la connexion avec les droits de l'utilisateur.
+
+    Cas Ingress de Home Assistant (0.39.0) : derrière le proxy, Host est celui du superviseur et c'est
+    X-Forwarded-Host qui porte l'hôte vu par le navigateur. Cet en-tête ne compte QUE si la requête vient du
+    superviseur (SUPERVISEUR). Venant de n'importe quelle autre adresse, ou sans [ip], il est ignoré : un client
+    quelconque pourrait sinon l'inventer pour faire passer l'Origin d'une page étrangère."""
     try:
         origine = entetes.get("Origin")
         if not origine:
             return False
         hote = urlparse(origine).netloc.lower()
-        hotes = {(entetes.get(h) or "").split(",")[0].strip().lower() for h in ("Host", "X-Forwarded-Host")}
+        noms = ["Host"]
+        if ip is not None and str(ip).split("%")[0] == SUPERVISEUR:
+            noms.append("X-Forwarded-Host")
+        hotes = {(entetes.get(h) or "").split(",")[0].strip().lower() for h in noms}
     except (ValueError, LookupError):
         return False
     return bool(hote) and hote in hotes
@@ -489,16 +528,71 @@ class Invitation:
     6 chiffres, DUREE secondes, usage unique, ESSAIS saisies fausses (tous appareils confondus) avant destruction.
     Une seule invitation ouverte à la fois : en créer une annule la précédente. Elle porte le rôle de l'appareil
     qui l'utilisera, jamais administrateur. Le code n'est remis qu'à l'appelant d'ouvrir() : il n'entre ni dans
-    le journal, ni dans vue(), ni dans un message diffusé. Comparaison à temps constant."""
+    le journal, ni dans vue(), ni dans un message diffusé. Comparaison à temps constant.
+
+    Compteur d'essais par adresse (0.39.0). Quand l'appelant donne l'adresse source (verifier(..., ip=...)), les
+    erreurs se comptent PAR ADRESSE sur une fenêtre glissante : une adresse qui atteint le plafond est bloquée sans
+    même tester le code, et ne détruit plus l'invitation pour les autres (avant, trois erreurs d'un inconnu
+    suffisaient à annuler l'invitation d'un habitant). Un filet global (essais_global erreurs toutes adresses
+    confondues) détruit encore le code, contre un attaquant qui changerait d'adresse. Sans adresse (ip=None), le
+    comportement d'avant est conservé : ESSAIS erreurs globales. Réglages dans la section acces de maison.json :
+    invitation_essais_par_ip (défaut ESSAIS), invitation_fenetre_s (défaut DUREE), invitation_essais_global
+    (défaut ESSAIS_GLOBAL)."""
     DUREE = 120
     ESSAIS = 3
+    ESSAIS_GLOBAL = 30
     LONGUEUR = 6
+    # Adresses suivies au plus, pour qu'un balayage d'adresses ne fasse pas grossir la mémoire.
+    ADRESSES_MAX = 512
 
     def __init__(self):
         self.code = None
         self.role = ROLE_PAR_DEFAUT
         self.expire = 0.0
         self.essais = 0
+        self.echecs = {}  # adresse -> horodatages (secondes) des essais faux dans la fenêtre
+
+    @staticmethod
+    def plafond_par_adresse():
+        return maison.entier(maison.ACCES, "invitation_essais_par_ip", Invitation.ESSAIS)
+
+    @staticmethod
+    def fenetre():
+        return maison.entier(maison.ACCES, "invitation_fenetre_s", Invitation.DUREE)
+
+    @staticmethod
+    def plafond_global():
+        return maison.entier(maison.ACCES, "invitation_essais_global", Invitation.ESSAIS_GLOBAL)
+
+    @staticmethod
+    def adresse(ip):
+        """Forme comparable d'une adresse source (sans zone IPv6), None si elle manque."""
+        return str(ip).split("%")[0].strip().lower() if ip else None
+
+    def echecs_recents(self, adresse, maintenant):
+        """Nombre d'essais faux de [adresse] dans la fenêtre. Purge au passage ce qui en est sorti."""
+        depuis = maintenant - self.fenetre()
+        recents = [t for t in self.echecs.get(adresse, ()) if t > depuis]
+        if recents:
+            self.echecs[adresse] = recents
+        else:
+            self.echecs.pop(adresse, None)
+        return len(recents)
+
+    def noter_echec(self, adresse, maintenant):
+        if adresse not in self.echecs and len(self.echecs) >= self.ADRESSES_MAX:
+            depuis = maintenant - self.fenetre()
+            self.echecs = {a: [t for t in ts if t > depuis] for a, ts in self.echecs.items()}
+            self.echecs = {a: ts for a, ts in self.echecs.items() if ts}
+            if len(self.echecs) >= self.ADRESSES_MAX:
+                self.echecs.pop(next(iter(self.echecs)))  # la plus ancienne arrivée
+        self.echecs.setdefault(adresse, []).append(maintenant)
+
+    def bloquee(self, ip, maintenant=None):
+        """Vrai si cette adresse a atteint son plafond d'essais faux dans la fenêtre."""
+        maintenant = time.time() if maintenant is None else maintenant
+        adresse = self.adresse(ip)
+        return adresse is not None and self.echecs_recents(adresse, maintenant) >= self.plafond_par_adresse()
 
     def valide(self, maintenant=None):
         maintenant = time.time() if maintenant is None else maintenant
@@ -511,6 +605,7 @@ class Invitation:
         maintenant = time.time() if maintenant is None else maintenant
         self.code = f"{secrets.randbelow(10 ** self.LONGUEUR):0{self.LONGUEUR}d}"
         self.role, self.expire, self.essais = role, maintenant + self.DUREE, 0
+        self.echecs = {}
         return self.code
 
     def annuler(self):
@@ -527,11 +622,18 @@ class Invitation:
         """État sans le code : None sans invitation, sinon secondes restantes et rôle."""
         return {"restant": self.restant(maintenant), "role": self.role} if self.valide(maintenant) else None
 
-    def verifier(self, saisi, maintenant=None):
-        """(rôle, essais restants). Rôle None si refus. Un code juste est consommé, la dernière erreur détruit le code."""
+    def verifier(self, saisi, maintenant=None, ip=None):
+        """(rôle, essais restants). Rôle None si refus. Un code juste est consommé.
+
+        Sans [ip] : la dernière erreur globale (ESSAIS) détruit le code. Avec [ip] (0.39.0) : les erreurs se
+        comptent par adresse dans la fenêtre. Une adresse au plafond reçoit (None, 0) sans que le code soit testé
+        ni détruit, et son essai ne compte pas pour les autres. Le filet global détruit le code."""
         maintenant = time.time() if maintenant is None else maintenant
         if not self.valide(maintenant):
             self.annuler()
+            return None, 0
+        adresse = self.adresse(ip)
+        if adresse is not None and self.bloquee(adresse, maintenant):
             return None, 0
         self.essais += 1
         saisi = re.sub(r"[^0-9]", "", str(saisi or ""))
@@ -539,8 +641,15 @@ class Invitation:
             role = self.role
             self.annuler()
             return role, 0
-        restant = max(0, self.ESSAIS - self.essais)
-        if restant == 0:
+        if adresse is None:
+            restant = max(0, self.ESSAIS - self.essais)
+        else:
+            self.noter_echec(adresse, maintenant)
+            restant = max(0, self.plafond_par_adresse() - self.echecs_recents(adresse, maintenant))
+            if self.essais >= self.plafond_global():
+                restant = 0
+                self.annuler()
+        if adresse is None and restant == 0:
             self.annuler()
         return None, restant
 

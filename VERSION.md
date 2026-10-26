@@ -4,6 +4,32 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.39.0 (2026-10-26), fermer l'existant
+Session S-F3 du plan 1.2.0. Appli Android inchangée (0.38.0, versionCode 72), appli Home Assistant 0.39.0.
+Le point 6 de la session (règles de pare-feu sur 8765 et 8766) n'est pas fait : il attend la décision D7 du
+propriétaire, aucune règle n'a été touchée et aucun port fermé.
+- Liste blanche des messages du port chiffré 8766 par rôle : une seule table (`acces.TYPES_PAR_ROLE`) et une
+  seule fonction (`acces.type_permis`). Type absent de la ligne du rôle : réponse `refuse` claire, journal du
+  type et du rôle sans le contenu. Message sans type exploitable : ignoré sans réponse. Les types envoyés par
+  l'appli Android et par `poc/admin/` restent permis aux rôles concernés (un test relit les sources Kotlin et
+  `admin.js`). Le port en clair 8765 garde son comportement. Table : invité, types communs. Partage, plus
+  `vision` et `manque`. Habitant, plus `sante*`. Administrateur, plus les types de gestion.
+- `historique` (réponse) et `historique_ajout` (diffusion) filtrés selon le destinataire : administrateur, tout.
+  Habitant, son appareil, sa personne et le commun. Partage et invité, leur appareil seul. Une entrée sans
+  appareil (micro du PC, écrite avant la 0.39.0) est réservée à l'administrateur.
+- Journal : `latences.csv` ne contient plus aucune phrase ni réponse (voie réduite à sa catégorie, rôle, issue,
+  nombre d'actions), avec rotation par taille et nombre de fichiers. Les phrases vivent dans l'historique
+  quotidien `assistant-AAAA-MM-JJ.jsonl`, purgé après `journal.conserver_jours`. Les `print` de phrases sont
+  masqués hors diagnostic (`JARVIS_DIAGNOSTIC` ou `journal.phrases_dans_la_console`). Un ancien `latences.csv` à
+  phrases est mis de côté sous `latences-ancien-<date>.csv`.
+- Code d'invitation : essais comptés par adresse source sur une fenêtre glissante, une adresse bloquée ne détruit
+  plus le code des autres. Un filet global (30 par défaut) détruit le code contre un balayage d'adresses.
+- Ingress : `Origin` égal à `X-Forwarded-Host` accepté seulement si la connexion vient de `172.30.32.2`.
+- Nouvelles clés de `maison.json` : `acces.invitation_essais_par_ip` (3), `acces.invitation_fenetre_s` (120),
+  `acces.invitation_essais_global` (30), section `journal` (`conserver_jours` 30, `taille_max_ko` 512,
+  `fichiers_max` 5, `phrases_dans_la_console` false). Documentées dans `docs/CONFIGURER.md`.
+- Tests : `poc/tests/test_fermer_existant.py`.
+
 ## Serveur 0.38.0 (2026-10-26), rôles réels
 Session S-F2 du plan 1.2.0. Le champ `role` d'`appareils.json` ne changeait aucun droit, les jetons fixes n'avaient
 pas de rôle et la personne des messages `llm`, `parler` et `reveil` était reprise telle que déclarée. Désormais le

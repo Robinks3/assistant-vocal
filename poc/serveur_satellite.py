@@ -295,6 +295,25 @@ class Moteur:
                 except Exception:
                     pass
 
+    async def diffuser_historique(self, ligne):
+        """Diffuse la ligne d'historique qui vient d'être écrite, destinataire par destinataire (0.39.0) : chacun ne
+        reçoit que ce que entrees_visibles lui laisse voir. Les pages d'administration sont administratrices."""
+        appareils = getattr(self, "appareils", None)
+        for sat in list(self.satellites):
+            role = acces.role_effectif(sat.identite, appareils)
+            personne = acces.personne_effective(sat.identite, None, appareils)
+            if not entrees_visibles([ligne], role, sat.identite, sat.cle_appareil(), personne):
+                continue
+            try:
+                await sat.envoyer(etat="historique_ajout", entree=entree_historique(ligne, self.noms))
+            except Exception:
+                pass
+        for page in list(self.pages_admin):
+            try:
+                await page.envoyer(etat="historique_ajout", entree=entree_historique(ligne, self.noms))
+            except Exception:
+                pass
+
     def admin_connecte(self):
         """Vrai si un administrateur (téléphone ou page d'administration) est connecté : ferme l'amorçage."""
         return bool(self.pages_admin) or any(acces.est_administrateur(s.identite) for s in self.satellites)
@@ -362,7 +381,7 @@ class Moteur:
                     else "noté pour améliorer le dictionnaire"
         A.ajouter_jsonl(A.RETOURS, {"appareil": appareil, "verdict": verdict, "effet": effet,
                                     **{k: v for k, v in msg.items() if k not in ("type", "verdict")}})
-        print(f"[{appareil}] note {verdict} : {entendu}" + (f" ({effet})" if effet else ""))
+        print(f"[{appareil}] note {verdict} : {A.pour_console(entendu)}" + (f" ({A.pour_console(effet)})" if effet else ""))
         return effet or "noté"
 
     def llm_texte(self, texte, essai, personne=None, appareil=None):
@@ -386,11 +405,12 @@ class Moteur:
                 a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
             except Exception as e:
                 parole, actions, erreur = "Le modèle de langage ne répond pas.", [], f"{e.__class__.__name__} : {e}"
-        duree = time.perf_counter() - t
-        nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
-        A.journaliser(texte, f"llm ({nom}, depuis l'appareil" + (f", {personne}" if personne else "") + ")"
-                      + (" [essai]" if essai else ""), 0.0, duree, 0.0,
-                      parole, actions)
+            duree = time.perf_counter() - t
+            nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
+            # Dans le contexte de la requête : le journal y lit l'appareil et la personne (filtre de l'historique).
+            A.journaliser(texte, f"llm ({nom}, depuis l'appareil" + (f", {personne}" if personne else "") + ")"
+                          + (" [essai]" if essai else ""), 0.0, duree, 0.0,
+                          parole, actions)
         return {"reponse": parole, "actions": list(actions), "cerveau": nom, "ms": round(duree * 1000),
                 "erreur": erreur, "essai": essai}
 
@@ -421,13 +441,13 @@ class Moteur:
         texte, source = self.transcrire(signal_f32)
         t_stt = time.perf_counter() - t
         print(f"  transcription {source} : {t_stt:.2f} s")
-        print(f"  Vous ({len(signal_f32) / TAUX:.1f} s) : {texte}")
+        print(f"  Vous ({len(signal_f32) / TAUX:.1f} s) : {A.pour_console(texte)}")
         if not texte:  # noté aussi, pour que le propriétaire voie dans l'historique ce qui n'a pas été compris
-            A.journaliser("", f"rien compris ({source})" + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
+            with self.assistant.requete(essai=self.essai, personne=personne, appareil=appareil):
+                A.journaliser("", f"rien compris ({source})" + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
             return texte, "", "rien compris", None
-        voie_avant = A.JOURNAL.stat().st_size if A.JOURNAL.exists() else 0
         reponse = self.assistant.traiter(texte, t_stt, personne, appareil=appareil, essai=self.essai)
-        voie = derniere_voie(voie_avant)
+        voie = derniere_voie(0)
         if not reponse:
             audio = None
         elif self.voix:
@@ -630,20 +650,39 @@ def arreter_llm_local():
     r = subprocess.run(["taskkill", "/F", "/IM", "llama-server.exe"], capture_output=True)
     return r.returncode == 0
 
-def derniere_voie(taille_avant):
+def derniere_voie(taille_avant=0):
     """Voie (dictionnaire, ha, llm) lue dans la ligne que l'assistant vient de journaliser."""
     entrees = lire_journal(1)
-    return entrees[0]["voie"] if entrees else ""
+    return entrees[0].get("voie", "") if entrees else ""
 
 
 def lire_journal(n):
-    """Les n dernières lignes du journal des commandes, la plus récente en premier."""
-    import csv
-    if not A.JOURNAL.exists():
-        return []
-    with open(A.JOURNAL, encoding="utf-8", newline="") as f:
-        lignes = list(csv.DictReader(f, delimiter=";"))
-    return list(reversed(lignes[-n:]))
+    """Les n dernières entrées de l'historique (journal/assistant-AAAA-MM-JJ.jsonl), la plus récente en premier.
+    Chaque entrée porte aussi appareil, personne et role (0.39.0), que entree_historique n'envoie jamais."""
+    return A.lire_historique(n)
+
+
+def entrees_visibles(lignes, role, identite, appareil, personne):
+    """Entrées de l'historique que ce destinataire a le droit de voir (0.39.0). Règle la plus fermée de
+    client-web.md 4.4 :
+    - administrateur : tout ;
+    - habitant : ce qu'il a dit (même appareil ou même personne) et le commun, c'est-à-dire ce qu'un appareil
+      partagé a traité sans personne identifiée ;
+    - partage et invité : seulement ce qui vient de leur propre appareil, jamais le commun ;
+    - rôle inconnu : rien.
+    Une entrée sans appareil (écrite avant 0.39.0, ou par le micro du PC) n'est vue que d'un administrateur."""
+    if role == "administrateur":
+        return list(lignes)
+    sortie = []
+    for l in lignes:
+        a, p, r = l.get("appareil"), l.get("personne"), l.get("role")
+        if not a:
+            continue
+        if a == appareil:
+            sortie.append(l)
+        elif role == "habitant" and ((personne and p == personne) or (not p and r == "partage")):
+            sortie.append(l)
+    return sortie
 
 
 VERBES = {"turn_on": "allumer", "turn_off": "éteindre", "toggle": "basculer", "select_source": "mettre sur une source",
@@ -903,9 +942,17 @@ def passerelle_ha(moteur, msg, identite=None):
 
 # Messages réservés au propriétaire et aux administrateurs de acces.administrateurs : gestion des appareils et de
 # l'appairage, réglages communs à tous (transcription, mode, cerveau), lecture des phrases ratées et des retours.
-TYPES_ADMINISTRATEUR = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
-                                  "changer_personne", "inviter", "annuler_invitation", "transcription", "mode",
-                                  "cerveau", "manques"})
+# La table complète des types permis par rôle est dans acces.py (TYPES_PAR_ROLE, acces.type_permis).
+TYPES_ADMINISTRATEUR = acces.TYPES_ADMINISTRATION
+
+
+def nom_de_type(genre):
+    """Type de message pour le journal du serveur : court et imprimable, puisque le client le choisit librement
+    (jamais de contenu du message, seulement le type)."""
+    if not isinstance(genre, str):
+        return f"<{type(genre).__name__}>"
+    propre = "".join(c if c.isprintable() else "?" for c in genre[:40])
+    return propre + ("..." if len(genre) > 40 else "")
 
 
 class Satellite:
@@ -1048,9 +1095,8 @@ class Satellite:
         self.qui_parle = None
         await self.envoyer(etat="reponse", texte=texte, reponse=reponse, voie=voie)
         derniere = lire_journal(1)
-        if derniere:  # l'historique de l'appli s'enrichit en direct, sur tous les téléphones connectés
-            await self.moteur.diffuser({"etat": "historique_ajout",
-                                        "entree": entree_historique(derniere[0], self.moteur.noms)})
+        if derniere:  # l'historique de l'appli s'enrichit en direct, chez ceux qui ont le droit de le voir
+            await self.moteur.diffuser_historique(derniere[0])
         if audio:
             duree = (len(audio) - 44) / 2 / int.from_bytes(audio[24:28], "little")
             self.sourd_jusqua = time.time() + duree + 3.0  # filet si la fin de lecture se perd
@@ -1082,7 +1128,7 @@ class Satellite:
         async with self.moteur.verrou_stt:
             texte, source = await asyncio.to_thread(self.moteur.transcrire, signal, moteur or None)
         ms = round((time.perf_counter() - t) * 1000)
-        print(f"[{self.nom}] transcription déportée {source} : {ms} ms pour {len(signal) / TAUX:.1f} s, « {texte} »")
+        print(f"[{self.nom}] transcription déportée {source} : {ms} ms pour {len(signal) / TAUX:.1f} s, {A.pour_console(texte)}")
         await self.envoyer(etat="transcrit", id=ident, texte=texte, moteur=source, ms=ms)
 
     async def repondre_sante(self, msg):
@@ -1178,15 +1224,14 @@ class Satellite:
             await self.envoyer(etat="llm", reponse="", actions=[], erreur="texte vide")
             return
         personne = self.personne_du_message(msg)
-        print(f"[{self.nom}] LLM demandé par l'appareil : {texte}" + (f" (personne : {personne})" if personne else ""))
+        print(f"[{self.nom}] LLM demandé par l'appareil : {A.pour_console(texte)}" + (f" (personne : {personne})" if personne else ""))
         async with self.moteur.verrou:
             res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
                                           personne, self.cle_appareil())
         await self.envoyer(etat="llm", **res)
         derniere = lire_journal(1)
         if derniere:
-            await self.moteur.diffuser({"etat": "historique_ajout",
-                                        "entree": entree_historique(derniere[0], self.moteur.noms)})
+            await self.moteur.diffuser_historique(derniere[0])
 
     async def recevoir_texte(self, texte):
         try:
@@ -1196,10 +1241,22 @@ class Satellite:
         if not isinstance(msg, dict):  # [], "x", 3 : rien à faire, sans lever d'exception
             return
         genre = msg.get("type")
-        if (isinstance(genre, str) and genre in TYPES_ADMINISTRATEUR
-                and acces.role_effectif(self.identite, getattr(self.moteur, "appareils", None)) != "administrateur"):
+        role = acces.role_effectif(self.identite, getattr(self.moteur, "appareils", None))
+        if isinstance(genre, str) and genre in TYPES_ADMINISTRATEUR and role != "administrateur":
             print(f"[{self.nom}] message « {genre} » refusé : réservé à un administrateur")
             await self.envoyer(etat="refuse", type=genre, message="réservé à un administrateur")
+            return
+        # Liste blanche par rôle (0.39.0), sur le port chiffré seulement : le port en clair (ancien accès ?jeton=)
+        # garde son comportement d'avant. Un type absent de la table est refusé même si le serveur sait le traiter.
+        # Le journal ne reçoit que le type et le rôle, jamais le contenu du message.
+        if getattr(self, "chiffre", False) and not acces.type_permis(role, genre):
+            print(f"[{self.nom}] message « {nom_de_type(genre)} » refusé : non permis au rôle {role}")
+            if not isinstance(genre, str):  # type absent ou mal formé : ignoré sans réponse, comme avant
+                return
+            if genre.startswith("sante"):  # l'appli attend la réponse de la requête (etat + id) : même forme que le refus fin
+                await self.envoyer(etat=genre[:40], id=msg.get("id"), erreur="santé non permise pour cet appareil")
+            else:
+                await self.envoyer(etat="refuse", type=genre[:40], message="type de message non permis pour ce rôle")
             return
         if msg.get("type") == "lecture_finie":
             self.sourd_jusqua = time.time() + 0.3
@@ -1261,8 +1318,14 @@ class Satellite:
             await self.envoyer(etat="manques", manques=A.lire_jsonl(A.MANQUES, n), retours=A.lire_jsonl(A.RETOURS, n))
         elif msg.get("type") == "historique":
             n = max(1, min(int(msg.get("n", 30)), 200))
-            entrees = await asyncio.to_thread(lambda: [entree_historique(l, self.moteur.noms) for l in lire_journal(n)])
-            await self.envoyer(etat="historique", entrees=entrees)
+            appareils = getattr(self.moteur, "appareils", None)
+            personne = acces.personne_effective(self.identite, None, appareils)
+            cle = self.cle_appareil()
+
+            def visibles():  # les dernières n entrées que CE destinataire peut voir (filtre avant la coupe à n)
+                lignes = entrees_visibles(lire_journal(max(n * 5, 200)), role, self.identite, cle, personne)
+                return [entree_historique(l, self.moteur.noms) for l in lignes[:n]]
+            await self.envoyer(etat="historique", entrees=await asyncio.to_thread(visibles))
         elif msg.get("type") == "transcription":
             print(f"[{self.nom}] transcription demandée : {msg.get('choix')}")
             asyncio.create_task(self.moteur.changer_stt(msg.get("choix")))
@@ -1326,6 +1389,7 @@ async def servir(args):
         sys.exit("SATELLITE_JETON absent ou trop court dans poc/.env")
     moteur = Moteur(args.essai)
     moteur.appareils = acces.Appareils(A.DONNEES, jetons)
+    A.ROLE_DE = lambda identite: acces.role_effectif(identite, moteur.appareils)  # rôle écrit dans le journal
     print("  jetons fixes acceptés : "
           + ", ".join(f"{n} ({acces.role_effectif(n, moteur.appareils)})" for n in sorted(set(jetons.values()))))
     for phrase in acces.avertissements_roles():
@@ -1401,7 +1465,7 @@ async def servir(args):
                         continue
                     chiffres = re.sub(r"[^0-9]", "", str(msg.get("code") or ""))
                     if len(chiffres) == acces.Invitation.LONGUEUR:  # code d'invitation, jamais écrit dans le journal
-                        role, restant = moteur.appareils.invitation.verifier(chiffres)
+                        role, restant = moteur.appareils.invitation.verifier(chiffres, ip=ip)  # essais comptés par adresse (0.39.0)
                         if role:
                             print(f"invitation acceptée pour « {nom} » ({ip}), rôle {role}")
                             moteur.appareils.accepter(ident, role)

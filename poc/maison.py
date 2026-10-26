@@ -71,7 +71,20 @@ SECURITE = CONFIG.get("securite") or {}
 # autorisées à gérer les appareils et les réglages, en plus du propriétaire). Voir acces.py.
 ACCES = CONFIG.get("acces") if isinstance(CONFIG.get("acces"), dict) else {}
 ADMINISTRATION = CONFIG.get("administration") if isinstance(CONFIG.get("administration"), dict) else {}
+# Section journal (0.39.0) : conserver_jours (durée de garde de l'historique qui contient les phrases), taille_max_ko
+# et fichiers_max (rotation du journal des durées, qui ne contient aucune phrase), phrases_dans_la_console
+# (diagnostic : remet les phrases dans la sortie du serveur). Voir assistant.py.
+JOURNAL = CONFIG.get("journal") if isinstance(CONFIG.get("journal"), dict) else {}
 FUSEAU = CONFIG.get("fuseau") or "UTC"
+
+
+def entier(section, cle, defaut, mini=1):
+    """Entier d'une clé de section de maison.json : le défaut si la clé manque, n'est pas un entier ou est sous mini
+    (un booléen n'est pas un entier ici). Une valeur absurde ne doit jamais ouvrir ni bloquer un garde-fou."""
+    v = section.get(cle) if isinstance(section, dict) else None
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != int(v) or int(v) < mini:
+        return defaut
+    return int(v)
 
 
 def _zone(nom):
