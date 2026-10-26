@@ -48,6 +48,10 @@ Aucun code ni numéro de version ne change : le serveur et l'appli gardent leur 
   Noms fictifs de `config-exemple/maison.json`. Version des maquettes : 1.0.0.
 - `docs/maquettes/client-web/` : planches du lot journal (S-W0b), Journal de jour et du soir, feuille de détail,
   Demander (écoute, réponse, essai) et Vie privée (niveau, aperçu, confirmation par clé d'accès).
+- `docs/maquettes/client-web/` : planches du lot maison (S-W0c), Maison avec le volet lampe en Blanc et en Couleur,
+  Météo et mer, Routines (liste, détail, confirmation de suppression) et les états d'échec du volet lampe le soir.
+  Index à 18 planches, bandeau "planche N sur 18".
+- `docs/plan/conception/client-web.md` : choix de S-W0c et questions ouvertes pour le propriétaire.
 - `docs/principes-design.md` : section Client web (palette en variables CSS, typographie, espacements, états,
   composants réutilisables, accessibilité).
 
