@@ -37,7 +37,7 @@ ENTETES_SECURITE = {
 }
 
 # Seuls messages acceptés de la page.
-TYPES_PAGE = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role",
+TYPES_PAGE = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer", "changer_role", "changer_personne",
                         "inviter", "annuler_invitation"})
 # Messages de gestion des appareils, communs à la page et aux satellites administrateurs.
 TYPES_APPAREILS = TYPES_PAGE
@@ -85,10 +85,23 @@ async def gerer_appareils(moteur, msg, acteur, courant=None, page=False):
     if ident.startswith("appareil:"):
         ident = ident[len("appareil:"):]
     reponses, change = [], True
+    if (courant is not None and not page and genre in TYPES_APPAREILS
+            and not acces.est_administrateur(getattr(courant, "identite", None), app)):
+        # Seconde barrière : serveur_satellite.recevoir_texte refuse déjà ces messages hors administrateur.
+        print(f"[{acteur}] message « {genre} » refusé : réservé à un administrateur")
+        return [{"etat": "refuse", "type": genre, "message": "réservé à un administrateur"}]
     if genre == "appairer":
-        role = msg.get("role") if msg.get("role") in acces.ROLES_ATTRIBUABLES else acces.ROLE_PAR_DEFAUT
-        nom = app.accepter(ident, role)
-        print(f"[{acteur}] appairage accepté : {nom}" if nom else f"[{acteur}] appairage introuvable : {ident}")
+        role = msg.get("role") or acces.ROLE_PAR_DEFAUT
+        personne = msg.get("personne") or None
+        if role not in acces.ROLES_ATTRIBUABLES:  # « administrateur » ne s'attribue pas, rien ne retombe sur « habitant »
+            reponses.append({"etat": "refuse", "type": genre, "message": "rôle non attribuable"})
+            change = False
+        elif personne and not acces.cle_habitant(personne):
+            reponses.append({"etat": "refuse", "type": genre, "message": "personne inconnue (pas un habitant)"})
+            change = False
+        else:
+            nom = app.accepter(ident, role, personne)
+            print(f"[{acteur}] appairage accepté : {nom}" if nom else f"[{acteur}] appairage introuvable : {ident}")
     elif genre == "refuser_appareil":
         app.refuser(ident)
     elif genre == "revoquer":
@@ -103,6 +116,14 @@ async def gerer_appareils(moteur, msg, acteur, courant=None, page=False):
             print(f"[{acteur}] rôle de « {r[0]} » (appareil:{ident}) changé de {r[1]} à {r[2]}")
         else:
             reponses.append({"etat": "refuse", "type": genre, "message": "appareil ou rôle inconnu"})
+    elif genre == "changer_personne":
+        personne = msg.get("personne") or None
+        r = app.changer_personne(ident, personne)
+        if r:
+            print(f"[{acteur}] personne de « {r[0]} » (appareil:{ident}) changée de {r[1] or 'aucune'} "
+                  f"à {r[2] or 'aucune'}")
+        else:
+            reponses.append({"etat": "refuse", "type": genre, "message": "appareil ou personne inconnue"})
     elif genre == "inviter" and page:
         try:
             code = app.invitation.ouvrir(msg.get("role") or acces.ROLE_PAR_DEFAUT)
