@@ -15,7 +15,7 @@ class ReglageTeleTest {
 
     private fun tele(
         etat: String = "on", volume: Double? = 0.35, sources: List<String> = SOURCES, source: String = "",
-    ) = Appareils.Appareil("media_player.exemple74", "Télé", etat, "", "", volume = volume, sources = sources, source = source, classe = "tv")
+    ) = Appareils.Appareil("media_player.tele_salon", "Télé", etat, "", "", volume = volume, sources = sources, source = source, classe = "tv")
 
     private val tuiles = ReglageTele.lireTuiles(
         JSONObject(
@@ -166,7 +166,7 @@ class ReglageTeleTest {
     @Test fun commande_estUnSelectSource() {
         val c = ReglageTele.commande(tele(), "Netflix")
         assertEquals("media_player.select_source", c.service)
-        assertEquals("media_player.exemple74", c.corps.getString("entity_id"))
+        assertEquals("media_player.tele_salon", c.corps.getString("entity_id"))
         assertEquals("Netflix", c.corps.getString("source"))
     }
 
