@@ -24,7 +24,9 @@ Remettre une règle : repasser son drapeau à True ici ET dans Securite.kt (les 
 
 Même règles, mêmes listes, dans l'appli Android (android/app/src/main/java/assistant/vocal/jarvis/Securite.kt).
 Assist de Home Assistant agit sans qu'on puisse vérifier sa cible avant : il est sauté tant que
-SECURITE_ACTIVE est vrai, une phrase inconnue va directement au LLM dont chaque action passe ici.
+SECURITE_ACTIVE est vrai, une phrase inconnue va directement au LLM dont chaque action passe ici. Depuis S-D9
+(26/10/2026), le réglage securite.assist_repli peut rouvrir Assist comme repli quand le LLM échoue, seulement
+pour une phrase que refus_phrase_assist ne refuse pas (en bas de ce fichier), jamais en levant SECURITE_ACTIVE.
 """
 import math
 
@@ -233,3 +235,84 @@ def phrase_protegee(texte, personne=None):
     if any(m in t for m in MOTS_PROTEGES):
         return f"je ne touche jamais à ce qui appartient à {NOM_OCCUPANT} (sécurité)"
     return None
+
+
+# --- Repli vers Assist de Home Assistant (S-D9, décision D8 du 26/10/2026) ------------------------------------
+# Assist exécute une phrase sans qu'on voie sa cible avant : aucun verifier() ne peut le contrôler. Le repli est
+# donc coupé par défaut. Le réglage securite.assist_repli (booléen, absent ou autre que true = coupé) l'ouvre, et
+# même ouvert il ne passe que pour une phrase que le filtre ci-dessous ne refuse pas. Le réglage ne touche jamais à
+# SECURITE_ACTIVE ni à aucune règle de verifier().
+def repli_configure(valeur):
+    """Vrai seulement pour le booléen true de securite.assist_repli : absent, false, "true", 1... laissent le repli coupé."""
+    return valeur is True
+
+
+ASSIST_REPLI = repli_configure(maison.SECURITE.get("assist_repli"))
+
+
+def _mots_de(texte):
+    """Mots d'une phrase en minuscules et sans accent, pour comparer sans se faire piéger par l'orthographe."""
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(texte or "")).encode("ascii", "ignore").decode().lower()
+    return re.findall(r"[a-z0-9]+", t)
+
+
+# Mots entiers qui font refuser la phrase : cibles qu'Assist ne montre pas ou que la sécurité écarte.
+REPLI_MOTS_INTERDITS = frozenset({
+    # Ce que verifier() refuse en cible : appareil, étage ou étiquette visés en bloc, et les portes (serrures).
+    "porte", "portes", "portail", "portillon", "garage", "appareil", "appareils", "device", "identifiant", "id",
+    "etage", "etages", "etiquette", "etiquettes", "label", "rez", "chaussee", "niveau", "niveaux",
+    # Visée large ou indéterminée.
+    "all", "tout", "toute", "toutes", "tous", "partout", "maison", "appartement",
+    # Ce qui peut chauffer, brûler ou geler.
+    "four", "fours", "plaque", "plaques", "fer", "micro", "onde", "ondes", "lave", "seche", "frigo", "frigos",
+    "congelateur", "refrigerateur", "poele", "cheminee", "convecteur", "soufflant", "bouilloire", "cafetiere",
+    "prise", "prises", "multiprise", "degre", "degres",
+    # Ce qui déclenche autre chose que ce qui est dit.
+    "script", "scripts", "automatisation", "automatisations", "scene", "scenes", "routine", "routines",
+})
+# Radicaux qui font refuser la phrase quand ils sont contenus dans un mot (serrure, verrouille, chauffage...).
+REPLI_RADICAUX_INTERDITS = ("serrur", "verrou", "cadenas", "alarm", "sirene", "chauff", "radiateur", "thermostat",
+                            "temperature", "chaudiere", "cuisiniere", "clim", "repasser", "arrosage", "vanne",
+                            "debloqu", "coffre")
+# Quand un plafond de volume est réglé, monter le son par un autre chemin que volume_set le contournerait.
+REPLI_MOTS_VOLUME = frozenset({"son", "sonore", "fort", "forte", "monte", "monter", "augmente", "augmenter",
+                               "decibel", "decibels", "bruit"})
+
+
+def refus_phrase_assist(texte, personne=None):
+    """Raison du refus en français, ou None si la phrase peut aller jusqu'à Assist. Écarte tout ce que la sécurité en
+    dur refuse ou ne sait pas contrôler d'avance : serrures, alarmes, cuisson, chauffage, visée en bloc, volume
+    quand un plafond est réglé, et tout mot de l'occupant protégé, que la règle 1 soit levée ou non."""
+    refus = phrase_protegee(texte, personne)
+    if refus:
+        return refus
+    mots = _mots_de(texte)
+    if not mots:
+        return "phrase vide (sécurité)"
+    gardes = {m for p in (*MOTS_PROTEGES, *MOTS_PIECES, NOM_OCCUPANT) for m in _mots_de(p)}
+    for m in mots:
+        if m in REPLI_MOTS_INTERDITS or any(r in m for r in REPLI_RADICAUX_INTERDITS):
+            return f"le mot « {m} » vise une cible que je ne peux pas contrôler d'avance (sécurité)"
+        if any(m == g or (len(g) >= 4 and m.startswith(g)) for g in gardes):
+            return f"le mot « {m} » touche à ce qui appartient à {NOM_OCCUPANT} (sécurité)"
+        if plafond_actif() and (m in REPLI_MOTS_VOLUME or "volume" in m):
+            return "le volume est plafonné, Assist ne le règle pas (sécurité)"
+    return None
+
+
+def repli_assist(texte, personne=None):
+    """Décision du repli Assist pour une phrase : (permis, motif en français pour le journal).
+
+    SECURITE_ACTIVE faux : l'ancien comportement (Assist toujours permis), la sécurité entière étant levée.
+    Sinon : coupé tant que securite.assist_repli n'est pas true, et même ouvert, refusé pour une phrase que
+    refus_phrase_assist écarte."""
+    if not SECURITE_ACTIVE:
+        return True, "repli tenté (sécurité levée)"
+    if not ASSIST_REPLI:
+        return False, "repli coupé par le réglage securite.assist_repli"
+    refus = refus_phrase_assist(texte, personne)
+    if refus:
+        return False, f"repli refusé par la sécurité : {refus}"
+    return True, "repli tenté"

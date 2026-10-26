@@ -333,7 +333,7 @@ comptent les jours à l'heure de `Europe/Paris`, écrite dans le code, quel que 
 
 Listes appliquées par la sécurité écrite en dur (`poc/securite.py` et sa copie `Securite.kt`). Dans cette
 version, la plupart sont lues mais restent sans effet, parce que les règles qui s'en servent sont coupées
-dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le détail est à la
+dans le code. Seuls `plafond_volume` (dès qu'il est inférieur à 100) et `assist_repli` agissent. Le détail est à la
 [section 6](#6-la-sécurité-et-ce-que-la-configuration-en-règle).
 
 | Champ | Type | Effet quand la règle correspondante est active |
@@ -347,6 +347,7 @@ dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le d
 | `heures_calmes` | objet `{debut, fin}`, heures entières | Plage des heures calmes, `debut` compris, `fin` exclue, à l'heure de `fuseau`. Par défaut : 0 et 9. Un `debut` après la `fin` (22 et 7) donne une plage qui passe minuit, un `debut` égal à la `fin` une plage vide. |
 | `permis_personne` | objet, clé = prénom en minuscules sans accent | Pour chaque personne reconnue par la tablette : `entites` et `services` qu'elle peut piloter parmi ses affaires protégées. |
 | `plafond_volume` | nombre de 0 à 100 | Toujours actif : volume le plus fort permis, en pourcentage. Absent ou 100 : aucun plafond. Voir [le plafond de volume](#le-plafond-de-volume). |
+| `assist_repli` | booléen | Ouvre le repli vers Assist de Home Assistant quand le LLM échoue. Absent, `false` ou autre chose que `true` : repli coupé (défaut). Voir [le repli Assist](#le-repli-assist). |
 
 ```json
 "securite": {
@@ -355,6 +356,7 @@ dans le code. Seul `plafond_volume` agit, dès qu'il est inférieur à 100. Le d
   "zones_protegees": ["chambre_camille"],
   "heures_calmes": {"debut": 0, "fin": 9},
   "plafond_volume": 100,
+  "assist_repli": false,
   "permis_personne": {
     "camille": {"entites": ["light.chambre_camille_plafonds"], "services": ["light.turn_on", "light.turn_off"]}
   }
@@ -1231,6 +1233,31 @@ permis au LLM de l'appli, `volume_up` compris) puis reconstruire l'APK.
 
 Un niveau illisible dans une commande (`NaN`, texte) donne toujours 0.
 
+### Le repli Assist
+
+Assist est l'agent intégré de Home Assistant. Il exécute une phrase sans qu'on voie sa cible avant, donc
+sans que la sécurité puisse la vérifier. Il est coupé par défaut. `securite.assist_repli` ne l'ouvre que comme
+repli, après un échec du LLM (modèle injoignable, clé absente), jamais avant lui. Il est lu au démarrage du
+serveur, relancer le serveur après un changement. Seul `true` ouvre le repli (texte ou nombre : coupé).
+
+Ce que le réglage ouvre : une phrase que le LLM n'a pas pu traiter est confiée à Assist, à condition que
+`securite.refus_phrase_assist` ne la refuse pas. Ce filtre écarte une phrase qui contient :
+
+- un mot de l'occupant protégé (`nom_occupant`, `mots_proteges`, `mots_pieces`), même si la règle 1 est levée ;
+- une serrure, une porte, un portail, un garage, une alarme ou une sirène ;
+- un four, une plaque, un appareil de chauffe ou de froid, le chauffage, un thermostat, une température ;
+- une visée large ou indéterminée (tout, toutes, partout, la maison, un étage, une étiquette, un appareil) ;
+- un script, une scène, une automatisation ou une routine ;
+- le volume ou le son, quand `plafond_volume` règle un plafond.
+
+Ce que le réglage n'ouvre jamais : il ne coupe pas `SECURITE_ACTIVE`, il ne contourne aucune règle de
+`verifier()` et ne change rien pour le LLM, le dictionnaire ni les routines. Une phrase refusée par le filtre
+ne va pas à Assist, quel que soit le réglage. Le filtre travaille sur les mots de la phrase, pas sur la cible
+réelle : une fois la phrase confiée à Assist, son effet n'est plus contrôlé. Ne l'ouvrir que si ce risque est
+accepté. Le journal des commandes dit pourquoi : `repli coupé par le réglage securite.assist_repli`,
+`repli refusé par la sécurité : ...` ou, quand Assist a répondu, la voie `assist (repli après échec du LLM)`.
+Hors mode essai seulement.
+
 ### Ce qui ne se règle pas
 
 Ces protections sont actives dans cette version et aucune configuration ne les change :
@@ -1239,7 +1266,7 @@ Ces protections sont actives dans cette version et aucune configuration ne les c
 |---|---|
 | Un appareil visé par son identifiant brut (`device_id`), un étage (`floor_id`) ou une étiquette (`label_id`) est refusé. | `securite.py`, `Securite.kt` |
 | Le LLM ne peut appeler que les services d'une liste blanche, large depuis la version 0.37.0 (tout ce que Home Assistant expose pour les équipements, dont `domaine_tele.launch_app` avec une adresse `https://` seulement, `domaine_tele.send_text_input`, `domaine_tele.set_picture_setting`, `remote.send_command`, `select.select_option`), mais jamais par `device_id`, `floor_id` ou `label_id`, et rien qui ouvre une porte ou désarme une alarme. Il ne voit et n'appelle toutefois que ses domaines habituels (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons). Les trois domaines (`domaine_tele`, `remote`, `select`) sont réservés au dictionnaire : le LLM ne les voit pas et ne peut pas les appeler (`DOMAINES_HORS_LLM`). | `SERVICES_PERMIS` de `poc/liste_blanche.py` (réexportée par `poc/assistant.py`), exportée dans `dictionnaire.json` pour l'appli. Section facultative `reglages` de `maison.json` : `applis`, `interrupteurs`, `attributs_refuses` (voir ARCHITECTURE.md) |
-| Assist de Home Assistant est sauté (il agit sans qu'on voie sa cible avant) : une phrase hors dictionnaire va directement au LLM. | `SECURITE_ACTIVE` de `securite.py` et `Securite.kt` |
+| Assist de Home Assistant est sauté (il agit sans qu'on voie sa cible avant) : une phrase hors dictionnaire va directement au LLM. Seul `securite.assist_repli` le rouvre, en repli après un échec du LLM et pour une phrase que le filtre accepte ([le repli Assist](#le-repli-assist)). | `SECURITE_ACTIVE` et `repli_assist` de `securite.py` |
 
 Les actions du dictionnaire échappent à la liste blanche, mais pas à ces vérifications : chacune passe par
 la sécurité avant d'être envoyée, avec la personne qui parle.

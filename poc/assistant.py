@@ -465,12 +465,17 @@ class HomeAssistant:
         r = REQUETE.get()
         return r.personne if r else None
 
-    def conversation(self, texte):
-        """Intentions locales de HA (agent intégré, aucun LLM)."""
-        if securite.SECURITE_ACTIVE:
-            # Assist agit sans qu'on voie sa cible avant : sauté tant que la sécurité est en dur.
+    def conversation(self, texte, personne=None):
+        """Intentions locales de HA (agent intégré, aucun LLM), utilisées en repli quand le LLM échoue.
+
+        Assist agit sans qu'on voie sa cible avant : sauté tant que la sécurité est en dur, sauf si le réglage
+        securite.assist_repli l'ouvre ET que la phrase passe le filtre de securite.refus_phrase_assist (S-D9).
+        Le code rendu en 3e valeur dit pourquoi le repli a été coupé, refusé ou tenté."""
+        permis, motif = securite.repli_assist(texte, personne)
+        if not permis:
             self.dernieres_cibles = []
-            return False, "", "Assist sauté (sécurité)"
+            return False, "", f"Assist sauté (sécurité, {motif})"
+        print(f"  [repli Assist] {motif}")
         r = self.client.post(f"{self.url}/api/conversation/process", json={
             "text": texte, "language": "fr", "agent_id": "conversation.home_assistant"})
         r.raise_for_status()
@@ -2020,15 +2025,7 @@ class Assistant:
             compris = True
         else:
             compris = False
-        try:
-            if self.essai and not compris:  # HA exécute ses intentions : on passe au LLM simulé
-                code = "essai, HA non sollicité"
-            elif not compris:
-                compris, parole, code = self.ha.conversation(texte) if self.ha else (False, "", "sans_ha")
-                if compris and self.ha:
-                    actions = list(getattr(self.ha, "dernieres_cibles", []))
-        except Exception as e:  # HA injoignable : le LLM prend le relais
-            compris, parole, code = False, "", f"ha_injoignable {e.__class__.__name__}"
+        code = "essai, HA non sollicité" if self.essai else "Assist en repli seulement"
         refus_phrase = securite.phrase_protegee(texte, personne) if not compris else None
         if refus_phrase:  # parle de l'occupant protégé : jamais de LLM (il agirait sur une autre pièce)
             compris, parole, voie = True, f"Je ne le fais pas : {refus_phrase}.", "refus sécurité avant le LLM"
@@ -2043,6 +2040,18 @@ class Assistant:
                 else:
                     parole = "Le modèle de langage ne répond pas. Le PC est peut-être occupé."
                 voie += f" erreur {e.__class__.__name__} : {e}"
+                # Repli Assist (S-D9) : le LLM a échoué, Assist peut tenter la phrase si le réglage l'ouvre et si
+                # la sécurité laisse passer la phrase. HA exécute lui-même ses intentions : jamais en mode essai.
+                if self.ha and not self.essai:
+                    try:
+                        compris_ha, parole_ha, code_ha = self.ha.conversation(texte, personne)
+                        if compris_ha:
+                            parole, voie = parole_ha or "C'est fait.", "assist (repli après échec du LLM)"
+                            actions = list(getattr(self.ha, "dernieres_cibles", []))
+                        else:  # coupé, refusé par la sécurité ou non compris : le motif reste au journal
+                            voie += f" ; {code_ha}"
+                    except Exception as e2:  # HA injoignable : la réponse d'échec reste
+                        voie += f" ; repli Assist impossible {e2.__class__.__name__}"
         t_cerveau = time.perf_counter() - t
         print(f"  [{voie_courte(voie)}] {pour_console(parole)}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
         t_tts = 0.0
