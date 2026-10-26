@@ -46,7 +46,6 @@ poc/voix/*.onnx.json
 
 # Dépôts tiers clonés pour inspiration (ils ont leur propre historique et leur licence)
 inspirations/*
-!inspirations/comparatif-projet_inspiration.md
 
 # Enregistrements de voix pour les bancs, sons et vidéos (données personnelles)
 android/test-canary/

@@ -25,7 +25,9 @@ import functools
 import ipaddress
 import json
 import re
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -74,31 +76,7 @@ PREFIXES_ENTITES = ("poc/tests/", "android/app/src/test/", "docs/")
 
 # Échecs constatés sur le dépôt, à corriger par la fiche nommée. (catégorie, chemin) -> fiche.
 # Catégories : ip, hote, entite (volet générique), prive (volet privé).
-ATTENDUS = {
-    # Le mot interdit de CLAUDE.md est encore écrit en dur dans le garde-fou. D12 : S-C4 le fait lire dans
-    # config/mots-interdits.txt, le mot disparaît alors du fichier.
-    ("prive", ".githooks/garde-fou.sh"): "S-C4",
-    # Volet privé : le mot de réveil du projet d'origine et les prénoms réels dans le code, les notes et les
-    # journaux de versions. S-C4 les retire partout et le garde-fou lit la liste privée (D12).
-    ("prive", "CLAUDE.md"): "S-C4",
-    ("prive", "LICENCES-TIERS.md"): "S-C4",
-    ("prive", "README.md"): "S-C4",
-    ("prive", "VERSION.md"): "S-C4",
-    ("prive", "android/VERSION.md"): "S-C4",
-    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Reconnaissance.kt"): "S-C4",
-    ("prive", "android/app/src/main/java/assistant/vocal/jarvis/SatelliteService.kt"): "S-C4",
-    ("prive", "docs/principes-design.md"): "S-C4",
-    ("prive", "inspirations/comparatif-projet_inspiration.md"): "S-C4",
-    ("prive", "poc/acces.py"): "S-C4",
-    ("prive", "poc/assistant.py"): "S-C4",
-    ("prive", "poc/serveur_satellite.py"): "S-C4",
-    ("prive", "poc/vad.py"): "S-C4",
-    ("prive", "poc/vision.py"): "S-C4",
-    ("prive", "poc/outils/essai_vad_reveil.py"): "S-C4",
-    ("prive", "poc/outils/faux_telephone.py"): "S-C4",
-    ("prive", "poc/outils/mesures.py"): "S-C4",
-    ("prive", "poc/tests/test_reveil.py"): "S-C4",
-}
+ATTENDUS = {}
 
 # --- Lecture du dépôt -------------------------------------------------------------------------------------------
 
@@ -423,7 +401,7 @@ def test_prive_aucune_chaine_sensible_hors_exceptions(contexte_prive):
 
 @pytest.mark.parametrize("categorie,chemin", cas_attendus(["prive"]))
 def test_prive_echec_connu_a_corriger(contexte_prive, categorie, chemin):
-    """Le garde-fou cite encore le mot interdit en dur : S-C4 le remplace par la lecture de mots-interdits.txt."""
+    """Échec constaté du volet privé, marqué xfail avec la fiche qui le corrige (aucun pour l'instant)."""
     chaines, mots = contexte_prive
     textes = {chemin: fichiers_suivis()[chemin]}
     trouvees = chercher_chaines(textes, chaines, mots)
@@ -493,10 +471,6 @@ def test_l_exemple_public_fournit_des_entites():
     assert len(entites_de_l_exemple()) > 10
 
 
-def test_le_garde_fou_est_une_exception_connue():
-    assert ATTENDUS[("prive", ".githooks/garde-fou.sh")] == "S-C4"
-
-
 def test_ne_lit_que_des_textes_suivis():
     textes = fichiers_suivis()
     assert "poc/tests/conftest.py" in textes
@@ -540,3 +514,88 @@ def test_lire_mots_interdits(tmp_path):
     assert lire_mots_interdits(fichier) == []
     fichier.write_text("# commentaire\n\nmot-un\n  mot-deux  \n", encoding="utf-8")
     assert lire_mots_interdits(fichier) == ["mot-un", "mot-deux"]
+
+
+# --- Le garde-fou git lit la liste privée (D12) ------------------------------------------------------------------
+
+
+def trouver_bash():
+    """Le bash de Git for Windows (pas celui de WSL) ou le bash du système, ou None."""
+    git = shutil.which("git")
+    if sys.platform == "win32" and git:
+        # git.exe peut être dans cmd/, bin/ ou mingw64/bin/ : on remonte jusqu'à la racine de Git for Windows.
+        for parent in Path(git).resolve().parents:
+            candidat = parent / "bin" / "bash.exe"
+            if candidat.is_file():
+                return str(candidat)
+        return None
+    return shutil.which("bash")
+
+
+@pytest.fixture
+def depot_factice(tmp_path):
+    """Dépôt git jetable qui contient une copie du garde-fou, avec une liste privée factice (aucune vraie valeur)."""
+    bash, git = trouver_bash(), shutil.which("git")
+    if not bash or not git:
+        pytest.skip("bash ou git introuvable")
+    depot = tmp_path / "depot"
+    (depot / ".githooks").mkdir(parents=True)
+    (depot / "config").mkdir()
+    shutil.copy(RACINE / ".githooks" / "garde-fou.sh", depot / ".githooks" / "garde-fou.sh")
+    mot = fragments("zorg", "lub")
+    (depot / "config" / "mots-interdits.txt").write_text(f"# commentaire\n\n  {mot}  \n", encoding="utf-8")
+    subprocess.run([git, "init", "-q"], cwd=depot, check=True)
+
+    def lancer(fichiers):
+        for chemin, contenu in fichiers.items():
+            cible = depot / chemin
+            cible.parent.mkdir(parents=True, exist_ok=True)
+            cible.write_text(contenu, encoding="utf-8")
+            subprocess.run([git, "add", "--", chemin], cwd=depot, check=True, capture_output=True)
+        r = subprocess.run([bash, ".githooks/garde-fou.sh", "--index"], cwd=depot, capture_output=True, text=True,
+                           encoding="utf-8")
+        for chemin in fichiers:
+            subprocess.run([git, "rm", "-q", "--cached", "-f", "--", chemin], cwd=depot, capture_output=True)
+        return r, mot
+
+    return depot, lancer
+
+
+def test_garde_fou_laisse_passer_un_fichier_neutre(depot_factice):
+    _, lancer = depot_factice
+    r, _ = lancer({"neutre.txt": "un commentaire ordinaire\n"})
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_garde_fou_refuse_un_mot_interdit_dans_le_contenu(depot_factice):
+    _, lancer = depot_factice
+    r, mot = lancer({"notes.txt": f"ligne neutre\nune phrase avec {fragments('ZORG', 'LUB')} dedans\n"})
+    assert r.returncode == 1
+    assert mot not in (r.stdout + r.stderr).lower(), "le garde-fou ne doit pas afficher le mot trouvé"
+
+
+def test_garde_fou_refuse_un_mot_interdit_dans_un_chemin(depot_factice):
+    _, lancer = depot_factice
+    mot = fragments("zorg", "lub")
+    r, _ = lancer({f"dossier/essai_{mot.capitalize()}.txt": "contenu neutre\n"})
+    assert r.returncode == 1
+    assert mot not in (r.stdout + r.stderr).lower()
+
+
+def test_garde_fou_sans_liste_avertit_et_garde_les_controles_generiques(depot_factice):
+    depot, lancer = depot_factice
+    (depot / "config" / "mots-interdits.txt").unlink()
+    r, _ = lancer({"neutre.txt": "texte\n"})
+    assert r.returncode == 0
+    assert "mots-interdits.txt absent" in r.stderr
+    r, _ = lancer({"poc/.env": "contenu\n"})
+    assert r.returncode == 1, "les contrôles existants restent actifs sans la liste"
+
+
+def test_garde_fou_ne_contient_aucun_mot_en_dur():
+    """Le garde-fou lit la liste privée : aucun mot de config/mots-interdits.txt n'est écrit dans son code."""
+    texte = (RACINE / ".githooks" / "garde-fou.sh").read_text(encoding="utf-8").lower()
+    assert "config/mots-interdits.txt" in texte
+    chemin = DOSSIER_PRIVE / "mots-interdits.txt"
+    if chemin.is_file():
+        assert not [m for m in lire_mots_interdits(chemin) if m.lower() in texte], "mot interdit écrit en dur"
