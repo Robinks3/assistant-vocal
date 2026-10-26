@@ -165,6 +165,7 @@ Qui peut se connecter au serveur du PC et qui peut le gouverner. Chaque champ es
 | `ecoute` | liste de textes | Adresses sur lesquelles les ports 8765 et 8766 s'ouvrent. Défaut : `["0.0.0.0"]` (toutes). Le filtre par réseau ci-dessous s'applique dans tous les cas. |
 | `reseaux_autorises` | liste de CIDR | Réseaux dont une connexion est acceptée. `"*"` ou `0.0.0.0/0` ouvre à tous. Absente, la liste vaut `127.0.0.0/8`, `::1/128`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10` (tailnet), `fe80::/10` et `fd00::/8`. Une entrée illisible est ignorée avec un message au démarrage. Une connexion refusée est fermée avec le code 4003, y compris sur `/appairage`. |
 | `ancien_acces` | booléen | Accepte `ws://...:8765/?jeton=` sur le port en clair. Permis par défaut. `JARVIS_ANCIEN_ACCES` de `poc/.env` (ou l'option `ancien_acces` de l'appli Home Assistant), quand il est réglé, passe devant. Le jeton en en-tête `Authorization: Bearer` marche toujours. |
+| `clair_restreint` | booléen | Vrai : toute connexion qui n'arrive pas en wss (port 8765) est fermée avec le code 4003, sauf si elle vient de la boucle locale (`127.0.0.1`, `::1`), d'où arrivent Tailscale Serve et les routines de la machine. Le motif est écrit au journal, jamais un jeton. Absent ou faux : comportement inchangé. Ne ferme pas le port 8765, qui reste ouvert, et ne remplace pas le pare-feu. Un appareil encore en `ws://` hors de la machine est refusé. |
 | `administrateurs` | liste de textes | Identités administrateurs en plus du propriétaire (`proprietaire.cle`), par exemple `appareil:ab12cd34` pour un appareil appairé (l'identifiant s'affiche dans l'écran Appareils et accès). |
 | `roles` | objet | Rôle de chaque jeton fixe de `poc/.env` : clé de l'identité (le nom du jeton, en minuscules) vers `habitant`, `partage` ou `invite`. Un jeton absent de la liste est `habitant`. Une valeur inconnue vaut `invite`. La clé du propriétaire reste `administrateur` quoi qu'on écrive ici (la valeur contraire est ignorée, avec un avertissement au démarrage), et `administrateur` n'est pas une valeur permise ici. |
 | `invitation_essais_par_ip` | entier | Essais de code d'invitation permis à une même adresse source dans la fenêtre ci-dessous, puis cette adresse seule est bloquée. Défaut : 3. Une valeur absente, nulle ou illisible rend le défaut. |
@@ -176,6 +177,7 @@ Qui peut se connecter au serveur du PC et qui peut le gouverner. Chaque champ es
   "ecoute": ["0.0.0.0"],
   "reseaux_autorises": ["127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"],
   "ancien_acces": true,
+  "clair_restreint": false,
   "administrateurs": [],
   "roles": {"camille": "habitant", "tablette": "partage"}
 }

@@ -595,7 +595,7 @@ la 0.25.1, quand `poc/requirements.txt` ne les listait pas encore. Réinstallez 
 ### L'installation des dépendances échoue sous Linux
 
 L'erreur porte sur `tflite-runtime`, demandé par openwakeword. Sous Linux, openwakeword 0.6.0 exige
-`tflite-runtime`, qui n'existe pas au-delà de Python 5.11 : Python 5.11 est obligatoire. Recréez
+`tflite-runtime`, qui n'existe pas au-delà de Python 3.11 : Python 3.11 est obligatoire. Recréez
 l'environnement avec cette version :
 
 ```bash
@@ -603,14 +603,14 @@ rm -rf .venv
 ```
 
 ```bash
-python5.11 -m venv .venv
+python3.11 -m venv .venv
 ```
 
 ```bash
 .venv/bin/python -m pip install -r poc/requirements.txt
 ```
 
-Sous Windows, Python 5.11 et 5.13 conviennent tous les deux.
+Sous Windows, Python 3.11 et 3.13 conviennent tous les deux.
 
 ### Le test de l'export d'exemple échoue
 
@@ -688,8 +688,9 @@ panne : la configuration doit en tenir compte.
   redirection du port 8765 dans ses réglages réseau.
   Deux verrous s'ajoutent : `acces.reseaux_autorises` refuse toute adresse hors des réseaux listés (code 4003),
   et `acces.ancien_acces` à `false` (ou l'option `ancien_acces` décochée) ferme le `?jeton=` sur ce port.
-- L'appli autorise le trafic en clair (`usesCleartextTraffic`). Ses options de lancement de test
-  `test_reveil`, `test_llm` et `test_canary` restent actives dans toute APK. `test_previsions`,
-  `test_sante` et `test_sante_historique` ne marchent qu'en compilation de débogage, celle que décrit
-  `INSTALLER.md` (`assembleDebug`).
+- L'appli refuse le trafic en clair, sauf vers la boucle locale de l'appareil (`network_security_config.xml`).
+  Un `ws://` vers le serveur est donc refusé par Android, et par le serveur si `acces.clair_restreint` est vrai.
+  Ses options de lancement de test `test_reveil`, `test_llm`, `test_canary`, `test_previsions`, `test_sante` et
+  `test_sante_historique` ne marchent qu'en compilation de débogage, celle que décrit `INSTALLER.md`
+  (`assembleDebug`).
 - `LICENCES-TIERS.md` ne liste pas encore les modèles LiteRT, Qwen ni les conditions des sources météo.
