@@ -1,75 +1,164 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 818" width="900" height="818" role="img" aria-label="Architecture : satellites, serveur des satellites, Home Assistant et ses appareils, services facultatifs"><title>Architecture : satellites, serveur des satellites, Home Assistant et ses appareils, services facultatifs</title>
-<style>text{font-family:-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;}.t1{fill:#1A2130;}.t2{fill:#434E5E;}.t3{fill:#5F6977;}.titre{font-size:22px;font-weight:700;letter-spacing:-0.01em;}.soustitre{font-size:14.5px;}.ct{font-size:16.5px;font-weight:600;}.cl{font-size:14.5px;}.sur{font-size:13.5px;font-weight:600;letter-spacing:0.06em;}.pas{font-size:14px;font-weight:600;}.lien{font-size:14px;font-weight:500;}</style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 800" width="100%" role="img" aria-label="Architecture : satellites, serveur des satellites, Home Assistant et services facultatifs" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Architecture : satellites, serveur des satellites, Home Assistant et services facultatifs</title><desc>Les satellites parlent au serveur sur les ports 8765 et 8766, le client web viendra sur le port 8767. Le serveur chaîne réveil, reconnaissance, cerveau et voix, passe par la sécurité en dur, puis pilote Home Assistant. LLM, reconnaissance par API et sources publiques sont facultatifs.</desc>
 <defs>
 <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F2F5F9"/></linearGradient>
 <radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.07"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
 <linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F6F8FB"/></linearGradient>
 <filter id="ombre" x="-10%" y="-12%" width="120%" height="135%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#1B2B45" flood-opacity="0.11"/></filter>
-<filter id="lueur" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="5" result="f"/><feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-<filter id="flou" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4"/></filter>
 <radialGradient id="orbe-bleu" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#D3E4FF"/><stop offset="0.38" stop-color="#7FB2FF"/><stop offset="0.78" stop-color="#4C8DFF"/><stop offset="1" stop-color="#2D5DC2"/></radialGradient>
-<radialGradient id="halo-bleu"><stop offset="0.35" stop-color="#7FB2FF" stop-opacity="0.45"/><stop offset="0.7" stop-color="#7FB2FF" stop-opacity="0.12"/><stop offset="1" stop-color="#7FB2FF" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-bleu"><stop offset="0.35" stop-color="#7FB2FF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#7FB2FF" stop-opacity="0.10"/><stop offset="1" stop-color="#7FB2FF" stop-opacity="0"/></radialGradient>
 <radialGradient id="orbe-cyan" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#C8F7FD"/><stop offset="0.38" stop-color="#4FE3F4"/><stop offset="0.78" stop-color="#22C3D8"/><stop offset="1" stop-color="#11849A"/></radialGradient>
-<radialGradient id="halo-cyan"><stop offset="0.35" stop-color="#4FE3F4" stop-opacity="0.45"/><stop offset="0.7" stop-color="#4FE3F4" stop-opacity="0.12"/><stop offset="1" stop-color="#4FE3F4" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-cyan"><stop offset="0.35" stop-color="#4FE3F4" stop-opacity="0.40"/><stop offset="0.7" stop-color="#4FE3F4" stop-opacity="0.10"/><stop offset="1" stop-color="#4FE3F4" stop-opacity="0"/></radialGradient>
 <radialGradient id="orbe-violet" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#E6DDFF"/><stop offset="0.38" stop-color="#A98BFF"/><stop offset="0.78" stop-color="#8A66F0"/><stop offset="1" stop-color="#5A3EC0"/></radialGradient>
-<radialGradient id="halo-violet"><stop offset="0.35" stop-color="#A98BFF" stop-opacity="0.45"/><stop offset="0.7" stop-color="#A98BFF" stop-opacity="0.12"/><stop offset="1" stop-color="#A98BFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-violet"><stop offset="0.35" stop-color="#A98BFF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#A98BFF" stop-opacity="0.10"/><stop offset="1" stop-color="#A98BFF" stop-opacity="0"/></radialGradient>
 <radialGradient id="orbe-ambre" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FFE6C2"/><stop offset="0.38" stop-color="#F0B46A"/><stop offset="0.78" stop-color="#DE9440"/><stop offset="1" stop-color="#A9661F"/></radialGradient>
-<radialGradient id="halo-ambre"><stop offset="0.35" stop-color="#F0B46A" stop-opacity="0.45"/><stop offset="0.7" stop-color="#F0B46A" stop-opacity="0.12"/><stop offset="1" stop-color="#F0B46A" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-ambre"><stop offset="0.35" stop-color="#F0B46A" stop-opacity="0.40"/><stop offset="0.7" stop-color="#F0B46A" stop-opacity="0.10"/><stop offset="1" stop-color="#F0B46A" stop-opacity="0"/></radialGradient>
 <radialGradient id="orbe-vert" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#CBF4DE"/><stop offset="0.38" stop-color="#5BD898"/><stop offset="0.78" stop-color="#3CCB7F"/><stop offset="1" stop-color="#1E8A52"/></radialGradient>
-<radialGradient id="halo-vert"><stop offset="0.35" stop-color="#5BD898" stop-opacity="0.45"/><stop offset="0.7" stop-color="#5BD898" stop-opacity="0.12"/><stop offset="1" stop-color="#5BD898" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-vert"><stop offset="0.35" stop-color="#5BD898" stop-opacity="0.40"/><stop offset="0.7" stop-color="#5BD898" stop-opacity="0.10"/><stop offset="1" stop-color="#5BD898" stop-opacity="0"/></radialGradient>
 <radialGradient id="orbe-rouge" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FAC9C5"/><stop offset="0.38" stop-color="#EC7A73"/><stop offset="0.78" stop-color="#E5534B"/><stop offset="1" stop-color="#A3322B"/></radialGradient>
-<radialGradient id="halo-rouge"><stop offset="0.35" stop-color="#EC7A73" stop-opacity="0.45"/><stop offset="0.7" stop-color="#EC7A73" stop-opacity="0.12"/><stop offset="1" stop-color="#EC7A73" stop-opacity="0"/></radialGradient>
-<radialGradient id="orbe-ciel" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#D2F0F8"/><stop offset="0.38" stop-color="#80CBE0"/><stop offset="0.78" stop-color="#5BB3CC"/><stop offset="1" stop-color="#2F7F98"/></radialGradient>
-<radialGradient id="halo-ciel"><stop offset="0.35" stop-color="#80CBE0" stop-opacity="0.45"/><stop offset="0.7" stop-color="#80CBE0" stop-opacity="0.12"/><stop offset="1" stop-color="#80CBE0" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-rouge"><stop offset="0.35" stop-color="#EC7A73" stop-opacity="0.40"/><stop offset="0.7" stop-color="#EC7A73" stop-opacity="0.10"/><stop offset="1" stop-color="#EC7A73" stop-opacity="0"/></radialGradient>
 </defs>
-<rect x="0.5" y="0.5" width="899" height="817" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="899" height="817" rx="22" fill="url(#lueurFond)"/>
-<text x="24" y="44" class="titre t1">Architecture</text>
-<text x="24" y="70" class="soustitre t2">Rôles génériques. Le serveur tourne sur un PC, ou dans Home Assistant quand le PC est éteint.</text>
-<path d="M272 196 L322 196" fill="none" stroke="#4C8DFF" stroke-width="6" stroke-opacity="0.35" filter="url(#flou)"/><path d="M272 196 L322 196" fill="none" stroke="#4C8DFF" stroke-width="2.4" stroke-linecap="round"/>
-<polygon points="324,196 317,190.96 317,201.04" fill="#4C8DFF" stroke="#4C8DFF" stroke-width="1" stroke-linejoin="round"/>
-<polygon points="272,196 279,190.96 279,201.04" fill="#4C8DFF" stroke="#4C8DFF" stroke-width="1" stroke-linejoin="round"/>
-<text x="298.0" y="186" class="lien" text-anchor="middle" fill="#2C69D6">wss</text>
-<path d="M272 491 L322 491" fill="none" stroke="#4C8DFF" stroke-width="6" stroke-opacity="0.35" filter="url(#flou)"/><path d="M272 491 L322 491" fill="none" stroke="#4C8DFF" stroke-width="2.4" stroke-linecap="round"/>
-<polygon points="324,491 317,485.96 317,496.04" fill="#4C8DFF" stroke="#4C8DFF" stroke-width="1" stroke-linejoin="round"/>
-<polygon points="272,491 279,485.96 279,496.04" fill="#4C8DFF" stroke="#4C8DFF" stroke-width="1" stroke-linejoin="round"/>
-<text x="298.0" y="481" class="lien" text-anchor="middle" fill="#2C69D6">wss</text>
-<path d="M576 196 L626 196" fill="none" stroke="#A9B3C0" stroke-width="2" stroke-linecap="round"/>
-<polygon points="628,196 621,190.96 621,201.04" fill="#A9B3C0" stroke="#A9B3C0" stroke-width="1" stroke-linejoin="round"/>
-<polygon points="576,196 583,190.96 583,201.04" fill="#A9B3C0" stroke="#A9B3C0" stroke-width="1" stroke-linejoin="round"/>
-<text x="602.0" y="186" class="lien t3" text-anchor="middle">API</text>
-<path d="M754 410 L754 432" fill="none" stroke="#A9B3C0" stroke-width="2" stroke-linecap="round"/>
-<polygon points="754,434 748.96,427 759.04,427" fill="#A9B3C0" stroke="#A9B3C0" stroke-width="1" stroke-linejoin="round"/>
-<path d="M106 140 L106 126 Q106 112 120 112 L675 112 Q688 112 688 125 L688 138" fill="none" stroke="#4C8DFF" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="6 6"/>
-<polygon points="688,140 682.96,133 693.04,133" fill="#4C8DFF" stroke="#4C8DFF" stroke-width="1" stroke-linejoin="round"/>
-<text x="397.0" y="103" class="lien" text-anchor="middle" fill="#2C69D6">wss vers l'appli Home Assistant quand le PC est éteint</text>
-<path d="M390 548 L390 578 Q390 594 374 594 L162 594 Q146 594 146 610 L146 638" fill="none" stroke="#8A66F0" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="6 6"/>
-<polygon points="146,640 140.96,633 151.04,633" fill="#8A66F0" stroke="#8A66F0" stroke-width="1" stroke-linejoin="round"/>
-<text x="268.0" y="585" class="lien" text-anchor="middle" fill="#6447CF">HTTPS, texte seul</text>
-<path d="M450 548 L450 638" fill="none" stroke="#3CCB7F" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="6 6"/>
-<polygon points="450,640 444.96,633 455.04,633" fill="#3CCB7F" stroke="#3CCB7F" stroke-width="1" stroke-linejoin="round"/>
-<text x="460" y="626" class="lien" fill="#14804A">Tailscale</text>
-<path d="M510 548 L510 578 Q510 594 526 594 L738 594 Q754 594 754 610 L754 638" fill="none" stroke="#5BB3CC" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="6 6"/>
-<polygon points="754,640 748.96,633 759.04,633" fill="#5BB3CC" stroke="#5BB3CC" stroke-width="1" stroke-linejoin="round"/>
-<text x="632.0" y="585" class="lien" text-anchor="middle" fill="#22789A">HTTPS</text>
-<g><rect x="20" y="140" width="252" height="270" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" filter="url(#ombre)"/></g><text x="38" y="170" class="sur" fill="#2C69D6">SATELLITE</text><circle cx="244" cy="165" r="19.5" fill="url(#halo-bleu)"/><circle cx="244" cy="165" r="8.5" fill="url(#orbe-bleu)"/><ellipse cx="241.6" cy="161.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="38" y="195" class="ct t1">Tablette en station</text><circle cx="42" cy="214.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="219.0" class="cl t2">mot de réveil openWakeWord</text><circle cx="42" cy="235.5" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="240.5" class="cl t2">Silero VAD, Canary 1B</text><circle cx="42" cy="257.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="262.0" class="cl t2">dictionnaire de commandes</text><circle cx="42" cy="278.5" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="283.5" class="cl t2">sécurité écrite en dur</text><circle cx="42" cy="300.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="305.0" class="cl t2">visages YuNet et SFace</text><circle cx="42" cy="321.5" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="326.5" class="cl t2">écran ambiant</text><circle cx="42" cy="343.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="348.0" class="cl t2">voix d'Android</text><circle cx="42" cy="364.5" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="369.5" class="cl t2">LLM sur l'appareil, en option</text>
-<g><rect x="20" y="434" width="252" height="114" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" filter="url(#ombre)"/></g><circle cx="244" cy="462" r="19.5" fill="url(#halo-bleu)"/><circle cx="244" cy="462" r="8.5" fill="url(#orbe-bleu)"/><ellipse cx="241.6" cy="458.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="38" y="467" class="ct t1">Téléphones</text><circle cx="42" cy="486.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="491.0" class="cl t2">micro et haut-parleur</text><circle cx="42" cy="507.5" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="512.5" class="cl t2">mot de réveil sur place</text><circle cx="42" cy="529.0" r="2.6" fill="#4C8DFF" opacity="0.85"/><text x="53" y="534.0" class="cl t2">mode Cet appareil possible</text>
-<g><rect x="324" y="140" width="252" height="408" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" filter="url(#ombre)"/></g><text x="342" y="170" class="sur" fill="#6447CF">SERVEUR, PROFIL PC</text><circle cx="548" cy="165" r="19.5" fill="url(#halo-violet)"/><circle cx="548" cy="165" r="8.5" fill="url(#orbe-violet)"/><ellipse cx="545.6" cy="161.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="342" y="195" class="ct t1">Serveur sur un PC</text><circle cx="346" cy="214.0" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="219.0" class="cl t2">arbitre du mot de réveil</text><circle cx="346" cy="235.5" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="240.5" class="cl t2">Silero VAD, Canary 1B</text><circle cx="346" cy="257.0" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="262.0" class="cl t2">voix Piper</text><circle cx="346" cy="278.5" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="283.5" class="cl t2">dictionnaire de commandes</text><circle cx="346" cy="300.0" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="305.0" class="cl t2">sécurité écrite en dur</text><circle cx="346" cy="321.5" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="326.5" class="cl t2">LLM : Claude Haiku</text><circle cx="346" cy="343.0" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="348.0" class="cl t2">vision YuNet et SFace</text><circle cx="346" cy="364.5" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="369.5" class="cl t2">relais santé, météo</text><circle cx="346" cy="386.0" r="2.6" fill="#8A66F0" opacity="0.85"/><text x="357" y="391.0" class="cl t2">passerelle Home Assistant</text>
-<rect x="338" y="482" width="224" height="52" rx="11" fill="none" stroke="#8A66F0" stroke-opacity="0.7" stroke-dasharray="5 5"/>
-<text x="352" y="504" class="cl t1" font-weight="600">LLM local, en option</text>
-<text x="352" y="524" class="cl t2">llama-server, carte graphique</text>
-<g><rect x="628" y="140" width="252" height="270" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" filter="url(#ombre)"/></g><text x="646" y="170" class="sur" fill="#9A5C12">DOMOTIQUE</text><circle cx="852" cy="165" r="19.5" fill="url(#halo-ambre)"/><circle cx="852" cy="165" r="8.5" fill="url(#orbe-ambre)"/><ellipse cx="849.6" cy="161.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="646" y="195" class="ct t1">Home Assistant</text><circle cx="650" cy="214.0" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="219.0" class="cl t2">API, Assist, prévisions</text><circle cx="650" cy="235.5" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="240.5" class="cl t2">Speech-to-Phrase, Piper</text><circle cx="650" cy="257.0" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="262.0" class="cl t2">openWakeWord (Wyoming)</text><circle cx="650" cy="278.5" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="283.5" class="cl t2">Music Assistant</text>
-<rect x="642" y="326" width="224" height="70" rx="11" fill="#4C8DFF" fill-opacity="0.11" stroke="#4C8DFF" stroke-opacity="0.55"/>
-<text x="656" y="348" class="cl" fill="#2C69D6" font-weight="600">Appli du serveur, profil ha</text>
-<text x="656" y="368" class="cl t2">relève le PC éteint</text>
-<text x="656" y="387" class="cl t2">LLM : Claude seul</text>
-<g><rect x="628" y="434" width="252" height="114" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" filter="url(#ombre)"/></g><circle cx="852" cy="462" r="19.5" fill="url(#halo-ambre)"/><circle cx="852" cy="462" r="8.5" fill="url(#orbe-ambre)"/><ellipse cx="849.6" cy="458.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="646" y="467" class="ct t1">Appareils</text><circle cx="650" cy="486.0" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="491.0" class="cl t2">lampes et prises</text><circle cx="650" cy="507.5" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="512.5" class="cl t2">télé et enceintes</text><circle cx="650" cy="529.0" r="2.6" fill="#DE9440" opacity="0.85"/><text x="661" y="534.0" class="cl t2">intégrations de HA</text>
-<g><rect x="20" y="640" width="252" height="118" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" stroke-dasharray="6 5" filter="url(#ombre)"/></g><text x="38" y="670" class="sur" fill="#6447CF">API</text><circle cx="244" cy="665" r="19.5" fill="url(#halo-violet)"/><circle cx="244" cy="665" r="8.5" fill="url(#orbe-violet)"/><ellipse cx="241.6" cy="661.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="38" y="695" class="ct t1">Claude Haiku</text><text x="38" y="719" class="cl t2">texte de la demande seul</text><text x="38" y="740" class="cl t2">services en liste blanche</text>
-<g><rect x="324" y="640" width="252" height="118" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" stroke-dasharray="6 5" filter="url(#ombre)"/></g><text x="342" y="670" class="sur" fill="#14804A">FACULTATIF</text><circle cx="548" cy="665" r="19.5" fill="url(#halo-vert)"/><circle cx="548" cy="665" r="8.5" fill="url(#orbe-vert)"/><ellipse cx="545.6" cy="661.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="342" y="695" class="ct t1">Données de santé</text><text x="342" y="719" class="cl t2">API et tableau de bord</text><text x="342" y="740" class="cl t2">pour le seul propriétaire</text>
-<g><rect x="628" y="640" width="252" height="118" rx="16" fill="url(#carte)" stroke="#D7DEE7" stroke-width="1.2" stroke-dasharray="6 5" filter="url(#ombre)"/></g><text x="646" y="670" class="sur" fill="#22789A">SOURCES PUBLIQUES</text><circle cx="852" cy="665" r="19.5" fill="url(#halo-ciel)"/><circle cx="852" cy="665" r="8.5" fill="url(#orbe-ciel)"/><ellipse cx="849.6" cy="661.8" rx="3.2" ry="1.9" fill="#FFFFFF" opacity="0.55"/><text x="646" y="695" class="ct t1">Météo</text><text x="646" y="719" class="cl t2">Open-Meteo et stations</text><text x="646" y="740" class="cl t2">aucune donnée personnelle</text>
-<path d="M26 785 H56" stroke="#4C8DFF" stroke-width="2.4" stroke-linecap="round"/>
-<text x="66" y="790" class="cl t2">wss chiffré, appairage par code</text>
-<path d="M309.3799999999999 785 H339.3799999999999" stroke="#A9B3C0" stroke-width="2.4" stroke-linecap="round"/>
-<text x="349.3799999999999" y="790" class="cl t2">réseau local</text>
-<path d="M463.1299999999999 785 H493.1299999999999" stroke="#A9B3C0" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="6 5"/>
-<text x="503.1299999999999" y="790" class="cl t2">facultatif, par Internet ou Tailscale</text>
+<rect x="0.5" y="0.5" width="899" height="799" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="899" height="799" rx="22" fill="url(#lueurFond)"/>
+<text x="24" y="44" font-size="22" font-weight="700" fill="#1A2130">Architecture</text>
+<text x="24" y="70" font-size="14.5" fill="#434E5E">Rôles génériques sur la maison d'exemple. Le serveur tourne sur un PC, ou dans l'appli Home Assistant.</text>
+<text x="24" y="112" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SATELLITES</text>
+<text x="296" y="112" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SERVEUR DES SATELLITES</text>
+<text x="652" y="112" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">DOMOTIQUE</text>
+<rect x="24" y="124" width="232" height="118" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="124" width="232" height="118" rx="14" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="24" y="124" width="232" height="118" rx="14" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="40" y="153" font-size="16" font-weight="600" fill="#1A2130">Appli Android</text>
+<text x="40" y="178" font-size="13.5" fill="#434E5E">Micro et haut-parleur</text>
+<text x="40" y="198" font-size="13.5" fill="#434E5E">Mot de réveil local</text>
+<text x="40" y="218" font-size="13.5" fill="#434E5E">Mode autonome possible</text>
+<rect x="24" y="258" width="232" height="100" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="258" width="232" height="100" rx="14" fill="#4C8DFF" fill-opacity="0.08"/>
+<rect x="24" y="258" width="232" height="100" rx="14" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="40" y="287" font-size="16" font-weight="600" fill="#1A2130">Client web</text>
+<rect x="193.5" y="270" width="50.5" height="20" rx="10" fill="#DE9440" fill-opacity="0.18"/>
+<rect x="193.5" y="270" width="50.5" height="20" rx="10" fill="none" stroke="#DE9440" stroke-width="1.2"/>
+<text x="218.8" y="284.5" font-size="12" font-weight="600" fill="#8F5413" text-anchor="middle">prévu</text>
+<text x="40" y="312" font-size="13.5" fill="#434E5E">Pour le propriétaire</text>
+<text x="40" y="332" font-size="13.5" fill="#434E5E">Via Tailscale Serve</text>
+<rect x="24" y="374" width="232" height="100" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="374" width="232" height="100" rx="14" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="24" y="374" width="232" height="100" rx="14" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="40" y="403" font-size="16" font-weight="600" fill="#1A2130">Appairage</text>
+<text x="40" y="428" font-size="13.5" fill="#434E5E">Code à 4 chiffres, 300 s</text>
+<text x="40" y="448" font-size="13.5" fill="#434E5E">Empreinte du certificat</text>
+<rect x="296" y="124" width="316" height="466" rx="16" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="296" y="124" width="316" height="466" rx="16" fill="#4C8DFF" fill-opacity="0.08"/>
+<rect x="296" y="124" width="316" height="466" rx="16" fill="none" stroke="#4C8DFF" stroke-width="1.5"/>
+<text x="312" y="150" font-size="16.5" font-weight="600" fill="#1A2130">Serveur du PC</text>
+<text x="312" y="168" font-size="12.5" fill="#5F6977">Même moteur dans l'appli HA, profil ha</text>
+<rect x="312" y="178" width="284" height="24" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="178" width="284" height="24" rx="10" fill="#DE9440" fill-opacity="0.08"/>
+<rect x="312" y="178" width="284" height="24" rx="10" fill="none" stroke="#DE9440" stroke-width="1.5"/>
+<text x="324" y="194.4" font-size="12.5" fill="#434E5E">8765  clair, ancien accès à fermer</text>
+<rect x="312" y="208" width="284" height="24" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="208" width="284" height="24" rx="10" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="312" y="208" width="284" height="24" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="324" y="224.4" font-size="12.5" fill="#434E5E">8766  wss chiffré, appareils appairés</text>
+<rect x="312" y="238" width="284" height="24" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="238" width="284" height="24" rx="10" fill="#4C8DFF" fill-opacity="0.08"/>
+<rect x="312" y="238" width="284" height="24" rx="10" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text x="324" y="254.4" font-size="12.5" fill="#434E5E">8767  client web</text>
+<rect x="537.5" y="240" width="50.5" height="20" rx="10" fill="#DE9440" fill-opacity="0.18"/>
+<rect x="537.5" y="240" width="50.5" height="20" rx="10" fill="none" stroke="#DE9440" stroke-width="1.2"/>
+<text x="562.8" y="254.5" font-size="12" font-weight="600" fill="#8F5413" text-anchor="middle">prévu</text>
+<rect x="312" y="276" width="284" height="44" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="276" width="284" height="44" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="324" y="294" font-size="13.5" font-weight="600" fill="#1A2130">Réveil et écoute</text>
+<text x="324" y="312" font-size="12.5" fill="#434E5E">openWakeWord, Silero VAD</text>
+<rect x="312" y="326" width="284" height="44" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="326" width="284" height="44" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="324" y="344" font-size="13.5" font-weight="600" fill="#1A2130">Reconnaissance</text>
+<text x="324" y="362" font-size="12.5" fill="#434E5E">Canary, Speech-to-Phrase ou API</text>
+<rect x="312" y="376" width="284" height="44" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="376" width="284" height="44" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="324" y="394" font-size="13.5" font-weight="600" fill="#1A2130">Cerveau</text>
+<text x="324" y="412" font-size="12.5" fill="#434E5E">Dictionnaire, puis LLM</text>
+<rect x="312" y="426" width="284" height="44" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="426" width="284" height="44" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="324" y="444" font-size="13.5" font-weight="600" fill="#1A2130">Voix</text>
+<text x="324" y="462" font-size="12.5" fill="#434E5E">Piper, ou la voix d'Android</text>
+<rect x="312" y="478" width="284" height="46" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="478" width="284" height="46" rx="10" fill="#E5534B" fill-opacity="0.08"/>
+<rect x="312" y="478" width="284" height="46" rx="10" fill="none" stroke="#E5534B" stroke-width="1.5"/>
+<text x="324" y="497" font-size="13.5" font-weight="600" fill="#B3362F">Sécurité en dur</text>
+<text x="324" y="515" font-size="12.5" fill="#434E5E">poc/securite.py, avant tout appel</text>
+<rect x="312" y="532" width="284" height="46" rx="10" fill="#EEF2F7"/>
+<rect x="312" y="532" width="284" height="46" rx="10" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="312" y="532" width="284" height="46" rx="10" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="324" y="551" font-size="13.5" font-weight="600" fill="#5A3EC0">Page d'administration</text>
+<text x="324" y="569" font-size="12.5" fill="#434E5E">Appareils, rôles, invitations</text>
+<rect x="652" y="124" width="224" height="126" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="652" y="124" width="224" height="126" rx="14" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="652" y="124" width="224" height="126" rx="14" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="668" y="153" font-size="16" font-weight="600" fill="#1A2130">Home Assistant</text>
+<text x="668" y="178" font-size="13.5" fill="#434E5E">API REST et WebSocket</text>
+<text x="668" y="198" font-size="13.5" fill="#434E5E">Services en liste blanche</text>
+<text x="668" y="218" font-size="13.5" fill="#434E5E">Entités de maison.json</text>
+<rect x="652" y="270" width="224" height="126" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="652" y="270" width="224" height="126" rx="14" fill="#DE9440" fill-opacity="0.08"/>
+<rect x="652" y="270" width="224" height="126" rx="14" fill="none" stroke="#DE9440" stroke-width="1.5"/>
+<text x="668" y="299" font-size="16" font-weight="600" fill="#1A2130">Maison d'exemple</text>
+<text x="668" y="324" font-size="13.5" fill="#434E5E">Salon, cuisine, couloir</text>
+<text x="668" y="344" font-size="13.5" fill="#434E5E">Chambres de Sacha, Camille</text>
+<text x="668" y="364" font-size="13.5" fill="#434E5E">Lumières, volets, enceintes</text>
+<path d="M256 183 L296 183" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M296 183 L286 188.5 L286 177.5 Z" fill="#3CCB7F"/>
+<path d="M256 183 L266 177.5 L266 188.5 Z" fill="#3CCB7F"/>
+<text x="276" y="173" font-size="11.5" fill="#5F6977" text-anchor="middle">wss</text>
+<path d="M256 308 L296 308" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M296 308 L286 313.5 L286 302.5 Z" fill="#4C8DFF"/>
+<path d="M256 308 L266 302.5 L266 313.5 Z" fill="#4C8DFF"/>
+<text x="276" y="298" font-size="11.5" fill="#5F6977" text-anchor="middle">web</text>
+<path d="M612 187 L652 187" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M652 187 L642 192.5 L642 181.5 Z" fill="#3CCB7F"/>
+<path d="M612 187 L622 181.5 L622 192.5 Z" fill="#3CCB7F"/>
+<text x="632" y="177" font-size="11.5" fill="#5F6977" text-anchor="middle">REST</text>
+<path d="M764 250 L764 270" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M764 270 L758.5 260 L769.5 260 Z" fill="#3CCB7F"/>
+<text x="24" y="626" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SERVICES FACULTATIFS</text>
+<path d="M454 590 L454 640" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M126 640 L774 640" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M126 640 L126 658" fill="none" stroke="#8A66F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M126 658 L120.5 648 L131.5 648 Z" fill="#8A66F0"/>
+<rect x="24" y="658" width="204" height="90" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="658" width="204" height="90" rx="14" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="24" y="658" width="204" height="90" rx="14" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="40" y="687" font-size="15.5" font-weight="600" fill="#1A2130">LLM en ligne</text>
+<text x="40" y="712" font-size="13" fill="#434E5E">Claude, par l'API</text>
+<text x="40" y="732" font-size="13" fill="#434E5E">Cerveau au choix</text>
+<path d="M342 640 L342 658" fill="none" stroke="#8A66F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M342 658 L336.5 648 L347.5 648 Z" fill="#8A66F0"/>
+<rect x="240" y="658" width="204" height="90" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="240" y="658" width="204" height="90" rx="14" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="240" y="658" width="204" height="90" rx="14" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="256" y="687" font-size="15.5" font-weight="600" fill="#1A2130">LLM local</text>
+<text x="256" y="712" font-size="13" fill="#434E5E">LM Studio, llama-server</text>
+<text x="256" y="732" font-size="13" fill="#434E5E">Qwen sur le PC</text>
+<path d="M558 640 L558 658" fill="none" stroke="#22C3D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M558 658 L552.5 648 L563.5 648 Z" fill="#22C3D8"/>
+<rect x="456" y="658" width="204" height="90" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="456" y="658" width="204" height="90" rx="14" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="456" y="658" width="204" height="90" rx="14" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="472" y="687" font-size="15.5" font-weight="600" fill="#1A2130">Reconnaissance</text>
+<text x="472" y="712" font-size="13" fill="#434E5E">Whisper ou API compatible</text>
+<text x="472" y="732" font-size="13" fill="#434E5E">OpenAI, en option</text>
+<path d="M774 640 L774 658" fill="none" stroke="#DE9440" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M774 658 L768.5 648 L779.5 648 Z" fill="#DE9440"/>
+<rect x="672" y="658" width="204" height="90" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="672" y="658" width="204" height="90" rx="14" fill="#DE9440" fill-opacity="0.08"/>
+<rect x="672" y="658" width="204" height="90" rx="14" fill="none" stroke="#DE9440" stroke-width="1.5"/>
+<text x="688" y="687" font-size="15.5" font-weight="600" fill="#1A2130">Sources publiques</text>
+<text x="688" y="712" font-size="13" fill="#434E5E">Météo marine et vent</text>
+<text x="688" y="732" font-size="13" fill="#434E5E">Interrogées par le serveur</text>
+<path d="M24 778 L52 778" stroke="#8A94A3" stroke-width="2" stroke-linecap="round"/>
+<text x="62" y="782.5" font-size="12.5" fill="#5F6977">Existe dans le code</text>
+<path d="M214 778 L242 778" stroke="#8A94A3" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 5"/>
+<rect x="252" y="768" width="50.5" height="20" rx="10" fill="#DE9440" fill-opacity="0.18"/>
+<rect x="252" y="768" width="50.5" height="20" rx="10" fill="none" stroke="#DE9440" stroke-width="1.2"/>
+<text x="277.2" y="782.5" font-size="12" font-weight="600" fill="#8F5413" text-anchor="middle">prévu</text>
+<text x="310" y="782.5" font-size="12.5" fill="#5F6977">Pas encore codé, conception validée</text>
 </svg>

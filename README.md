@@ -17,8 +17,10 @@ propre dépôt privé. Tous les écrans de cette page montrent la configuration 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/trajet-phrase-sombre.svg">
-  <img src="docs/images/trajet-phrase-clair.svg" width="900" alt="Trajet d'une phrase, du mot de réveil à la réponse">
+  <img src="docs/images/trajet-phrase-clair.svg" width="900" alt="Trajet d'une phrase en huit étapes : réveil, écoute, reconnaissance, contexte (prévu), cerveau, contrôles de sécurité, appel de Home Assistant, réponse vocale">
 </picture>
+
+<sub>Le trajet d'une phrase. Les contrôles de sécurité passent avant tout appel à Home Assistant, et l'étape du contexte de requête est prévue, pas encore codée.</sub>
 
 Une phrase fréquente passe par le dictionnaire : environ 0,1 s pour la comprendre, et la lampe réagit dans la
 foulée. Une phrase inconnue part au LLM avec ses outils, en 2 à 2,5 s avec Claude Haiku, puis elle est apprise et passe ensuite
@@ -31,8 +33,10 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/architecture-sombre.svg">
-  <img src="docs/images/architecture-clair.svg" width="900" alt="Satellites, serveur, Home Assistant et services facultatifs">
+  <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture : satellites, serveur du PC, Home Assistant et services facultatifs">
 </picture>
+
+<sub>Les machines et leurs liens. Le client web (port 8767) est prévu, le port 8765 en clair est un ancien accès à fermer.</sub>
 
 | Mode | Où tourne le serveur | Pour quoi |
 |---|---|---|
@@ -98,6 +102,39 @@ quand quelqu'un est là, noir pur dès qu'on s'éloigne pour ménager l'OLED, ri
 | Les données de santé | Du relais santé vers la tablette, par Tailscale et en chiffré. Affichées seulement quand le propriétaire est seul devant l'écran. |
 | Le texte de la demande | Vers Claude, seulement quand le dictionnaire ne l'a pas comprise, avec la liste des appareils permis. |
 | Les secrets | Dans `poc/.env` de chaque machine, jamais dans un dépôt. Le garde-fou de `.githooks/` refuse tout secret, toute donnée d'usage et tout fichier de plus de 5 Mo. |
+
+La maison elle-même se lit dans un dossier de configuration à part, désigné par la variable `ASSISTANT_VOCAL_CONFIG`,
+sinon `config/`, qui reste privé et ignoré par git. Les tests tournent sur `config-exemple/`, mêmes clés et valeurs fictives.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/config-architecture-sombre.svg">
+  <img src="docs/images/config-architecture-clair.svg" width="900" alt="Le moteur public, le dossier privé config/ ignoré par git, config-exemple/ public et le garde-fou des commits">
+</picture>
+
+<sub>Le moteur est public, la maison reste dans `config/`. Le garde-fou contrôle chaque commit et chaque envoi.</sub>
+
+## Rôles et routines (prévus)
+
+Les quatre rôles existent déjà dans `poc/acces.py` : administrateur (le propriétaire), habitant, partagé (la tablette
+commune) et invité. Seul l'administrateur gère les appareils et les rôles. Ce que chaque rôle a le droit de faire, le
+client web et les routines à la voix sont décrits dans `docs/plan/` et ne sont pas encore codés.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/roles-droits-sombre.svg">
+  <img src="docs/images/roles-droits-clair.svg" width="900" alt="Quatre rôles, ce qui existe dans le code et la matrice de droits prévue">
+</picture>
+
+<sub>Les quatre rôles et la matrice de droits. Seule la gestion des appareils et des rôles est appliquée aujourd'hui, le reste est prévu.</sub>
+
+Une routine sera une phrase qui lance une liste d'étapes. Le LLM propose, le serveur vérifie chaque étape, le propriétaire
+confirme, puis le moteur exécute lui-même chaque étape avec la sécurité en dur.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/routines-sombre.svg">
+  <img src="docs/images/routines-clair.svg" width="900" alt="Routines : création à la voix, exécution en déclencheur, conditions et actions, exemple fictif">
+</picture>
+
+<sub>Les routines, de la création à la voix jusqu'à l'exécution, sur un exemple fictif. Tout est prévu, la conception est validée.</sub>
 
 ## Essayer
 

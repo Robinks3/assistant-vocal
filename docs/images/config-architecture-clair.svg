@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 572" width="100%" role="img" aria-label="Séparation du moteur, de config/ et de config-exemple/" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Séparation du moteur, de config/ et de config-exemple/</title><desc>Le moteur public lit la maison dans un dossier de configuration choisi par la variable ASSISTANT_VOCAL_CONFIG, sinon dans config/ (privé, ignoré par git). Les tests lisent config-exemple/ (mêmes clés, valeurs fictives). Un garde-fou vérifie chaque commit et chaque envoi.</desc>
+<defs>
+<linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F2F5F9"/></linearGradient>
+<radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.07"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F6F8FB"/></linearGradient>
+<filter id="ombre" x="-10%" y="-12%" width="120%" height="135%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#1B2B45" flood-opacity="0.11"/></filter>
+<radialGradient id="orbe-bleu" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#D3E4FF"/><stop offset="0.38" stop-color="#7FB2FF"/><stop offset="0.78" stop-color="#4C8DFF"/><stop offset="1" stop-color="#2D5DC2"/></radialGradient>
+<radialGradient id="halo-bleu"><stop offset="0.35" stop-color="#7FB2FF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#7FB2FF" stop-opacity="0.10"/><stop offset="1" stop-color="#7FB2FF" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-cyan" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#C8F7FD"/><stop offset="0.38" stop-color="#4FE3F4"/><stop offset="0.78" stop-color="#22C3D8"/><stop offset="1" stop-color="#11849A"/></radialGradient>
+<radialGradient id="halo-cyan"><stop offset="0.35" stop-color="#4FE3F4" stop-opacity="0.40"/><stop offset="0.7" stop-color="#4FE3F4" stop-opacity="0.10"/><stop offset="1" stop-color="#4FE3F4" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-violet" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#E6DDFF"/><stop offset="0.38" stop-color="#A98BFF"/><stop offset="0.78" stop-color="#8A66F0"/><stop offset="1" stop-color="#5A3EC0"/></radialGradient>
+<radialGradient id="halo-violet"><stop offset="0.35" stop-color="#A98BFF" stop-opacity="0.40"/><stop offset="0.7" stop-color="#A98BFF" stop-opacity="0.10"/><stop offset="1" stop-color="#A98BFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-ambre" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FFE6C2"/><stop offset="0.38" stop-color="#F0B46A"/><stop offset="0.78" stop-color="#DE9440"/><stop offset="1" stop-color="#A9661F"/></radialGradient>
+<radialGradient id="halo-ambre"><stop offset="0.35" stop-color="#F0B46A" stop-opacity="0.40"/><stop offset="0.7" stop-color="#F0B46A" stop-opacity="0.10"/><stop offset="1" stop-color="#F0B46A" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-vert" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#CBF4DE"/><stop offset="0.38" stop-color="#5BD898"/><stop offset="0.78" stop-color="#3CCB7F"/><stop offset="1" stop-color="#1E8A52"/></radialGradient>
+<radialGradient id="halo-vert"><stop offset="0.35" stop-color="#5BD898" stop-opacity="0.40"/><stop offset="0.7" stop-color="#5BD898" stop-opacity="0.10"/><stop offset="1" stop-color="#5BD898" stop-opacity="0"/></radialGradient>
+<radialGradient id="orbe-rouge" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FAC9C5"/><stop offset="0.38" stop-color="#EC7A73"/><stop offset="0.78" stop-color="#E5534B"/><stop offset="1" stop-color="#A3322B"/></radialGradient>
+<radialGradient id="halo-rouge"><stop offset="0.35" stop-color="#EC7A73" stop-opacity="0.40"/><stop offset="0.7" stop-color="#EC7A73" stop-opacity="0.10"/><stop offset="1" stop-color="#EC7A73" stop-opacity="0"/></radialGradient>
+</defs>
+<rect x="0.5" y="0.5" width="899" height="571" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="899" height="571" rx="22" fill="url(#lueurFond)"/>
+<text x="24" y="44" font-size="22" font-weight="700" fill="#1A2130">Moteur et configuration</text>
+<text x="24" y="70" font-size="14.5" fill="#434E5E">Le dépôt public ne contient rien d'un vrai logement. La maison se lit dans un dossier à part.</text>
+<rect x="24" y="110" width="250" height="262" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="110" width="250" height="262" rx="14" fill="#4C8DFF" fill-opacity="0.08"/>
+<rect x="24" y="110" width="250" height="262" rx="14" fill="none" stroke="#4C8DFF" stroke-width="1.5"/>
+<text x="40" y="139" font-size="16" font-weight="600" fill="#1A2130">Moteur</text>
+<text x="40" y="164" font-size="13" fill="#434E5E">poc/  serveur et sécurité</text>
+<text x="40" y="184" font-size="13" fill="#434E5E">android/  appli Android</text>
+<text x="40" y="204" font-size="13" fill="#434E5E">ha-app/  appli Home Assistant</text>
+<text x="40" y="224" font-size="13" fill="#434E5E">docs/ et poc/tests/</text>
+<text x="40" y="244" font-size="13" fill="#434E5E"></text>
+<text x="40" y="264" font-size="13" fill="#434E5E">Code public, sans adresse,</text>
+<text x="40" y="284" font-size="13" fill="#434E5E">sans nom, sans entité réels</text>
+<rect x="306" y="110" width="280" height="262" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="306" y="110" width="280" height="262" rx="14" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="306" y="110" width="280" height="262" rx="14" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="322" y="139" font-size="16" font-weight="600" fill="#1A2130">Où lire la maison ?</text>
+<text x="322" y="157" font-size="12" fill="#5F6977">dossier_config() dans poc/maison.py</text>
+<rect x="322" y="172" width="248" height="56" rx="10" fill="#EEF2F7"/>
+<rect x="322" y="172" width="248" height="56" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="334" y="195" font-size="13" font-weight="600" fill="#1A2130">ASSISTANT_VOCAL_CONFIG</text>
+<text x="334" y="214" font-size="12.5" fill="#434E5E">si la variable est définie</text>
+<text x="558" y="205" font-size="13" font-weight="700" fill="#5F6977" text-anchor="middle">1</text>
+<rect x="322" y="236" width="248" height="56" rx="10" fill="#EEF2F7"/>
+<rect x="322" y="236" width="248" height="56" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="334" y="259" font-size="13" font-weight="600" fill="#1A2130">config/</text>
+<text x="334" y="278" font-size="12.5" fill="#434E5E">sinon, le dossier privé</text>
+<text x="558" y="269" font-size="13" font-weight="700" fill="#5F6977" text-anchor="middle">2</text>
+<rect x="322" y="300" width="248" height="56" rx="10" fill="#EEF2F7"/>
+<rect x="322" y="300" width="248" height="56" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="334" y="323" font-size="13" font-weight="600" fill="#1A2130">config-exemple/</text>
+<text x="334" y="342" font-size="12.5" fill="#434E5E">imposé par les tests</text>
+<text x="558" y="333" font-size="13" font-weight="700" fill="#5F6977" text-anchor="middle">T</text>
+<rect x="618" y="110" width="258" height="142" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="618" y="110" width="258" height="142" rx="14" fill="#E5534B" fill-opacity="0.08"/>
+<rect x="618" y="110" width="258" height="142" rx="14" fill="none" stroke="#E5534B" stroke-width="1.5"/>
+<text x="634" y="139" font-size="16" font-weight="600" fill="#1A2130">config/</text>
+<text x="634" y="164" font-size="13" fill="#434E5E">maison.json, mots-interdits.txt</text>
+<text x="634" y="184" font-size="13" fill="#434E5E">modèles de mot de réveil</text>
+<text x="634" y="204" font-size="13" fill="#434E5E">clés et jetons</text>
+<rect x="751.4" y="122" width="112.6" height="20" rx="10" fill="#E5534B" fill-opacity="0.18"/>
+<rect x="751.4" y="122" width="112.6" height="20" rx="10" fill="none" stroke="#E5534B" stroke-width="1.2"/>
+<text x="807.7" y="136.5" font-size="12" font-weight="600" fill="#B3362F" text-anchor="middle">ignoré par git</text>
+<text x="634" y="232" font-size="12" fill="#5F6977">Souvent un dépôt privé cloné ici</text>
+<rect x="618" y="268" width="258" height="104" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="618" y="268" width="258" height="104" rx="14" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="618" y="268" width="258" height="104" rx="14" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="634" y="297" font-size="16" font-weight="600" fill="#1A2130">config-exemple/</text>
+<text x="634" y="322" font-size="13" fill="#434E5E">Mêmes clés, valeurs fictives</text>
+<text x="634" y="342" font-size="13" fill="#434E5E">Sacha, Camille, rade arrondie</text>
+<rect x="806.6" y="280" width="57.4" height="20" rx="10" fill="#3CCB7F" fill-opacity="0.18"/>
+<rect x="806.6" y="280" width="57.4" height="20" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.2"/>
+<text x="835.3" y="294.5" font-size="12" font-weight="600" fill="#1A7A48" text-anchor="middle">public</text>
+<path d="M274 241 L306 241" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M306 241 L296 246.5 L296 235.5 Z" fill="#4C8DFF"/>
+<path d="M586 196 L618 196" fill="none" stroke="#E5534B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M618 196 L608 201.5 L608 190.5 Z" fill="#E5534B"/>
+<path d="M586 322 L618 322" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M618 322 L608 327.5 L608 316.5 Z" fill="#3CCB7F"/>
+<text x="24" y="408" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">GARDE-FOU</text>
+<rect x="24" y="420" width="852" height="128" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="420" width="852" height="128" rx="14" fill="#DE9440" fill-opacity="0.08"/>
+<rect x="24" y="420" width="852" height="128" rx="14" fill="none" stroke="#DE9440" stroke-width="1.5"/>
+<text x="40" y="449" font-size="16" font-weight="600" fill="#1A2130">Contrôle à chaque commit et à chaque envoi</text>
+<text x="40" y="474" font-size="13.5" fill="#434E5E">Refuse les secrets, les données d'usage et les fichiers de plus de 5 Mo (.githooks/).</text>
+<text x="40" y="494" font-size="13.5" fill="#434E5E">Refuse tout mot de config/mots-interdits.txt dans un nom de dépôt, de dossier ou de variable.</text>
+<text x="40" y="514" font-size="13.5" fill="#434E5E">poc/tests/test_confidentialite.py refait la même vérification dans les tests.</text>
+</svg>
