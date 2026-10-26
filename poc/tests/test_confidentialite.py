@@ -43,7 +43,9 @@ IP_PERMISES = frozenset({
     "8.8.8.8", "1.1.1.1",          # résolveurs publics génériques
     "1.2.3.4",
     "192.168.0.10", "192.168.0.20",  # adresses d'exemple de config-exemple/maison.json
-    "8.8.4.4", "100.64.0.10",      # remplacements prévus par la fiche S-C2
+    "8.8.4.4", "100.64.0.10",      # public et tailnet génériques des tests réseau (fiche S-C2)
+    "10.0.0.10",                   # réseau privé 10.0.0.0/8, générique
+    "100.128.0.1",                 # première adresse juste après 100.64.0.0/10, pour tester la limite
 })
 RESEAUX_PERMIS = tuple(ipaddress.ip_network(r) for r in ("192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24"))
 # Un réseau écrit en CIDR est permis tel quel (10.0.0.0/8, 100.64.0.0/10...), sauf une adresse seule (/31 et /32).
@@ -73,11 +75,6 @@ PREFIXES_ENTITES = ("poc/tests/", "android/app/src/test/", "docs/")
 # Échecs constatés sur le dépôt, à corriger par la fiche nommée. (catégorie, chemin) -> fiche.
 # Catégories : ip, hote, entite (volet générique), prive (volet privé).
 ATTENDUS = {
-    ("ip", "poc/tests/test_failles_acces.py"): "S-C2",
-    ("ip", "poc/tests/test_acces.py"): "S-C2",
-    ("ip", "poc/tests/test_amorcage.py"): "S-C2",
-    ("ip", "poc/tests/test_sante.py"): "S-C2",
-    ("ip", "poc/tests/test_sante_hist.py"): "S-C2",
     # Identifiants d'entités du logement réel dans les tests et la documentation. S-C3 réécrit l'exemple avec les
     # identifiants fictifs des notes de conception, puis les tests et les notes parlent des mêmes entités.
     ("entite", "android/app/src/test/java/assistant/vocal/jarvis/AccueilTest.kt"): "S-C3",
@@ -94,12 +91,6 @@ ATTENDUS = {
     # Le mot interdit de CLAUDE.md est encore écrit en dur dans le garde-fou. D12 : S-C4 le fait lire dans
     # config/mots-interdits.txt, le mot disparaît alors du fichier.
     ("prive", ".githooks/garde-fou.sh"): "S-C4",
-    # Volet privé : alias SSH et adresses du parc réel dans le code et les tests réseau. S-C2 les remplace par
-    # des valeurs d'exemple (hôtes fictifs, réseaux de documentation).
-    ("prive", "poc/.env.exemple"): "S-C2",
-    ("prive", "poc/sante.py"): "S-C2",
-    ("prive", "poc/sante_hist.py"): "S-C2",
-    ("prive", "poc/tests/test_failles_acces.py"): "S-C2",
     # Volet privé : le lieu réel (ville, mer) dans l'exemple, la documentation, le code météo et les tests.
     # S-C3 réécrit l'exemple sur un lieu fictif et le code lit le lieu dans la configuration.
     ("prive", "android/app/src/main/java/assistant/vocal/jarvis/Etat.kt"): "S-C3",
@@ -111,7 +102,6 @@ ATTENDUS = {
     ("prive", "poc/meteo_mer.py"): "S-C3",
     ("prive", "poc/vent_mesure.py"): "S-C3",
     ("prive", "poc/tests/cas_securite.json"): "S-C3",
-    ("prive", "poc/tests/test_aiguillage.py"): "S-C3",
     ("prive", "poc/tests/test_meteo_mer.py"): "S-C3",
     ("prive", "poc/tests/test_vent_mesure.py"): "S-C3",
     # Volet privé : le mot de réveil du projet d'origine et les prénoms réels dans le code, les notes et les

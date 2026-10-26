@@ -8,9 +8,9 @@ import maison
 
 def test_reseaux_par_defaut():
     r = acces.reseaux_autorises()
-    for ok in ("192.0.2.1", "127.0.0.1", "192.0.2.1", "::1", "::ffff:192.0.2.1", "192.0.2.1"):
+    for ok in ("192.168.0.10", "127.0.0.1", "100.64.0.10", "::1", "::ffff:192.168.0.20", "10.0.0.10"):
         assert acces.adresse_autorisee(ok, r), ok
-    for non in ("8.8.8.8", "192.0.2.1", "2001:db8::1", "pas une adresse", "100.128.0.1"):
+    for non in ("8.8.8.8", "1.1.1.1", "2001:db8::1", "pas une adresse", "100.128.0.1"):
         assert not acces.adresse_autorisee(non, r), non
 
 
@@ -18,15 +18,15 @@ def test_reseaux_ouverts_et_illisibles(monkeypatch):
     monkeypatch.setattr(maison, "ACCES", {"reseaux_autorises": ["*"]})
     r = acces.reseaux_autorises()
     assert acces.adresse_autorisee("8.8.8.8", r) and acces.adresse_autorisee("2001:db8::1", r)
-    monkeypatch.setattr(maison, "ACCES", {"reseaux_autorises": ["n'importe quoi", "192.0.2.1/24"]})
+    monkeypatch.setattr(maison, "ACCES", {"reseaux_autorises": ["n'importe quoi", "192.168.0.16/28"]})
     r = acces.reseaux_autorises()
-    assert acces.adresse_autorisee("192.0.2.1", r) and not acces.adresse_autorisee("192.0.2.1", r)
+    assert acces.adresse_autorisee("192.168.0.20", r) and not acces.adresse_autorisee("192.168.0.10", r)
 
 
 def test_ecoute_et_ancien_acces(monkeypatch):
     assert acces.adresses_ecoute() == ["0.0.0.0"]
-    monkeypatch.setattr(maison, "ACCES", {"ecoute": ["192.168.0.10", "192.0.2.10"], "ancien_acces": False})
-    assert acces.adresses_ecoute() == ["192.168.0.10", "192.0.2.10"]
+    monkeypatch.setattr(maison, "ACCES", {"ecoute": ["192.168.0.10", "100.64.0.10"], "ancien_acces": False})
+    assert acces.adresses_ecoute() == ["192.168.0.10", "100.64.0.10"]
     assert acces.ancien_acces_permis(None) is False
     assert acces.ancien_acces_permis("1") is True  # l'environnement l'emporte
     monkeypatch.setattr(maison, "ACCES", {})
@@ -44,7 +44,7 @@ def test_administrateurs(monkeypatch):
 def test_vue_sans_code_par_defaut(tmp_path):
     async def deroule():
         app = acces.Appareils(tmp_path, {})
-        app.demande("Tab", "192.0.2.1", asyncio.get_running_loop().create_future())
+        app.demande("Tab", "192.168.0.20", asyncio.get_running_loop().create_future())
         assert "code" not in app.vue()["attente"][0]
         assert len(app.vue(avec_code=True)["attente"][0]["code"]) == 4
     asyncio.run(deroule())

@@ -4,6 +4,21 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.34.2 (2026-10-26), tests sur des valeurs fictives et volet privé nettoyé
+Session S-C2 du plan 1.2.0. Aucun changement de comportement du serveur.
+- Tests Python : les adresses précises d'appareils sont remplacées par des adresses génériques de même nature
+  (réseau local en 192.168.0.x, tailnet en 100.64.0.10, public en 8.8.4.4 ou 1.1.1.1, privé 10.0.0.10), ajoutées à
+  `IP_PERMISES` du test de confidentialité. Les plages de documentation ne remplacent pas une adresse privée ou publique.
+- Les prénoms réels des tests d'aiguillage et de `poc/acces.py` (docstring) sont remplacés par Sacha et Camille ou
+  par une formulation neutre.
+- Volet privé nettoyé : `poc/.env.exemple`, `poc/sante.py`, `poc/sante_hist.py` et `poc/tests/test_failles_acces.py`
+  ne portent plus d'alias SSH ni d'adresse du parc réel (`serveur-exemple`, `pc-exemple`).
+- Nouveau test `poc/tests/test_prenoms_configuration.py` (dette C14) : le nom de l'occupant protégé et celui du
+  propriétaire viennent de `maison.json` (vérifié aussi sur une configuration fictive dans un autre interpréteur),
+  et aucune chaîne de code de `poc/*.py` hors tests ne contient un prénom de la configuration.
+- `ATTENDUS` de `poc/tests/test_confidentialite.py` : les entrées de la session S-C2 sont retirées.
+- Numéro `VERSION` de `poc/assistant.py` et `ha-app/jarvis/config.yaml` passés à 0.34.2.
+
 ## Documentation (2026-10-26), maquettes du socle du client web (S-W0a), sans changement de version
 Aucun code ni numéro de version ne change : le serveur et l'appli gardent leur numéro.
 - `docs/maquettes/client-web/` : planches HTML autonomes (CSS inclus, aucune ressource distante, aucun script),

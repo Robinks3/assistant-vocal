@@ -75,7 +75,7 @@ def adresses_ecoute():
 
 def ancien_acces_permis(env=None):
     """Ancien accès ?jeton= sur le port en clair : JARVIS_ANCIEN_ACCES s'il est réglé, sinon acces.ancien_acces
-    de la configuration, sinon permis (inchangé tant que Alex n'a pas décidé de le couper)."""
+    de la configuration, sinon permis (inchangé tant que le propriétaire n'a pas décidé de le couper)."""
     if env is not None and str(env).strip() != "":
         return str(env).strip() != "0"
     v = maison.ACCES.get("ancien_acces")

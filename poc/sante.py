@@ -1,6 +1,6 @@
 """Relais des données de santé pour l'écran de la tablette (0.19.0, demande du 22/10/2026).
 
-Le service sante-api tourne sur le SERVEUR, joignable seulement par
+Le service sante-api tourne sur un serveur-exemple, joignable seulement par
 Tailscale. Le PC est sur le tailnet, l'appli Home Assistant non : le relais n'existe qu'en profil pc.
 
 Configuration dans poc/.env :
