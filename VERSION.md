@@ -4,6 +4,25 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.44.0 (2026-10-26), lampes et télévision à la voix
+Nouveauté. Session S-L4 du plan. Appli Android 0.43.0 (même moteur), appli Home Assistant 0.44.0.
+- `config-exemple/commandes.yaml` : couleur (« mets le salon en bleu »), blanc nommé (bougie, chaud, neutre, froid),
+  luminosité en pourcentage et relative, « plus chaud » et « plus froid », puis la télévision (chaîne suivante ou
+  précédente, pause et reprise, volume par pas de trois, sourdine, son de nuit de la barre de son).
+- Nouveau module `poc/commandes_dynamiques.py` : actions « dynamiques » dont le service dépend de l'état d'un appareil,
+  lu juste avant d'agir. `selon_etat` (« monte » vise le volume si la télé est allumée, la lumière sinon, de même pour
+  « baisse » et « pause ») et `kelvin_pas` (un pas de couleur de lumière borné par les minimum et maximum de chaque
+  lampe). Résolues après `personnes.appliquer` et avant le contrôle de sécurité, qui voit donc des actions ordinaires :
+  rien n'est contourné, le plafond de volume refuse toujours un `volume_up`. Mode essai ou Home Assistant injoignable :
+  aucun état lu.
+- Pièges de phrases traités et testés : « rose » et « orange » seulement derrière « en » (une rose dans le vase, une
+  orange mangée ne font rien), « chaud » vise la lumière (« il fait chaud » et « mets le chauffage » ne la touchent
+  pas), « monte » seul dépend de la télé.
+- Piège YAML 1.1 : `on` non cité devient le booléen True dans la liste `etats`. Les listes de commandes.yaml citent
+  `"on"` et `_nom_etat` ramène un booléen à son nom d'état.
+- `ha-app/deployer.sh` copie le nouveau module. Tests : `cas_dynamique.json` (22 cas) et `cas_commandes_lampes_tele.json`
+  (une cinquantaine de phrases, dont 11 qui ne doivent rien déclencher), partagés avec la tablette.
+
 ## Serveur 0.43.3 (2026-10-26), demandes de routine dites naturellement
 Correctif court. Appli Android inchangée (0.38.1, elle devra appliquer le même motif), appli Home Assistant 0.43.3.
 - `INTENTION_ROUTINE` (`poc/assistant.py`) ne reconnaissait que « crée une routine », « nouvelle routine », « quand je

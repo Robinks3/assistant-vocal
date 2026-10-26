@@ -6,6 +6,19 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.43.0 (2026-10-26), lampes et télévision à la voix sur la tablette
+Nouveauté (versionCode 80). Session S-L4 du plan, pendant du serveur 0.44.0. Numérotée 0.43.0 à la fusion,
+après la 0.42.0 de S-L5 (le lot avait réservé la 0.41.0).
+- Nouvel objet `CommandesDynamiques.kt`, même logique que `poc/commandes_dynamiques.py` : `selon_etat` et `kelvin_pas`.
+  `MoteurLocal.comprendre` lit l'état des entités concernées par la passerelle (`GET /api/states/<entité>`, seulement
+  hors mode essai), résout les actions après le choix de la personne et avant `Securite.verifier`, qui voit donc des
+  actions ordinaires. Une action dynamique qui ne laisse rien à faire dit sa réponse (« Il n'y a rien à reprendre. »).
+- Le dictionnaire exporté (`genere/android/dictionnaire.json`) porte les nouvelles phrases : couleur, blanc nommé,
+  luminosité, « plus chaud », télévision.
+- Tests : `CommandesDynamiquesTest` (cas de `cas_dynamique.json`) et, dans `DictionnaireTest`, les phrases de
+  `cas_commandes_lampes_tele.json` avec leurs pièges (rose, orange, monte, chaud), les teintes et blancs alignés sur
+  `ReglageLampe`, et les listes `etats` sans booléen.
+
 ## 0.42.0 (2026-10-26), retour d'état dans la vue 3D : lampes teintées, télé, maison entière
 Nouveauté (versionCode 79). Session S-L5 du plan (la 0.41.0 est réservée au lot lampes et télé à la voix). Le serveur
 n'a pas changé.
