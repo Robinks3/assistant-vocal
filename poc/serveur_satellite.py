@@ -266,6 +266,8 @@ class Moteur:
         """Bascule essai ou réel à chaud, demandée depuis le téléphone (12/10/2026)."""
         if choix not in ("essai", "reel"):
             return
+        # S-F4 (0.40.0) : l'essai du serveur est un réglage commun, pas un état de requête. Il n'est écrit
+        # qu'ici, sous le verrou du cerveau (aucune commande en cours), et lu par les requêtes à leur début.
         async with self.verrou:  # jamais au milieu d'une commande
             self.essai = choix == "essai"
             self.assistant.essai = self.essai
@@ -384,7 +386,7 @@ class Moteur:
         print(f"[{appareil}] note {verdict} : {A.pour_console(entendu)}" + (f" ({A.pour_console(effet)})" if effet else ""))
         return effet or "noté"
 
-    def llm_texte(self, texte, essai, personne=None, appareil=None):
+    def llm_texte(self, texte, essai, personne=None, appareil=None, canal="appli"):
         """Phrase déjà transcrite et non comprise par le téléphone (mode « Cet appareil », appli 0.10.0) :
         seulement le LLM du serveur, avec ses garde-fous. Essai effectif : celui du serveur ou celui du
         téléphone (0.28.0, un téléphone en réel ne lève plus l'essai du serveur).
@@ -399,7 +401,7 @@ class Moteur:
         a = self.assistant
         t = time.perf_counter()
         erreur = ""
-        with a.requete(essai=essai, personne=personne, appareil=appareil):
+        with a.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
             try:
                 parole, actions = a.cerveau.repondre(texte)
                 a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
@@ -443,10 +445,10 @@ class Moteur:
         print(f"  transcription {source} : {t_stt:.2f} s")
         print(f"  Vous ({len(signal_f32) / TAUX:.1f} s) : {A.pour_console(texte)}")
         if not texte:  # noté aussi, pour que le propriétaire voie dans l'historique ce qui n'a pas été compris
-            with self.assistant.requete(essai=self.essai, personne=personne, appareil=appareil):
+            with self.assistant.requete(essai=self.essai, personne=personne, appareil=appareil, canal="voix"):
                 A.journaliser("", f"rien compris ({source})" + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
             return texte, "", "rien compris", None
-        reponse = self.assistant.traiter(texte, t_stt, personne, appareil=appareil, essai=self.essai)
+        reponse = self.assistant.traiter(texte, t_stt, personne, appareil=appareil, essai=self.essai, canal="voix")
         voie = derniere_voie(0)
         if not reponse:
             audio = None

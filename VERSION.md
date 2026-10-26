@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.40.0 (2026-10-26), contexte de requête et point de contrôle unique
+Session S-F4 du plan 1.2.0. Appli Android 0.38.1 (versionCode 73, `Securite.kt` seul), appli Home Assistant 0.40.0.
+- Contexte de requête (`REQUETE`, existant depuis la 0.28.0) complété : `Requete` porte aussi le `role` (pris de
+  l'appareil appairé, ou donné par l'appelant) et le `canal` (`voix`, `texte`, `appli`, `web`). `Assistant.requete`
+  et `Assistant.traiter` les acceptent, `Moteur.traiter` ouvre le canal `voix`, `llm_texte` le canal `appli`.
+- La personne et le rôle viennent de la session (jeton, `appareils.json`), jamais du champ `personne` du message
+  pour `llm`, `ha`, `parler` et `reveil`, qui passent par `acces.personne_effective` (S-F2), sans seconde fonction.
+- Point de contrôle unique `acces.controler_service` : domaines interdits, service permis (liste blanche, voie
+  du LLM seulement), forme des données (objet à clés textuelles, `entity_id` et `area_id` en texte ou liste de
+  textes), URL de `launch_app`, puis `securite.verifier`. Il rend un `Refus` (texte avec son genre) ou rien.
+  Appelé par `HomeAssistant.service` (LLM), `Assistant.executer` (dictionnaire appris) et `verifier_requete_ha`
+  (passerelle de l'appli), ainsi que par `_musique`. Auparavant trois contrôles voisins divergeaient.
+- `securite.verifier` refuse elle-même les domaines `lock` et `alarm_control_panel`, en service comme en cible
+  (jusqu'ici seule la passerelle les écartait). Mêmes cas des deux côtés dans `cas_securite.json`, `Securite.kt` suit.
+  La sécurité ne fait que se resserrer : `device_id`, `floor_id`, `label_id` et la liste blanche sont intacts.
+- Plus d'écriture globale par requête : `ha.personne` devient une propriété en lecture seule alimentée par le
+  contexte. Le réglage d'essai du serveur (`essai` de `Moteur`, `Assistant` et `HomeAssistant`) reste un réglage du
+  serveur, écrit seulement par `Moteur.changer_mode` sous `moteur.verrou` et lu au début de chaque requête.
+- Un corps de requête qui n'est pas un objet est désormais refusé par la passerelle (il passait en `{}`).
+- Tests : `poc/tests/test_contexte_requete.py` (deux requêtes simultanées ne se croisent pas, personne forgée
+  ignorée, rôle d'un invité tiré de l'appareil, point de contrôle sur les trois voies).
+
 ## Serveur 0.39.0 (2026-10-26), fermer l'existant
 Session S-F3 du plan 1.2.0. Appli Android inchangée (0.38.0, versionCode 72), appli Home Assistant 0.39.0.
 Le point 6 de la session (règles de pare-feu sur 8765 et 8766) n'est pas fait : il attend la décision D7 du

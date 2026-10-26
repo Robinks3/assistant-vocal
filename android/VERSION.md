@@ -6,6 +6,15 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.38.1 (2026-10-26), serrures et alarmes refusées par la sécurité en dur
+Session S-F4 du plan 1.2.0 (versionCode 73), accompagne le serveur 0.40.0.
+- `Securite.kt` : `verifier` refuse tout service ou toute cible des domaines `lock` et `alarm_control_panel`, comme
+  `securite.py`. Avant, seule la passerelle du serveur les écartait (`acces.DOMAINES_INTERDITS`), la sécurité en
+  dur ne les connaissait pas. Aucune règle existante ne change, la sécurité ne fait que se resserrer.
+- `poc/tests/cas_securite.json` : cinq cas de refus ajoutés (service `lock` avec et sans cible, service
+  `alarm_control_panel`, une serrure dans la liste de cibles d'un autre service, domaine écrit en casse mixte), lus
+  à l'identique par `SecuriteTest.actions` et par `test_securite.py`.
+
 ## 0.38.0 (2026-10-26), liste blanche des services élargie
 Session S-F1 du plan 1.2.0 (versionCode 72), décision D6. L'appli reçoit la table élargie dans `services_permis`
 du `dictionnaire.json` exporté par le serveur 0.37.0, sans changement de code de `CerveauAppareil.kt` : son

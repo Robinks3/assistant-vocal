@@ -743,6 +743,57 @@ def refus_launch_app(service, corps):
     return None
 
 
+class Refus(str):
+    """Raison d'un refus du point de contrôle, avec son genre : « domaine », « service », « donnees » ou « securite »."""
+    genre = ""
+
+
+def _refus(genre, texte):
+    r = Refus(texte)
+    r.genre = genre
+    return r
+
+
+def refus_schema(corps):
+    """Raison du refus si les données d'un appel de service n'ont pas la forme attendue, ou None. Un objet dont
+    les clés sont des textes, et des cibles (entity_id, area_id) en texte ou en liste de textes : une cible d'un
+    autre type échappe à securite.cibles, qui la lirait de travers, et HA la lirait autrement."""
+    if not isinstance(corps, dict):
+        return "données : un objet est attendu (sécurité)"
+    for cle, valeur in corps.items():
+        if not isinstance(cle, str):
+            return "données : les clés doivent être du texte (sécurité)"
+        if cle in ("entity_id", "area_id") and valeur is not None:
+            if not (isinstance(valeur, str) or (isinstance(valeur, (list, tuple)) and all(isinstance(v, str) for v in valeur))):
+                return f"données : {cle} doit être un texte ou une liste de textes (sécurité)"
+    return None
+
+
+def controler_service(domaine, service, corps, personne=None, services_permis=None):
+    """POINT DE CONTRÔLE UNIQUE (0.40.0, S-F4) de tout appel de service Home Assistant, sur la voie du LLM
+    (HomeAssistant.service), celle du dictionnaire (Assistant.executer) et celle de l'appli
+    (verifier_requete_ha). Rend un Refus (texte en français, avec son genre), ou None si l'appel peut partir.
+    Ordre : domaines interdits, service permis, schéma des données, URL de launch_app, puis securite.verifier.
+
+    services_permis : l'ensemble des services permis du domaine (liste blanche), ou None quand la voie n'en a pas.
+    Le LLM en a une (HomeAssistant.services_permis). Le dictionnaire est écrit par le propriétaire et l'appli
+    a besoin de services hors liste (media_player.join pour grouper les enceintes), les deux passent sans.
+    personne : qui parle d'après la session, jamais d'après le texte d'un message (règle 3 de securite.py)."""
+    if domaine in DOMAINES_INTERDITS:
+        return _refus("domaine", f"domaine {domaine} interdit par la passerelle")
+    if services_permis is not None and service not in services_permis:
+        return _refus("service", f"service {domaine}.{service} inexistant ou interdit")
+    # Corps absent (None) : un appel sans données, accepté sauf pour launch_app qui exige son objet.
+    refus = None if corps is None else refus_schema(corps)
+    if refus:
+        return _refus("donnees", refus)
+    refus = refus_launch_app(f"{domaine}.{service}", corps)
+    if refus:
+        return _refus("donnees", refus)
+    refus = securite.verifier(f"{domaine}.{service}", {} if corps is None else corps, personne=personne)
+    return _refus("securite", refus) if refus else None
+
+
 def verifier_requete_ha(methode, chemin, corps, personne=None):
     """Raison du refus, ou None si la passerelle peut transmettre cette requête à Home Assistant."""
     methode = (methode or "GET").upper()
@@ -760,9 +811,4 @@ def verifier_requete_ha(methode, chemin, corps, personne=None):
     if not m:
         return "chemin non permis"
     domaine, service = m.groups()
-    if domaine in DOMAINES_INTERDITS:
-        return f"domaine {domaine} interdit par la passerelle"
-    refus = refus_launch_app(f"{domaine}.{service}", corps)
-    if refus:
-        return refus
-    return securite.verifier(f"{domaine}.{service}", corps if isinstance(corps, dict) else {}, personne=personne)
+    return controler_service(domaine, service, corps, personne=personne) or None

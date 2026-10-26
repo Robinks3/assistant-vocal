@@ -1,5 +1,5 @@
 {
-  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés. plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages. heures_calmes_nuit : plage qui passe minuit (22 h à 7 h), corrigée le 26/10/2026 (S-D1). « cas » passe par verifier avec la règle 2 forcée sur plage_nuit (elle reste coupée dans la configuration, seul le calcul est vérifié). « en_heure_calme » donne le calcul seul pour des plages quelconques (securite.en_heure_calme, Securite.enHeureCalme). heure = heure pleine (21 vaut 21 h 59). services : liste blanche des services de Home Assistant (décision D6 du 26/10/2026, S-F1). « permis » dit si domaine.service est dans SERVICES_PERMIS de poc/assistant.py (test_services_permis.py) et dans le services_permis du dictionnaire.json exporté pour l'appli (SecuriteTest.kt). Un service permis n'échappe jamais à la sécurité en dur : les cas « actions » refusent device_id, floor_id et label_id pour chaque domaine ajouté.",
+  "_lisez_moi": "Cas communs aux deux copies de la sécurité en dur : poc/securite.py (test_securite.py) et android/.../Securite.kt (SecuriteTest.kt). Un cas ajouté ici est vérifié des deux côtés. heure = heure locale. personne = qui parle selon la reconnaissance de la tablette (règle 3), absent = inconnu. Le 22/10/2026, les règles 1 et 2 ont été levées (Camille et heures calmes) : les cas concernés attendent désormais un accord, seuls le device_id, le floor_id et le label_id restent refusés, avec depuis le 26/10/2026 (S-F4) les serrures et les alarmes (domaines lock et alarm_control_panel, en service ou en cible). plafond_volume = plafond du volume en pourcentage pour ce cas, comme securite.plafond_volume de la configuration, absent = aucun plafond (le défaut depuis le 25/10/2026, le plafond fixe de 50 % du 22/10/2026 étant devenu réglable). plafonds : données avant et après le plafond de volume (verifier de securite.py, Securite.plafonner). plafonds_configures : plafond retenu (en pourcentage) pour une valeur de securite.plafond_volume, valeur absente = clé absente (plafond_configure de securite.py, Securite.plafondConfigure). pourcentages : volume de 0 à 1 dit en pourcentage dans les messages. heures_calmes_nuit : plage qui passe minuit (22 h à 7 h), corrigée le 26/10/2026 (S-D1). « cas » passe par verifier avec la règle 2 forcée sur plage_nuit (elle reste coupée dans la configuration, seul le calcul est vérifié). « en_heure_calme » donne le calcul seul pour des plages quelconques (securite.en_heure_calme, Securite.enHeureCalme). heure = heure pleine (21 vaut 21 h 59). services : liste blanche des services de Home Assistant (décision D6 du 26/10/2026, S-F1). « permis » dit si domaine.service est dans SERVICES_PERMIS de poc/assistant.py (test_services_permis.py) et dans le services_permis du dictionnaire.json exporté pour l'appli (SecuriteTest.kt). Un service permis n'échappe jamais à la sécurité en dur : les cas « actions » refusent device_id, floor_id et label_id pour chaque domaine ajouté.",
   "actions": [
     {
       "service": "light.turn_on",
@@ -57,6 +57,52 @@
       "heure": 14,
       "refus": true,
       "note": "device_id interdit"
+    },
+    {
+      "service": "lock.unlock",
+      "donnees": {
+        "entity_id": "lock.porte_entree"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "serrure : domaine lock refusé par la sécurité en dur (S-F4)"
+    },
+    {
+      "service": "lock.lock",
+      "donnees": {},
+      "heure": 14,
+      "refus": true,
+      "note": "serrure sans cible : le domaine suffit au refus (S-F4)"
+    },
+    {
+      "service": "alarm_control_panel.alarm_disarm",
+      "donnees": {
+        "entity_id": "alarm_control_panel.maison"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "alarme : domaine alarm_control_panel refusé par la sécurité en dur (S-F4)"
+    },
+    {
+      "service": "homeassistant.turn_off",
+      "donnees": {
+        "entity_id": [
+          "light.salon_plafond",
+          "lock.porte_entree"
+        ]
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "une serrure dans une liste de cibles d'un autre service (S-F4)"
+    },
+    {
+      "service": "alarm_control_panel.alarm_arm_home",
+      "donnees": {
+        "entity_id": "Alarm_Control_Panel.Maison"
+      },
+      "heure": 14,
+      "refus": true,
+      "note": "casse ignorée pour le domaine (S-F4)"
     },
     {
       "service": "automation.trigger",

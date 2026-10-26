@@ -116,6 +116,9 @@ object Securite {
     /** Entités de l'occupant que cette personne reconnue peut piloter (règle 3), vide sinon. */
     fun entitesPermises(personne: String?): Set<String> = PERMIS_PERSONNE[personneNormalisee(personne)]?.entites ?: emptySet()
 
+    /** Domaines refusés en service comme en cible, comme DOMAINES_JAMAIS de securite.py (S-F4). */
+    private val DOMAINES_JAMAIS = setOf("lock", "alarm_control_panel")
+
     private fun cibles(v: Any?): List<String> = when (v) {
         null -> emptyList()
         is JSONArray -> (0 until v.length()).map { v.optString(it).trim() }.filter { it.isNotEmpty() }
@@ -162,6 +165,10 @@ object Securite {
         if (action.has("device_id")) return "viser un appareil par son identifiant est interdit (sécurité)"
         // Un étage ou une étiquette désigne un groupe d'entités que la liste blanche par appareil ne voit pas (25/10/2026).
         if (action.has("floor_id") || action.has("label_id")) return "viser un étage ou une étiquette est interdit (sécurité)"
+        // Serrures et alarmes : jamais par l'assistant, en service comme en cible d'un autre service (S-F4, 26/10/2026).
+        if ((listOf(service) + entites).any { it.substringBefore('.').lowercase() in DOMAINES_JAMAIS }) {
+            return "les serrures et les alarmes ne se pilotent pas par l'assistant (sécurité)"
+        }
         // Avec un plafond, monter le son par pas passerait au-dessus : seul un volume précis (volume_set plafonné) passe.
         if (service == "media_player.volume_up" && volumeMax < 1.0) return refusVolumeUp(volumeMax)
         if (PROTEGER_OCCUPANT && entites.any { it.equals("all", true) }) return "viser toute la maison est interdit, cela toucherait la chambre de $NOM_OCCUPANT (sécurité)"

@@ -176,6 +176,10 @@ def plafonner(service, donnees):
     return donnees
 
 
+# Domaines que la sécurité en dur refuse en service comme en cible, quel que soit l'appelant (S-F4, comme Securite.kt).
+DOMAINES_JAMAIS = frozenset({"lock", "alarm_control_panel"})
+
+
 def verifier(service, donnees, maintenant=None, personne=None):
     """Raison du refus en français, ou None si l'action est permise.
 
@@ -194,6 +198,9 @@ def verifier(service, donnees, maintenant=None, personne=None):
     # Un étage ou une étiquette désigne un groupe d'entités que la liste blanche par appareil ne voit pas (25/10/2026).
     if "floor_id" in donnees or "label_id" in donnees:
         return "viser un étage ou une étiquette est interdit (sécurité)"
+    # Serrures et alarmes : jamais par l'assistant, en service comme en cible d'un autre service (S-F4, 26/10/2026).
+    if any(d in DOMAINES_JAMAIS for d in [service.split(".", 1)[0].lower()] + [e.split(".", 1)[0].lower() for e in entites]):
+        return "les serrures et les alarmes ne se pilotent pas par l'assistant (sécurité)"
     # Avec un plafond, monter le son par pas passerait au-dessus : seul un volume précis (volume_set plafonné) passe.
     if service == "media_player.volume_up" and plafond_actif():
         return refus_volume_up()

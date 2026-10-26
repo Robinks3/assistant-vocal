@@ -43,7 +43,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 | `dictionnaire.py` | Phrases de `commandes.yaml` développées en formes exactes, recherche tolérante, phrases apprises | `normaliser`, `epurer`, `developper`, `Personnes`, `Dictionnaire` (`chercher`, `apprendre`, `oublier`), `SEUIL_FLOU = 0.88` |
 | `securite.py` | Sécurité écrite en dur, copiée dans `Securite.kt` | `SECURITE_ACTIVE`, `PROTEGER_OCCUPANT`, `HEURE_CALME_ACTIVE`, `VOLUME_MAX`, `verifier`, `phrase_protegee`, `entites_permises` |
 | `serveur_satellite.py` | Serveur WebSocket des satellites, les deux profils | `Moteur` (ressources partagées, capacités, bascules), `Satellite` (machine à états d'une connexion), `Arbitre`, `Calibration`, `passerelle_ha`, `CanalWyoming`, `ReveilWyoming`, `transcrire_api`, `transcrire_ha`, `synthetiser_ha`, `servir` |
-| `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `refus_launch_app`, `DOMAINES_INTERDITS` |
+| `acces.py` | Jetons, appairage, certificat, passerelle Home Assistant | `Appareils`, `Amorcage`, `jeton_de_la_requete`, `certificat`, `reseaux_autorises`, `adresse_autorisee`, `adresse_locale`, `est_administrateur`, `verifier_requete_ha`, `controler_service`, `refus_schema`, `refus_launch_app`, `DOMAINES_INTERDITS` |
 | `maison.py` | Lecture du dossier de configuration | `DOSSIER`, `CONFIG`, `reseau()`, `liste()`, `NOM_PROPRIETAIRE`, `CLE_PROPRIETAIRE` |
 | `vad.py` | Silero VAD v5 | `creer()`, `Vad.parole()` |
 | `vision.py` | Visages pour la tablette (YuNet, SFace) | `Vision.analyser`, `traiter_message`, `regard` |
@@ -170,10 +170,11 @@ et dans les options de l'appli Home Assistant.
 | Fin de phrase | Serveur | Silero (`vad.creer`) : fin après 0,45 s de silence (0,8 s au seuil d'énergie), 6 s au plus pour commencer, 12 s au plus en tout, 320 ms gardées avant la parole |
 | Transcription | Serveur | `Satellite.terminer_phrase` envoie `reflexion`, puis `Moteur.traiter` appelle `Moteur.transcrire` : Canary (`Transcripteur.transcrire`), Wyoming (`transcrire_ha`) ou API (`transcrire_api`). Speech-to-Phrase vide se replie sur l'API si elle est configurée |
 | Dictionnaire | Serveur | `Assistant._traiter` : `epurer`, correction vocale d'une leçon récente ("non", "annule" dans les 30 s), `Dictionnaire.chercher`, puis `Personnes.appliquer` pour "ma chambre" selon la personne reconnue |
-| Sécurité | Serveur | `securite.verifier` sur chaque action, avec la personne reconnue |
-| Action | Serveur | `Assistant.executer` : `POST /api/services/<domaine>/<service>`, puis `HomeAssistant.confirmer` relit l'état (1,5 s au plus pour une lumière, une prise, un ventilateur, 12 s pour un script de musique) |
+| Contexte | Serveur | `Assistant.requete` ouvre le contexte de la requête (`REQUETE`, un `Requete` par commande, copié par `asyncio.to_thread`) : essai, personne, appareil, rôle, canal (`voix`, `texte`, `appli`, `web`). La personne et le rôle viennent de la session (jeton, `appareils.json`, `acces.personne_effective`), jamais du champ `personne` d'un message. Rien n'est écrit sur les objets partagés (`ha.personne` est en lecture seule) |
+| Sécurité | Serveur | `acces.controler_service`, point de contrôle unique de tout appel de service : domaines interdits, service permis (voie du LLM), forme des données, URL de `launch_app`, puis `securite.verifier` avec la personne du contexte |
+| Action | Serveur | `Assistant.executer` (après `acces.controler_service`) : `POST /api/services/<domaine>/<service>`, puis `HomeAssistant.confirmer` relit l'état (1,5 s au plus pour une lumière, une prise, un ventilateur, 12 s pour un script de musique) |
 | Intentions de HA | Serveur | `HomeAssistant.conversation` est sautée tant que `SECURITE_ACTIVE` vaut vrai, ce qui est le cas en dur : Assist agirait sans qu'on voie sa cible |
-| LLM | Serveur | `securite.phrase_protegee`, puis `Cerveau.repondre` ou `CerveauClaude.repondre` : six tours au plus, outils `appeler_service`, `jouer_musique`, `lire_etat`. `HomeAssistant.service` applique la liste blanche, la sécurité, la liste fermée des entités, puis confirme l'état (3 s). `garde_fou_volume` et `garde_fou_musique` corrigent les excès du modèle. `Assistant.apprendre` range la phrase réussie dans `commandes_apprises.yaml` |
+| LLM | Serveur | `securite.phrase_protegee`, puis `Cerveau.repondre` ou `CerveauClaude.repondre` : six tours au plus, outils `appeler_service`, `jouer_musique`, `lire_etat`. `HomeAssistant.service` passe par `acces.controler_service` avec la liste blanche, applique la liste fermée des entités, puis confirme l'état (3 s). `garde_fou_volume` et `garde_fou_musique` corrigent les excès du modèle. `Assistant.apprendre` range la phrase réussie dans `commandes_apprises.yaml` |
 | Journal | Serveur | `journaliser` (une ligne anonyme de `latences.csv` : voie, durées, rôle, issue, sans phrase, et une entrée de l'historique `assistant-AAAA-MM-JJ.jsonl`), `manques.jsonl` si le dictionnaire n'a rien trouvé |
 | Réponse | Serveur | `Voix.synthetiser` (Piper), `wav_de`, message `reponse` puis le WAV en binaire. `historique_ajout` est diffusé aux seuls appareils qui ont le droit de voir l'entrée (`entrees_visibles`, règle de CONFIGURER.md). Le serveur reste sourd jusqu'à `lecture_finie`, ou durée du WAV plus 3 s |
 | Lecture et écran | Appareil | `SatelliteService.jouerWav` (AudioTrack), puis `{"type":"lecture_finie"}`. `Etat` alimente l'orbe, la carte de réponse et l'historique |
@@ -311,7 +312,9 @@ Chemins permis (`acces.verifier_requete_ha`) : `GET /api/states` et `GET /api/st
 `GET /api/media_player_proxy/media_player.<nom>`, `POST /api/template`, `POST /api/conversation/process`,
 `POST /api/services/weather/get_forecasts?return_response` avec exactement `{"entity_id": "weather.<nom>",
 "type": "hourly" | "daily" | "twice_daily"}`, et `POST /api/services/<domaine>/<service>` hors des domaines
-interdits, après `securite.verifier`.
+interdits, après `acces.controler_service` (le même point de contrôle que les voies du LLM et du dictionnaire,
+sans liste blanche). `securite.verifier` refuse aussi, depuis la 0.40.0, les domaines `lock` et `alarm_control_panel`
+même si une voie oubliait la liste des domaines interdits. Un corps qui n'est pas un objet est refusé.
 
 ### Appareils et appairage
 
@@ -384,7 +387,7 @@ quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au 
 | Aucun jeton Home Assistant dans l'APK | `PasserelleHa` |
 
 Les actions du dictionnaire ne passent pas par la liste blanche, puisque le dictionnaire est écrit par le
-propriétaire, mais elles passent toutes par `securite.verifier`.
+propriétaire, mais elles passent toutes par `acces.controler_service`, donc par `securite.verifier`.
 
 ### Santé
 
