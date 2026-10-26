@@ -17,7 +17,7 @@ import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, time
 import acces
 import maison
 import securite
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import NamedTuple
 
@@ -49,7 +49,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.38.0"
+VERSION = "0.39.0"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -1625,7 +1625,7 @@ class Assistant:
             self.dico.oublier(lecon[0])
             lecons.pop(appareil, None)
             parole = f"D'accord, j'oublie ce que j'avais retenu pour « {lecon[0]} »."
-            print(f"  [apprentissage annulé] {lecon[0]}")
+            print(f"  [apprentissage annulé] {pour_console(lecon[0])}")
             journaliser(texte, "apprentissage annulé", t_stt, time.perf_counter() - t, 0.0, parole, [])
             if self.voix:
                 self.voix.jouer(self.voix.synthetiser(parole))
@@ -1690,7 +1690,7 @@ class Assistant:
                     parole = "Le modèle de langage ne répond pas. Le PC est peut-être occupé."
                 voie += f" erreur {e.__class__.__name__} : {e}"
         t_cerveau = time.perf_counter() - t
-        print(f"  [{voie}] {parole}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
+        print(f"  [{voie_courte(voie)}] {pour_console(parole)}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
         t_tts = 0.0
         if self.voix and parole:
             t = time.perf_counter()
@@ -1730,7 +1730,7 @@ class Assistant:
             if getattr(self, "lecons", None) is None:
                 self.lecons = {}
             self.lecons[Cerveau.cle_conversation()[1]] = (texte, time.time())
-            print(f"  [appris] « {texte} » sera traité directement la prochaine fois "
+            print(f"  [appris] {pour_console(texte)} sera traité directement la prochaine fois "
                   f"(dis « non » dans les {DELAI_CORRECTION:.0f} s pour l'oublier)")
 
     def executer(self, action, personne=None):
@@ -1783,24 +1783,166 @@ class RechercheLente(Exception):
     """Music Assistant n'a pas eu la réponse de Spotify à temps (recherche vide après 7 s)."""
 
 
+# Journal du serveur (0.39.0, S-F3). Deux fichiers aux rôles séparés :
+# - latences.csv : durées, voie réduite à sa catégorie, rôle, issue. AUCUNE phrase, ni dite ni répondue. Rotation par
+#   taille et par nombre de fichiers (latences.1.csv, latences.2.csv...).
+# - assistant-AAAA-MM-JJ.jsonl : l'historique que l'appli affiche (la phrase, la réponse, ce qui a été fait), un
+#   fichier par jour, supprimé au bout de journal.conserver_jours. Le filtre par rôle de serveur_satellite décide qui
+#   en voit quoi.
+# Valeurs de maison.json, section journal (défauts ci-dessous si la clé manque ou est absurde).
+CONSERVER_JOURS_DEFAUT = 30
+TAILLE_MAX_KO_DEFAUT = 512
+FICHIERS_MAX_DEFAUT = 5
+COLONNES_LATENCES = ["horodatage", "version", "voie", "stt_s", "cerveau_s", "tts_s", "total_s", "role", "issue",
+                     "actions_nb", "essai"]
+# Fonction identité -> rôle, posée par servir() (serveur_satellite). Sans elle, le rôle journalisé reste vide.
+ROLE_DE = None
+_PURGE = {"jour": None}
+
+
+def phrases_dans_la_console():
+    """Vrai en diagnostic : variable JARVIS_DIAGNOSTIC ou journal.phrases_dans_la_console de maison.json. Sinon
+    la sortie du serveur (qui part dans le journal de l'appli HA) ne contient pas les phrases."""
+    if os.getenv("JARVIS_DIAGNOSTIC", "").strip().lower() in ("1", "true", "oui"):
+        return True
+    return maison.JOURNAL.get("phrases_dans_la_console") is True
+
+
+def pour_console(texte):
+    """Texte à afficher dans la sortie du serveur : la phrase en diagnostic, sinon sa seule longueur."""
+    texte = str(texte or "")
+    return texte if phrases_dans_la_console() else f"[{len(texte)} caractères]"
+
+
+def voie_courte(voie):
+    """Catégorie de la voie sans ce qu'elle porte entre parenthèses (la forme du dictionnaire est une phrase)."""
+    return re.split(r" \(| \[| erreur| refus| non confirmé", str(voie or ""))[0].strip() or "autre"
+
+
+def issue_de(voie):
+    v = str(voie or "")
+    if v.startswith("rien compris"):
+        return "non compris"
+    if " erreur" in v:
+        return "erreur"
+    if "refus" in v:
+        return "refus"
+    if "non confirmé" in v:
+        return "non confirmé"
+    return "ok"
+
+
+def role_du_contexte(appareil):
+    """Rôle de l'appareil de la requête en cours, vide si inconnu, « local » pour le micro du PC (pas d'appareil)."""
+    if not appareil:
+        return "local"
+    if ROLE_DE is None:
+        return ""
+    identite = appareil if str(appareil).startswith("appareil:") else str(appareil).split("/")[0]
+    try:
+        return ROLE_DE(identite) or ""
+    except Exception:
+        return ""
+
+
+def _preparer_csv(dossier):
+    """Écarte un ancien latences.csv au format d'avant (il contient des phrases) et fait tourner le fichier trop gros."""
+    if not JOURNAL.exists():
+        return
+    with open(JOURNAL, encoding="utf-8", newline="") as f:
+        premiere = f.readline().strip()
+    if premiere != ";".join(COLONNES_LATENCES):
+        jour = maison.maintenant().strftime("%Y-%m-%d")
+        cible, k = dossier / f"latences-ancien-{jour}.csv", 2
+        while cible.exists():
+            cible, k = dossier / f"latences-ancien-{jour}-{k}.csv", k + 1
+        JOURNAL.replace(cible)
+        return
+    if JOURNAL.stat().st_size <= maison.entier(maison.JOURNAL, "taille_max_ko", TAILLE_MAX_KO_DEFAUT) * 1024:
+        return
+    garde = maison.entier(maison.JOURNAL, "fichiers_max", FICHIERS_MAX_DEFAUT)
+
+    def nom(i):
+        return JOURNAL.with_name(f"{JOURNAL.stem}.{i}{JOURNAL.suffix}")
+    nom(garde).unlink(missing_ok=True)
+    for i in range(garde - 1, 0, -1):
+        if nom(i).exists():
+            nom(i).replace(nom(i + 1))
+    JOURNAL.replace(nom(1))
+
+
+def appliquer_retention(dossier=None):
+    """Supprime les historiques datés de plus de journal.conserver_jours jours, et les anciens latences.csv écartés.
+    Une fois par jour et par processus, appelé par journaliser."""
+    dossier = dossier or JOURNAL.parent
+    jours = maison.entier(maison.JOURNAL, "conserver_jours", CONSERVER_JOURS_DEFAUT)
+    limite = (maison.maintenant() - timedelta(days=jours)).strftime("%Y-%m-%d")
+    for f in dossier.glob("assistant-????-??-??.jsonl"):
+        if f.stem[len("assistant-"):] < limite:
+            f.unlink(missing_ok=True)
+    for f in dossier.glob("latences-ancien-*.csv"):
+        if datetime.fromtimestamp(f.stat().st_mtime, maison.ZONE).strftime("%Y-%m-%d") < limite:
+            f.unlink(missing_ok=True)
+
+
 def journaliser(texte, voie, t_stt, t_cerveau, t_tts, parole, actions):
-    JOURNAL.parent.mkdir(exist_ok=True)
-    neuf = not JOURNAL.exists()
-    with open(JOURNAL, "a", newline="", encoding="utf-8") as f:
-        w = csv.writer(f, delimiter=";")
-        if neuf:
-            w.writerow(["horodatage", "version", "texte", "voie", "stt_s", "cerveau_s", "tts_s",
-                        "total_s", "reponse", "actions"])
-        w.writerow([maison.maintenant().strftime(maison.FORMAT_HORODATAGE), VERSION, texte, voie,
-                    f"{t_stt:.2f}", f"{t_cerveau:.2f}", f"{t_tts:.2f}",
-                    f"{t_stt + t_cerveau + t_tts:.2f}", parole, " | ".join(actions)])
+    """Une commande dans les deux fichiers du journal (voir plus haut). Appareil et personne viennent de la requête
+    en cours (Assistant.requete) : appeler dans le contexte d'une requête, sinon l'entrée n'a pas d'appareil.
+    Un échec d'écriture ne casse jamais une commande."""
+    r = REQUETE.get()
+    appareil, personne = (r.appareil, r.personne) if r else (None, None)
+    role = role_du_contexte(appareil)
+    maintenant = maison.maintenant()
+    total = t_stt + t_cerveau + t_tts
+    try:
+        dossier = JOURNAL.parent
+        dossier.mkdir(parents=True, exist_ok=True)
+        if _PURGE["jour"] != maintenant.date():
+            _PURGE["jour"] = maintenant.date()
+            appliquer_retention(dossier)
+        _preparer_csv(dossier)
+        neuf = not JOURNAL.exists()
+        with open(JOURNAL, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f, delimiter=";")
+            if neuf:
+                w.writerow(COLONNES_LATENCES)
+            w.writerow([maintenant.strftime(maison.FORMAT_HORODATAGE), VERSION, voie_courte(voie),
+                        f"{t_stt:.2f}", f"{t_cerveau:.2f}", f"{t_tts:.2f}", f"{total:.2f}", role, issue_de(voie),
+                        len(actions), 1 if "[essai]" in str(voie) else 0])
+        with open(dossier / f"assistant-{maintenant.strftime('%Y-%m-%d')}.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"horodatage": maintenant.strftime(maison.FORMAT_HORODATAGE), "texte": texte,
+                                "voie": voie, "total_s": f"{total:.2f}", "reponse": parole,
+                                "actions": " | ".join(actions), "appareil": appareil, "personne": personne,
+                                "role": role}, ensure_ascii=False) + "\n")
+    except OSError as e:
+        print(f"  journal impossible : {e.__class__.__name__}")
+
+
+def lire_historique(n):
+    """Les n dernières entrées de l'historique (fichiers du jour puis des jours précédents), la plus récente en premier."""
+    sortie = []
+    for f in sorted(JOURNAL.parent.glob("assistant-????-??-??.jsonl"), reverse=True):
+        try:
+            lignes = f.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for l in reversed(lignes):
+            try:
+                e = json.loads(l)
+            except ValueError:
+                continue
+            if isinstance(e, dict):
+                sortie.append(e)
+                if len(sortie) >= n:
+                    return sortie
+    return sortie
 
 
 def journaliser_musique(entree):
     """Une ligne par commande de musique, dans journal/musique.jsonl et dans la sortie du serveur, donc
     dans le journal de l'appli HA (ha apps logs local_jarvis). Avant le 22/10/2026, le résultat d'une
-    commande de musique n'était écrit nulle part."""
-    print(f"  [musique] « {entree.get('demande', '')} » ({entree.get('type', '')}, {entree.get('enceinte', '')})"
+    commande de musique n'était écrit nulle part. La demande (une phrase) n'est affichée qu'en diagnostic."""
+    print(f"  [musique] {pour_console(entree.get('demande', ''))} ({entree.get('type', '')}, {entree.get('enceinte', '')})"
           f" par {entree.get('voie') or '-'} sur {entree.get('lecteur') or '-'} : {entree.get('resultat')}"
           f" en {entree.get('duree_s')} s", flush=True)
     try:
@@ -1892,7 +2034,7 @@ def main():
             texte = assistant.stt.transcrire(signal)
             t_stt = time.perf_counter() - t
             fin_etat()
-            print(f"  Vous ({len(signal) / TAUX:.1f} s) : {texte}")
+            print(f"  Vous ({len(signal) / TAUX:.1f} s) : {pour_console(texte)}")
             if texte:
                 assistant.traiter(texte, t_stt)
     except KeyboardInterrupt:

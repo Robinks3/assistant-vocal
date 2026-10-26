@@ -202,7 +202,7 @@ async def session_page(moteur, ws, version):
     entetes = ws.request.headers
     ip = ws.remote_address[0]
     utilisateur, raison = acces.controle_ingress(ip, entetes)
-    if not utilisateur or not acces.origine_acceptee(entetes):
+    if not utilisateur or not acces.origine_acceptee(entetes, ip):
         print(f"administration : WebSocket refusée depuis {ip} ({raison or 'origine absente ou étrangère'}, "
               f"Origin={entetes.get('Origin')!r}, Host={entetes.get('Host')!r}, "
               f"X-Forwarded-Host={entetes.get('X-Forwarded-Host')!r})")

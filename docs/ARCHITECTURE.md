@@ -53,7 +53,7 @@ exemples de ce document viennent de `config-exemple/`, dont toutes les valeurs s
 | `tests/` | Tests pytest sur `config-exemple/` | voir la partie 6 |
 
 Les données vivantes ne sont pas de la configuration. Elles vont dans le dossier `JARVIS_DONNEES` (`poc/` par
-défaut, `/data` dans l'appli Home Assistant) : `journal/latences.csv`, `journal/manques.jsonl`,
+défaut, `/data` dans l'appli Home Assistant) : `journal/latences.csv` (durées seules, sans phrase), `journal/assistant-AAAA-MM-JJ.jsonl` (historique avec phrases, purgé après `journal.conserver_jours`), `journal/manques.jsonl`,
 `journal/retours.jsonl`, `journal/musique.jsonl`, `commandes_apprises.yaml` (et son export pour l'appli,
 `genere/android/dictionnaire_appris.json`), `appareils.json` et le certificat
 `tls/cert.pem`, `tls/cle.pem`.
@@ -174,8 +174,8 @@ et dans les options de l'appli Home Assistant.
 | Action | Serveur | `Assistant.executer` : `POST /api/services/<domaine>/<service>`, puis `HomeAssistant.confirmer` relit l'état (1,5 s au plus pour une lumière, une prise, un ventilateur, 12 s pour un script de musique) |
 | Intentions de HA | Serveur | `HomeAssistant.conversation` est sautée tant que `SECURITE_ACTIVE` vaut vrai, ce qui est le cas en dur : Assist agirait sans qu'on voie sa cible |
 | LLM | Serveur | `securite.phrase_protegee`, puis `Cerveau.repondre` ou `CerveauClaude.repondre` : six tours au plus, outils `appeler_service`, `jouer_musique`, `lire_etat`. `HomeAssistant.service` applique la liste blanche, la sécurité, la liste fermée des entités, puis confirme l'état (3 s). `garde_fou_volume` et `garde_fou_musique` corrigent les excès du modèle. `Assistant.apprendre` range la phrase réussie dans `commandes_apprises.yaml` |
-| Journal | Serveur | `journaliser` (une ligne de `latences.csv`), `manques.jsonl` si le dictionnaire n'a rien trouvé |
-| Réponse | Serveur | `Voix.synthetiser` (Piper), `wav_de`, message `reponse` puis le WAV en binaire. `historique_ajout` est diffusé à tous les appareils. Le serveur reste sourd jusqu'à `lecture_finie`, ou durée du WAV plus 3 s |
+| Journal | Serveur | `journaliser` (une ligne anonyme de `latences.csv` : voie, durées, rôle, issue, sans phrase, et une entrée de l'historique `assistant-AAAA-MM-JJ.jsonl`), `manques.jsonl` si le dictionnaire n'a rien trouvé |
+| Réponse | Serveur | `Voix.synthetiser` (Piper), `wav_de`, message `reponse` puis le WAV en binaire. `historique_ajout` est diffusé aux seuls appareils qui ont le droit de voir l'entrée (`entrees_visibles`, règle de CONFIGURER.md). Le serveur reste sourd jusqu'à `lecture_finie`, ou durée du WAV plus 3 s |
 | Lecture et écran | Appareil | `SatelliteService.jouerWav` (AudioTrack), puis `{"type":"lecture_finie"}`. `Etat` alimente l'orbe, la carte de réponse et l'historique |
 
 ### Appli Home Assistant
@@ -275,7 +275,7 @@ réponse. Les messages du serveur portent un champ `etat`, ceux de l'appareil un
 | `reflexion` | Serveur vers appareil | `texte` (vide) | L'appareil joue le son de fin |
 | `reponse` | Serveur vers appareil | `texte`, `reponse`, `voie` | Suivi du WAV en binaire si une réponse est dite |
 | binaire | Serveur vers appareil | WAV complet, 16 bits | L'appareil le joue puis envoie `lecture_finie` |
-| `historique_ajout` | Serveur vers tous | `entree` | |
+| `historique_ajout` | Serveur vers les appareils autorisés à voir l'entrée | `entree` | Filtré par rôle, appareil et personne |
 
 ### Transcription et LLM délégués
 
