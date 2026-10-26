@@ -1497,6 +1497,19 @@ def avertir_modeles_manquants(racine=None, sortie=None):
     return TM.verifier_au_demarrage("serveur", racine or TM.RACINE, sortie)
 
 
+async def fermer_si_clair_restreint(ws, chiffre, appareils):
+    """acces.clair_restreint (D7, S-D5) : ferme en 4003 une connexion qui n'arrive pas en wss, sauf de la boucle
+    locale. Vrai si la connexion a été fermée. Le journal dit le motif et l'adresse, jamais le chemin ni le jeton."""
+    ip = ws.remote_address[0]
+    motif = acces.refus_clair_restreint(ip, chiffre)
+    if motif is None:
+        return False
+    print(f"connexion refusée ({motif}) depuis {ip}")
+    appareils.noter_refus("clair restreint", ip)
+    await ws.close(code=4003, reason="connexion en clair refusée")
+    return True
+
+
 async def servir(args):
     # Un jeton par personne : SATELLITE_JETON (le propriétaire, proprietaire.cle de maison.json) et
     # SATELLITE_JETON_<NOM> pour les autres.
@@ -1634,6 +1647,8 @@ async def servir(args):
                   f"hors des réseaux {', '.join(str(r) for r in reseaux)}")
             moteur.appareils.noter_refus("réseau non autorisé", ws.remote_address[0])
             await ws.close(code=4003, reason="réseau non autorisé")
+            return
+        if await fermer_si_clair_restreint(ws, chiffre, moteur.appareils):
             return
         if chiffre and urlparse(chemin).path.rstrip("/") == "/appairage":
             await appairage(ws, chemin)

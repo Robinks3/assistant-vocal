@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Trafic en clair refusé par défaut (S-D5, I11). Le serveur de l'assistant se joint en wss (port 8766, clé publique
+  retenue à la première connexion, voir Confiance.kt) et les téléchargements passent en https.
+
+  Seule exception : la boucle locale de l'appareil lui-même (localhost, 127.0.0.1, ::1).
+
+  Ce qui n'est PAS déclaré, volontairement : l'adresse des serveurs vient de la configuration privée de la maison
+  (reseau.android_serveur_pc et reseau.android_serveur_ha, compilées dans BuildConfig) ou de la saisie de
+  l'utilisateur, et une adresse de logement ne s'écrit jamais dans le moteur. Ce fichier ne peut d'ailleurs pas
+  nommer un réseau (domain-config accepte un nom d'hôte ou une adresse exacte, pas une plage CIDR). Conséquence :
+  le repli en ws://hôte:8765 de Confiance.repli (serveur pas encore à jour) et une adresse ws:// saisie à la main
+  sont refusés par Android (« CLEARTEXT communication not permitted »). Côté serveur, acces.clair_restreint les
+  refuse déjà en 4003 hors boucle locale.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">::1</domain>
+    </domain-config>
+</network-security-config>

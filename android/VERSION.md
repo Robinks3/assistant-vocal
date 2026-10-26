@@ -6,6 +6,12 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.45.0 (2026-10-26), durcissement
+Mineure (versionCode 83). Session S-D5 du plan, pendant du serveur 0.45.1.
+- Les extras d'intention `test_*` de l'activité principale ne sont lus que dans un build de débogage.
+- Un fichier `network_security_config` refuse le trafic en clair, sauf la boucle locale de l'appareil. Le repli
+  sur l'ancien port en clair 8765 et une adresse ws:// saisie à la main ne passent plus : seul wss (8766) reste.
+
 ## 0.44.0 (2026-10-26), mesures par pièce
 Mineure (versionCode 82). Session S-L6 du plan, pendant du serveur 0.45.0.
 - Les mesures des pièces (température, humidité, CO2, particules fines) sont lues toutes les 60 secondes et

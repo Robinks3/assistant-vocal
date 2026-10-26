@@ -4,6 +4,12 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.45.1 (2026-10-26), connexions en clair restreintes
+Correctif. Session S-D5 du plan (décision D7). Appli Home Assistant 0.45.1, pendant de l'appli 0.45.0.
+- Nouvelle clé `acces.clair_restreint`. Quand elle vaut true, une connexion qui n'arrive pas en wss est fermée
+  avec le code 4003, sauf depuis la boucle locale (127.0.0.1, ::1). Le motif est écrit au journal, jamais un jeton.
+- Réglage absent ou faux : comportement inchangé, le port 8765 reste ouvert.
+
 ## Serveur 0.45.0 (2026-10-26), mesures par pièce
 Mineure. Session S-L6 du plan. Appli Home Assistant 0.45.0, pendant de l'appli 0.44.0.
 - Nouvelle demande `mesures` (capacité `mesures`, pas pour le rôle invité) : température, humidité, CO2 et

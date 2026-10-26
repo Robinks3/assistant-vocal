@@ -503,11 +503,12 @@ class MainActivity : Activity() {
         // refuse la lecture (errno 13 sur le téléphone le 13/10/2026). Les fichiers y sont ensuite poussés.
         CanaryLocal.dossierModele(this).mkdirs()
         ModeleLiteRt.dossier(this).mkdirs()
-        intent?.getStringExtra("test_reveil")?.let { TestReveil.lancer(applicationContext, it) }
-        intent?.getStringExtra("test_llm")?.let { TestLlm.lancer(applicationContext, it, intent.getStringExtra("modele")) }
-        intent?.getStringExtra("test_canary")?.let {
-            TestCanary.lancer(applicationContext, it, intent.getIntExtra("fils", 4))
-        }
+        // Extras de banc (S-D5, I11) : MainActivity est exportée, ils ne sont lus que dans un build de débogage.
+        val essais = ExtrasTest.lisibles(BuildConfig.DEBUG, { intent?.getStringExtra(it) },
+            { cle, defaut -> intent?.getIntExtra(cle, defaut) ?: defaut })
+        essais.reveil?.let { TestReveil.lancer(applicationContext, it) }
+        essais.llm?.let { TestLlm.lancer(applicationContext, it, essais.modele) }
+        essais.canary?.let { TestCanary.lancer(applicationContext, it, essais.fils) }
     }
 
     /**

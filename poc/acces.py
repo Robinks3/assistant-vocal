@@ -90,6 +90,30 @@ def ancien_acces_permis(env=None):
     return v if isinstance(v, bool) else True
 
 
+def clair_restreint():
+    """acces.clair_restreint (D7, S-D5) : vrai seulement si le réglage vaut explicitement true. Absent, faux ou d'un
+    autre type : le port en clair se comporte comme avant."""
+    return maison.ACCES.get("clair_restreint") is True
+
+
+def refus_clair_restreint(ip, chiffre):
+    """Motif de refus (texte pour le journal, sans jeton) d'une connexion en clair quand acces.clair_restreint est
+    actif, ou None. Une connexion chiffrée (wss) passe toujours, le réglage absent ou faux ne refuse rien, et la
+    boucle locale (127.0.0.0/8, ::1, y compris ::ffff:127.x) reste admise : Tailscale Serve et les routines de la
+    machine arrivent de là. Une adresse illisible est refusée, par prudence."""
+    if chiffre or not clair_restreint():
+        return None
+    try:
+        a = ipaddress.ip_address(str(ip).split("%")[0])
+    except ValueError:
+        return "connexion en clair refusée (adresse illisible)"
+    if getattr(a, "ipv4_mapped", None):
+        a = a.ipv4_mapped
+    if a.is_loopback:
+        return None
+    return "connexion en clair refusée (acces.clair_restreint, hors boucle locale)"
+
+
 # Réseaux où l'amorçage est permis : la maison seulement (ni le tailnet ni un autre réseau autorisé).
 RESEAUX_LOCAUX = ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                   "169.254.0.0/16", "fe80::/10", "fd00::/8")
