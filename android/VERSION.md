@@ -6,6 +6,25 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.42.0 (2026-10-26), retour d'état dans la vue 3D : lampes teintées, télé, maison entière
+Nouveauté (versionCode 79). Session S-L5 du plan (la 0.41.0 est réservée au lot lampes et télé à la voix). Le serveur
+n'a pas changé.
+- Pont `Maison3dPont` : état réduit complet envoyé à la page (allumé ou éteint, luminosité 0 à 255, volume 0 à 1,
+  chaleur en kelvins bornée de 1000 à 40000 en mode température, sinon couleur RVB à trois composantes de 0 à 255).
+  Une lampe indisponible ou inconnue part sans attributs, un état vide devient « unknown », une valeur mal formée est
+  ignorée.
+- `Maison3d.etat3d` : lampes et lecteurs multimédias, les autres appareils ne sont pas transmis. La clé de
+  déduplication de l'écran Maison est l'état réduit entier, donc un changement de couleur, de chaleur ou de volume
+  repart vers la page sans rechargement.
+- Correspondance entité vers objet 3D lue dans `reglages.vue3d.correspondances` de `maison.json` (clés vides et clés en
+  `_` ignorées). Rien de propre à un logement dans `carte/3d/`. Exemple fictif dans `config-exemple/maison.json`.
+- Page 3D : halo teinté de la vraie couleur, couche neutralisante sous la tache pour qu'un blanc froid ne vire pas à
+  l'orange du sol, plus de halo ni de tache dans la vue maison entière (le voile de la pièce choisie reste), état appliqué
+  tout de suite quand la page est masquée (la WebView gèle `requestAnimationFrame`), une lampe allumée sans couleur
+  reprend le blanc chaud.
+- Tests : `Maison3dPontTest` et `Maison3dTest` complétés (format des messages, couleur, bornes, indisponible ou
+  inconnu, correspondances), `test_generer_3d.py` vérifie la page générée.
+
 ## 0.40.1 (2026-10-26), correctif : l'appli 0.40.0 plantait au démarrage
 Correctif (versionCode 77). Le motif `INTENTION_ROUTINE` de `RoutinesLocal.kt` portait le drapeau `(?U)`, accepté
 par la JVM des tests mais refusé par Android (ICU, PatternSyntaxException) : le moteur local ne se construisait

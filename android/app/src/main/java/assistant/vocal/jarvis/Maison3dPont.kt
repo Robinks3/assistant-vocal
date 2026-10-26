@@ -41,38 +41,92 @@ internal class Maison3dPont(private val executer: (String) -> Unit) {
         const val SCRIPT_FONDU = "maison3d.fondu(true)"
         /** Accueil plein écran (0.24.0) : la page dessine elle-même son fond, aucun bord fondu. */
         const val SCRIPT_SANS_FONDU = "maison3d.fondu(false)"
-        /** Attributs lus par la page : couleur des lampes, et volume de la télé et des enceintes (page 0.6.0). */
-        private val ATTRIBUTS = listOf("brightness", "rgb_color", "color_temp_kelvin", "volume_level")
+        /** États où Home Assistant ne sait rien de l'appareil : la page le montre éteint, sans couleur ni volume. */
+        private val ETATS_SANS_VALEUR = setOf("unavailable", "unknown")
 
-        /** Ne garde d'un état HA que ce que la page lit : `state`, trois attributs de couleur et le volume. */
+        /** Bornes de la température de couleur gardées pour la page : au-delà, la formule du corps noir n'a plus de sens. */
+        const val KELVIN_MIN = 1000
+        const val KELVIN_MAX = 40000
+
+        /** Nombre fini d'un attribut HA (nombre ou texte numérique), null sinon (absent, null JSON, NaN, texte). */
+        private fun chiffre(a: JSONObject, cle: String): Double? {
+            if (!a.has(cle) || a.isNull(cle)) return null
+            val v = when (val o = a.opt(cle)) {
+                is Number -> o.toDouble()
+                is String -> o.trim().toDoubleOrNull()
+                else -> null
+            }
+            return v?.takeIf { !it.isNaN() && !it.isInfinite() }
+        }
+
+        /** Couleur rgb de HA : trois composantes numériques, bornées à 0..255. Null si le tableau est mal formé. */
+        private fun rgbValide(a: JSONObject): JSONArray? {
+            val t = a.optJSONArray("rgb_color") ?: return null
+            if (t.length() != 3) return null
+            val r = JSONArray()
+            for (i in 0 until 3) {
+                val v = (t.opt(i) as? Number)?.toDouble()?.takeIf { !it.isNaN() && !it.isInfinite() } ?: return null
+                r.put(Math.round(v).toInt().coerceIn(0, 255))
+            }
+            return r
+        }
+
+        /**
+         * Ne garde d'un état HA que ce que la page lit : `state`, la luminosité, UNE couleur et le volume.
+         * - `state` en minuscules, « unknown » s'il manque ou s'il est vide. Inconnu ou indisponible : aucun attribut.
+         * - luminosité entière de 0 à 255, volume de 0 à 1, kelvins de 1000 à 40000, rgb de 0 à 255 par composante.
+         * - couleur : la température si la lampe est en mode `color_temp` (HA donne alors aussi un rgb déduit,
+         *   moins juste), sinon le rgb, sinon la température.
+         */
         fun etatReduit(etatHA: JSONObject): JSONObject {
-            val r = JSONObject().put("state", etatHA.optString("state", "off"))
+            val etat = etatHA.optString("state", "").trim().lowercase().ifEmpty { "unknown" }
+            val r = JSONObject().put("state", etat)
             val a = etatHA.optJSONObject("attributes") ?: return r
+            if (etat in ETATS_SANS_VALEUR) return r.put("attributes", JSONObject())
             val ra = JSONObject()
-            for (cle in ATTRIBUTS) if (a.has(cle) && !a.isNull(cle)) ra.put(cle, a.get(cle))
+            chiffre(a, "brightness")?.let { ra.put("brightness", Math.round(it).toInt().coerceIn(0, 255)) }
+            chiffre(a, "volume_level")?.let { ra.put("volume_level", it.coerceIn(0.0, 1.0)) }
+            val kelvin = chiffre(a, "color_temp_kelvin")?.takeIf { it > 0 }
+                ?.let { Math.round(it).toInt().coerceIn(KELVIN_MIN, KELVIN_MAX) }
+            val rgb = rgbValide(a)
+            when {
+                kelvin != null && (a.optString("color_mode") == "color_temp" || rgb == null) -> ra.put("color_temp_kelvin", kelvin)
+                rgb != null -> ra.put("rgb_color", rgb)
+            }
             return r.put("attributes", ra)
         }
+
+        /** État d'un lecteur multimédia (télé, enceinte) tel que le lit la page : `state` et `volume_level`. */
+        fun etatMedia(etat: String, volume: Double?): JSONObject {
+            val brut = JSONObject().put("state", etat)
+            if (volume != null) brut.put("attributes", JSONObject().put("volume_level", volume))
+            return etatReduit(brut)
+        }
+
+        /** Entité de la vue 3D qui représente [id] : celle de la correspondance configurée, sinon [id] lui-même. */
+        fun entiteVue(id: String, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String =
+            correspondances[id] ?: id
 
         /**
          * `maison3d.etats([...])` avec les lumières, la télé et les enceintes (0.24.0, page 0.6.0 : télé allumée,
          * ondes des enceintes qui jouent) du tableau brut de `/api/states`.
          */
-        fun scriptEtats(etats: JSONArray): String {
+        fun scriptEtats(etats: JSONArray, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String {
             val lumieres = JSONArray()
             for (i in 0 until etats.length()) {
                 val e = etats.optJSONObject(i) ?: continue
                 val id = e.optString("entity_id")
                 if (!id.startsWith("light.") && !id.startsWith("media_player.")) continue
-                lumieres.put(etatReduit(e).put("entity_id", id))
+                lumieres.put(etatReduit(e).put("entity_id", entiteVue(id, correspondances)))
             }
             return "maison3d.etats($lumieres)"
         }
 
-        fun scriptEtat(entite: String, etatHA: JSONObject): String =
-            "maison3d.etat(${JSONObject.quote(entite)}, ${etatReduit(etatHA)})"
+        fun scriptEtat(entite: String, etatHA: JSONObject, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String =
+            "maison3d.etat(${JSONObject.quote(entiteVue(entite, correspondances))}, ${etatReduit(etatHA)})"
 
-        fun scriptMontrer(cibles: List<String>): String =
-            "maison3d.montrer(${JSONArray(cibles)})"
+        fun scriptMontrer(cibles: List<String>, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String =
+            "maison3d.montrer(${JSONArray(cibles.map { entiteVue(it, correspondances) })})"
 
         /** Effets que la page sait jouer (0.17.5), tout autre devient un réglage. */
         private val EFFETS = setOf("allumer", "eteindre", "regler")
@@ -81,7 +135,7 @@ internal class Maison3dPont(private val executer: (String) -> Unit) {
          * `maison3d.action({...})` (0.17.5) : pour chaque lumière, l'effet et, s'il est connu, l'état lu
          * dans HA réduit à ce que lit la page. La page joue toute la chorégraphie elle-même.
          */
-        fun scriptAction(effets: JSONObject): String {
+        fun scriptAction(effets: JSONObject, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String {
             val r = JSONObject()
             for (cle in effets.keys()) {
                 val o = effets.optJSONObject(cle) ?: JSONObject().put("effet", effets.optString(cle))
@@ -92,15 +146,15 @@ internal class Maison3dPont(private val executer: (String) -> Unit) {
                     sortie.put("state", e.getString("state"))
                     e.optJSONObject("attributes")?.let { sortie.put("attributes", it) }
                 }
-                r.put(cle, sortie)
+                r.put(entiteVue(cle, correspondances), sortie)
             }
             return "maison3d.action($r)"
         }
 
         /** `maison3d.poser({...})` (0.17.5) : états appliqués sans animation, `{entité: état HA}`. */
-        fun scriptPoser(etats: JSONObject): String {
+        fun scriptPoser(etats: JSONObject, correspondances: Map<String, String> = Maison3d.CORRESPONDANCES): String {
             val r = JSONObject()
-            for (cle in etats.keys()) etats.optJSONObject(cle)?.let { r.put(cle, etatReduit(it)) }
+            for (cle in etats.keys()) etats.optJSONObject(cle)?.let { r.put(entiteVue(cle, correspondances), etatReduit(it)) }
             return "maison3d.poser($r)"
         }
 

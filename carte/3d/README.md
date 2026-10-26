@@ -70,6 +70,17 @@ La page cherche un objet `window.Maison3dAndroid` (`WebView.addJavascriptInterfa
 
 Sans pont Android et hors iframe (ouverture directe dans un navigateur), un toucher bascule la lampe localement, pour la démonstration.
 
+## Retour d'état dans la vue (0.42.0)
+
+L'appli transmet l'état de chaque lampe, de la télé et des enceintes (`Maison3dPont.etatReduit`). Seuls `state`, `brightness`, la couleur (`rgb_color`, ou `color_temp_kelvin` quand la lampe est en mode température, la page convertit les kelvins) et `volume_level` partent, jamais le reste des attributs. Une lampe `unavailable` ou `unknown` part sans attribut et s'affiche éteinte.
+
+- **Halo teinté** : chaque lampe allumée a un halo à sa vraie couleur ou chaleur. Allumée sans couleur reçue, elle reprend la lumière chaude de la palette (jamais la dernière couleur reçue).
+- **Couche neutralisante** : un disque sombre sous la tache au sol, d'autant plus marqué que la lumière s'écarte du sol chaud (`forceNeutre` dans les jeux de teintes). Sans lui, le sol orangé du salon teinterait un blanc froid.
+- **Pièce choisie** : le voile assombrit le reste, halos et taches restent sur la pièce.
+- **Maison entière** (`grand` actif, aucune pièce) : ni halo, ni tache, ni couche neutralisante. Les lumières ponctuelles restent.
+- **Vue masquée** : `pause(true)` gèle `requestAnimationFrame`. Un état reçu pendant la pause est posé sans animation, pour que la vue soit juste au retour.
+- **Correspondances** : quand Home Assistant appelle une entité autrement que la maquette, la clé `reglages.vue3d.correspondances` de `maison.json` fait le lien (voir `docs/CONFIGURER.md`). Aucune entité réelle n'entre dans `carte/3d/`.
+
 ## Repère
 
 Données en mètres dans le repère de `pieces.json` (z la hauteur). Dans `modele.glb`, repère glTF : X = x, Y = hauteur, Z = -y. Chaque ampoule y est un nœud nommé d'après l'objet Home Assistant sans le préfixe (`salon_plafond` pour `light.salon_plafond`) avec `extras.haEntity`, la convention de [3DHome](https://github.com/lukevink/3DHome).
