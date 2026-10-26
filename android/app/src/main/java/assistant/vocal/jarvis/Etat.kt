@@ -216,6 +216,13 @@ object Etat {
          * les ondes des enceintes sur le plan 3D, et pour le volume réglé depuis l'accueil.
          */
         val mediasPlan: List<Appareils.Appareil> = emptyList(),
+        /**
+         * Mesures par pièce (S-L6) : dernier relevé brut des capteurs de HA (null tant qu'il n'est pas lu, ou sans
+         * correspondance_pieces) et instant de lecture (elapsedRealtime). Le calcul se fait à l'affichage, pour que
+         * l'âge d'une mesure gardée continue de grandir.
+         */
+        val mesures: Mesures.Releve? = null,
+        val mesuresLe: Long = 0L,
         /** Noms lisibles des appareils (friendly_name, rien de l'occupant protégé), pour l'historique (0.17.0). */
         val noms: Map<String, String> = emptyMap(),
         /**

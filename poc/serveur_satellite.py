@@ -76,6 +76,14 @@ Depuis 0.24.0 (deux profils, capacité "vent_mesure", avec les sections « mer �
                               {"etat":"vent_mesure","id","erreur"} si aucune source n'a jamais rien
                               donné. Sources publiques, aucune donnée personnelle : servi à toute
                               connexion. Forme détaillée de donnees dans vent_mesure.py.
+Depuis le lot S-L6 (deux profils, capacité "mesures", avec Home Assistant joignable et la clé « correspondance_pieces »
+de maison.json remplie, pas pour le rôle invité) :
+  {"type": "mesures", "id"}  mesures par pièce (température, humidité, CO2, particules fines) lues sur les capteurs
+                              de Home Assistant par un seul gabarit, réponse {"etat":"mesures","id","donnees":
+                              {lu_a, pieces:{<pièce>:{statut, texte, couleur, temperature, humidite, co2, pm25,
+                              air, alerte}}}} ou {"etat":"mesures","id","erreur"}. Les zones protégées sont écartées
+                              dès Home Assistant et leurs pièces ne portent aucune valeur. Forme détaillée dans
+                              mesures.py, mêmes cas de test que l'appli (tests/cas_mesures.json).
 Appairage d'un nouveau téléphone : wss://<hôte>:8766/appairage?nom=<nom>, sans jeton. Le serveur
 envoie {"etat":"appairage","code"}, puis {"etat":"appaire","jeton"} quand un téléphone connu accepte,
 ou {"etat":"appairage_refuse"}. Sans administrateur connecté et depuis le réseau local, le message `appairage`
@@ -104,6 +112,7 @@ import sante as SA  # noqa: E402
 import sante_hist as SH  # noqa: E402
 import meteo_mer as MM  # noqa: E402
 import vent_mesure as VM  # noqa: E402
+import mesures as ME  # noqa: E402
 
 TAUX = 16000
 BLOC = 1280            # 80 ms, taille attendue par openWakeWord
@@ -237,6 +246,7 @@ class Moteur:
                 "sante_historique": sat is not None and self.refus_sante_hist(sat) is None,
                 "meteo_mer": getattr(self, "meteo_mer", None) is not None,
                 "vent_mesure": getattr(self, "vent_mesure", None) is not None,
+                "mesures": self.assistant.ha is not None and bool(ME.correspondance(maison.CONFIG)),
                 "routines": bool(R.reglage("active")),
                 "empreinte": self.empreinte_tls}
 
@@ -1232,6 +1242,36 @@ class Satellite:
         print(f"[{self.nom}] mer : {mer.bilan()}")
         await self.envoyer(etat="meteo_mer", id=ident, donnees=donnees)
 
+    async def repondre_mesures(self, msg):
+        """Mesures par pièce (S-L6) : un gabarit posté sur /api/template, puis le calcul de mesures.py. Les zones
+        protégées sont écartées dès Home Assistant. Le texte d'une exception n'est jamais renvoyé, seulement sa classe."""
+        ident = msg.get("id")
+        ha = getattr(getattr(self.moteur, "assistant", None), "ha", None)
+        corresp = ME.correspondance(maison.CONFIG)
+        if ha is None:
+            await self.envoyer(etat="mesures", id=ident, erreur="Home Assistant non configuré sur ce serveur")
+            return
+        if not corresp:
+            await self.envoyer(etat="mesures", id=ident, erreur="aucune pièce reliée aux zones (correspondance_pieces)")
+            return
+        protegees = maison.liste("zones_protegees")
+        try:
+            r = await asyncio.to_thread(
+                lambda: ha.client.post(f"{ha.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))
+            releve = ME.lire_releve(r.text) if r.status_code == 200 else None
+            if releve is None:
+                print(f"[{self.nom}] mesures : Home Assistant a répondu {r.status_code}, relevé illisible")
+                await self.envoyer(etat="mesures", id=ident, erreur="relevé des capteurs indisponible")
+                return
+            donnees = {"lu_a": releve.get("maintenant"),
+                       "pieces": ME.mesures_par_piece(releve, corresp, protegees, maison.FUSEAU)}
+        except Exception as e:
+            print(f"[{self.nom}] mesures : erreur inattendue ({e.__class__.__name__})")
+            await self.envoyer(etat="mesures", id=ident, erreur=f"erreur inattendue ({e.__class__.__name__})")
+            return
+        print(f"[{self.nom}] mesures : {len(donnees['pieces'])} pièces servies")
+        await self.envoyer(etat="mesures", id=ident, donnees=donnees)
+
     async def repondre_vent_mesure(self, msg):
         """Vent mesuré sur le plan d'eau pour la page « Vent mesuré » (0.24.0). Aucune donnée
         personnelle : servi à toute connexion, chiffrée ou non. Une ligne de journal par réponse."""
@@ -1366,6 +1406,8 @@ class Satellite:
             asyncio.create_task(self.repondre_sante_hist(msg))
         elif msg.get("type") == "meteo_mer":
             asyncio.create_task(self.repondre_meteo_mer(msg))
+        elif msg.get("type") == "mesures":
+            asyncio.create_task(self.repondre_mesures(msg))
         elif msg.get("type") == "vent_mesure":
             asyncio.create_task(self.repondre_vent_mesure(msg))
         elif msg.get("type") == "ha":

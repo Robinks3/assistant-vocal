@@ -634,6 +634,15 @@ class MoteurLocal(
             false
         }
         if (routine) return
+        // Mesures d'une pièce (S-L6) : « quelle température dans le salon », comprise et répondue en local. Avant la
+        // météo, qui prendrait « quelle température » pour une prévision, mais seulement si une pièce est nommée.
+        val mesure = try {
+            repondreMesures(texteEntendu, debut)
+        } catch (e: Exception) {
+            Log.w(TAG, "Question de mesure illisible", e)
+            false
+        }
+        if (mesure) return
         // Question de météo (0.25.0, remplace le raccourci « quel temps demain » de la 0.20.0) : comprise sans LLM,
         // la réponse est calculée sur les prévisions lues, dite, et le panneau Météo s'ouvre sur la bonne page, le bon
         // jour et la plage demandée, avec la réponse écrite. Rien n'est commandé.
@@ -1222,6 +1231,24 @@ class MoteurLocal(
         }
         Etat.modifier { it.copy(meteoDemandeeLe = SystemClock.elapsedRealtime(), meteoDemande = r) }
         terminer(texteEntendu, ConfigMaison.NOM_ASSISTANT, "météo", listOf("panneau Météo : ${r.entete}"), r.parle, SystemClock.elapsedRealtime() - debut)
+        return true
+    }
+
+    /**
+     * Question sur les mesures d'une pièce (S-L6, [MesuresQuestion]) : vrai si la phrase en était une. Les mesures sont
+     * celles déjà lues dans l'état (aucun appel à Home Assistant) ; la réponse est dite, rien n'est commandé.
+     */
+    private fun repondreMesures(texteEntendu: String, debut: Long): Boolean {
+        val e = Etat.courant
+        val mesures = Mesures.deEtat(e)
+        if (mesures.isEmpty()) return false
+        val zones = Mesures.correspondance()
+        val noms = zones.keys.associateWith { Mesures.nomsPieces[it] ?: it.replace('_', ' ') }
+        val q = MesuresQuestion.comprendre(texteEntendu, noms, zones) ?: return false
+        val p = mesures[q.piece]
+        val reponse = MesuresQuestion.repondre(q, p)
+        ajouterEtape("Mesures", "${q.piece}, ${q.sujet.name.lowercase(Locale.FRANCE)}" + (p?.let { " : ${it.statut.name.lowercase(Locale.FRANCE)}" } ?: ""), Etat.Statut.OK)
+        terminer(texteEntendu, ConfigMaison.NOM_ASSISTANT, "mesures", listOf("mesures de ${q.nom}"), reponse, SystemClock.elapsedRealtime() - debut)
         return true
     }
 

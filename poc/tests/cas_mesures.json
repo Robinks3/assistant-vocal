@@ -1,0 +1,1947 @@
+{
+ "_lisez_moi": "Cas de mesures par pièce, communs à poc/tests/test_mesures.py et à MesuresTest.kt. maintenant = 1790000000 (16 h 13 à Paris).",
+ "cas": [
+  {
+   "nom": "co2 799.9",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "799.9",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air bon",
+     "couleur": "#D4E6C8",
+     "air_mot": "bon",
+     "co2_mot": "bon",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "co2 800",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "800",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air correct",
+     "couleur": "#EDD48A",
+     "air_mot": "correct",
+     "co2_mot": "correct",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "co2 1000",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "1000",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air correct",
+     "couleur": "#EDD48A",
+     "air_mot": "correct",
+     "co2_mot": "correct",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "co2 1000.1",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "1000.1",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air médiocre",
+     "couleur": "#EE9A45",
+     "air_mot": "médiocre",
+     "co2_mot": "médiocre",
+     "alerte": "Aère la pièce p, CO2 1000 ppm"
+    }
+   }
+  },
+  {
+   "nom": "co2 1500",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "1500",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air médiocre",
+     "couleur": "#EE9A45",
+     "air_mot": "médiocre",
+     "co2_mot": "médiocre",
+     "alerte": "Aère la pièce p, CO2 1500 ppm"
+    }
+   }
+  },
+  {
+   "nom": "co2 1500.1",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "1500.1",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air mauvais",
+     "couleur": "#D6503A",
+     "air_mot": "mauvais",
+     "co2_mot": "mauvais",
+     "alerte": "Aère la pièce p, CO2 1500 ppm"
+    }
+   }
+  },
+  {
+   "nom": "pm25 8.9",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "8.9",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air bon",
+     "couleur": "#D4E6C8",
+     "air_mot": "bon",
+     "pm25_mot": "bon",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "pm25 9",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "9",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air correct",
+     "couleur": "#EDD48A",
+     "air_mot": "correct",
+     "pm25_mot": "correct",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "pm25 35.4",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "35.4",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air correct",
+     "couleur": "#EDD48A",
+     "air_mot": "correct",
+     "pm25_mot": "correct",
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "pm25 35.5",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "35.5",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air médiocre",
+     "couleur": "#EE9A45",
+     "air_mot": "médiocre",
+     "pm25_mot": "médiocre",
+     "alerte": "Aère la pièce p, PM2.5 36 µg/m3"
+    }
+   }
+  },
+  {
+   "nom": "pm25 55.4",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "55.4",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air médiocre",
+     "couleur": "#EE9A45",
+     "air_mot": "médiocre",
+     "pm25_mot": "médiocre",
+     "alerte": "Aère la pièce p, PM2.5 55 µg/m3"
+    }
+   }
+  },
+  {
+   "nom": "pm25 55.5",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.pm",
+     "classe": "pm25",
+     "etat": "55.5",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air mauvais",
+     "couleur": "#D6503A",
+     "air_mot": "mauvais",
+     "pm25_mot": "mauvais",
+     "alerte": "Aère la pièce p, PM2.5 56 µg/m3"
+    }
+   }
+  },
+  {
+   "nom": "température 18.9",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "18.9",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "19°, air bon",
+     "temperature_mot": "frais",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "température 19",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "19",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "19°, air bon",
+     "temperature_mot": "agréable",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "température 24",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "24",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "24°, air bon",
+     "temperature_mot": "agréable",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "température 24.1",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "24.1",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "24°, air bon",
+     "temperature_mot": "chaud",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "température 21.5",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21.5",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "22°, air bon",
+     "temperature_mot": "agréable",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "température 21.4",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21.4",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "sensor.co2",
+     "classe": "carbon_dioxide",
+     "etat": "400",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air bon",
+     "temperature_mot": "agréable",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "pire des deux : CO2 bon, PM2.5 médiocre",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "700",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "pm25",
+     "etat": "40",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "21°, air médiocre",
+     "couleur": "#EE9A45",
+     "air_mot": "médiocre",
+     "co2_mot": "bon",
+     "pm25_mot": "médiocre",
+     "alerte": "Aère la pièce p, PM2.5 40 µg/m3"
+    }
+   }
+  },
+  {
+   "nom": "pire des deux : CO2 mauvais, PM2.5 correct",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "1800",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "pm25",
+     "etat": "12",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "air_mot": "mauvais",
+     "couleur": "#D6503A",
+     "alerte": "Aère la pièce p, CO2 1800 ppm"
+    }
+   }
+  },
+  {
+   "nom": "alerte avec le nom de la pièce",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "1200",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {
+    "p": "Salon"
+   },
+   "attendu": {
+    "p": {
+     "alerte": "Aère la pièce Salon, CO2 1200 ppm"
+    }
+   }
+  },
+  {
+   "nom": "seuil suivant du CO2 bon",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "500",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "co2_suivant": "passe à correct dès 800 ppm"
+    }
+   }
+  },
+  {
+   "nom": "seuil suivant du CO2 correct",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "900",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "co2_suivant": "passe à médiocre au-dessus de 1000 ppm"
+    }
+   }
+  },
+  {
+   "nom": "seuil suivant du CO2 mauvais",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "2000",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "co2_suivant": ""
+    }
+   }
+  },
+  {
+   "nom": "seuil suivant des particules",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "pm25",
+     "etat": "20",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "pm25_suivant": "passe à médiocre au-dessus de 35,4 µg/m3"
+    }
+   }
+  },
+  {
+   "nom": "pièce sans capteur",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "aucun",
+     "texte": "pas de capteur",
+     "couleur": "#9AA0A6",
+     "air_mot": null
+    }
+   }
+  },
+  {
+   "nom": "capteurs d'une autre zone",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "autre",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "aucun",
+     "texte": "pas de capteur"
+    }
+   }
+  },
+  {
+   "nom": "capteur sans aucune zone",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "aucun",
+     "texte": "pas de capteur"
+    }
+   }
+  },
+  {
+   "nom": "thermomètre sans mesure d'air",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "h",
+     "classe": "humidity",
+     "etat": "50",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "sans_air",
+     "texte": "21°, pas de capteur d'air",
+     "temperature_mot": "agréable",
+     "air_mot": null,
+     "couleur": "#9AA0A6"
+    }
+   }
+  },
+  {
+   "nom": "luminosité seule",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "l",
+     "classe": "illuminance",
+     "etat": "120",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "sans_thermometre",
+     "texte": "pas de thermomètre",
+     "air_mot": null
+    }
+   }
+  },
+  {
+   "nom": "humidité seule",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "h",
+     "classe": "humidity",
+     "etat": "50",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "sans_thermometre",
+     "texte": "pas de thermomètre"
+    }
+   }
+  },
+  {
+   "nom": "air sans thermomètre",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "600",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "sans_thermometre",
+     "texte": "air bon, pas de thermomètre",
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "zone de l'appareil à défaut de celle de l'entité",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "temperature",
+     "etat": "20",
+     "zone": "",
+     "zone_appareil": "z",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "carbon_dioxide",
+     "etat": "500",
+     "zone": "",
+     "zone_appareil": "z",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "20°, air bon"
+    }
+   }
+  },
+  {
+   "nom": "pièce protégée, même avec des capteurs",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "chambre_p",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "carbon_dioxide",
+     "etat": "1800",
+     "zone": "chambre_p",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "chambre_p"
+    ]
+   },
+   "protegees": [
+    "chambre_p"
+   ],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "protegee",
+     "texte": "pièce protégée",
+     "air_mot": null,
+     "temperature_mot": null,
+     "alerte": ""
+    }
+   }
+  },
+  {
+   "nom": "pièce protégée dès qu'une de ses zones l'est",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z",
+     "chambre_p"
+    ]
+   },
+   "protegees": [
+    "chambre_p"
+   ],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "protegee",
+     "texte": "pièce protégée"
+    }
+   }
+  },
+  {
+   "nom": "pièce protégée par son identifiant",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [
+    "p"
+   ],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "protegee",
+     "texte": "pièce protégée"
+    }
+   }
+  },
+  {
+   "nom": "capteur indisponible",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "unavailable",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789994000
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "ok",
+     "texte": "21°, air absent depuis 14 h 33",
+     "air_mot": null,
+     "co2_mot": null,
+     "couleur": "#9AA0A6"
+    }
+   }
+  },
+  {
+   "nom": "capteur inconnu",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "unknown",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789994000
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "21°, air absent depuis 14 h 33"
+    }
+   }
+  },
+  {
+   "nom": "capteur muet depuis plus de 2 h",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789992000
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "600",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "température absente depuis 14 h 00, air bon",
+     "temperature_mot": null,
+     "air_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "capteur muet depuis moins de 2 h",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789992801
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "600",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "21°, air bon",
+     "temperature_mot": "agréable"
+    }
+   }
+  },
+  {
+   "nom": "tout absent",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t",
+     "classe": "temperature",
+     "etat": "unavailable",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789992000
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "unavailable",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789994000
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "absente",
+     "texte": "mesure absente depuis 14 h 33",
+     "couleur": "#9AA0A6"
+    }
+   }
+  },
+  {
+   "nom": "thermomètre seul indisponible",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t",
+     "classe": "temperature",
+     "etat": "unavailable",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789994000
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "statut": "sans_air",
+     "texte": "mesure absente depuis 14 h 33, pas de capteur d'air"
+    }
+   }
+  },
+  {
+   "nom": "valeur illisible",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "nan",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "21°, air absent depuis 16 h 12"
+    }
+   }
+  },
+  {
+   "nom": "le thermomètre dédié l'emporte sur le capteur combiné",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t1",
+     "classe": "temperature",
+     "etat": "20",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d1",
+     "modifie": 1789999940
+    },
+    {
+     "id": "h1",
+     "classe": "humidity",
+     "etat": "50",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d1",
+     "modifie": 1789999940
+    },
+    {
+     "id": "t2",
+     "classe": "temperature",
+     "etat": "24",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d2",
+     "modifie": 1789999940
+    },
+    {
+     "id": "c2",
+     "classe": "carbon_dioxide",
+     "etat": "500",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d2",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "20°, air bon",
+     "temperature_mot": "agréable"
+    }
+   }
+  },
+  {
+   "nom": "sans dédié, moyenne des températures",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "t1",
+     "classe": "temperature",
+     "etat": "18",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d1",
+     "modifie": 1789999940
+    },
+    {
+     "id": "c1",
+     "classe": "carbon_dioxide",
+     "etat": "500",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d1",
+     "modifie": 1789999940
+    },
+    {
+     "id": "t2",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d2",
+     "modifie": 1789999940
+    },
+    {
+     "id": "c2",
+     "classe": "carbon_dioxide",
+     "etat": "700",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "d2",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "20°, air bon",
+     "co2_mot": "bon"
+    }
+   }
+  },
+  {
+   "nom": "moyenne des CO2",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "700",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "carbon_dioxide",
+     "etat": "900",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "co2_mot": "correct",
+     "air_mot": "correct"
+    }
+   }
+  },
+  {
+   "nom": "un capteur mort n'entre pas dans la moyenne",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "700",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "carbon_dioxide",
+     "etat": "unavailable",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "co2_mot": "bon",
+     "texte": "21°, air bon"
+    }
+   }
+  },
+  {
+   "nom": "plusieurs zones pour une pièce",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "a",
+     "classe": "temperature",
+     "etat": "20",
+     "zone": "z1",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "carbon_dioxide",
+     "etat": "600",
+     "zone": "z2",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z1",
+     "z2"
+    ]
+   },
+   "protegees": [],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "20°, air bon"
+    }
+   }
+  },
+  {
+   "nom": "deux pièces, une protégée",
+   "maintenant": 1790000000,
+   "fuseau": "Europe/Paris",
+   "capteurs": [
+    {
+     "id": "sensor.t",
+     "classe": "temperature",
+     "etat": "21",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "a",
+     "classe": "carbon_dioxide",
+     "etat": "500",
+     "zone": "z",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    },
+    {
+     "id": "b",
+     "classe": "temperature",
+     "etat": "22",
+     "zone": "y",
+     "zone_appareil": "",
+     "appareil": "",
+     "modifie": 1789999940
+    }
+   ],
+   "correspondance": {
+    "p": [
+     "z"
+    ],
+    "q": [
+     "y"
+    ]
+   },
+   "protegees": [
+    "y"
+   ],
+   "noms": {},
+   "attendu": {
+    "p": {
+     "texte": "21°, air bon"
+    },
+    "q": {
+     "statut": "protegee",
+     "texte": "pièce protégée"
+    }
+   }
+  }
+ ]
+}

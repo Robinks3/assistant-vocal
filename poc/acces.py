@@ -148,8 +148,9 @@ TYPES_COMMUNS = frozenset({"lecture_finie", "parler", "reveil", "llm", "ha", "me
 # Santé : réservée aux rôles administrateur et habitant. La barrière fine (SANTE_PERSONNES, serveur_satellite.
 # refus_sante) s'ajoute : un habitant n'obtient les données d'une personne que si elle l'y autorise.
 TYPES_SANTE = frozenset({"sante", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour"})
-# Reconnaissance des visages (tablette) et signalement de commandes non comprises : pas pour l'invité.
-TYPES_FOYER = frozenset({"vision", "manque"})
+# Reconnaissance des visages (tablette), signalement de commandes non comprises et mesures par pièce de la maison
+# (température, air) : pas pour l'invité.
+TYPES_FOYER = frozenset({"vision", "manque", "mesures"})
 # Routines (0.42.0, note de conception des routines 7.4), port chiffré seulement. Consulter, lancer et parler au
 # moteur de routines sont permis à tous les rôles : le moteur filtre lui-même par personne (un invité ne voit et ne
 # lance que les routines « pour tous », il n'en crée pas). Couper, réactiver et supprimer : habitants et

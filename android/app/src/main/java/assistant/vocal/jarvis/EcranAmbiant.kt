@@ -1100,13 +1100,28 @@ internal class EcranAmbiant(private val ctx: Context) {
         }
         plan.voile(if (jour()) MaisonEnGrand.VOILE_JOUR else MaisonEnGrand.VOILE_SOIR)
         if (maisonGrand.pieceChoisie == null) {
-            plan.etiquettes(MaisonEnGrand.etiquettes(piecesConnues(), MaisonEnGrand.index(e.lumieres, e.mediasPlan), e.quiParle(), inj))
+            plan.etiquettes(
+                MaisonEnGrand.etiquettes(
+                    piecesConnues(), MaisonEnGrand.index(e.lumieres, e.mediasPlan), e.quiParle(), inj,
+                    mesures = mesuresPieces(e),
+                ),
+            )
         } else {
             plan.pastilles(maisonGrand.pastilles())
         }
         // Une demande attend sa confirmation : revu toutes les 300 ms (échec à 5 s, surlignage de 400 ms).
         vue.removeCallbacks(revoirGrand)
         if (maisonGrand.enMouvement) vue.postDelayed(revoirGrand, MaisonEnGrand.REVUE_MS)
+    }
+
+    /**
+     * Mesures par pièce (S-L6), calculées à l'affichage depuis le dernier relevé : l'âge d'une mesure gardée grandit
+     * avec l'horloge de l'appareil, pour qu'un capteur muet passe au gris sans attendre une nouvelle lecture.
+     */
+    private fun mesuresPieces(e: Etat.Instantane): Map<String, Mesures.PieceMesures> {
+        val noms = piecesConnues().associate { it.id to it.nom }
+        Mesures.nomsPieces = noms
+        return Mesures.deEtat(e, noms)
     }
 
     private val revoirGrand = Runnable { if (maisonGrand.ouverte) majGrand(dernier, SystemClock.elapsedRealtime()) }
