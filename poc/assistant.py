@@ -59,7 +59,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.43.1"
+VERSION = "0.43.3"
 DATE_VERSION = "2026-10-26"
 
 ICI = Path(__file__).resolve().parent
@@ -1589,12 +1589,26 @@ REPONSE_DOUTEUSE = re.compile(r"\?|je ne peux pas|pas réussi|n'ai pas pu|imposs
 CORRECTION = re.compile(r"^\s*(non|annule|annuler|c'est pas ça|ce n'est pas ça|pas ça|mauvais|erreur|oublie)\b", re.I)
 DELAI_CORRECTION = 30.0
 # Demande de création ou de changement de routine (0.42.0, note des routines 4.1). Liste à ajuster sur des phrases
-# réelles, la même que dans poc/tests/cas_routines.json.
+# réelles, la même que dans poc/tests/cas_routines.json. Élargie en 0.43.3 aux demandes dites naturellement : le mot
+# « routine » reste exigé pour toute forme à verbe, et les verbes de création n'acceptent que « une » (« fais la
+# routine du matin » est un lancement, pas une création). « scénario » n'est pas reconnu, le registre ne connaît que
+# des routines.
+_PRONOM_ROUTINE = r"(?:[-\s]+(?:moi|nous))?"
 INTENTION_ROUTINE = re.compile(
     r"\b(?:quand|lorsque|si|(?:à|a) chaque fois que|chaque fois que)\s+je\s+(?:te\s+)?(?:dis|dirai|disais)\b"
     r"|\b(?:dorénavant|désormais|à partir de maintenant|a partir de maintenant)\b"
-    r"|\b(?:cr[ée]e[rz]?|nouvelle|change[rz]?|modifie[rz]?|remplace[rz]?)\s+(?:une\s+|la\s+|ma\s+|cette\s+)?"
-    r"(?:nouvelle\s+)?routine\b", re.I)
+    # changer une routine existante, ou la créer avec ou sans « -moi »
+    r"|\b(?:cr[ée]e[rsz]?|change[rz]?|modifie[rz]?|remplace[rz]?)" + _PRONOM_ROUTINE +
+    r"\s+(?:une\s+|la\s+|ma\s+|cette\s+)?(?:(?:nouvelle|petite)\s+)?routine\b"
+    r"|\bnouvelle\s+routine\b"
+    # autres verbes de création : fais, ajoute, programme, mets en place, enregistre, configure, prépare
+    r"|(?<!\bje )(?<!\bj')\b(?:fais|faire|faites|ajoute[rsz]?|programme[rsz]?|enregistre[rsz]?|configure[rsz]?"
+    r"|pr[ée]pare[rsz]?|m(?:ets?|ettre|ettez)" + _PRONOM_ROUTINE + r"\s+en\s+place)" + _PRONOM_ROUTINE +
+    r"\s+une\s+(?:(?:nouvelle|petite)\s+)?routine\b"
+    # « je voudrais / je veux / j'aimerais (créer) une routine »
+    r"|\b(?:je\s+(?:voudrais|veux|souhaite|souhaiterais)|j'aimerais|j'aimerai)\s+(?:bien\s+)?"
+    r"(?:(?:cr[ée]er|faire|ajouter|avoir|programmer|enregistrer|configurer|pr[ée]parer|mettre\s+en\s+place)\s+)?"
+    r"une\s+(?:(?:nouvelle|petite)\s+)?routine\b", re.I)
 # Une suite de routine (musique, pauses) à la fois : l'assistant n'est pas réentrant et ha.personne est partagé.
 VERROU_ROUTINES = threading.Lock()
 

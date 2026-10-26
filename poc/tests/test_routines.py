@@ -109,6 +109,20 @@ def test_intention_laisse_passer_une_phrase_ordinaire(phrase):
     assert not A.INTENTION_ROUTINE.search(phrase)
 
 
+# 0.43.3 : les demandes dites naturellement sont reconnues brutes et aussi après `epurer`, qui retire les formules
+# de politesse avant `routines_avant`. Une commande ordinaire ne passe dans aucun des deux cas.
+@pytest.mark.parametrize("phrase", CAS["intention"]["oui"])
+def test_intention_reconnue_apres_epurer(phrase):
+    from dictionnaire import epurer
+    assert A.INTENTION_ROUTINE.search(epurer(phrase))
+
+
+@pytest.mark.parametrize("phrase", CAS["intention"]["non"])
+def test_intention_ordinaire_ignoree_apres_epurer(phrase):
+    from dictionnaire import epurer
+    assert not A.INTENTION_ROUTINE.search(epurer(phrase))
+
+
 # ------------------------------------------------------------------ la règle de fer : jamais plus qu'en direct
 def corps_direct(etape):
     corps = dict(etape.get("donnees") or {})
