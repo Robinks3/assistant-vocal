@@ -456,6 +456,7 @@ internal class VueMaisonGrand(private val ctx: Context) {
                 val l = LigneTele(tele)
                 lignes.add(l)
                 contenuPanneau.addView(l.vue, lp(haut = 14f, gauche = -10f, droite = -10f, hauteur = 64f))
+                contenuPanneau.addView(l.volet, lp(haut = 6f, gauche = 72f))
             }
             val musique = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -743,28 +744,142 @@ internal class VueMaisonGrand(private val ctx: Context) {
         }
     }
 
-    /** Télé : rond bleu pour l'allumer ou l'éteindre, son nom et son état. */
+    /**
+     * Télé : rond bleu pour l'allumer ou l'éteindre, son nom et son état. Allumée, un toucher sur la ligne ouvre le
+     * volet (0.39.0) : les tuiles de sources de la configuration (reglages.tele.sources, plus Toutes) et un seul
+     * curseur de volume. Éteinte, le toucher sur la ligne l'allume. Le rond bascule toujours. Toute commande passe
+     * par [envoyer] (Securite) ou par [volume] (plafond), comme les lampes et les enceintes.
+     */
     private inner class LigneTele(o: MaisonEnGrand.Objet) : Ligne(o) {
         private val rond = RondBascule(ctx, RondBascule.Glyphe.TELE)
         private val nom = texte(Palette.texte1, 21f)
         private val etat = texte(Palette.texte2, 17f)
+        private val chevron = ChevronVolet(ctx)
+        private val piste = PisteVolume(ctx).apply { echelle = s }
+        private val motVolume = texte(Palette.texte3, 18f).apply { texte = "Volume" }
+        private val valeurVolume = texte(Palette.texte1, 20f)
+        override val glisse: Boolean get() = piste.glisse
+
+        /** Dernière source choisie ici : la télé ne dit pas toujours la sienne, la tuile suit alors ce choix. */
+        private var choisie: String? = null
+        private var toutesOuvert = false
+        private var cleTuiles: String? = null
+        private var offertes: List<ReglageTele.Tuile> = emptyList()
+        private var tuilesVues: List<TuileVue> = emptyList()
+        private var toutesVues: List<TuileVue> = emptyList()
+        private val rangeesTuiles = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        private val rangeesToutes = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+
+        /** Volet qui s'ouvre sous la ligne : tuiles de sources, puis le volume. */
+        val volet = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+
         override val vue: View = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = fondSurligne
             setPadding(px(10f), 0, 0, 0)
             isClickable = true
-            setOnClickListener { surToucher(); surligner(o.entite); basculer(o) }
+            // La ligne déplie le volet (télé allumée) ou l'allume, le rond bascule toujours.
+            setOnClickListener { surToucher(); surligner(o.entite); toucherLigne(o) }
             addView(rond, LinearLayout.LayoutParams(px(56f), px(56f)).apply { marginEnd = px(16f) })
             addView(LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(nom)
                 addView(etat, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(2f) })
-            })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = px(4f) })
+            addView(chevron, LinearLayout.LayoutParams(px(48f), px(56f)).apply { marginEnd = px(12f) })
         }
 
         init {
             rond.setOnClickListener { surToucher(); surligner(o.entite); basculer(o) }
+            // Le chevron n'est qu'un indice : le toucher passe à la ligne.
+            chevron.isClickable = false
+            piste.surDebut = { surToucher(); surligner(o.entite) }
+            // Le volume ne part qu'au lâcher, par le même chemin que les enceintes (plafond réglé appliqué).
+            piste.surLacher = { f -> surToucher(); volume(o, 0, f) }
+            val enteteVolume = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                isBaselineAligned = true
+                addView(motVolume)
+                addView(valeurVolume, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = px(10f) })
+            }
+            volet.addView(rangeesTuiles)
+            volet.addView(rangeesToutes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(4f) })
+            volet.addView(enteteVolume, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(14f) })
+            volet.addView(piste, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(56f)))
+        }
+
+        private fun toucherLigne(o: MaisonEnGrand.Objet) {
+            val a = vu(o)
+            when (ReglageTele.gesteLigne(a, MaisonEnGrand.horsLigne(a))) {
+                ReglageTele.Geste.DEPLIER -> {
+                    teinteOuverte = if (teinteOuverte == objet.entite) null else objet.entite
+                    majLignes(maintenant())
+                }
+                ReglageTele.Geste.BASCULER -> basculer(o)
+            }
+        }
+
+        /** Source choisie au doigt : select_source par les contrôles de la voix, la tuile suit le choix. */
+        private fun choisir(source: String) {
+            surToucher(); surligner(objet.entite)
+            val a = vu(objet) ?: return
+            if (MaisonEnGrand.horsLigne(a)) { dire("${MaisonEnGrand.nom(objet, a)} est hors ligne."); return }
+            if (envoyer(ReglageTele.commande(a, source), null)) {
+                choisie = source
+                majLignes(maintenant())
+            }
+        }
+
+        /** Une tuile : fond arrondi, nom centré sur une ou deux lignes. */
+        private fun fabriquer(libelle: String, source: String?, clic: () -> Unit): TuileVue {
+            val fond = GradientDrawable().apply { cornerRadius = 14f * s }
+            val t = texte(Palette.texte2, 15f).apply { maxLignes = 2; texte = libelle }
+            val v = LinearLayout(ctx).apply {
+                gravity = Gravity.CENTER
+                background = fond
+                setPadding(px(4f), 0, px(4f), 0)
+                isClickable = true
+                contentDescription = libelle
+                setOnClickListener { surToucher(); clic() }
+                addView(t, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
+            return TuileVue(libelle, source, fond, t, v)
+        }
+
+        /** Pose les tuiles par rangées de [ReglageTele.PAR_RANGEE] dans [conteneur]. */
+        private fun remplir(conteneur: LinearLayout, vues: List<TuileVue>) {
+            conteneur.removeAllViews()
+            for (r in ReglageTele.rangees(vues.size)) {
+                val rangee = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+                for (i in r) {
+                    val dernier = i == r.last
+                    rangee.addView(vues[i].vue, LinearLayout.LayoutParams(px(LARGEUR_TUILE), px(48f)).apply { if (!dernier) marginEnd = px(8f) })
+                }
+                conteneur.addView(rangee, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = px(8f) })
+            }
+        }
+
+        /** Refait les tuiles quand la liste offerte par la télé change (rare), sinon n'y touche pas. */
+        private fun construireTuiles(a: Appareils.Appareil?) {
+            val tuiles = ReglageTele.tuilesOffertes(ReglageTele.TUILES, a)
+            val toutes = ReglageTele.toutesLesSources(a)
+            val cle = tuiles.joinToString("|") { it.nom + "=" + ReglageTele.sourceExacte(a, it) } + "#" + toutes.joinToString("|")
+            if (cle == cleTuiles) return
+            cleTuiles = cle
+            offertes = tuiles
+            val principales = tuiles.map { t ->
+                val source = ReglageTele.sourceExacte(a, t)
+                fabriquer(t.nom, source) { choisir(source) }
+            }.toMutableList()
+            if (toutes.isNotEmpty()) principales.add(fabriquer(ReglageTele.TOUTES, null) { toutesOuvert = !toutesOuvert; majLignes(maintenant()) })
+            tuilesVues = principales
+            toutesVues = toutes.map { src -> fabriquer(src, src) { choisir(src) } }
+            remplir(rangeesTuiles, tuilesVues)
+            remplir(rangeesToutes, toutesVues)
         }
 
         override fun maj(a: Appareils.Appareil?, fantome: Appareils.Appareil?, t: Long) {
@@ -772,12 +887,9 @@ internal class VueMaisonGrand(private val ctx: Context) {
             val n = MaisonEnGrand.nom(objet, a)
             if (nom.texte.toString() != n) nom.texte = n
             val on = !hors && MaisonEnGrand.teleAllumee(a)
-            poser(etat, when {
-                fantome != null -> "n'a pas répondu"
-                hors -> "hors ligne"
-                on -> "allumée"
-                else -> "éteinte"
-            })
+            if (!on) choisie = null
+            val texteEtat = ReglageTele.texteEtat(a, hors, ReglageTele.TUILES, choisie)
+            poser(etat, if (fantome != null) "n'a pas répondu" else texteEtat)
             etat.couleur(if (fantome != null) Palette.accentLumiere else if (hors) Palette.texte3 else Palette.texte2)
             rond.etat = when {
                 hors -> RondBascule.Etat.HORS
@@ -789,6 +901,36 @@ internal class VueMaisonGrand(private val ctx: Context) {
             vue.isEnabled = !hors
             rond.isEnabled = !hors
             surlignee(surligne == objet.entite)
+            val reglage = ReglageTele.volet(a, hors)
+            val ouverte = teinteOuverte == objet.entite && reglage
+            volet.visibility = if (ouverte) View.VISIBLE else View.GONE
+            chevron.visibility = if (reglage) View.VISIBLE else View.GONE
+            chevron.ouvert = ouverte
+            // Sans volet, la ligne et le rond font la même chose : TalkBack ne lit que la ligne.
+            rond.importantForAccessibility = if (reglage) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            vue.contentDescription = if (reglage) {
+                (if (ouverte) "Replier les réglages de " else "Déplier les réglages de ") + n.lowercase() + ", " + texteEtat
+            } else {
+                (if (on) "Éteindre " else "Allumer ") + n.lowercase()
+            }
+            if (!ouverte) return
+            construireTuiles(a)
+            val active = ReglageTele.sourceProbable(a, choisie)
+            val tuileActive = ReglageTele.tuileActive(offertes, a, choisie)?.nom
+            for (v in tuilesVues) {
+                val surbrillance = if (v.source == null) toutesOuvert else v.libelle == tuileActive
+                v.colorer(surbrillance)
+            }
+            for (v in toutesVues) v.colorer(active != null && v.source != null && ReglageTele.memeSource(v.source, active))
+            rangeesToutes.visibility = if (toutesOuvert && toutesVues.isNotEmpty()) View.VISIBLE else View.GONE
+            val reglableVolume = ReglageTele.volumeReglable(a, hors)
+            poser(valeurVolume, if (fantome != null) "n'a pas répondu" else ReglageTele.texteVolume(a))
+            valeurVolume.couleur(if (fantome != null) Palette.accentLumiere else if (reglableVolume) Palette.texte1 else Palette.texte3)
+            piste.isEnabled = reglableVolume
+            piste.eteinte = !reglableVolume
+            piste.fantome = fantome != null
+            if (!piste.glisse) piste.fraction = ReglageTele.fractionPiste(fantome ?: a)
+            piste.contentDescription = ReglageTele.descriptionVolume(a)
         }
     }
 
@@ -860,6 +1002,8 @@ internal class VueMaisonGrand(private val ctx: Context) {
         const val LARGEUR_PANNEAU = 436f
         /** Nom d'une lampe et piste de l'intensité : « Lampe de la télé » tient en entier à 21 px (vu sur la tablette). */
         const val LARGEUR_NOM = 160f
+        /** Tuile de source de la télé : quatre par rangée dans les 312 px sous le nom (72 par tuile, 8 d'écart). */
+        const val LARGEUR_TUILE = 72f
         /** Le panneau part à y 112 et s'arrête 24 px au-dessus du bas de l'écran. */
         const val HAUTEUR_MAX_PANNEAU = 664f
         const val DUREE_SURLIGNE_MS = 400L
@@ -870,6 +1014,18 @@ internal class VueMaisonGrand(private val ctx: Context) {
         private const val TAG_RESUME = "resume"
         private const val TAG_MUSIQUE = "musique"
         /** Les 5 couleurs de la ligne qui s'ouvre (maquette `MaisonMelangeCouleur`). */
+    }
+}
+
+/**
+ * Une tuile du volet de la télé : son libellé, la source qu'elle envoie (null pour Toutes, qui déplie la liste), son
+ * fond arrondi et son texte. Surbrillance : fond de l'assistant et texte plein.
+ */
+private class TuileVue(val libelle: String, val source: String?, val fond: GradientDrawable, val texte: TexteFondu, val vue: View) {
+    fun colorer(surbrillance: Boolean) {
+        fond.setColor(if (surbrillance) Palette.accentAssistant else Palette.surface)
+        texte.couleur(if (surbrillance) Palette.texte1 else Palette.texte2)
+        vue.isSelected = surbrillance
     }
 }
 

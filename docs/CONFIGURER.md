@@ -122,6 +122,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `mer` | `poc/meteo_mer.py`, `MeteoMer.kt`, `MeteoQuestion.kt`, `EcranMeteo.kt` | Météo marine éteinte. |
 | `vent` | `poc/vent_mesure.py`, `MeteoVent.kt`, `EcranVent.kt`, `build.gradle.kts` | Vent mesuré éteint. Dans l'appli, la page Mer disparaît aussi. |
 | `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Sans section, le mot vaut "assistant" (ou `MOT_REVEIL`), avec repli sur "Hey Jarvis" si son modèle manque. |
+| `reglages` | `poc/liste_blanche.py`, `ReglageTele.kt` | Aucune appli ni aucun interrupteur en plus, volet de la télé sans tuiles de sources. |
 
 Aucune autre section n'est lue par le code.
 
@@ -626,6 +627,41 @@ Mot de réveil de la maison. "Hey Jarvis" reste le modèle de repli quand le fic
 
 Cette section n'a pas de champ `actif` : `"actif": false` n'y change rien. Pour l'éteindre, la retirer ou
 vider `mot`. Détails dans [la section 5](#mot-de-réveil).
+
+### `reglages.tele` (appli 0.39.0)
+
+Tuiles de sources du volet de la télévision, dans l'écran de la maison en grand. Les noms de sources sont ceux de
+la télé, jamais ceux du code. La section `reglages` existe déjà (`applis`, `interrupteurs`, `attributs_refuses`,
+voir ARCHITECTURE.md) et `tele` s'y ajoute sans rien changer aux règles de sécurité.
+
+| Champ | Type | Effet |
+|---|---|---|
+| `sources` | liste d'objets | Les tuiles, dans l'ordre d'affichage, quatre par rangée. Sans cette clé, le volet n'offre que le curseur de volume et la tuile Toutes. |
+| `sources[].nom` | texte | Libellé de la tuile (« TNT », « HDMI 1 »). `Toutes` est réservé : l'appli ajoute elle-même cette dernière tuile, qui déplie toutes les sources de la télé. |
+| `sources[].source` | texte | Nom de la source tel que Home Assistant le donne, à copier de `attributes.source_list` de l'entité (Outils de développement, États). Majuscules, espaces et accents sont ignorés à la comparaison (« HDMI 1 » vaut « HDMI1 »). |
+
+```json
+"reglages": {
+  "tele": {
+    "sources": [
+      {"nom": "TNT", "source": "TV"},
+      {"nom": "Netflix", "source": "Netflix"},
+      {"nom": "HDMI 1", "source": "HDMI1"}
+    ]
+  }
+}
+```
+
+Une tuile dont la source n'est pas dans la liste de la télé est masquée. Si Home Assistant ne donne pas cette
+liste, toutes les tuiles restent. Le choix d'une tuile envoie `media_player.select_source`, le curseur envoie
+`media_player.volume_set` avec le plafond de volume en dur (voir [Le plafond de volume](#le-plafond-de-volume)),
+et le rond allume ou éteint par `turn_on` et `turn_off`. Ces quatre services sont déjà dans la liste blanche de
+`media_player`. Si un autre service de télé est refusé, le permettre par la configuration (`reglages`), sans
+toucher à `poc/securite.py` ni à `Securite.kt`. Après un changement, régénérer le dictionnaire et reconstruire l'APK.
+
+L'état affiché (allumée, source, volume) vient de Home Assistant. La source lue étant peu fiable sur certaines
+télés, elle s'affiche au conditionnel (« allumée, sans doute Netflix »). La sortie audio (barre de son ou haut-parleurs
+de la télé) n'est pas lue : le curseur règle toujours le volume de l'entité de la télé.
 
 ## 3. Le dictionnaire commandes.yaml
 

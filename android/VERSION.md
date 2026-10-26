@@ -6,6 +6,31 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.39.0 (2026-10-26), volet de réglage de la télévision (lot S-L3)
+Fonction (versionCode 75). Sur le modèle du volet des lampes, un toucher sur la ligne de la télé allumée, dans la
+maison en grand, déplie un volet. Un seul volet est ouvert à la fois (`teinteOuverte` est partagé avec les lampes).
+- `ReglageTele.kt` (nouveau, sans Android) : lecture des tuiles dans `reglages.tele.sources` de `maison.json` (nom
+  affiché et nom de la source dans Home Assistant), comparaison des sources à la forme près (« HDMI 1 » vaut « HDMI1 »),
+  tuiles offertes selon la liste de sources de la télé, texte d'état, geste de la ligne, commande de source, rangées
+  de quatre, bornes et texte du curseur de volume.
+- `VueMaisonGrand.kt` : `LigneTele` réécrite. État sous le nom : « éteinte », « hors ligne », « allumée » ou
+  « allumée, sans doute Netflix ». La source est au conditionnel parce que la lecture de la source est peu fiable sur
+  cette télé. Volet : tuiles de sources (surbrillance sur la source probable), tuile Toutes qui déplie toutes les
+  sources annoncées par la télé, puis un seul curseur de volume avec sa valeur en pourcentage.
+- Toute commande passe par les contrôles existants : `Securite.verifier` pour le choix d'une source, et pour le
+  volume le chemin de `volume()` (plafond en dur `Securite.VOLUME_MAX`, puis revérification). `Securite.kt` et
+  `poc/securite.py` ne changent pas, `media_player` permettait déjà `select_source`, `volume_set`, `turn_on` et
+  `turn_off`.
+- Configuration : nouvelle clé `reglages.tele.sources` (copie fictive dans `config-exemple/maison.json`, documentée
+  dans `docs/CONFIGURER.md`). Sans elle, le volet n'a que le volume et la tuile Toutes. Aucun identifiant réel dans
+  le code.
+- Limite connue : la sortie audio de la télé (barre de son ou haut-parleurs, décision 14) n'est pas lue, le curseur
+  règle le volume de l'entité de la télé et le libellé reste « Volume ».
+- Tests : `ReglageTeleTest` (lecture de la configuration, comparaison des sources, états, gestes, commande, rangées,
+  bornes et plafond du volume). Côté serveur, `poc/tests/test_tele_volet.py` (commandes du volet acceptées par
+  `acces.controler_service`, plafond en dur toujours appliqué). Le serveur ne change pas (0.43.1).
+- Rendu non vérifié sur appareil (pas de compilation de l'APK dans ce worktree).
+
 ## 0.38.2 (2026-10-26), passerelle Home Assistant : reconnexion robuste et journal
 Correctif (versionCode 74). Le 26/10 au soir, la tablette est restée « Maison hors ligne » après des redémarrages de
 l'appli de l'assistant sur HA, jusqu'à un `am force-stop`. La passerelle ne journalisait rien, la cause exacte n'a pas
