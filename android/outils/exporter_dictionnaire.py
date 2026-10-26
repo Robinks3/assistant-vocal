@@ -111,7 +111,8 @@ def main():
                                        "source": "commandes_apprises.yaml", "appris": True,
                                        "ligne": numero_ligne(lignes_appris, cmd["phrase"]), "motif": cmd["phrase"]})
     # Pour le LLM sur l'appareil (0.13.0) : même vue que le LLM des serveurs (appareils renommés,
-    # masqués, notes) et même liste blanche de services.
+    # masqués, notes) et même liste blanche de services. La section llm part en entier : « notes » (entité vers
+    # texte, ajouté en bout de ligne de l'appareil) est lue par CerveauAppareil.kt depuis S-D7.
     # L'exemple ne porte ni version ni date : il ne change que si son dictionnaire change.
     # Jeton commun aux deux fichiers de cet export, absent de l'exemple pour qu'il reste stable.
     jeton = "" if EXEMPLE else uuid.uuid4().hex

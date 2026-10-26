@@ -4,6 +4,11 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.44.1 (2026-10-26), notes du LLM à l'export
+Correctif. Session S-D7 du plan (constat C6). Appli Android 0.43.1, appli Home Assistant 0.44.1.
+- L'export du dictionnaire pour l'appli porte `llm.notes` tel quel, couvert par de nouveaux tests (notes
+  présentes, modifiées, absentes). Aucun changement du serveur lui-même.
+
 ## Serveur 0.44.0 (2026-10-26), lampes et télévision à la voix
 Nouveauté. Session S-L4 du plan. Appli Android 0.43.0 (même moteur), appli Home Assistant 0.44.0.
 - `config-exemple/commandes.yaml` : couleur (« mets le salon en bleu »), blanc nommé (bougie, chaud, neutre, froid),

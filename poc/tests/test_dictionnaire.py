@@ -88,6 +88,52 @@ def test_export_exemple_a_jour(tmp_path):
         "export d'exemple périmé : python android/outils/exporter_dictionnaire.py --exemple, puis le committer"
 
 
+def _exporter_config_modifiee(tmp_path, modifier):
+    """Exporte une copie de config-exemple/ dont commandes.yaml est modifié par `modifier(dict)`, rend le JSON exporté."""
+    import os
+    import shutil
+    import yaml
+    racine = Path(__file__).resolve().parents[2]
+    config = tmp_path / "config"
+    shutil.copytree(racine / "config-exemple", config, ignore=shutil.ignore_patterns("genere"))
+    donnees = yaml.safe_load((config / "commandes.yaml").read_text(encoding="utf-8"))
+    modifier(donnees)
+    (config / "commandes.yaml").write_text(yaml.safe_dump(donnees, allow_unicode=True), encoding="utf-8")
+    sortie = tmp_path / "dictionnaire.json"
+    env = {**os.environ, "ASSISTANT_VOCAL_CONFIG": str(config), "JARVIS_DONNEES": str(tmp_path / "donnees")}
+    _exporter("--sortie", str(sortie), env=env)
+    return json.loads(sortie.read_text(encoding="utf-8"))
+
+
+def test_export_porte_les_notes_du_llm():
+    """S-D7 (constat C6) : llm.notes de commandes.yaml part dans l'export lu par CerveauAppareil.kt, tel quel,
+    en plus de llm.renommer et llm.masquer."""
+    import yaml
+    export = Path(__file__).resolve().parents[2] / "config-exemple" / "genere" / "android" / "dictionnaire.json"
+    llm = json.loads(export.read_text(encoding="utf-8"))["llm"]
+    attendu = yaml.safe_load(maison.chemin("commandes.yaml").read_text(encoding="utf-8"))["llm"]
+    assert attendu["notes"], "la configuration d'exemple doit porter une note pour que ce test ait un sens"
+    assert llm["notes"] == attendu["notes"]
+    assert llm["renommer"] == attendu["renommer"] and llm["masquer"] == attendu["masquer"]
+
+
+def test_export_notes_modifiees_et_absentes(tmp_path):
+    """Une note changée dans commandes.yaml change l'export. Sans la clé llm.notes, ou sans section llm, l'export
+    reste valide et ne porte aucune note (comportement d'avant S-D7)."""
+    def autre_note(d):
+        d["llm"]["notes"] = {"light.essai": "variante de test"}
+    assert _exporter_config_modifiee(tmp_path / "a", autre_note)["llm"]["notes"] == {"light.essai": "variante de test"}
+
+    def sans_notes(d):
+        d["llm"].pop("notes")
+    llm = _exporter_config_modifiee(tmp_path / "b", sans_notes)["llm"]
+    assert "notes" not in llm and llm["renommer"] and llm["masquer"]
+
+    def sans_llm(d):
+        d.pop("llm")
+    assert _exporter_config_modifiee(tmp_path / "c", sans_llm)["llm"] == {}
+
+
 def test_phrases_apprises_hors_export_de_configuration(tmp_path):
     """0.32.2 : les phrases apprises partent dans dictionnaire_appris.json du dossier de données, jamais dans
     genere/android/dictionnaire.json du dossier de configuration, que le dépôt de configuration peut versionner."""

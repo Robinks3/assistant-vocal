@@ -647,8 +647,9 @@ panne : la configuration doit en tenir compte.
 - Le jour courant de la santé (Aujourd'hui, Tendances, Jour) suit le fuseau `Europe/Paris`, écrit dans le
   code de l'appli, `poc/sante.py` et `poc/sante_hist.py`, quel que soit le fuseau de la maison. Une mesure
   sans décalage horaire est lue dans ce même fuseau.
-- Le LLM de l'appareil (mode Cet appareil) ne lit pas `llm.notes` de `commandes.yaml`. Seuls le serveur et
-  Claude en tiennent compte.
+- Le LLM de l'appareil (mode Cet appareil) lit `llm.notes` de `commandes.yaml` comme le serveur, mais à
+  partir de l'export du dictionnaire embarqué dans l'APK : après une note ajoutée ou changée, relancez
+  `python android/outils/exporter_dictionnaire.py` puis recompilez l'appli.
 - Un script de musique sans `appareils.musique.enceintes.toutes` n'a pas de confirmation d'écoute : la
   commande part, sans vérification que le groupe joue.
 - Les heures calmes ne passent pas minuit : avec `"debut": 22` et `"fin": 7`, elles ne s'appliquent

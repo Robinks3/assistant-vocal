@@ -6,6 +6,13 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.43.1 (2026-10-26), notes du LLM de l'appareil
+Correctif (versionCode 81). Session S-D7 du plan, pendant du serveur 0.44.1.
+- Le LLM de l'appareil lit `llm.notes` de la configuration exportée et ajoute la note entre crochets après le
+  nom de l'appareil dans sa consigne, comme le LLM du serveur. Sans notes, la consigne est inchangée.
+- Pour qu'une note ajoutée ou changée arrive sur la tablette, relancer
+  `python android/outils/exporter_dictionnaire.py` puis recompiler.
+
 ## 0.43.0 (2026-10-26), lampes et télévision à la voix sur la tablette
 Nouveauté (versionCode 80). Session S-L4 du plan, pendant du serveur 0.44.0. Numérotée 0.43.0 à la fusion,
 après la 0.42.0 de S-L5 (le lot avait réservé la 0.41.0).

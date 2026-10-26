@@ -700,7 +700,7 @@ Quatre sections, toutes facultatives sauf `commandes`.
 llm:            # ce que voit le LLM, sans rien changer dans Home Assistant
   renommer:
     light.salon_lampe_tele: "Lampe TV (lampe posée près de la télé, ce n'est pas la télé)"
-  notes:        # ajoutées en bout de ligne de l'appareil (LLM du PC seulement)
+  notes:        # ajoutées en bout de ligne de l'appareil (LLM du serveur et LLM de l'appli, après un nouvel export)
     media_player.tele_salon: "entrées via media_player.select_source"
   masquer:
     - media_player.tele
