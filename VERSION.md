@@ -4,6 +4,18 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.58.1 (2026-10-27), animations du README rejouées
+Correctif (documentation). Session S-V2 du plan. Appli Home Assistant 0.58.1, appli Android 0.49.0 et client web
+0.11.0 inchangés. Aucun changement de comportement.
+- Les cinq GIF de `docs/images/` (`accueil`, `ecoute`, `maison`, `meteo`, `sante`) sont rejoués sur un émulateur de
+  tablette avec l'appli 0.49.0, un serveur de démonstration lancé sur `config-exemple/` et un faux Home Assistant
+  local. Rien d'un logement réel n'y paraît : plan fictif à quatre pièces, appareils d'exemple, météo de Marseille.
+- L'ancien GIF de la météo, qui situait l'installation, disparaît. Le nouveau montre la météo à Marseille, les
+  prévisions heure par heure et sur sept jours, la mer au Prado.
+- Santé : uniquement les données de démonstration de l'appli, onglets Aujourd'hui puis Tendances.
+- README : textes de remplacement et légendes alignés sur ce que montrent les nouvelles animations (la lampe de la
+  télé est éteinte à la voix, trois lampes réglées dans la vue de la maison, météo de Marseille).
+
 ## Serveur 0.58.0 (2026-10-27), nom public « Assistant vocal local »
 Mineure. Session S-C6 du plan, décision D1 du 26/10/2026. Appli Home Assistant 0.58.0, appli Android 0.49.0. Client
 web inchangé (0.11.0), aucune page web touchée.
