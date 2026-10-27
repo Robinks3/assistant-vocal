@@ -25,6 +25,8 @@
   body.fondu #version { display: none; }
   /* dans l'appli (0.7.1) et dans le client web (1.0.0), la version est affichée par l'hôte lui-même (vue3d.version()) */
   body.appli #version { display: none; }
+  /* mode développeur coupé par l'hôte (modeDeveloppeur, client web 0.8.0) : plus de version ni de panneau de démonstration */
+  body.sans-dev #version, body.sans-dev #panneau { display: none; }
   /* scène atténuée pendant l'écoute de l'assistant (écran ambiant) */
   #scene { position: fixed; inset: 0; transition: opacity .45s ease; }
   /* fond du régime vivant (0.7.0) : dégradé, ombre, flaque, grain et particules, sous la toile 3D
@@ -1697,6 +1699,8 @@ window.vue3d = {
   regime: (niveau, duree_ms) => regler(niveau, duree_ms),
   // cadence de repos, et plafond pendant une action (moins quand la tablette chauffe)
   cadence: (n, a) => { if (n > 0) tour.ips = Math.min(30, n); if (a > 0) cadenceAction = Math.min(60, a); demander(); },
+  // 0.8.0 : mode développeur du client web. Coupé, la page cache ce qui sert à déboguer (version, panneau de démonstration).
+  modeDeveloppeur: actif => { document.body.classList.toggle("sans-dev", !actif); },
   pause: actif => {
     enPause = !!actif;
     if (enPause) { if (minuteurTour) { clearTimeout(minuteurTour); minuteurTour = null; } }
@@ -1860,6 +1864,7 @@ const PONT = {
   poussieres: [d => [bo(d.actif)], a => window.vue3d.poussieres(a)],
   desaturer: [d => [bo(d.actif)], a => window.vue3d.desaturer(a)],
   pause: [d => [bo(d.actif)], a => window.vue3d.pause(a)],
+  modeDeveloppeur: [d => [bo(d.actif)], a => window.vue3d.modeDeveloppeur(a)],
   disposition: [d => [{ x: nb(d.x, 0, 1), y: nb(d.y, 0, 1), largeur: nb(d.largeur, 0, 1), hauteur: nb(d.hauteur, 0, 1), duree_ms: nb(d.duree_ms, 0, 10000) }], z => disposition(z)],
   regime: [d => [nb(d.niveau, 0, 1), nb(d.duree_ms, 0, 10000)], (n, t) => regler(n, t)],
   grand: [d => [bo(d.actif), nb(d.taille, 8, 400), nb(d.police, 6, 80)], (a, t, p) => window.vue3d.grand(a, t, p)],
@@ -1869,7 +1874,7 @@ const PONT = {
   mesures: [d => { const c = chargeSure(d.charge); return c === undefined ? null : [c]; }, c => mesures(c)],
 };
 // Types dont un champ booléen est obligatoire : un message sans lui est rejeté plutôt qu'appliqué à moitié
-const PONT_BOOL = { fondu: 0, nomsAuSol: 0, poussieres: 0, desaturer: 0, pause: 0, grand: 0 };
+const PONT_BOOL = { fondu: 0, nomsAuSol: 0, poussieres: 0, desaturer: 0, pause: 0, grand: 0, modeDeveloppeur: 0 };
 function pontRecevoir(ev) {
   // l'émetteur doit être la fenêtre parente (ou la page elle-même quand elle tourne seule dans un navigateur)
   if (ev.source !== window.parent) return false;

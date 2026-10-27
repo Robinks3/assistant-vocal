@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.54.0 (2026-10-27), écran Météo et mer et mode développeur dans le client web
+Mineure. Session S-W5 du plan. Appli Home Assistant 0.54.0 (le déploiement copie aussi `meteo_web.py`), appli Android
+inchangée. Client web 0.8.0.
+- Écran Météo et mer (`/meteo`, `meteo.html`, `meteo.js`), d'après la planche 14 des maquettes. Il n'ouvre aucune
+  source réseau : il présente ce que le serveur produit déjà (`meteo_mer.py` pour le ciel, la houle et les heures,
+  `vent_mesure.py` pour les balises). Un message dédié `meteo` à schéma strict (clés `type` et `point` seulement),
+  filtré par rôle côté serveur (`meteo_web.py`) : le rôle vient de la session, jamais du message, l'invité reçoit un
+  refus `droit`, aucune coordonnée ni adresse ne quitte le module. Six heures et trois jours au plus, vent en mots
+  (force, secteur), symbole du ciel, balises avec leur âge et la mention « ancienne » au-delà du seuil. Une source
+  éteinte n'est pas une panne, une source qui échoue donne un avertissement nommé, les deux absentes donnent
+  `indisponible`, et aucun texte d'exception ne part vers le navigateur. Lien depuis l'accueil.
+- Nouvelle clé de configuration `client_web.meteo.roles` (rôles qui ont l'écran, valeurs fictives dans `config-exemple/maison.json`). Les points
+  et les balises viennent de la section `mer` déjà existante.
+- Mode développeur du client web : réglage dans Réglages, actif par défaut, gardé dans le navigateur (`localStorage`,
+  un « oui » ou un « non », repli en mémoire si le navigateur refuse). Coupé, il masque sur toutes les pages les
+  versions, la date de génération, les durées, les identifiants et le détail des étapes (classe `dev-seulement`, attribut
+  `data-dev` de `<html>`), jamais une information de sécurité ni un message d'erreur. L'état est transmis à la vue 3D
+  isolée par un message `modeDeveloppeur` booléen à schéma strict, et la page 3D (générée par `carte/3d/generer_3d.py`,
+  à régénérer pour en profiter) masque sa version et son panneau de démonstration.
+- Tests : `test_meteo_web.py`, `test_serveur_web_meteo.py`, `test_mode_developpeur.py`, variantes de l'écran Météo dans
+  le contrôle de mise en page (zéro défaut), pont de la vue 3D étendu.
+
 ## Serveur 0.53.0 (2026-10-27), HA au centre : relais santé et IA locale optionnels dans l'appli Home Assistant
 Mineure. Lot « HA au centre », partie code. Le PC fixe devient un fournisseur de puissance facultatif, tout marche
 PC éteint. Appli Home Assistant 0.53.0, appli Android inchangée. Deux options nouvelles, vides par défaut : tant

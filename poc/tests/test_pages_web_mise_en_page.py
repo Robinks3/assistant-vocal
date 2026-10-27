@@ -23,7 +23,7 @@ ADMIN = RACINE / "poc" / "admin"
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.7.0", "{{version_serveur}}": "0.52.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.8.0", "{{version_serveur}}": "0.54.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -766,6 +766,150 @@ def variantes_maison_s_w4b():
     return out
 
 
+I_METEO = {
+    "soleil": _svg("M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0", "M12 2v2M12 20v2M2 12h2M20 12h2"),
+    "nuage": _svg("M7 18h10a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7.1 9.2 4.4 4.4 0 0 0 7 18z"),
+    "pluie": _svg("M7 14h10a3.5 3.5 0 0 0 .5-6.96A5 5 0 0 0 7.5 6.5 4 4 0 0 0 7 14z", "M8 17v3M12 17v3M16 17v3"),
+    "vent": _svg("M3 9h11a3 3 0 1 0-3-3", "M3 14h15a3 3 0 1 1-3 3", "M3 19h6"),
+    "vague": _svg("M2 9c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"),
+    "thermometre": _svg("M10 14.5V5a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z"),
+    "info": _svg("M12 11v5M12 8v.2"),
+}
+
+
+def _fleche_vent(deg):
+    return ('<span class="fleche-vent"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false">'
+            f'<g transform="rotate({deg} 12 12)"><path d="M12 20V5M6 11l6-6 6 6"/></g></svg></span>')
+
+
+def _puce_meteo(nom):
+    return f'<span class="puce puce--meteo">{I_METEO[nom]}</span>'
+
+
+def _rangee_meteo(avant, titre, details, valeur=None, unite="", pastille=""):
+    texte = f"<b>{titre}</b>" + "".join(f"<span>{d}</span>" for d in details if d)
+    if pastille:
+        texte += f'<span class="pastille pastille--lumiere">{pastille}</span>'
+    fin = ""
+    if valeur is not None:
+        fin = f'<span class="valeur">{valeur}' + (f"<small>{unite}</small>" if unite else "") + "</span>"
+    return f'<div class="rangee">{avant}<span class="texte">{texte}</span>{fin}</div>'
+
+
+def _carte_meteo(etiquette, corps, classe="carte--vide"):
+    return f'<section class="carte {classe}" aria-label="{etiquette}">{corps}</section>'
+
+
+def _heures_meteo(n=6, vent=True):
+    items = ""
+    for i in range(n):
+        h = 15 + i
+        symbole = ["soleil", "nuage", "pluie"][i % 3]
+        items += (f'<li class="heure-prev"><time>{h} h</time>{I_METEO[symbole]}<b>{18 - i}°</b>'
+                  f'<small>{"%d nœuds" % (12 + i) if vent else "Vent inconnu"}</small></li>')
+    return _carte_meteo("Prochaines heures", f'<ul class="heures" aria-label="Prochaines heures" tabindex="0" data-defilement-horizontal-voulu>{items}</ul>')
+
+
+def _jours_meteo(nom_long=False):
+    lignes = ""
+    for jour, ciel, sym in (("Mercredi", "Éclaircies", "soleil"), ("Jeudi", "Pluie fine", "pluie"),
+                            (LONG_NOM if nom_long else "Vendredi", "Nuageux", "nuage")):
+        lignes += _rangee_meteo(_puce_meteo(sym), jour, ["Vent jusqu'à 18 nœuds, houle jusqu'à 1,8 m", ciel], "17°", "min 11°")
+    return _carte_meteo("Prochains jours", lignes)
+
+
+def _eau_meteo(vent=True, houle=True, eau=True):
+    pas = "Pas de valeur pour le moment"
+    lignes = (_rangee_meteo(_fleche_vent(225), "Vent de nord-est modéré", ["Rafales à 22 nœuds"], "14", "nœuds")
+              if vent else _rangee_meteo(_puce_meteo("vent"), "Vent", [pas]))
+    lignes += (_rangee_meteo(_puce_meteo("vague"), "Houle de l'ouest", ["Période de 9 secondes"], "1,4", "mètre")
+               if houle else _rangee_meteo(_puce_meteo("vague"), "Houle", [pas]))
+    lignes += (_rangee_meteo(_puce_meteo("thermometre"), "Température de l'eau", [], "14°")
+               if eau else _rangee_meteo(_puce_meteo("thermometre"), "Température de l'eau", [pas]))
+    return _carte_meteo("Sur l'eau", lignes)
+
+
+def _balises_meteo(balises):
+    return _carte_meteo("Balises", "".join(balises))
+
+
+def _sources_meteo():
+    bouton = (f'<button type="button" class="rangee" aria-expanded="false" aria-controls="texte-sources">'
+              f'<span class="puce">{I_METEO["info"]}</span><span class="texte"><b>Sources et licences</b>'
+              f'<span>Données publiques, mentions de la configuration</span></span>'
+              f'<span class="suite">{I_CHEVRON}</span></button>'
+              '<p id="texte-sources" class="aide carte-texte" hidden>Données de démonstration.</p>')
+    return _carte_meteo("Sources et licences", bouton, "carte--vide carte--espacee")
+
+
+def vue_meteo(maintenant=True, eau=None, heures=None, jours=None, balises=None, soleil=True):
+    if maintenant:
+        haut = _carte_meteo(
+            "Maintenant", '<span class="temp-grand">17°</span><span class="texte"><b>Éclaircies</b>'
+                          '<span>Sans pluie</span><span>Mer peu agitée</span></span>' + _puce_meteo("soleil"), "maintenant")
+    else:
+        haut = _carte_meteo("Maintenant", '<span class="texte"><b>Pas de prévision pour le moment</b></span>', "maintenant")
+    t = lambda s: f'<h2 class="titre-section">{s}</h2>'  # noqa: E731
+    out = haut + t("Sur l'eau") + (eau or _eau_meteo())
+    if soleil:
+        out += '<p class="secondaire soleil-ligne">Lever du soleil à 7 h 52, coucher à 18 h 04</p>'
+    out += t("Prochaines heures") + (heures or _heures_meteo())
+    out += t("Prochains jours") + (jours or _jours_meteo())
+    out += t("Balises")
+    out += balises or _carte_meteo("Balises", '<p class="secondaire">Aucune balise de mesure n\'est rattachée à ce lieu.</p>', "")
+    return out + _sources_meteo()
+
+
+def balise_meteo(nom, mot, valeur, age, rafales="", ancienne=False, deg=225):
+    det = [mot, rafales] if valeur is not None else ["Pas de valeur pour le moment"]
+    avant = _fleche_vent(deg) if valeur is not None else _puce_meteo("vent")
+    return _rangee_meteo(avant, nom, det, valeur, age, "Ancienne" if ancienne else "")
+
+
+def page_meteo(brut, vue, points=(), pannes="", sous_titre="Lieu d'exemple, mesures de 18 h 42"):
+    html = remplir(brut, "sous-titre", sous_titre)
+    html = remplir(html, "vue-meteo", vue)
+    if points:
+        boutons = "".join(
+            f'<button type="button" class="filtre" aria-pressed="{"true" if i == 0 else "false"}">{p}</button>'
+            for i, p in enumerate(points))
+        html = remplir(montrer(html, "points-meteo"), "points-meteo", boutons)
+    if pannes:
+        html = remplir(montrer(html, "pannes-meteo"), "pannes-meteo", pannes)
+    return html
+
+
+def variantes_meteo_s_w5():
+    """Lot S-W5 : l'écran Météo et mer, complet puis dans ses cas limites."""
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "meteo.html").read_text(encoding="utf-8"))))
+    brut = brut.replace("{{nom_assistant}}", "Iris")
+    balises = _balises_meteo([
+        balise_meteo("Bouée du large", "Vent de nord-est modéré", "14", "il y a 12 min", "Rafales à 22 nœuds"),
+        balise_meteo("Pointe de la jetée", "Vent de nord faible", "6", "il y a 3 h", ancienne=True, deg=180)])
+    out = {}
+    out["meteo-complet"] = page_meteo(brut, vue_meteo(balises=balises), points=("Plage de l'ouest", "Port", "Pointe"))
+    out["meteo-un-seul-point"] = page_meteo(brut, vue_meteo(balises=balises))
+    out["meteo-source-en-panne"] = page_meteo(
+        brut, vue_meteo(balises=balises),
+        pannes="<p>Les mesures des balises ne sont pas arrivées. Les prévisions restent valables.</p>")
+    out["meteo-balise-ancienne"] = page_meteo(brut, vue_meteo(balises=_balises_meteo([
+        balise_meteo(LONG_NOM, "Vent de nord faible", "6", "il y a 2 j", ancienne=True),
+        balise_meteo("Bouée du large", "Vent de nord-est modéré", None, "il y a 40 min", ancienne=True)])))
+    out["meteo-valeurs-absentes"] = page_meteo(brut, vue_meteo(
+        eau=_eau_meteo(vent=False, houle=False, eau=False), heures=_heures_meteo(3, vent=False), soleil=False))
+    out["meteo-sans-prevision"] = page_meteo(brut, vue_meteo(
+        maintenant=False, soleil=False,
+        eau=_eau_meteo(vent=False, houle=False, eau=False),
+        heures=_carte_meteo("Prochaines heures", '<p class="secondaire carte-texte">Pas de prévision pour les prochaines heures.</p>'),
+        jours=_carte_meteo("Prochains jours", '<p class="secondaire carte-texte">Pas de prévision pour les prochains jours.</p>')))
+    out["meteo-nom-long"] = page_meteo(
+        brut, vue_meteo(jours=_jours_meteo(nom_long=True), balises=balises),
+        points=(LONG_NOM, "Port"), sous_titre=LONG_NOM + ", mesures de 18 h 42")
+    out["meteo-erreur"] = remplir(montrer(remplir(brut, "sous-titre", ""), "erreur-meteo"), "erreur-meteo",
+                                  "La météo n'est pas disponible pour le moment. Nouvel essai dans quelques minutes.")
+    return out
+
+
 def variante_accueil():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
     return {"accueil-connecte": garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"])}
@@ -796,9 +940,10 @@ def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
               **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin(),
-              **variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b()}
-    assert len(toutes) >= 72
-    assert {"maison-tele-complete", "maison-air-courbe", "maison-3d"} <= set(toutes)
+              **variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b(),
+              **variantes_meteo_s_w5()}
+    assert len(toutes) >= 80
+    assert {"maison-tele-complete", "maison-air-courbe", "maison-3d", "meteo-complet", "meteo-erreur"} <= set(toutes)
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -848,6 +993,24 @@ def test_ecran_maison_sans_defaut_de_mise_en_page(tmp_path):
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
     ecrire(pages, {**variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b()})
+    res = subprocess.run(
+        [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    assert res.returncode == 0, f"défauts de mise en page (code {res.returncode}) :\n{res.stdout}\n{res.stderr}"
+
+
+def test_ecran_meteo_sans_defaut_de_mise_en_page(tmp_path):
+    """L'écran Météo et mer : cibles tactiles de 44 px, texte de 12 px au moins, aucun débordement, thèmes clair et sombre."""
+    if outil.trouver_chrome() is None:
+        pytest.skip("Chrome est absent : contrôle de mise en page impossible")
+    pages = tmp_path / "meteo"
+    pages.mkdir()
+    shutil.copytree(WEB / "polices", pages / "polices")
+    css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
+    (pages / "app.css").write_text(css, encoding="utf-8")
+    ecrire(pages, variantes_meteo_s_w5())
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,

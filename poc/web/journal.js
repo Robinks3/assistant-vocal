@@ -170,9 +170,10 @@
     afficher();
   }
 
-  function ligneDetail(liste, nom, valeur) {
+  // [technique] : ligne de débogage, masquée quand le mode développeur est coupé (Réglages).
+  function ligneDetail(liste, nom, valeur, technique) {
     if (!valeur) { return; }
-    var bloc = el("div");
+    var bloc = el("div", technique ? "dev-seulement" : "");
     bloc.appendChild(el("dt", "", nom));
     bloc.appendChild(el("dd", "", valeur));
     liste.appendChild(bloc);
@@ -196,8 +197,8 @@
       if (e.detail === "complet") {
         ligneDetail(l, "Réponse", e.reponse);
         ligneDetail(l, "Appareil", e.appareil);
-        ligneDetail(l, "Chemin", e.voie);
-        ligneDetail(l, "Durée", e.duree_s ? e.duree_s + " s" : "");
+        ligneDetail(l, "Chemin", e.voie, true);
+        ligneDetail(l, "Durée", e.duree_s ? e.duree_s + " s" : "", true);
       }
       if (e.mien && e.niveau) { ligneDetail(l, "Vie privée alors", NIVEAUX[e.niveau] || e.niveau); }
     }

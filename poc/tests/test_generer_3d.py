@@ -97,6 +97,17 @@ def test_s_l7_la_page_porte_les_mesures_par_piece(copie):
     assert "fetch(" not in modele and "XMLHttpRequest" not in modele and "WebSocket" not in modele
 
 
+def test_s_w5_la_page_generee_porte_le_mode_developpeur_transmis_par_l_hote(copie):
+    """Client web 0.8.0 : l'hôte transmet l'état du mode développeur par un message booléen à schéma strict. La page
+    cache sa version et son panneau de démonstration quand il est coupé, et ne lit jamais le stockage elle-même."""
+    assert lancer(copie).returncode == 0
+    html = sorties(copie)[1].read_text(encoding="utf-8")
+    assert "modeDeveloppeur: [d => [bo(d.actif)], a => window.vue3d.modeDeveloppeur(a)]," in html
+    assert "modeDeveloppeur: 0" in html and 'classList.toggle("sans-dev", !actif)' in html
+    assert "body.sans-dev #version, body.sans-dev #panneau { display: none; }" in html
+    assert "localStorage" not in html
+
+
 def test_c11_deux_executions_donnent_la_meme_sortie(copie):
     premiere = []
     for _ in range(2):

@@ -53,7 +53,7 @@
     var etat = a.en_ligne ? "Connecté maintenant" : "Dernière connexion " + jour(a.dernier);
     infos.appendChild(ligne(etat, "secondaire"));
     if (a.expire) { infos.appendChild(ligne("Accès jusqu'au " + jour(a.expire), "secondaire")); }
-    infos.appendChild(ligne("Identifiant " + a.id, "aide-id"));
+    infos.appendChild(ligne("Identifiant " + a.id, "aide-id dev-seulement"));
     li.appendChild(infos);
     if (moi && moi.proprietaire && !a.courant) {
       var b = document.createElement("button");
@@ -191,6 +191,13 @@
       });
   }
 
+  function afficherDev(actif) {
+    $("bascule-dev").setAttribute("aria-checked", actif ? "true" : "false");
+    $("dev-etat").textContent = actif ? "Oui" : "Non";
+  }
+
+  $("bascule-dev").addEventListener("click", function () { C.reglerDeveloppeur(!C.modeDeveloppeur()); });
+  C.surModeDeveloppeur(afficherDev);
   $("bouton-revoquer-annuler").addEventListener("click", function () { cible = null; attendu = ""; fermer($("dialogue-revoquer")); });
   $("bouton-revoquer-confirmer").addEventListener("click", confirmerRevocation);
   $("bouton-oublier").addEventListener("click", function () {

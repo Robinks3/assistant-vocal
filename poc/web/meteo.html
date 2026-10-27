@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Météo et mer</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/meteo.js" defer></script>
+</head>
+<body>
+<main id="contenu-meteo" class="contenu">
+<p class="lien-retour"><a href="/">Accueil</a></p>
+<h1 class="titre-page">Météo et mer</h1>
+<p id="sous-titre" class="secondaire" role="status">Lecture de la météo en cours.</p>
+<p id="erreur-meteo" class="alerte alerte--danger" role="alert" hidden></p>
+<div id="pannes-meteo" class="alerte alerte--info" role="status" hidden></div>
+<div id="points-meteo" class="filtres" role="group" aria-label="Choisir le lieu" hidden></div>
+<div id="vue-meteo"></div>
+
+<p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+</body>
+</html>
