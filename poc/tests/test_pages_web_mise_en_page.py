@@ -22,7 +22,7 @@ ADMIN = RACINE / "poc" / "admin"
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.5.0", "{{version_serveur}}": "0.50.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.6.0", "{{version_serveur}}": "0.51.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -323,6 +323,287 @@ def variantes_vie_privee():
     return out
 
 
+def _svg(*chemins, rect=False):
+    """Les icônes que `maison.js` construit en SVG (mêmes tracés)."""
+    formes = ('<rect x="3" y="5" width="18" height="12" rx="2"/>' if rect else "")
+    formes += "".join(f'<path d="{c}"/>' for c in chemins)
+    return f'<svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false">{formes}</svg>'
+
+
+I_ALERTE = _svg("M12 4 2.8 20h18.4z", "M12 10v5M12 17.8v.2")
+I_CHEVRON = _svg("m9 5 7 7-7 7")
+I_FERMER = _svg("M6 6l12 12M18 6 6 18")
+I_COCHE = _svg("m5 12.5 4.5 4.5L19 7.5")
+I_BOUCLIER = _svg("M12 3 4.5 6v5.5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6z")
+I_TELE = _svg("M9 21h6M12 17v4", rect=True)
+
+SPHERES = {
+    "blanc": '<span class="sphere" aria-hidden="true" style="--lumiere-vif:rgb(255,207,143);--lumiere-profond:rgb(189,153,106)"></span>',
+    "froid": '<span class="sphere" aria-hidden="true" style="--lumiere-vif:rgb(201,220,255);--lumiere-profond:rgb(149,163,189)"></span>',
+    "couleur": '<span class="sphere sphere--teinte" aria-hidden="true" style="--t:hsl(220,75%,58%);--t2:hsl(220,70%,38%)"></span>',
+    "eteinte": '<span class="sphere sphere--eteinte" aria-hidden="true"></span>',
+}
+
+
+def commutateur(nom, allumee, injoignable=False):
+    etiquette = nom + (", injoignable" if injoignable else "")
+    inactif = ' aria-disabled="true"' if injoignable else ""
+    return (f'<button type="button" class="commutateur" role="switch" aria-checked="{"true" if allumee else "false"}" '
+            f'aria-label="{etiquette}"{inactif}><span class="interrupteur"></span></button>')
+
+
+def chevron(nom, ouvert=False):
+    return (f'<button type="button" class="lampe-ouvrir" aria-label="Régler {nom}" aria-haspopup="dialog" '
+            f'aria-expanded="{"true" if ouvert else "false"}">{I_CHEVRON}</button>')
+
+
+def ligne_lampe(nom, sphere, texte, allumee, etat="ok", ouverte=False):
+    """etat : ok, injoignable, attente ou non_applique, comme dans `ligneLampe` de maison.js."""
+    if etat == "injoignable":
+        sous = I_ALERTE + "Injoignable"
+    elif etat == "non_applique":
+        sous = I_ALERTE + "Réglage non appliqué"
+    elif etat == "attente":
+        sous = "En attente de la lampe"
+    else:
+        sous = texte
+    ouvre = chevron(nom, ouverte) if etat != "injoignable" else ""
+    classe = "lampe lampe--ouverte" if ouverte else "lampe"
+    return (f'<div class="{classe}">{SPHERES[sphere]}<div class="texte"><b>{nom}</b><span>{sous}</span></div>'
+            f'{commutateur(nom, allumee, etat == "injoignable")}{ouvre}</div>')
+
+
+def ligne_tele(nom, texte, allumee, injoignable=False):
+    sous = (I_ALERTE + "Injoignable") if injoignable else texte
+    ouvre = "" if injoignable else chevron(nom)
+    return (f'<div class="rangee"><span class="puce puce--assistant">{I_TELE}</span>'
+            f'<div class="texte"><b>{nom}</b><span>{sous}</span></div>{commutateur(nom, allumee, injoignable)}{ouvre}</div>')
+
+
+def mesure(classe, avant, gras="", apres=""):
+    c = f"mesure mesure--{classe}" if classe else "mesure"
+    return f'<li class="{c}">{avant}' + (f"<b>{gras}</b>" if gras else "") + f"{apres}</li>"
+
+
+def carte_piece(nom, lampes=(), tele="", mesures=(), resume=""):
+    tete = f'<div class="piece-tete"><h2>{nom}</h2>' + (f'<span class="secondaire">{resume}</span>' if resume else "") + "</div>"
+    liste = ('<ul class="mesures" aria-label="Mesures de la pièce">' + "".join(mesures) + "</ul>") if mesures else ""
+    return f'<section class="carte carte--vide piece" aria-label="{nom}">{tete}{liste}{tele}{"".join(lampes)}</section>'
+
+
+def carte_protegee(nom):
+    return (f'<section class="carte carte--vide piece" aria-label="{nom}"><div class="piece-protegee">'
+            f'<span class="puce">{I_BOUCLIER}</span><div class="texte"><b>{nom}</b><span>Pièce protégée</span></div></div></section>')
+
+
+def alerte_air(texte, danger):
+    classe = "alerte--danger" if danger else "alerte--air"
+    role = "alert" if danger else "status"
+    return f'<div class="alerte alerte--icone {classe}" role="{role}">{I_ALERTE}<div><b>{texte}</b></div></div>'
+
+
+MESURES_SALON = (
+    mesure("agreable", "Température ", "21°", ", agréable"),
+    mesure("", "Humidité ", "48 %"),
+    mesure("correct", "CO2 ", "820 ppm", ", correct"),
+    mesure("bon", "PM2,5 ", "6 µg/m3", ", bon"),
+)
+
+
+def page_maison(brut, pieces, alertes="", lu_a="Mesures lues à 18:42."):
+    html = brut.replace('<p id="statut-maison" class="secondaire" role="status">',
+                        '<p id="statut-maison" class="secondaire" role="status" hidden>')
+    assert "role=\"status\" hidden>" in html
+    html = remplir(html, "liste-pieces", "".join(pieces))
+    if alertes:
+        html = remplir(montrer(html, "alertes-air"), "alertes-air", alertes)
+    if lu_a:
+        html = remplir(montrer(html, "lu-a"), "lu-a", lu_a)
+    return html
+
+
+def variantes_maison():
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "maison.html").read_text(encoding="utf-8"))))
+    brut = brut.replace("{{nom_assistant}}", "Iris")
+    out = {}
+    salon = carte_piece(
+        "Salon", resume="2 allumées", mesures=MESURES_SALON,
+        tele=ligne_tele("Télé du salon", "Allumée, volume 22 %", True),
+        lampes=[ligne_lampe("Lampe du canapé", "blanc", "80 %, 2700 K, chaud", True),
+                ligne_lampe("Lampe d'angle", "couleur", "60 %, bleu", True),
+                ligne_lampe("Suspension", "eteinte", "Éteinte", False)])
+    chambre = carte_piece(
+        "Chambre", resume="Tout éteint",
+        mesures=[mesure("absente", "Température absente depuis 14:02"), mesure("", "Humidité ", "51 %"),
+                 mesure("aucune", "Pas de capteur d'air")],
+        lampes=[ligne_lampe("Chevet", "eteinte", "Éteinte", False)])
+    bureau = carte_protegee("Bureau")
+    cuisine = carte_piece(
+        "Cuisine", resume="1 allumée",
+        mesures=[mesure("absente", "Mesures absentes depuis 17:10")],
+        lampes=[ligne_lampe("Plan de travail", "froid", "100 %, 6000 K, froid", True)])
+    sans_mesure = carte_piece("Garage", mesures=[mesure("aucune", "Pas de thermomètre"),
+                                                  mesure("aucune", "Pas de capteur d'air")],
+                              lampes=[ligne_lampe("Plafonnier", "eteinte", "Éteinte", False)], resume="Tout éteint")
+    out["maison-repos"] = page_maison(brut, [salon, chambre, bureau, cuisine, sans_mesure])
+    air = (alerte_air("Le CO2 du Salon est mauvais, 1 650 ppm. Ouvrez une fenêtre pour renouveler l'air.", True)
+           + alerte_air("L'air de la Chambre est médiocre. Aérer quelques minutes aiderait.", False))
+    mauvais = carte_piece(
+        "Salon", resume="2 allumées",
+        mesures=[mesure("chaud", "Température ", "27°", ", chaud"), mesure("", "Humidité ", "62 %"),
+                 mesure("mauvais", "CO2 ", "1650 ppm", ", mauvais"), mesure("mediocre", "PM2,5 ", "21 µg/m3", ", médiocre")],
+        lampes=[ligne_lampe("Lampe du canapé", "blanc", "80 %, 2700 K, chaud", True)])
+    out["maison-alerte-air"] = page_maison(brut, [mauvais, chambre], alertes=air)
+    pannes = carte_piece(
+        "Salon", resume="1 allumée", mesures=MESURES_SALON,
+        tele=ligne_tele("Télé du salon", "", False, injoignable=True),
+        lampes=[ligne_lampe("Lampe du canapé", "blanc", "", True, etat="injoignable"),
+                ligne_lampe("Lampe d'angle", "couleur", "", True, etat="attente"),
+                ligne_lampe("Suspension", "blanc", "", True, etat="non_applique")])
+    out["maison-lampes-en-defaut"] = page_maison(brut, [pannes])
+    longs = carte_piece(
+        LONG_NOM, resume="2 allumées", mesures=MESURES_SALON,
+        tele=ligne_tele(LONG_NOM, "Allumée, volume 22 %", True),
+        lampes=[ligne_lampe(LONG_NOM, "blanc", "80 %, 2700 K, chaud", True),
+                ligne_lampe(LONG_NOM + " bis", "couleur", "60 %, bleu", True, etat="non_applique")])
+    out["maison-noms-longs"] = page_maison(brut, [longs, carte_protegee(LONG_NOM)],
+                                           alertes=alerte_air(LONG_NOM + " : le CO2 est mauvais, 1 650 ppm. "
+                                                              "Ouvrez une fenêtre pour renouveler l'air.", True))
+    essai = remplir(montrer(brut, "bandeau-essai"), "bandeau-essai",
+                    "<b>Mode essai.</b> Rien ne sera fait dans la maison. Iris dit seulement ce qu'elle ferait.")
+    out["maison-essai"] = page_maison(essai, [salon])
+    vide = page_maison(brut, [], lu_a="")
+    vide = remplir(montrer(vide, "carte-vide"), "texte-vide", "Ce navigateur n'a accès à aucune pièce.")
+    out["maison-vide"] = vide
+    coupe = brut.replace('<p id="statut-maison" class="secondaire" role="status">Lecture de la maison en cours.',
+                         '<p id="statut-maison" class="secondaire" role="status">La connexion avec la maison est coupée. '
+                         'Nouvelle tentative.')
+    coupe = remplir(montrer(coupe, "erreur-maison"), "erreur-maison",
+                    "Lampe du canapé ne répond pas. Les réglages reprendront quand elle sera de nouveau joignable.")
+    out["maison-coupee"] = page_maison(coupe, [], lu_a="").replace(' hidden>La connexion', '>La connexion')
+    return out
+
+
+def glisseur(num, etiquette, valeur_texte, mini, maxi, valeur, classe="", rempli=False, bornes=None, desactive=False):
+    p = "" if valeur is None else f"{(valeur - mini) / (maxi - mini) * 100}%"
+    inactif = ' aria-disabled="true"' if desactive else ""
+    pas_de_valeur = "" if valeur is None else f' aria-valuenow="{valeur}"'
+    interieur = ('<span class="rempli"></span>' if rempli else "") + '<span class="pouce"></span>'
+    pied_bornes = ('<div class="bornes">' + "".join(f"<span>{b}</span>" for b in bornes) + "</div>") if bornes else ""
+    return (f'<div class="reglage"><div class="reglage-tete"><span class="etiquette" id="gl{num}-lib">{etiquette}</span>'
+            f'<span class="valeur-reglage">{valeur_texte}</span></div>'
+            f'<div class="glisseur{(" " + classe) if classe else ""}" role="slider" tabindex="0" aria-labelledby="gl{num}-lib" '
+            f'aria-valuemin="{mini}" aria-valuemax="{maxi}"{pas_de_valeur}{inactif} style="--p:{p or "0%"}">{interieur}</div>'
+            f'{pied_bornes}</div>')
+
+
+def choix(nom, couleur, pet=None, choisi=False):
+    coche = f'<span class="coche" aria-hidden="true">{I_COCHE}</span>' if choisi else ""
+    petit = f"<small>{pet}</small>" if pet else ""
+    return (f'<button type="button" class="choix-volet" aria-pressed="{"true" if choisi else "false"}">'
+            f'<span class="echantillon" style="--t:{couleur}"></span><b>{nom}</b>{petit}{coche}</button>')
+
+
+BLANCS_VOLET = [("Bougie", 2200, "rgb(255,180,94)"), ("Chaud", 2700, "rgb(255,207,143)"),
+                ("Neutre", 4000, "rgb(247,242,230)"), ("Froid", 6000, "rgb(201,220,255)")]
+COULEURS_VOLET = [("Rouge", 0), ("Orange", 30), ("Jaune", 55), ("Vert", 120), ("Cyan", 180), ("Bleu", 220),
+                  ("Violet", 275), ("Rose", 330)]
+
+
+def volet_lampe(nom, onglet="blanc", pied="", sous="80 %, 2700 K, chaud", sphere="blanc", kmin=2200, kmax=6000,
+                intensite=80, kelvin=2700, teinte=None, injoignable=False):
+    blancs = "".join(choix(n, c, f"{k} K", abs(kelvin - k) <= 100 if kelvin else False)
+                     for n, k, c in BLANCS_VOLET if kmin <= k <= kmax)
+    couleurs = "".join(choix(n, f"hsl({h},75%,58%)", None, teinte is not None and abs(teinte - h) <= 8)
+                       for n, h in COULEURS_VOLET)
+    barre = ('<div class="segments" role="tablist" aria-label="Type de réglage">'
+             + "".join(f'<button type="button" class="segment" role="tab" id="onglet-{n}" aria-controls="panneau-{n}" '
+                       f'aria-selected="{"true" if n == onglet else "false"}" tabindex="{0 if n == onglet else -1}">{t}</button>'
+                       for n, t in (("blanc", "Blanc"), ("couleur", "Couleur"))) + "</div>")
+    val_i = f"{intensite} %"
+    panneau_blanc = (
+        f'<div class="panneau" id="panneau-blanc" role="tabpanel" aria-labelledby="onglet-blanc"{"" if onglet == "blanc" else " hidden"}>'
+        + glisseur(1, "Intensité", val_i, 1, 100, intensite, rempli=True, desactive=injoignable)
+        + f'<div class="reglage"><span class="etiquette">Blancs</span><div class="choix-grille">{blancs}</div></div>'
+        + glisseur(2, "Chaleur du blanc", f"{kelvin} K, chaud" if kelvin else "Pas en blanc", kmin, kmax,
+                   kelvin, classe="glisseur--chaleur", bornes=[f"{kmin} K", "Bornes de cette ampoule", f"{kmax} K"],
+                   desactive=injoignable)
+        + "</div>")
+    panneau_couleur = (
+        f'<div class="panneau" id="panneau-couleur" role="tabpanel" aria-labelledby="onglet-couleur"{"" if onglet == "couleur" else " hidden"}>'
+        + glisseur(3, "Intensité", val_i, 1, 100, intensite, rempli=True, desactive=injoignable)
+        + f'<div class="reglage"><span class="etiquette">Couleurs</span><div class="choix-grille">{couleurs}</div></div>'
+        + glisseur(4, "Teinte", "bleu" if teinte is not None else "Pas en couleur", 0, 360, teinte,
+                   classe="glisseur--teinte", desactive=injoignable)
+        + "</div>")
+    return _feuille(nom, SPHERES[sphere], "Injoignable" if injoignable else sous, barre + panneau_blanc + panneau_couleur, pied)
+
+
+def _feuille(nom, marque, sous, corps, pied):
+    return ('<div id="volet-maison"><div class="voile" data-superposition-voulue="voile de la feuille"></div>'
+            '<div class="feuille" role="dialog" aria-modal="true" aria-labelledby="volet-titre-1" '
+            'data-superposition-voulue="feuille modale"><div class="poignee"></div>'
+            f'<div class="volet-tete">{marque}<div class="texte"><h2 id="volet-titre-1">{nom}</h2><p>{sous}</p></div>'
+            f'<button type="button" class="fermer" aria-label="Fermer">{I_FERMER}</button></div>'
+            f'<div class="volet-corps">{corps}</div><div class="volet-pied">{pied}</div></div></div>')
+
+
+def volet_tele(nom, allumee=True, pied="", injoignable=False):
+    puce = f'<span class="puce puce--assistant">{I_TELE}</span>'
+    if allumee and not injoignable:
+        corps = glisseur(1, "Volume", "22 %", 0, 100, 22, rempli=True)
+        sous = "Allumée, volume 22 %"
+    else:
+        corps = '<p class="secondaire">Allumez la télé pour régler le volume.</p>'
+        sous = "Injoignable" if injoignable else "Éteinte"
+    return _feuille(nom, puce, sous, corps, pied)
+
+
+def avec_volet(page, volet):
+    html = page.replace('<main id="contenu-maison" class="contenu">', '<main id="contenu-maison" class="contenu" inert aria-hidden="true">')
+    assert "inert" in html
+    return html.replace('<div id="volet-maison"></div>', volet)
+
+
+def variantes_maison_volet():
+    """Le volet est hors de `main` : cibles tactiles contrôlées sur toute la page (voir le test dédié)."""
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "maison.html").read_text(encoding="utf-8"))))
+    brut = brut.replace("{{nom_assistant}}", "Iris")
+    fond = page_maison(brut, [carte_piece(
+        "Salon", resume="2 allumées", mesures=MESURES_SALON,
+        tele=ligne_tele("Télé du salon", "Allumée, volume 22 %", True),
+        lampes=[ligne_lampe("Lampe du canapé", "blanc", "80 %, 2700 K, chaud", True, ouverte=True),
+                ligne_lampe("Lampe d'angle", "couleur", "60 %, bleu", True)])])
+    out = {}
+    out["maison-volet-blanc"] = avec_volet(fond, volet_lampe("Lampe du canapé"))
+    out["maison-volet-couleur"] = avec_volet(fond, volet_lampe(
+        "Lampe d'angle", onglet="couleur", sous="60 %, bleu", sphere="couleur", kelvin=None, teinte=220, intensite=60))
+    out["maison-volet-blanc-etroit"] = avec_volet(fond, volet_lampe(
+        "Lampe du canapé", kmin=2700, kmax=4000, pied=""))
+    attente = ('<div class="alerte alerte--info" role="status">Demandé : intensité à 40 %. Lampe du canapé n\'a pas encore '
+               'répondu. Sans réponse dans 5 s, le réglage sera signalé comme non appliqué.</div>')
+    out["maison-volet-attente"] = avec_volet(fond, volet_lampe("Lampe du canapé", pied=attente, intensite=40))
+    non_applique = ('<div class="alerte alerte--icone alerte--danger" role="alert">' + I_ALERTE
+                    + "<div>Lampe du canapé n'a pas appliqué le réglage. Demandé : intensité à 40 %. La lampe affiche : "
+                      '80 %, 2700 K, chaud.<button type="button" class="bouton">Réessayer</button></div></div>')
+    out["maison-volet-non-applique"] = avec_volet(fond, volet_lampe("Lampe du canapé", pied=non_applique))
+    injoignable = ('<div class="alerte alerte--icone alerte--danger" role="alert">' + I_ALERTE
+                   + "<div>Lampe du canapé ne répond pas. Les réglages reprendront quand la lampe sera de nouveau "
+                     "joignable.</div></div>")
+    out["maison-volet-injoignable"] = avec_volet(fond, volet_lampe(
+        "Lampe du canapé", pied=injoignable, injoignable=True))
+    refus = ('<div class="alerte alerte--icone alerte--danger" role="alert">' + I_ALERTE
+             + "<div>Ce navigateur n'a pas le droit de régler cette lampe.</div></div>")
+    out["maison-volet-refus"] = avec_volet(fond, volet_lampe("Lampe du canapé", pied=refus))
+    out["maison-volet-nom-long"] = avec_volet(fond, volet_lampe(
+        LONG_NOM, pied=non_applique.replace("Lampe du canapé", LONG_NOM)))
+    out["maison-volet-tele"] = avec_volet(fond, volet_tele("Télé du salon"))
+    out["maison-volet-tele-eteinte"] = avec_volet(fond, volet_tele("Télé du salon", allumee=False))
+    out["maison-volet-tele-injoignable"] = avec_volet(fond, volet_tele(
+        "Télé du salon", injoignable=True, pied=injoignable.replace("la lampe", "la télé").replace("Lampe du canapé", "Télé du salon")))
+    return out
+
+
 def variante_accueil():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
     return {"accueil-connecte": garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"])}
@@ -352,8 +633,9 @@ def ecrire(dossier, variantes):
 def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
-              **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin()}
-    assert len(toutes) >= 38
+              **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin(),
+              **variantes_maison(), **variantes_maison_volet()}
+    assert len(toutes) >= 57
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -388,6 +670,24 @@ def test_page_d_administration_sans_defaut_de_mise_en_page(tmp_path):
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", "main"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    assert res.returncode == 0, f"défauts de mise en page (code {res.returncode}) :\n{res.stdout}\n{res.stderr}"
+
+
+def test_ecran_maison_sans_defaut_de_mise_en_page(tmp_path):
+    """L'écran Maison et son volet, cibles tactiles contrôlées sur toute la page : le volet est hors de `main`."""
+    if outil.trouver_chrome() is None:
+        pytest.skip("Chrome est absent : contrôle de mise en page impossible")
+    pages = tmp_path / "maison"
+    pages.mkdir()
+    shutil.copytree(WEB / "polices", pages / "polices")
+    css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
+    (pages / "app.css").write_text(css, encoding="utf-8")
+    ecrire(pages, {**variantes_maison(), **variantes_maison_volet()})
+    res = subprocess.run(
+        [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
         env={**os.environ, "PYTHONIOENCODING": "utf-8"},
     )
     assert res.returncode == 0, f"défauts de mise en page (code {res.returncode}) :\n{res.stdout}\n{res.stderr}"

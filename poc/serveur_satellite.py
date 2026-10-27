@@ -116,6 +116,7 @@ import acces  # noqa: E402
 import administration  # noqa: E402
 import demande_web  # noqa: E402
 import maison  # noqa: E402
+import maison_web  # noqa: E402
 import serveur_web  # noqa: E402
 import journal_web as J  # noqa: E402
 import routines as R  # noqa: E402
@@ -916,6 +917,59 @@ def nom_appareil_maison(moteur, ident):
         return "Appareil retiré"
     nom = ident.partition("/")[2].strip()
     return nom or "Appareil de la maison"
+
+
+def maison_pour_web(moteur):
+    """Écran Maison du client web (S-W4a) : les trois fournisseurs de maison_web.Maison, branchés sur Home Assistant.
+    Lecture : seulement les entités que maison_web demande (celles de la configuration). Appel : jamais en mode
+    essai, et le texte d'une exception ne sort pas d'ici (maison_web ne garde que sa classe)."""
+    def ha():
+        h = getattr(getattr(moteur, "assistant", None), "ha", None)
+        if h is None:
+            raise RuntimeError("Home Assistant non configuré")
+        return h
+
+    async def etats(entites):
+        h = ha()
+
+        def lire(entite):
+            r = h.client.get(f"{h.url}/api/states/{entite}", timeout=10)
+            return r.json() if r.status_code == 200 else None
+
+        async def une(entite):
+            try:
+                return entite, await asyncio.to_thread(lire, entite)
+            except Exception as e:
+                print(f"Maison web : lecture de {entite} en échec ({e.__class__.__name__})")
+                return entite, None
+        return {k: v for k, v in await asyncio.gather(*[une(e) for e in entites]) if isinstance(v, dict)}
+
+    async def mesures():
+        h = ha()
+        corresp = ME.correspondance(maison.CONFIG)
+        if not corresp:
+            return None
+        import securite
+        protegees = maison.liste("zones_protegees") if securite.PROTEGER_OCCUPANT else []
+        r = await asyncio.to_thread(
+            lambda: h.client.post(f"{h.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))
+        releve = ME.lire_releve(r.text) if r.status_code == 200 else None
+        if releve is None:
+            return None
+        return {"lu_a": releve.get("maintenant"),
+                "pieces": ME.mesures_par_piece(releve, corresp, protegees, maison.FUSEAU)}
+
+    async def appeler(domaine, service, corps, essai):
+        if essai or moteur.essai:
+            return "essai"
+        h = ha()
+        r = await asyncio.to_thread(
+            lambda: h.client.post(f"{h.url}/api/services/{domaine}/{service}", json=corps, timeout=15))
+        if not 200 <= r.status_code < 300:
+            raise RuntimeError(f"Home Assistant a répondu {r.status_code}")
+        return "envoye"
+
+    return maison_web.Maison(etats, mesures, appeler, essai_serveur=lambda: bool(moteur.essai))
 
 
 class Calibration:
@@ -1890,6 +1944,7 @@ async def servir(args):
                 nom_appareil_ha=lambda ident: nom_appareil_maison(moteur, ident))
             moteur.service_web = service_web
             service_web.demandeur = moteur.repondre_web  # demandes écrites (S-W3) : même chaîne que les autres
+            service_web.maison = maison_pour_web(moteur)  # écran Maison (S-W4a) : états et réglages filtrés par rôle
             serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
         except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir
