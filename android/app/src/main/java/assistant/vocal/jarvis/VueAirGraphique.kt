@@ -166,8 +166,8 @@ internal class VueAirGraphique(private val ctx: Context) {
             setColor(Decor.melange(Palette.fond, Palette.surface, 0.85f))
             setStroke(max(1, px(1f)), Decor.melange(Palette.surface, Palette.texte1, 0.08f))
         }
+        // Pas de layoutParams ici : le bouton garde la Place de son cadre (en haut à droite, 60 de haut).
         fermer.setPadding(px(18f), 0, px(22f), 0)
-        fermer.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(60f))
         for (p in pilulesGroupe.map { it.second } + pilulesDuree.map { it.second }) {
             p.cadre.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(56f)).apply { marginEnd = px(10f) }
         }

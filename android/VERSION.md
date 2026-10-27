@@ -6,6 +6,11 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.47.1 (2026-10-27), bouton Fermer du graphique de l'air
+Correctif (versionCode 88).
+- Le bouton Fermer du graphique de l'air sortait en haut à gauche, à moitié hors de l'écran : la mise à l'échelle
+  lui donnait des paramètres de rangée qui écrasaient sa place dans le cadre. Il revient en haut à droite.
+
 ## 0.47.0 (2026-10-27), graphique de l'air d'une pièce
 Mineure (versionCode 87). Session S-L8 du plan, serveur 0.48.0.
 - Toucher la carte des mesures de la vue 3D (maison en grand) ou la ligne de l'air de l'accueil ouvre un graphique
