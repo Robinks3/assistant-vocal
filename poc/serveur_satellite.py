@@ -45,14 +45,15 @@ Depuis 0.19.0 :
                               chemin exact seulement, corps exactement {"entity_id": "weather.<nom>",
                               "type": "hourly"|"daily"|"twice_daily"} (capacité "previsions", vraie si
                               Home Assistant est configuré)
-  {"type": "sante", "id"}     (serveur du PC seulement) résumé de sante-api pour l'écran, réponse
+  {"type": "sante", "id"}     (serveur du PC, ou appli HA dont l'option sante_jeton est renseignée) résumé de
+                              sante-api pour l'écran, réponse
                               {"etat":"sante","id","donnees":{date, lu_a, aujourdhui, nuit, jours,
                               seances}} ou {"etat":"sante","id","erreur"}. Seulement sur la liaison
                               chiffrée et pour une clé de SANTE_PERSONNES (le propriétaire par défaut, voir
                               sante.py), sinon refus sans appel à sante-api. La capacité "sante" est
                               calculée pour chaque connexion. Forme détaillée de donnees dans sante.py.
                               Cache de 10 min en mémoire, rien sur disque.
-Depuis 0.20.0 (serveur du PC seulement, capacité "sante_historique", même contrôle d'accès que "sante") :
+Depuis 0.20.0 (serveur du PC, ou appli HA avec sante_jeton, capacité "sante_historique", même contrôle d'accès que "sante") :
   {"type": "sante_periode", "id", "jours": 7|30|90|365}   onglet Tendances
   {"type": "sante_seances", "id", "jours", "sport": "tous"|"course"|"course"|...}   onglet Séances
   {"type": "sante_seance", "id", "seance_id"}   détail d'une séance, avec l'analyse écrite du jour
@@ -124,6 +125,7 @@ import vad as V  # noqa: E402
 import vision as VI  # noqa: E402
 import sante as SA  # noqa: E402
 import sante_hist as SH  # noqa: E402
+import llm_local as LL  # noqa: E402
 import meteo_mer as MM  # noqa: E402
 import vent_mesure as VM  # noqa: E402
 import mesures as ME  # noqa: E402
@@ -190,6 +192,13 @@ class Moteur:
         # Après le forçage du profil ha (0.27.3) : sur HA, Claude est le seul cerveau, quel que soit llm_fournisseur.
         if self.cerveau_actif == "claude" and A.cle_claude_absente():
             self.cerveau_message = A.MANQUE_CLE_CLAUDE  # affiché par l'appli dans les réglages
+        # IA locale d'un PC puissant (0.53.0), profil ha seulement et seulement si l'option llm_local_url est
+        # renseignée : le cerveau « local » devient proposable, avec repli sur Claude (voir llm_local.py). Le choix
+        # par défaut reste Claude. Option vide : "" et rien ne change.
+        self.llm_local_url = LL.url_depuis_env(self.profil)
+        if self.profil == "ha":
+            print("  IA locale du PC : " + ("proposée dans les réglages, repli sur Claude" if self.llm_local_url
+                                            else "non configurée"))
         self.arbitre = Arbitre(self)
         self.appareils = None    # acces.Appareils, réglé par servir()
         self.empreinte_tls = ""  # clé publique du port chiffré, pour l'épinglage côté téléphone
@@ -203,19 +212,20 @@ class Moteur:
                 print("  vision : YuNet et SFace prêts pour les tablettes")
             except Exception as e:
                 print(f"  vision indisponible ({e.__class__.__name__} : {e})")
-        # Données de santé pour l'écran (0.19.0) : sante-api n'est joignable que par Tailscale, donc
-        # seulement depuis le PC. Sans SANTE_JETON dans poc/.env, le relais reste éteint. Servi seulement
-        # sur la liaison chiffrée et aux clés de SANTE_PERSONNES (voir sante.py et acces.Appareils.identite).
+        # Données de santé pour l'écran (0.19.0) : sante-api n'est joignable que par Tailscale, donc depuis le PC
+        # ou, depuis la 0.53.0, depuis l'appli HA si son hôte est sur le tailnet (option sante_jeton). Sans
+        # SANTE_JETON (poc/.env ou option de l'appli), le relais reste éteint. Servi seulement sur la liaison
+        # chiffrée et aux clés de SANTE_PERSONNES (voir sante.py et acces.Appareils.identite).
         self.sante = SA.depuis_env(self.profil)
         self.sante_personnes = SA.personnes_permises()
-        if self.profil == "pc":
-            print("  santé : " + (f"relais vers {self.sante.url}, permis à {', '.join(sorted(self.sante_personnes)) or 'personne'}"
-                                  if self.sante else "relais éteint (SANTE_JETON absent)"))
+        # L'adresse n'est écrite au journal qu'en profil pc, celle de l'appli HA vient d'une option privée.
+        print("  santé : " + ((f"relais vers {self.sante.url}, " if self.profil == "pc" else "relais configuré, ")
+                              + f"permis à {', '.join(sorted(self.sante_personnes)) or 'personne'}"
+                              if self.sante else "relais éteint (SANTE_JETON absent)"))
         # Historique pour les onglets Tendances, Séances, Records et Jour (0.20.0) : lu dans le
         # data-auto.js du tableau de bord santé, mêmes conditions et même accès que le relais.
         self.sante_hist = SH.depuis_env(self.profil) if self.sante else None
-        if self.profil == "pc":
-            print("  historique santé : " + ("tableau de bord HealthStats" if self.sante_hist else "éteint"))
+        print("  historique santé : " + ("tableau de bord HealthStats" if self.sante_hist else "éteint"))
         # Météo marine du plan d'eau (section « mer » de maison.json) pour la page « Mer » (0.22.0) : sources
         # publiques, aucune donnée personnelle, dans les deux profils. METEO_MER=0 l'éteint (voir meteo_mer.py).
         self.meteo_mer = MM.depuis_env()
@@ -251,7 +261,8 @@ class Moteur:
                 "libelles": {"pc": "PC (Canary)", "ha_stp": "Home Assistant (Speech-to-Phrase)",
                              "ha_whisper": "Home Assistant (Whisper, très lent)",
                              "api": f"En ligne ({os.getenv('STT_API_NOM', 'API')})"},
-                "cerveau": ["claude", "local"] if self.profil == "pc" else ["claude"],
+                "cerveau": ["claude", "local"] if self.profil == "pc" or getattr(self, "llm_local_url", "")
+                           else ["claude"],
                 "reveil_appareil": True,
                 "mot_reveil": A.modele_reveil()[1] if self.profil == "pc" else A.NOM_REPLI,
                 "vad": "silero" if V.disponible() else "energie",
@@ -355,6 +366,32 @@ class Moteur:
         """Vrai si un administrateur (téléphone ou page d'administration) est connecté : ferme l'amorçage."""
         return bool(self.pages_admin) or any(acces.est_administrateur(s.identite) for s in self.satellites)
 
+    def brancher_cerveau(self, cerveau):
+        """Installe un cerveau dans l'assistant avec les rappels de routine (validation d'une proposition, liste des
+        routines de la personne) que l'assistant pose à sa création : sans eux, un cerveau remplacé en cours de
+        route ne savait plus proposer de routine (corrigé en 0.53.0)."""
+        a = self.assistant
+        cerveau.rappel_routine = getattr(a, "creer_routine", None)
+        cerveau.rappel_liste = getattr(a, "liste_routines_llm", None)
+        a.cerveau = cerveau
+
+    async def brancher_llm_local_ha(self):
+        """Profil ha, choix « local » : sonde de l'IA du PC (2 s au plus), puis cerveau local avec repli sur
+        Claude. PC éteint ou injoignable : on reste sur Claude et le téléphone en est informé."""
+        a = self.assistant
+        sonde = LL.Sonde(self.llm_local_url)
+        self.cerveau_message = "Recherche de l'IA locale du PC..."
+        await self.diffuser(self.etat_cerveau())
+        if not await asyncio.to_thread(sonde.verifier, True):
+            self.cerveau_actif = "claude"
+            self.cerveau_message = ("IA locale du PC injoignable, je reste sur Claude" if not A.cle_claude_absente()
+                                    else f"IA locale du PC injoignable et pas de clé Claude ({A.MANQUE_CLE_CLAUDE})")
+            self.brancher_cerveau(A.CerveauClaude(self.cfg, a.ha))
+            return
+        local = LL.CerveauLocalSurveille(self.cfg, a.ha, self.llm_local_url)
+        self.brancher_cerveau(LL.CerveauAvecRepli(local, A.CerveauClaude(self.cfg, a.ha), sonde))
+        self.cerveau_message = "IA locale du PC prête, repli sur Claude si elle s'éteint"
+
     async def changer_cerveau(self, choix):
         """Bascule demandée depuis le téléphone : « claude » (en ligne) ou « local » (carte graphique).
 
@@ -380,9 +417,12 @@ class Moteur:
             if choix == "claude":
                 self.cerveau_message = "Bascule sur Claude en ligne..."
                 await self.diffuser(self.etat_cerveau())
-                self.assistant.cerveau = A.CerveauClaude(self.cfg, self.assistant.ha)
-                arretes = await asyncio.to_thread(arreter_llm_local)
+                self.brancher_cerveau(A.CerveauClaude(self.cfg, self.assistant.ha))
+                # Profil ha : pas de llama-server à arrêter ici, l'IA locale tourne sur un autre PC.
+                arretes = await asyncio.to_thread(arreter_llm_local) if self.profil == "pc" else False
                 self.cerveau_message = "Claude en ligne, carte graphique libérée" if arretes else "Claude en ligne"
+            elif self.profil == "ha":
+                await self.brancher_llm_local_ha()
             else:
                 self.cerveau_message = "Démarrage du modèle sur la carte graphique..."
                 await self.diffuser(self.etat_cerveau())
@@ -391,9 +431,9 @@ class Moteur:
                     self.cerveau_actif, self.cerveau_message = "claude", (
                         f"Carte graphique indisponible et pas de clé Claude : aucun cerveau ne répond ({A.MANQUE_CLE_CLAUDE})"
                         if A.cle_claude_absente() else "Carte graphique indisponible, je reste sur Claude")
-                    self.assistant.cerveau = A.CerveauClaude(self.cfg, self.assistant.ha)
+                    self.brancher_cerveau(A.CerveauClaude(self.cfg, self.assistant.ha))
                 else:
-                    self.assistant.cerveau = A.Cerveau(self.cfg, self.assistant.ha)
+                    self.brancher_cerveau(A.Cerveau(self.cfg, self.assistant.ha))
                     self.cerveau_message = "Modèle local prêt sur la carte graphique"
             self.cerveau_pret = True
         print(f"  cerveau : {self.cerveau_actif} ({self.cerveau_message})")
@@ -461,7 +501,9 @@ class Moteur:
             except Exception as e:
                 parole, actions, erreur = "Le modèle de langage ne répond pas.", [], f"{e.__class__.__name__} : {e}"
             duree = time.perf_counter() - t
-            nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
+            nom = getattr(a.cerveau, "dernier_nom", None)  # cerveau avec repli (profil ha) : celui qui a répondu
+            if not isinstance(nom, str):
+                nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
             # Dans le contexte de la requête : le journal y lit l'appareil et la personne (filtre de l'historique).
             A.journaliser(texte, f"llm ({nom}, depuis l'appareil" + (f", {personne}" if personne else "") + ")"
                           + (" [essai]" if essai else ""), 0.0, duree, 0.0,

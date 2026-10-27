@@ -4,6 +4,31 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.53.0 (2026-10-27), HA au centre : relais santé et IA locale optionnels dans l'appli Home Assistant
+Mineure. Lot « HA au centre », partie code. Le PC fixe devient un fournisseur de puissance facultatif, tout marche
+PC éteint. Appli Home Assistant 0.53.0, appli Android inchangée. Deux options nouvelles, vides par défaut : tant
+qu'elles sont vides, le comportement et l'exposition réseau sont exactement ceux de la 0.52.0.
+- Relais santé en profil ha : option `sante_jeton` (SANTE_JETON), adresse par SANTE_URL ou `reseau.sante_url`. Le
+  relais (`sante.py`) et l'historique (`sante_hist.py`) existent en profil ha dès qu'un jeton est renseigné, sans
+  jeton ils n'existent pas (comme avant). Garde inchangée sur la destination (seulement une adresse Tailscale, jamais
+  le jeton vers autre chose, jamais dans le journal, une erreur, une réponse ou les capacités). Garde de route
+  adaptée : le conteneur est sur le réseau pont de Docker et ne voit pas la route de l'hôte, `route_tailscale` admet
+  donc en profil ha une adresse source du pont privé (172.16.0.0/12, fc00::/7) en plus de Tailscale, le profil pc
+  reste strict. En https la connexion vise l'adresse vérifiée et le certificat est contrôlé contre le nom (SNI).
+  Risque résiduel : Tailscale coupé sur l'hôte de HA avec un DNS qui rend quand même une adresse en 100.x, un jeton
+  en http clair partirait par la route par défaut, d'où la préférence pour une `sante_url` en https.
+- IA locale du PC en fournisseur optionnel (`poc/llm_local.py`) : option `llm_local_url` (LLM_LOCAL_URL, serveur
+  compatible OpenAI en `/v1`). Vide, rien ne change et le choix « local » n'existe pas en profil ha. Renseignée, le
+  cerveau « local » est proposé, avec une sonde courte (`GET /models`, 2 s au plus, résultat gardé 45 s si oui et 30 s
+  si non) et un repli automatique sur Claude, signalé au journal sans l'adresse. Le repli n'a lieu qu'avant la première
+  exécution d'outil, pour qu'une action ne soit jamais faite deux fois. Les historiques sont partagés entre les deux
+  cerveaux et la sécurité en dur s'applique quel que soit le cerveau. Le choix par défaut reste Claude. Sur le PC rien
+  ne change.
+- Correctif préexistant : `changer_cerveau` ne reposait pas `rappel_routine` ni `rappel_liste` sur le nouveau cerveau,
+  qui ne savait plus proposer ni lister de routine après un changement de cerveau. Corrigé par `brancher_cerveau`.
+- Note de conception `docs/conception/client-web-sur-ha.md` : comment servir le client web depuis l'appli HA.
+- `deployer.sh` copie désormais `llm_local.py` dans l'image de l'appli (le test des modules importés l'exigeait).
+
 ## Serveur 0.52.0 (2026-10-27), vue 3D, volet télé complet et graphique de l'air dans le client web
 Mineure. Session S-W4b du plan. Appli Home Assistant 0.52.0 (le déploiement copie aussi `vue3d.html` quand elle est
 générée), appli Android inchangée. Client web 0.7.0.

@@ -27,8 +27,12 @@ os.environ.update({
     "STT_API_URL": options.get("stt_api_url", ""),
     "STT_API_MODELE": options.get("stt_api_modele", ""),
     "STT_API_NOM": options.get("stt_api_nom", "API"),
+    # 0.53.0 : fournisseurs optionnels, vides par défaut (sans valeur, la fonction n'existe pas).
+    # Relais santé (jeton de sante-api, l'hôte de HA doit être sur le tailnet) et IA locale d'un PC (/v1).
+    "SANTE_JETON": options.get("sante_jeton", ""),
+    "LLM_LOCAL_URL": options.get("llm_local_url", ""),
 })
-for k in ("STT_API_URL", "STT_API_MODELE"):  # une option vide garde la valeur par défaut du serveur
+for k in ("STT_API_URL", "STT_API_MODELE", "SANTE_JETON", "LLM_LOCAL_URL"):  # une option vide = valeur par défaut / absente
     if not os.environ.get(k):
         os.environ.pop(k, None)
 # commandes.yaml est lu dans /app/config, la configuration déployée (plus de copie dans /data depuis la
@@ -43,6 +47,8 @@ except (OSError, ValueError, AttributeError):
     NOM = "Assistant"
 print(f"{NOM} : clé Anthropic {'présente' if options.get('anthropic_api_key') else 'ABSENTE'}, "
       f"jeton satellites {'présent' if len(options.get('satellite_jeton', '')) >= 16 else 'ABSENT'}, "
-      f"transcription en ligne {'configurée' if len(options.get('stt_api_cle', '')) > 10 else 'non configurée'}", flush=True)
+      f"transcription en ligne {'configurée' if len(options.get('stt_api_cle', '')) > 10 else 'non configurée'}, "
+      f"relais santé {'configuré' if options.get('sante_jeton') else 'non configuré'}, "
+      f"IA locale du PC {'configurée' if options.get('llm_local_url') else 'non configurée'}", flush=True)
 arguments = [sys.executable, "/app/serveur_satellite.py"] + (["--essai"] if options.get("essai") else [])
 os.execv(sys.executable, arguments)

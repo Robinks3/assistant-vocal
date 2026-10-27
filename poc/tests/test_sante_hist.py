@@ -67,7 +67,7 @@ def plage(debut, fin):
 def test_reduction_d_un_jour_et_de_sa_nuit():
     nuit = {"start": "2031-03-13T22:30:00.000Z", "dureeMin": 410,
             "seq": [[0, 20, 4], [20, 30, 1], [50, 90, 5], [140, 200, 4], [340, 60, 6], [400, 10, 7]]}
-    d = donnees({"2031-03-14": jour(sleepH=7.9, sleepStages=nuit, dist=5.456), "2031-03-13": jour(sleepH=6.5)})
+    d = donnees({"2031-03-14": jour(sleepH=7.9, sleepStages=nuit, dist=3.456), "2031-03-13": jour(sleepH=6.5)})
     j = d.jours[Date(2031, 3, 14)]
     assert (j.sommeil, j.au_lit, j.profond) == (370, 410, 90)  # éveils (codes 1 et 7) retirés, siestes non comptées
     assert j.distance_m == 3456 and j.pas == 8000 and j.fc_moyenne == 64.3
@@ -827,10 +827,13 @@ def test_configuration(monkeypatch):
         monkeypatch.delenv(v, raising=False)
     assert SH.depuis_env("pc") is None
     monkeypatch.setenv("SANTE_JETON", "jeton-invente-de-test")
-    assert SH.depuis_env("ha") is None
     h = SH.depuis_env("pc")
     assert h.url == SH.URL_DONNEES and h.url.startswith("https://") and ".ts.net/" in h.url
-    assert h.url_sante == SA.URL_DEFAUT
+    assert h.url_sante == SA.URL_DEFAUT and h.profil == "pc"
+    assert SH.depuis_env("ha").profil == "ha"  # 0.53.0 : possible en profil ha avec un jeton
+    assert SH.depuis_env("autre") is None
+    monkeypatch.delenv("SANTE_JETON")
+    assert SH.depuis_env("ha") is None  # sans jeton, pas d'historique en profil ha
 
 
 # ------------------------------------------------------------ corrections de revue (0.20.1)
