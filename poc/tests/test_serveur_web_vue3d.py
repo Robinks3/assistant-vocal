@@ -301,7 +301,7 @@ def test_la_page_rejette_sans_rien_appeler_les_messages_mal_formes(tmp_path):
         {}, {"type": 3}, {"type": None}, {"type": "inconnu"}, {"type": "__proto__"}, {"type": "constructor"},
         {"type": "toString"}, {"type": "hasOwnProperty"},
         {"type": "etats", "etats": "x"}, {"type": "etats", "etats": None}, {"type": "etats"},
-        {"type": "etats", "etats": {f"light.l{i}": "on" for i in range(201)}},
+        {"type": "etats", "etats": {f"light.a{i}": "on" for i in range(201)}},
         {"type": "etats", "etats": [{"entity_id": f"l{i}", "state": "on"} for i in range(201)]},
         {"type": "fondu"}, {"type": "fondu", "actif": "oui"}, {"type": "fondu", "actif": 1},
         {"type": "grand", "actif": None}, {"type": "pause", "actif": "true"},
