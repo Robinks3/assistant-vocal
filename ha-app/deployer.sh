@@ -45,6 +45,10 @@ cp "$POC/assistant.py" "$POC/dictionnaire.py" "$POC/serveur_satellite.py" "$POC/
 mkdir -p "$ETAPE/app/web" && cp -r "$POC"/web/. "$ETAPE/app/web/"
 mkdir -p "$ETAPE/app/admin" && cp "$POC"/admin/index.html "$POC"/admin/admin.js "$POC"/admin/admin.css "$ETAPE/app/admin/"
 mkdir -p "$ETAPE/app/config" && cp "$MAISON/maison.json" "$MAISON/commandes.yaml" "$ETAPE/app/config/"
+# Page de la vue 3D du client web (0.52.0), générée par carte/3d/generer_3d.py : absente, l'écran Maison s'en passe.
+if [ -f "$MAISON/genere/android/maison3d/vue3d.html" ]; then
+    mkdir -p "$ETAPE/app/config/genere/android/maison3d" && cp "$MAISON/genere/android/maison3d/vue3d.html" "$ETAPE/app/config/genere/android/maison3d/"
+fi
 mkdir -p "$ETAPE/app/modeles" && cp "$POC/modeles/silero_vad.onnx" "$ETAPE/app/modeles/"
 [ -f "$POC/commandes_apprises.yaml" ] && cp "$POC/commandes_apprises.yaml" "$ETAPE/app/"
 tar -C "$ETAPE" -cf - . | ssh "$SSH_HA" 'rm -rf /local_apps/jarvis && mkdir -p /local_apps/jarvis && tar --no-same-owner -C /local_apps/jarvis -xf - && chown -R root:root /local_apps/jarvis && ls /local_apps/jarvis'

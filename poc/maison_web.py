@@ -1,7 +1,8 @@
-"""Écran Maison du client web (lot S-W4a) : ce qu'un navigateur associé voit de la maison et ce qu'il a le droit de régler.
+"""Écran Maison du client web (lots S-W4a et S-W4b) : ce qu'un navigateur associé voit de la maison et ce qu'il a le
+droit de régler.
 
-Ce module ne parle pas à Home Assistant lui-même. Le serveur lui injecte trois fournisseurs (lecture des états,
-relevé des mesures, appel d'un service), ce qui le rend testable sans réseau. Il tient quatre choses :
+Ce module ne parle pas à Home Assistant lui-même. Le serveur lui injecte quatre fournisseurs (lecture des états,
+relevé des mesures, appel d'un service, historique de l'air), ce qui le rend testable sans réseau. Il tient cinq choses :
 - la liste des pièces, lampes et télévisions que chaque rôle peut voir (maison.json, client_web.maison), jamais en dur ;
 - la vue « etats » filtrée par rôle : un appareil ne reçoit que les entités de la liste de son rôle, une pièce
   protégée n'est qu'une ligne, sans entité ni mesure ;
@@ -9,36 +10,58 @@ relevé des mesures, appel d'un service), ce qui le rend testable sans réseau. 
   Le service Home Assistant est reconstruit ici, jamais recopié du navigateur, puis contrôlé par
   acces.controler_service (donc par securite.verifier) comme sur toutes les autres voies ;
 - le suivi d'un réglage envoyé : « en attente » puis « non appliqué » si la lampe ne suit pas dans le délai fixé
-  par client_web.maison.reglage_attente_s.
+  par client_web.maison.reglage_attente_s ;
+- le volet de la télévision (S-W4b) : sources prises dans la liste que Home Assistant renvoie pour cette entité,
+  lecture, pause, piste suivante et précédente, coupure du son, volume ;
+- le message « air_historique » (S-W4b), réservé aux rôles qui ont les mesures : une pièce visible et non protégée, une
+  durée de 1 à 168 heures, au plus 288 points par courbe. Les entités demandées à Home Assistant sont déduites
+  de la pièce par historique_air.py, jamais lues dans le message.
 
 Ce qu'il ne fait jamais : lire un identifiant, un service, une zone ou une liste dans le message du navigateur. Le
 rôle et la personne viennent de la session. Le texte d'une exception ne part jamais vers le navigateur.
 """
 import asyncio
+import math
 import re
 import time
 
 import acces
 import demande_web
+import historique_air as AH
 import maison
 import mesures as ME
 import securite
 
 GENRE_ETATS = "etats"
 GENRE_REGLER = "regler"
-GENRES = (GENRE_ETATS, GENRE_REGLER)
+GENRE_AIR = "air_historique"
+GENRES = (GENRE_ETATS, GENRE_REGLER, GENRE_AIR)
 ROLES = ("administrateur", "habitant", "invite")
 
 # Causes renvoyées au navigateur (liste fermée, jamais un texte venu d'ailleurs).
 CAUSES = frozenset({"droit", "format", "entite", "action", "valeur", "protegee", "securite", "injoignable",
-                    "indisponible"})
+                    "indisponible", "capteur"})
 
 # Services Home Assistant que l'écran Maison peut déclencher, plus étroits que la liste blanche du LLM.
+# Pour la télévision (S-W4b) : source, lecture et pause, piste suivante et précédente, coupure du son. Ni arrêt, ni
+# avance rapide, ni lancement de média, ni saisie de texte (note lampes-tele.md, section 4).
 SERVICES_WEB = {"light": frozenset({"turn_on", "turn_off"}),
-                "media_player": frozenset({"turn_on", "turn_off", "volume_set"})}
+                "media_player": frozenset({"turn_on", "turn_off", "volume_set", "select_source", "media_play_pause",
+                                           "media_next_track", "media_previous_track", "volume_mute"})}
 ACTIONS = {"light": frozenset({"allumer", "eteindre", "intensite", "blanc", "couleur"}),
-           "media_player": frozenset({"allumer", "eteindre", "volume"})}
+           "media_player": frozenset({"allumer", "eteindre", "volume", "source", "lecture", "suivant", "precedent",
+                                      "muet"})}
 CLES_MESSAGE = frozenset({"type", "entite", "action", "valeur", "essai"})
+CLES_AIR = frozenset({"type", "piece", "heures"})
+# Commandes de la télévision qui supposent un appareil allumé : action -> (service Home Assistant, bit de
+# supported_features, MediaPlayerEntityFeature, qui rend la commande possible).
+COMMANDES_TELE = {"source": ("select_source", 2048), "lecture": ("media_play_pause", 1),
+                  "suivant": ("media_next_track", 32), "precedent": ("media_previous_track", 16),
+                  "muet": ("volume_mute", 8)}
+SOURCES_MAX = 30
+SOURCE_LONGUEUR_MAX = 80
+CACHE_AIR_S = 60.0
+CACHE_AIR_MAX = 32
 
 # Quatre blancs nommés et huit couleurs nommées, les mêmes que sur la tablette (ReglageLampe.kt).
 BLANCS = (("Bougie", 2200), ("Chaud", 2700), ("Neutre", 4000), ("Froid", 6000))
@@ -172,8 +195,14 @@ def _nombre(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
-def _entier(v):
+def _fini(v):
+    """Le nombre, ou None s'il n'est pas un nombre fini (ni NaN, ni infini)."""
     n = _nombre(v)
+    return n if n is not None and math.isfinite(n) else None
+
+
+def _entier(v):
+    n = _fini(v)
     return int(n) if n is not None and n == int(n) else None
 
 
@@ -194,7 +223,7 @@ def vue_lampe(entite, etat):
     allumee = s == "on"
     mode_ha = attrs.get("color_mode")
     luminosite = _nombre(attrs.get("brightness"))
-    intensite = max(0, min(100, round(luminosite / 5.55))) if allumee and luminosite is not None else None
+    intensite = max(0, min(100, round(luminosite / 2.55))) if allumee and luminosite is not None else None
     kelvin = teinte = mode = None
     if allumee and mode_ha == "color_temp" and _nombre(attrs.get("color_temp_kelvin")) is not None:
         kelvin, mode = int(attrs["color_temp_kelvin"]), "blanc"
@@ -223,17 +252,57 @@ def _bornes_kelvin(attrs):
     return kmin, kmax
 
 
+def sources_de_ha(attrs):
+    """Les sources que Home Assistant annonce pour cet appareil (source_list), bornées : seule source de vérité de
+    select_source. Un texte vide, trop long ou en double est ignoré."""
+    liste = attrs.get("source_list")
+    vues = []
+    for x in liste if isinstance(liste, list) else []:
+        if isinstance(x, str) and x.strip() and len(x) <= SOURCE_LONGUEUR_MAX and x not in vues:
+            vues.append(x)
+    return vues[:SOURCES_MAX]
+
+
+def sources_proposees(attrs):
+    """Tuiles de source du volet : [{nom, source}]. Les noms de reglages.tele.sources (maison.json) ne servent que
+    pour les sources que Home Assistant annonce. Sans tuile reconnue, la liste annoncée sert telle quelle."""
+    annoncees = sources_de_ha(attrs)
+    tele = (maison.CONFIG.get("reglages") or {}).get("tele")
+    brutes = tele.get("sources") if isinstance(tele, dict) else None
+    tuiles = []
+    for t in brutes if isinstance(brutes, list) else []:
+        if isinstance(t, dict) and isinstance(t.get("nom"), str) and t["nom"].strip() \
+                and t.get("source") in annoncees and all(t["source"] != u["source"] for u in tuiles):
+            tuiles.append({"nom": t["nom"].strip()[:30], "source": t["source"]})
+    return tuiles or [{"nom": x[:30], "source": x} for x in annoncees]
+
+
+def _peut(attrs, cle):
+    """Vrai si l'appareil sait faire cette commande : le bit de supported_features, ou oui quand il ne le dit pas."""
+    bit = COMMANDES_TELE[cle][1]
+    f = attrs.get("supported_features")
+    return True if isinstance(f, bool) or not isinstance(f, int) else bool(f & bit)
+
+
 def vue_tele(entite, etat):
     base = {"entite": entite, "nom": nom_court(entite)}
     s = str((etat or {}).get("state") or "").lower() if isinstance(etat, dict) else ""
     attrs = etat.get("attributes") if isinstance(etat, dict) and isinstance(etat.get("attributes"), dict) else {}
     if s in INJOIGNABLE:
-        return {**base, "statut": "injoignable", "allumee": False, "texte": "Injoignable", "volume": None}
+        return {**base, "statut": "injoignable", "allumee": False, "texte": "Injoignable", "volume": None,
+                "sources": [], "source": None, "lecture": None, "muet": None, "peut": {}}
     allumee = s != "off"
     niveau = _nombre(attrs.get("volume_level"))
     volume = max(0, min(100, round(niveau * 100))) if allumee and niveau is not None else None
     texte = "Éteinte" if not allumee else (f"Allumée, volume {volume} %" if volume is not None else "Allumée")
-    return {**base, "statut": "ok", "allumee": allumee, "texte": texte, "volume": volume}
+    source = attrs.get("source")
+    muet = attrs.get("is_volume_muted")
+    return {**base, "statut": "ok", "allumee": allumee, "texte": texte, "volume": volume,
+            "sources": sources_proposees(attrs) if allumee else [],
+            "source": source if allumee and isinstance(source, str) and len(source) <= SOURCE_LONGUEUR_MAX else None,
+            "lecture": {"playing": "lecture", "paused": "pause"}.get(s) if allumee else None,
+            "muet": muet if allumee and isinstance(muet, bool) else None,
+            "peut": {c: _peut(attrs, c) for c in COMMANDES_TELE} if allumee else {}}
 
 
 def conforme(cible, etat):
@@ -250,7 +319,7 @@ def conforme(cible, etat):
     attrs = etat.get("attributes") if isinstance(etat.get("attributes"), dict) else {}
     if cible.get("intensite") is not None:
         b = _nombre(attrs.get("brightness"))
-        if b is None or abs(b / 5.55 - cible["intensite"]) > TOLERANCE_INTENSITE:
+        if b is None or abs(b / 2.55 - cible["intensite"]) > TOLERANCE_INTENSITE:
             return False
     if cible.get("kelvin") is not None:
         k = _nombre(attrs.get("color_temp_kelvin"))
@@ -273,12 +342,16 @@ class Maison:
     appeler : coroutine (domaine, service, corps, essai) rendant « envoye » ou « essai », qui lève si Home Assistant
       ne répond pas.
     essai_serveur : fonction sans argument, vraie quand le serveur entier est en mode essai.
+    historique : coroutine (pièce, heures) rendant la réponse de historique_air.mettre_en_forme, qui lève
+      historique_air.ErreurAir pour une pièce sans capteur. Facultatif : sans lui, le graphique est indisponible.
     """
 
-    def __init__(self, etats, mesures, appeler, essai_serveur=lambda: False, horloge=time.monotonic):
+    def __init__(self, etats, mesures, appeler, essai_serveur=lambda: False, horloge=time.monotonic, historique=None):
         self._lire_etats = etats
         self._lire_mesures = mesures
         self._appeler = appeler
+        self._lire_air = historique
+        self._cache_air = {}   # (pièce, heures) -> (instant, réponse)
         self.essai_serveur = essai_serveur
         self.horloge = horloge
         self._cache_etats = (None, {})
@@ -419,6 +492,21 @@ class Maison:
                 raise RefusMaison("valeur")
             return "volume_set", {"volume_level": v / 100}, None
         attrs = etat.get("attributes") if isinstance(etat, dict) and isinstance(etat.get("attributes"), dict) else {}
+        if domaine == "media_player":   # source, lecture, suivant, precedent, muet (ACTIONS filtre le reste)
+            service = COMMANDES_TELE[action][0]
+            if not _peut(attrs, action):
+                raise RefusMaison("action")
+            if action == "source":
+                if not isinstance(valeur, str) or valeur not in sources_de_ha(attrs):
+                    raise RefusMaison("valeur")   # seulement une source que Home Assistant annonce pour cette entité
+                return service, {"source": valeur}, None
+            if action == "muet":
+                if not isinstance(valeur, bool):
+                    raise RefusMaison("valeur")
+                return service, {"is_volume_muted": valeur}, None
+            if valeur is not None:
+                raise RefusMaison("valeur")
+            return service, {}, None
         modes = attrs.get("supported_color_modes")
         modes = {m for m in modes if isinstance(m, str)} if isinstance(modes, list) else set()
         if action == "intensite":
@@ -466,6 +554,12 @@ class Maison:
             s = str((etat or {}).get("state") or "").lower() if isinstance(etat, dict) else ""
             if s not in ("on", "off"):
                 raise RefusMaison("injoignable", entite)
+        if domaine == "media_player" and action in COMMANDES_TELE:
+            s = str((etat or {}).get("state") or "").lower() if isinstance(etat, dict) else ""
+            if s in INJOIGNABLE:
+                raise RefusMaison("injoignable", entite)
+            if s == "off":
+                raise RefusMaison("action", entite)   # une télévision éteinte ne change pas de source
         try:
             service, corps, cible = self.corps_service(domaine, action, msg.get("valeur"), etat)
         except RefusMaison as e:
@@ -488,3 +582,69 @@ class Maison:
             self.attendus[entite] = {"cible": cible, "depuis": self.horloge()}
         self._cache_etats = (None, self._cache_etats[1])   # la prochaine lecture est fraîche
         return {"type": "regle", "entite": entite, "statut": "essai" if statut == "essai" else "envoye"}
+
+    # Historique de l'air (S-W4b)
+    async def air_historique(self, role, msg):
+        """Courbes de l'air d'une pièce : {type: air, piece, heures, debut, fin, pas, series}. Réservé aux rôles qui ont
+        les mesures. Une pièce que le rôle ne voit pas est « entite » (rien n'est révélé), une pièce protégée est
+        « protegee », une pièce sans capteur est « capteur ». La durée est un entier de 1 à 168 heures, absente : 24 h."""
+        if role not in ROLES or not droits(role)["mesures"]:
+            raise RefusMaison("droit")
+        if not isinstance(msg, dict) or not set(msg) <= CLES_AIR:
+            raise RefusMaison("format")
+        piece = msg.get("piece")
+        if not isinstance(piece, str) or not ID_PIECE.fullmatch(piece):
+            raise RefusMaison("entite")
+        h = msg.get("heures", AH.DUREE_DEFAUT_H)
+        if isinstance(h, bool) or not isinstance(h, int) or not 1 <= h <= AH.DUREE_MAX_H:
+            raise RefusMaison("valeur", piece)
+        pieces, _ = self._pieces_du_role(role)
+        voulue = next((p for p in pieces if p["id"] == piece), None)
+        if voulue is None:
+            raise RefusMaison("entite", piece)
+        if voulue["protegee"]:
+            raise RefusMaison("protegee", piece)
+        if self._lire_air is None:
+            raise RefusMaison("indisponible", piece)
+        t, rep = self._cache_air.get((piece, h), (None, None))
+        if t is not None and self.horloge() - t < CACHE_AIR_S:
+            return rep
+        try:
+            brut = await self._lire_air(piece, h)
+        except AH.ErreurAir:
+            raise RefusMaison("capteur", piece)
+        except Exception as e:
+            print(f"Maison web : historique de l'air en échec ({type(e).__name__})")
+            raise RefusMaison("indisponible", piece)
+        rep = self._air_propre(piece, h, brut)
+        if rep is None:
+            raise RefusMaison("indisponible", piece)
+        if len(self._cache_air) >= CACHE_AIR_MAX:
+            self._cache_air.clear()
+        self._cache_air[(piece, h)] = (self.horloge(), rep)
+        return rep
+
+    @staticmethod
+    def _air_propre(piece, h, brut):
+        """La réponse reconstruite champ par champ : seules les quatre grandeurs connues, au plus POINTS_MAX points
+        par courbe, des couples de nombres finis. Rend None si la forme n'est pas celle attendue."""
+        if not isinstance(brut, dict) or not isinstance(brut.get("series"), dict):
+            return None
+        entiers = {}
+        for cle in ("debut", "fin", "pas"):
+            v = _entier(brut.get(cle))
+            if v is None or v < 0:
+                return None
+            entiers[cle] = v
+        series = {}
+        for cle in AH.GRANDEURS.values():
+            pts = brut["series"].get(cle)
+            if not isinstance(pts, list):
+                continue
+            propres = []
+            for pt in pts[:AH.POINTS_MAX]:
+                if isinstance(pt, (list, tuple)) and len(pt) == 2 and _fini(pt[0]) is not None \
+                        and _fini(pt[1]) is not None and 0 <= pt[0] < 1e11 and abs(pt[1]) < 1e9:
+                    propres.append([int(pt[0]), pt[1]])
+            series[cle] = propres
+        return {"type": "air", "piece": piece, "heures": h, **entiers, "series": series}

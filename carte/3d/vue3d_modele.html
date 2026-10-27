@@ -23,7 +23,7 @@
     mask-composite: intersect;
   }
   body.fondu #version { display: none; }
-  /* dans l'appli (0.7.1), la version est affichée par l'appli elle-même (maison3d.version()) */
+  /* dans l'appli (0.7.1) et dans le client web (1.0.0), la version est affichée par l'hôte lui-même (vue3d.version()) */
   body.appli #version { display: none; }
   /* scène atténuée pendant l'écoute de l'assistant (écran ambiant) */
   #scene { position: fixed; inset: 0; transition: opacity .45s ease; }
@@ -45,11 +45,13 @@
   .actions button { flex: 1 1 auto; padding: 6px 8px; border: 1px solid var(--bord); border-radius: 8px; background: #141416; color: var(--texte-fort); font: inherit; cursor: pointer; }
   .actions button:hover { background: #1E1E22; }
   /* la maison en grand (0.8.0) : voile sur les autres pièces, étiquettes des pièces et pastilles des objets,
-     au-dessus de la scène et sans toucher (l'appli désigne ce qui est sous le doigt par maison3d.designer) */
+     au-dessus de la scène et sans toucher (l'appli désigne ce qui est sous le doigt par vue3d.designer) */
   #voile { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   #grand { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, "Segoe UI", Roboto, sans-serif; }
   .etiq { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
     color: #E8E2D8; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75); transition: opacity .3s; }
+  /* cadenas devant le nom d'une pièce protégée : une classe, car la page n'admet aucun attribut style (CSP du client web) */
+  .cad { vertical-align: -0.05em; margin-right: 0.35em; }
   .etiq b { font-weight: 400; display: block; }
   .etiq small { display: block; color: #D6CFC3; }
   .past { position: absolute; left: 0; top: 0; border-radius: 50%; opacity: 0; transition: opacity .15s;
@@ -90,9 +92,9 @@
   <div id="liste"></div>
 </div>
 <script>
-  // dans l'appli, le panneau de démonstration ne doit jamais apparaître, même avant la fin du chargement
-  if (/[?&]panneau=0/.test(location.search) || window.Maison3dAndroid) document.getElementById("panneau").classList.add("cache");
-  if (window.Maison3dAndroid) document.body.classList.add("appli");
+  // dans l'appli et dans l'iframe du client web, le panneau de démonstration ne doit jamais apparaître, même avant la fin du chargement
+  if (/[?&]panneau=0/.test(location.search) || window.Maison3dAndroid || window.parent !== window) document.getElementById("panneau").classList.add("cache");
+  if (window.Maison3dAndroid || window.parent !== window) document.body.classList.add("appli");
 </script>
 <canvas id="fond"></canvas>
 <div id="scene"></div>
@@ -108,9 +110,12 @@
 const DONNEES = /*SCENE*/;
 const T = THREE;
 const params = new URLSearchParams(location.search);
+// Page montée dans l'iframe isolée du client web (sandbox sans allow-same-origin) : elle ne parle alors qu'à la page
+// qui la contient, par postMessage (voir « pont postMessage » plus bas), et n'appelle jamais le serveur elle-même.
+const INTEGRE = window.parent !== window && !window.Maison3dAndroid;
 
 // ---------- teintes ----------
-// Teintes de la scène (0.4.1). L'appli envoie sa palette (Palette.kt) par maison3d.teintes dès le
+// Teintes de la scène (0.4.1). L'appli envoie sa palette (Palette.kt) par vue3d.teintes dès le
 // chargement : ces valeurs ne servent qu'à la page ouverte seule dans un navigateur. Tout ce qui est
 // éteint est en neutre strict, sans bleu ni saturation, un seul matériau mat.
 // Jeux de teintes (0.5.0) : « neutre » (gris sombres d'origine) et « couleur » (demande du 22/10 :
@@ -666,7 +671,7 @@ function action(effets) {
 // ---------- poussières des pièces allumées (écran d'accueil, 0.4.1) ----------
 // Quelques poussières ambre de 1 à 2 px qui dérivent lentement dans chaque pièce où une lampe est
 // allumée (20 à 40 selon la surface, opacité 0,3 à 0,5), absentes quand tout est éteint. Elles suivent
-// la lumière de la pièce et ne servent que sur l'accueil (maison3d.poussieres).
+// la lumière de la pièce et ne servent que sur l'accueil (vue3d.poussieres).
 const POUSSIERE = new T.Color(TEINTES.poussiere);
 let poussieresActives = false;
 const grains = [];
@@ -919,16 +924,22 @@ const lanceur = new T.Raycaster();
 function toucher(x, y) {
   lanceur.setFromCamera(new T.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1), camera);
   const t = lanceur.intersectObjects(cibles, false)[0];
+  if (INTEGRE) {
+    // Dans le client web, la page ne commande rien : elle désigne ce qui est touché (lampe, objet, pièce, carte des
+    // mesures) et la page hôte ouvre son volet, qui passe par ses propres contrôles d'accès.
+    if (t) { versHote({ type: "designation", genre: "lampe", entite: t.object.userData.entite }); return; }
+    const d = designer(x, y);
+    if (d.genre === "pastille") versHote({ type: "designation", genre: "pastille", entite: d.entite });
+    else if (d.genre === "piece" || d.genre === "mesures") versHote({ type: "designation", genre: d.genre, id: d.id });
+    return;
+  }
   if (!t) return;
   const entite = t.object.userData.entite, lp = lampes.get(entite);
   const voulu = !lp.on, pont = window.Maison3dAndroid;
   if (pont && pont.basculer) {
-    // l'appli décide (sécurité en dur) et renvoie le vrai état par maison3d.etat : en attendant, la lampe palpite
+    // l'appli décide (sécurité en dur) et renvoie le vrai état par vue3d.etat : en attendant, la lampe palpite
     lp.attente = performance.now(); demander();
     pont.basculer(entite, voulu);
-  } else if (window.parent !== window) {
-    lp.attente = performance.now(); demander();
-    window.parent.postMessage({ type: "basculer", entite, on: voulu }, "*");
   } else changer(lp, voulu);
 }
 
@@ -1092,7 +1103,7 @@ function attenuer(opacite, duree) {
 
 // ---------- boucle : on ne dessine que quand quelque chose bouge ----------
 // Page faite pour tourner en continu sur l'accueil (0.4.1) : cadence plafonnée (cadenceAction pendant une
-// animation, tour.ips au repos), pause qui coupe tout requestAnimationFrame (maison3d.pause).
+// animation, tour.ips au repos), pause qui coupe tout requestAnimationFrame (vue3d.pause).
 let cadenceAction = 30;
 let attendu = false, enPause = false, derniereImage = 0, rapide = false;
 function demander() { if (!attendu && !enPause) { attendu = true; requestAnimationFrame(image); } }
@@ -1269,15 +1280,16 @@ new ResizeObserver(() => {
 const liste = document.getElementById("liste");
 const NOMS_PIECES = Object.fromEntries(DONNEES.pieces.map(p => [p.id, p.nom]));
 function construireListe() {
-  liste.innerHTML = "";
+  remplacer(liste, []);
   const parPiece = {};
   DONNEES.lampes.forEach(l => (parPiece[l.piece] ||= []).push(l));
   for (const [piece, ls] of Object.entries(parPiece)) {
     const h = document.createElement("h2"); h.textContent = NOMS_PIECES[piece] || piece; liste.appendChild(h);
     for (const l of ls) {
       const b = document.createElement("button"); b.className = "lampe"; b.dataset.entite = l.entite;
-      b.innerHTML = '<span class="pastille"></span><span></span>' + (l.position === "estimee" ? '<span class="estimee">position estimée</span>' : "");
-      b.children[1].textContent = l.nom;
+      const lot = [noeud("span", "pastille"), noeud("span", "", l.nom)];
+      if (l.position === "estimee") lot.push(noeud("span", "estimee", "position estimée"));
+      remplacer(b, lot);
       b.onclick = () => { const lp = lampes.get(l.entite); changer(lp, !lp.on); };
       liste.appendChild(b);
     }
@@ -1314,7 +1326,7 @@ document.getElementById("b-murs").onclick = ev => {
   ev.target.textContent = haut ? "Murs bas" : "Murs hauts";
 };
 const panneau = document.getElementById("panneau");
-if (params.get("panneau") === "0" || window.Maison3dAndroid) panneau.classList.add("cache");
+if (params.get("panneau") === "0" || window.Maison3dAndroid || INTEGRE) panneau.classList.add("cache");
 
 // ---------- la maison en grand (0.8.0) ----------
 // Demande du 23/10/2026 : toucher la maison de l'accueil l'ouvre en grand, et on règle la maison dans la
@@ -1365,7 +1377,29 @@ const GLYPHES = {
 };
 const AMBRE = "#F2994A";
 // cadenas discret devant le nom d'une pièce protégée (drapeau de l'occupant remis), dessiné au trait
-const CADENAS = '<svg viewBox="0 0 24 24" width="0.8em" height="0.8em" style="vertical-align:-0.05em;margin-right:0.35em" fill="none" stroke="#D6CFC3" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
+// Les cartes et les étiquettes sont bâties nœud par nœud (textContent, propriétés CSSOM) : aucun texte venu de l'hôte ne
+// passe par innerHTML et aucun attribut style n'est écrit, ce que la CSP du client web interdit.
+const SVGNS = "http://www.w3.org/2000/svg";
+function noeud(balise, classe, texte, taille) {
+  const n = document.createElement(balise);
+  if (classe) n.className = classe;
+  if (texte != null) n.textContent = String(texte);
+  if (taille) n.style.fontSize = taille + "px";
+  return n;
+}
+function remplacer(n, enfants) { while (n.firstChild) n.removeChild(n.firstChild); enfants.forEach(e => n.appendChild(e)); }
+function svgEl(nom, attributs) {
+  const el = document.createElementNS(SVGNS, nom);
+  for (const k of Object.keys(attributs)) el.setAttribute(k, String(attributs[k]));
+  return el;
+}
+function cadenas() {
+  const s = svgEl("svg", { viewBox: "0 0 24 24", width: "0.8em", height: "0.8em", fill: "none",
+    stroke: "#D6CFC3", "stroke-width": "2", "stroke-linecap": "round", "class": "cad" });
+  s.appendChild(svgEl("rect", { x: 5, y: 11, width: 14, height: 10, rx: 2 }));
+  s.appendChild(svgEl("path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }));
+  return s;
+}
 let voileSale = false;
 // Maison entière (grand actif, aucune pièce choisie) : halos, taches et couches neutralisantes disparaissent
 function majVueEntiere() {
@@ -1420,8 +1454,7 @@ function choisir(id, duree) {
 function etiquettes(liste) { grandEtat.etiquettes = Array.isArray(liste) ? liste : []; construireCouche(); demander(); }
 // Pastilles de la pièce choisie : [{entite, genre (lampe, tele, enceinte), fraction, allume, etat (ok, rate, hors), surligne}].
 function pastilles(liste) { grandEtat.pastilles = Array.isArray(liste) ? liste : []; construireCouche(); demander(); }
-const echapper = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-// Une couleur de mesure ne vient que de l'appli (#RRGGBB), mais rien d'autre ne doit finir dans un attribut style.
+// Une couleur de mesure ne vient que de l'hôte (#RRGGBB), mais rien d'autre ne doit finir dans une propriété de style.
 const couleurSure = c => /^#[0-9A-Fa-f]{6}$/.test(String(c)) ? String(c) : "#9AA0A6";
 // Mesures de la pièce choisie : {piece, nom, statut (ok, protegee, aucun...), texte, couleur, lignes:[{nom, valeur, mot, couleur, suivant}], air, alerte}.
 // Une pièce protégée n'arrive ici qu'avec statut et texte, jamais une valeur. null efface la carte.
@@ -1433,39 +1466,51 @@ function mesures(charge) {
 function rendreMesures() {
   const m = grandEtat.mesures, n = document.getElementById("mesures");
   if (!n) return;
-  if (!grandEtat.actif || !grandEtat.piece || !m) { n.classList.remove("visible"); n.innerHTML = ""; return; }
-  const f = Math.round(grandEtat.police * 0.8);
-  let h = `<b style="font-size:${Math.round(f * 1.15)}px">${m.statut === "protegee" ? CADENAS : ""}${echapper(m.nom || "")}</b>`;
+  if (!grandEtat.actif || !grandEtat.piece || !m) { n.classList.remove("visible"); remplacer(n, []); return; }
+  const f = Math.round(grandEtat.police * 0.8), enfants = [];
+  const titre = noeud("b", "", m.nom || "", Math.round(f * 1.15));
+  if (m.statut === "protegee") titre.insertBefore(cadenas(), titre.firstChild);
+  enfants.push(titre);
   if (m.statut === "protegee" || m.statut === "aucun" || !Array.isArray(m.lignes) || !m.lignes.length) {
-    h += `<span class="vide" style="font-size:${f}px">${echapper(m.texte || "")}</span>`;
+    enfants.push(noeud("span", "vide", m.texte || "", f));
   } else {
     m.lignes.forEach(l => {
-      h += `<div class="ml" style="font-size:${f}px"><span class="n">${echapper(l.nom)}</span><span class="v">${echapper(l.valeur)}</span>`
-        + (l.mot ? `<span class="mot" style="background:${echapper(couleurSure(l.couleur))}">${echapper(l.mot)}</span>` : "") + `</div>`
-        + (l.suivant ? `<span class="suiv" style="font-size:${Math.round(f * 0.85)}px">${echapper(l.suivant)}</span>` : "");
+      const ligne = noeud("div", "ml", null, f);
+      ligne.appendChild(noeud("span", "n", l.nom));
+      ligne.appendChild(noeud("span", "v", l.valeur));
+      if (l.mot) { const mot = noeud("span", "mot", l.mot); mot.style.background = couleurSure(l.couleur); ligne.appendChild(mot); }
+      enfants.push(ligne);
+      if (l.suivant) enfants.push(noeud("span", "suiv", l.suivant, Math.round(f * 0.85)));
     });
-    if (m.alerte) h += `<span class="alerte" style="font-size:${f}px">${echapper(m.alerte)}</span>`;
+    if (m.alerte) enfants.push(noeud("span", "alerte", m.alerte, f));
   }
-  n.innerHTML = h;
+  remplacer(n, enfants);
   n.classList.add("visible");
 }
 // Couche des étiquettes ou des pastilles. Même liste qu'avant (mêmes entités, même pièce) : les éléments sont
 // mis à jour sur place, sans repartir de zéro ni rejouer leur fondu à chaque nouvel état lu dans HA.
 let cleCouche = "";
 function construireCouche() {
-  if (!grandEtat.actif) { couche.innerHTML = ""; cleCouche = ""; return; }
+  if (!grandEtat.actif) { remplacer(couche, []); cleCouche = ""; return; }
   const d = grandEtat.taille, f = grandEtat.police, piece = grandEtat.piece;
   const liste = piece ? grandEtat.pastilles : grandEtat.etiquettes;
   const cle = (piece || "") + "|" + d + "|" + f + "|" + liste.map(q => q.entite || q.piece).join(",");
   const neuf = cle !== cleCouche;
-  if (neuf) { couche.innerHTML = ""; cleCouche = cle; }
+  if (neuf) { remplacer(couche, []); cleCouche = cle; }
   const C = 2 * Math.PI * 28;
   liste.forEach((q, i) => {
     const n = neuf ? document.createElement("div") : couche.children[i];
     if (!piece) {
       n.className = "etiq";
-      n.innerHTML = `<b style="font-size:${f}px">${q.verrou ? CADENAS : ""}${echapper(q.nom)}</b><small style="font-size:${Math.round(f * 0.75)}px">${echapper(q.etat)}</small>`
-        + (q.mesure && q.mesure.texte ? `<span class="mes" style="font-size:${Math.round(f * 0.7)}px;background:${echapper(couleurSure(q.mesure.couleur))}">${echapper(q.mesure.texte)}</span>` : "");
+      const titre = noeud("b", "", q.nom, f);
+      if (q.verrou) titre.insertBefore(cadenas(), titre.firstChild);
+      const enfants = [titre, noeud("small", "", q.etat, Math.round(f * 0.75))];
+      if (q.mesure && q.mesure.texte) {
+        const mes = noeud("span", "mes", q.mesure.texte, Math.round(f * 0.7));
+        mes.style.background = couleurSure(q.mesure.couleur);
+        enfants.push(mes);
+      }
+      remplacer(n, enfants);
       n.dataset.piece = q.piece;
     } else {
       n.className = "past" + (q.surligne ? " surligne" : "");
@@ -1474,10 +1519,15 @@ function construireCouche() {
       const arc = rate ? AMBRE : q.genre === "lampe" ? TEINTES.lumiere : "#BAB2A6";
       const glyphe = hors ? "#6D6861" : q.allume ? (q.genre === "lampe" ? TEINTES.lumiere : "#EEEAE2") : "#989288";
       const f2 = hors ? 0 : Math.max(0, Math.min(1, +q.fraction || 0));
-      n.innerHTML = `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="none" stroke="${hors ? "#6D6861" : "rgba(80,78,72,0.9)"}" stroke-width="4" ${hors ? 'stroke-dasharray="4 5"' : ""}></circle>`
-        + (f2 > 0 ? `<circle cx="32" cy="32" r="28" fill="none" stroke="${arc}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(f2 * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"></circle>` : "")
-        + (rate ? `<circle cx="32" cy="32" r="28" fill="none" stroke="${AMBRE}" stroke-width="4"></circle>` : "")
-        + `<g transform="translate(19 19) scale(1.083)" fill="none" stroke="${glyphe}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${GLYPHES[q.genre] || GLYPHES.lampe}"></path></g></svg>`;
+      const svg = svgEl("svg", { viewBox: "0 0 64 64" });
+      const cercle = (a) => svg.appendChild(svgEl("circle", { cx: 32, cy: 32, r: 28, fill: "none", "stroke-width": 4, ...a }));
+      cercle(hors ? { stroke: "#6D6861", "stroke-dasharray": "4 5" } : { stroke: "rgba(80,78,72,0.9)" });
+      if (f2 > 0) cercle({ stroke: arc, "stroke-linecap": "round", "stroke-dasharray": (f2 * C).toFixed(1) + " " + C.toFixed(1), transform: "rotate(-90 32 32)" });
+      if (rate) cercle({ stroke: AMBRE });
+      const g = svg.appendChild(svgEl("g", { transform: "translate(19 19) scale(1.083)", fill: "none", stroke: glyphe,
+        "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+      g.appendChild(svgEl("path", { d: Object.prototype.hasOwnProperty.call(GLYPHES, q.genre) ? GLYPHES[q.genre] : GLYPHES.lampe }));
+      remplacer(n, [svg]);
       n.dataset.entite = q.entite;
     }
     if (neuf) couche.appendChild(n);
@@ -1599,7 +1649,8 @@ function designer(x, y) {
 }
 
 // ---------- interface pour l'appli ----------
-window.maison3d = {
+// Objet global à nom neutre (S-W4b). L'ancien nom « maison3d » reste en alias : la tablette Android l'appelle par ce nom.
+window.vue3d = {
   // 0.7.1 : version de la page (« 0.7.1 ») et date des données, pour la couche de service de l'appli
   version: () => DONNEES.version,
   dateVersion: () => DONNEES.date,
@@ -1665,6 +1716,7 @@ window.maison3d = {
     return lanceur.intersectObjects(solides, false).length > 0;
   },
 };
+window.maison3d = window.vue3d;
 // Battement toutes les 10 s pour l'appli, qui recrée la vue si la page se tait. Contexte WebGL perdu :
 // l'appli recrée la vue aussi (0.4.1).
 setInterval(() => { if (window.Maison3dAndroid && window.Maison3dAndroid.battement) window.Maison3dAndroid.battement(); }, 10000);
@@ -1672,32 +1724,178 @@ toile.addEventListener("webglcontextlost", ev => {
   ev.preventDefault();
   if (window.Maison3dAndroid && window.Maison3dAndroid.contextePerdu) window.Maison3dAndroid.contextePerdu();
 });
-addEventListener("message", ev => {
-  const d = ev.data || {};
-  if (d.type === "etat") etat(d.entite, d);
-  else if (d.type === "etats") etats(d.etats);
-  else if (d.type === "demo") demo();
-  else if (d.type === "montrer") montrer(d.cibles || d.entite);
-  else if (d.type === "poser") poser(d.etats);
-  else if (d.type === "action") action(d.effets);
-  else if (d.type === "rotation") window.maison3d.rotation(d.periode, d.ips, d.cadre, d.amplitude, d.angle);
-  else if (d.type === "fondu") window.maison3d.fondu(d.actif, d.bord);
-  else if (d.type === "nomsAuSol") window.maison3d.nomsAuSol(d.visibles);
-  else if (d.type === "attenuer") attenuer(d.opacite, d.duree);
-  else if (d.type === "ensemble") ensemble(d.duree);
-  else if (d.type === "teintes") teintes(d.teintes);
-  else if (d.type === "palette") teintes(d.teintes);
-  else if (d.type === "poussieres") window.maison3d.poussieres(d.actif);
-  else if (d.type === "desaturer") window.maison3d.desaturer(d.actif);
-  else if (d.type === "pause") window.maison3d.pause(d.actif);
-  else if (d.type === "disposition") disposition(d);
-  else if (d.type === "regime") regler(d.niveau, d.duree_ms);
-  else if (d.type === "grand") window.maison3d.grand(d.actif, d.taille, d.police);
-  else if (d.type === "choisir") choisir(d.id, d.duree);
-  else if (d.type === "etiquettes") etiquettes(d.liste);
-  else if (d.type === "pastilles") pastilles(d.liste);
-  else if (d.type === "mesures") mesures(d.charge);
-});
+// ---------- pont postMessage avec l'hôte (client web, S-W4b) ----------
+// La page tourne dans une iframe « sandbox » sans allow-same-origin : son origine est opaque (« null »), elle ne peut
+// donc écrire à l'hôte qu'avec la cible « * », et l'hôte ne peut pas reconnaître son origine. Les deux côtés
+// valident donc le contenu : types connus seulement, champs typés et bornés, tout le reste est jeté sans bruit.
+// Sens hôte vers page : l'émetteur doit être la fenêtre parente (event.source). Sens page vers hôte : désignations
+// et signal « pret » seulement, jamais un ordre : l'hôte décide de ce qu'il en fait avec ses propres droits.
+const PONT_ID = /^[A-Za-z0-9_.-]{1,80}$/;
+const aCle = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const simple = v => v !== null && typeof v === "object" && !Array.isArray(v);
+const nb = (v, min, max) => (typeof v === "number" && isFinite(v)) ? Math.max(min, Math.min(max, v)) : undefined;
+const tx = (v, n) => (typeof v === "string" && v.length <= n) ? v : undefined;
+const bo = v => typeof v === "boolean" ? v : undefined;
+const idSur = v => (typeof v === "string" && PONT_ID.test(v)) ? v : undefined;
+const liste_ = (v, max) => Array.isArray(v) && v.length <= max ? v : null;
+// couleur d'un état : trois entiers 0 à 255
+const rgbSur = v => Array.isArray(v) && v.length === 3 && v.every(c => typeof c === "number" && isFinite(c)) ? v.map(c => Math.max(0, Math.min(255, Math.round(c)))) : undefined;
+// état d'une entité (lampe ou média) réduit aux champs lus par lireEtat et etatMedia
+function etatSur(e) {
+  if (typeof e === "boolean") return e;
+  if (typeof e === "string") return e.length <= 32 ? e : null;
+  if (!simple(e)) return null;
+  const src = simple(e.attributes) ? e.attributes : e;
+  const a = {};
+  const brightness = nb(src.brightness, 0, 255), niveau = nb(src.niveau, 0, 1), rgb = rgbSur(src.rgb_color);
+  const ct = nb(src.color_temp_kelvin, 1000, 40000), k = nb(src.kelvin, 1000, 40000), vl = nb(src.volume_level, 0, 1), vo = nb(src.volume, 0, 1);
+  if (brightness !== undefined) a.brightness = brightness;
+  if (niveau !== undefined) a.niveau = niveau;
+  if (rgb) a.rgb_color = rgb;
+  if (ct !== undefined) a.color_temp_kelvin = ct;
+  if (k !== undefined) a.kelvin = k;
+  if (vl !== undefined) a.volume_level = vl;
+  if (vo !== undefined) a.volume = vo;
+  const sortie = { attributes: a };
+  const state = tx(e.state, 32), on = bo(e.on);
+  if (state !== undefined) sortie.state = state;
+  if (on !== undefined) sortie.on = on;
+  return sortie;
+}
+// {entité: état} ou [{entity_id, ...état}] devient toujours un dictionnaire propre, 200 entités au plus
+function etatsSurs(o) {
+  const sortie = Object.create(null);
+  if (Array.isArray(o)) {
+    if (o.length > 200) return null;
+    for (const s of o) { if (!simple(s)) continue; const id = idSur(s.entity_id), v = etatSur(s); if (id && v !== null) sortie[id] = v; }
+  } else if (simple(o)) {
+    const cles = Object.keys(o);
+    if (cles.length > 200) return null;
+    for (const k of cles) { const id = idSur(k), v = etatSur(o[k]); if (id && v !== null) sortie[id] = v; }
+  } else return null;
+  return sortie;
+}
+const COULEUR_TEINTE = /^[#A-Za-z0-9(),.% -]{1,40}$/;
+function teintesSures(t) {
+  if (!simple(t)) return null;
+  const s = {};
+  const cles = Object.keys(t);
+  if (cles.length > 80) return null;
+  for (const k of cles) {
+    const v = t[k];
+    if (k === "jeu") { if (typeof v === "string" && /^[a-z]{1,20}$/.test(v) && aCle(JEUX, v)) s.jeu = v; continue; }
+    if (k === "intensite") { const n = nb(v, 0, 1); if (n !== undefined) s.intensite = n; continue; }
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(k)) continue;
+    if (typeof v === "number" && isFinite(v)) s[k] = v;
+    else if (typeof v === "boolean") s[k] = v;
+    else if (typeof v === "string" && COULEUR_TEINTE.test(v)) s[k] = v;
+  }
+  return s;
+}
+function effetsSurs(e) {
+  if (!simple(e)) return null;
+  const cles = Object.keys(e);
+  if (cles.length > 20) return null;
+  const s = {};
+  for (const k of cles) {
+    const id = idSur(k); if (!id) continue;
+    const v = e[k];
+    if (typeof v === "string") { if (["allumer", "eteindre", "regler"].includes(v)) s[id] = v; continue; }
+    if (!simple(v)) continue;
+    const effet = ["allumer", "eteindre", "regler"].includes(v.effet) ? v.effet : "regler";
+    const o = { effet };
+    if (typeof v.state === "string") { const x = etatSur(v); if (x && typeof x === "object") Object.assign(o, x); }
+    s[id] = o;
+  }
+  return s;
+}
+const COULEUR_MESURE = /^#[0-9A-Fa-f]{6}$/;
+function etiquettesSures(l) {
+  const a = liste_(l, 40); if (!a) return null;
+  return a.filter(simple).map(q => {
+    const o = { piece: idSur(q.piece), nom: tx(q.nom, 80) ?? "", etat: tx(q.etat, 80) ?? "", verrou: q.verrou === true };
+    if (simple(q.mesure) && tx(q.mesure.texte, 40)) o.mesure = { texte: q.mesure.texte, couleur: COULEUR_MESURE.test(q.mesure.couleur) ? q.mesure.couleur : "#9AA0A6" };
+    return o;
+  }).filter(o => o.piece);
+}
+function pastillesSures(l) {
+  const a = liste_(l, 40); if (!a) return null;
+  return a.filter(simple).map(q => ({
+    entite: idSur(q.entite), genre: ["lampe", "tele", "enceinte"].includes(q.genre) ? q.genre : "lampe",
+    fraction: nb(q.fraction, 0, 1) ?? 0, allume: q.allume === true, etat: ["ok", "rate", "hors"].includes(q.etat) ? q.etat : "ok", surligne: q.surligne === true,
+  })).filter(o => o.entite);
+}
+function chargeSure(c) {
+  if (c === null) return null;
+  if (!simple(c)) return undefined;
+  const o = { piece: idSur(c.piece) ?? "", nom: tx(c.nom, 80) ?? "", statut: tx(c.statut, 20) ?? "aucun", texte: tx(c.texte, 200) ?? "", alerte: tx(c.alerte, 160) ?? "", lignes: [] };
+  o.couleur = COULEUR_MESURE.test(c.couleur) ? c.couleur : "#9AA0A6";
+  const lignes = Array.isArray(c.lignes) ? c.lignes.slice(0, 12) : [];
+  for (const l of lignes) {
+    if (!simple(l)) continue;
+    o.lignes.push({ nom: tx(l.nom, 60) ?? "", valeur: tx(l.valeur, 40) ?? "", mot: tx(l.mot, 30) ?? "", suivant: tx(l.suivant, 80) ?? "",
+      couleur: COULEUR_MESURE.test(l.couleur) ? l.couleur : "#9AA0A6" });
+  }
+  return o;
+}
+// Un schéma par type : valider(d) rend la liste des arguments, ou null si le message est rejeté.
+// Les champs optionnels absents donnent undefined, les fonctions appelées ont déjà leurs valeurs par défaut.
+const PONT = {
+  etat: [d => { const id = idSur(d.entite), v = etatSur(d); return id && v !== null ? [id, v] : null; }, (id, v) => etat(id, v)],
+  etats: [d => { const s = etatsSurs(d.etats); return s ? [s] : null; }, s => etats(s)],
+  poser: [d => { const s = etatsSurs(d.etats); return s ? [s] : null; }, s => poser(s)],
+  demo: [() => [], () => demo()],
+  montrer: [d => {
+    if (Array.isArray(d.cibles)) { const c = d.cibles.slice(0, 40).map(idSur); return d.cibles.length <= 40 && c.every(Boolean) ? [c] : null; }
+    const id = idSur(d.entite); return id ? [id] : null;
+  }, q => montrer(q)],
+  action: [d => { const e = effetsSurs(d.effets); return e ? [e] : null; }, e => action(e)],
+  rotation: [d => [nb(d.periode, 0, 3600), nb(d.ips, 0, 30), nb(d.cadre, 0, 10), nb(d.amplitude, 0, 180), nb(d.angle, -720, 720)], (p, i, c, a, g) => window.vue3d.rotation(p, i, c, a, g)],
+  fondu: [d => [bo(d.actif), nb(d.bord, 0, 0.45)], (a, b) => window.vue3d.fondu(a, b)],
+  nomsAuSol: [d => [bo(d.visibles)], v => window.vue3d.nomsAuSol(v)],
+  attenuer: [d => [nb(d.opacite, 0, 1), nb(d.duree, 0, 10000)], (o, t) => attenuer(o, t)],
+  ensemble: [d => [nb(d.duree, 0, 10000)], t => ensemble(t)],
+  teintes: [d => { const t = teintesSures(d.teintes); return t ? [t] : null; }, t => teintes(t)],
+  palette: [d => { const t = teintesSures(d.teintes); return t ? [t] : null; }, t => teintes(t)],
+  poussieres: [d => [bo(d.actif)], a => window.vue3d.poussieres(a)],
+  desaturer: [d => [bo(d.actif)], a => window.vue3d.desaturer(a)],
+  pause: [d => [bo(d.actif)], a => window.vue3d.pause(a)],
+  disposition: [d => [{ x: nb(d.x, 0, 1), y: nb(d.y, 0, 1), largeur: nb(d.largeur, 0, 1), hauteur: nb(d.hauteur, 0, 1), duree_ms: nb(d.duree_ms, 0, 10000) }], z => disposition(z)],
+  regime: [d => [nb(d.niveau, 0, 1), nb(d.duree_ms, 0, 10000)], (n, t) => regler(n, t)],
+  grand: [d => [bo(d.actif), nb(d.taille, 8, 400), nb(d.police, 6, 80)], (a, t, p) => window.vue3d.grand(a, t, p)],
+  choisir: [d => [d.id == null ? null : idSur(d.id), nb(d.duree, 0, 10000)], (id, t) => choisir(id, t)],
+  etiquettes: [d => { const l = etiquettesSures(d.liste); return l ? [l] : null; }, l => etiquettes(l)],
+  pastilles: [d => { const l = pastillesSures(d.liste); return l ? [l] : null; }, l => pastilles(l)],
+  mesures: [d => { const c = chargeSure(d.charge); return c === undefined ? null : [c]; }, c => mesures(c)],
+};
+// Types dont un champ booléen est obligatoire : un message sans lui est rejeté plutôt qu'appliqué à moitié
+const PONT_BOOL = { fondu: 0, nomsAuSol: 0, poussieres: 0, desaturer: 0, pause: 0, grand: 0 };
+function pontRecevoir(ev) {
+  // l'émetteur doit être la fenêtre parente (ou la page elle-même quand elle tourne seule dans un navigateur)
+  if (ev.source !== window.parent) return false;
+  const d = ev.data;
+  if (!simple(d) || typeof d.type !== "string" || !aCle(PONT, d.type)) return false;
+  const [valider, appliquer] = PONT[d.type];
+  let args;
+  try { args = valider(d); } catch (e) { return false; }
+  if (!args) return false;
+  if (aCle(PONT_BOOL, d.type) && typeof args[PONT_BOOL[d.type]] !== "boolean") return false;
+  try { appliquer(...args); } catch (e) { return false; }
+  return true;
+}
+addEventListener("message", pontRecevoir);
+// Sens page vers hôte : seuls ces messages partent, valides avant l'envoi comme à l'arrivée
+function versHote(m) {
+  if (window.parent === window) return false;
+  const bon = simple(m) && (
+    (m.type === "pret" && typeof m.version === "string" && m.version.length <= 32)
+    || (m.type === "designation" && (
+      ((m.genre === "lampe" || m.genre === "pastille") && idSur(m.entite))
+      || ((m.genre === "piece" || m.genre === "mesures") && idSur(m.id)))));
+  if (!bon) return false;
+  window.parent.postMessage(m, "*");
+  return true;
+}
 
 construireListe();
 // ?jeu=couleur&intensite=0.4 pour essayer un jeu dans un navigateur (l'appli envoie le sien par teintes)
@@ -1711,7 +1909,7 @@ appliquerRegime();
 if (params.get("regime") !== null) regler(+params.get("regime"));
 // ?zone=x,y,largeur,hauteur et ?rotation=periode,amplitude,angle : réglages de l'accueil, pour les captures
 if (params.get("zone")) { const [x, y, largeur, hauteur] = params.get("zone").split(",").map(Number); disposition({ x, y, largeur, hauteur }); }
-if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.maison3d.rotation(p, 10, 1, a, g); }
+if (params.get("rotation")) { const [p, a, g] = params.get("rotation").split(",").map(Number); window.vue3d.rotation(p, 10, 1, a, g); }
 // ?medias=media_player.tele_salon:on,media_player.barre_son_salon:playing:0.5 : télé et enceintes (0.6.0)
 if (params.get("medias")) params.get("medias").split(",").forEach(s => {
   const [e, st, vol] = s.trim().split(":");
@@ -1722,7 +1920,7 @@ if (params.get("allumer")) poser(Object.fromEntries(params.get("allumer").split(
 if (params.get("fondu") === "1") document.body.classList.add("fondu");
 // l'appli peut maintenant envoyer les états initiaux
 if (window.Maison3dAndroid && window.Maison3dAndroid.pret) window.Maison3dAndroid.pret(DONNEES.version);
-else if (window.parent !== window) window.parent.postMessage({ type: "pret", version: DONNEES.version }, "*");
+else versHote({ type: "pret", version: DONNEES.version });
 </script>
 </body>
 </html>

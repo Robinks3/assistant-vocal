@@ -1,11 +1,15 @@
-// Client web, Maison : une carte par pièce, les lampes, la télé, les mesures d'air et le volet de réglage (S-W4a).
+// Client web, Maison : une carte par pièce, les lampes, la télé, les mesures d'air, le volet de réglage (S-W4a),
+// la vue 3D en iframe isolée, le volet télé complet et le graphique de l'air (S-W4b).
 // Le serveur décide de tout : les pièces visibles, les mesures, les mots (« chaud », « médiocre ») viennent de lui.
-// Cette page n'envoie que des demandes de réglage {entite, action, valeur}. Le service Home Assistant est reconstruit
-// et contrôlé par le serveur, jamais ici.
+// Cette page n'envoie que des demandes de réglage {entite, action, valeur} et de graphique {piece, heures}. Le service
+// Home Assistant est reconstruit et contrôlé par le serveur, jamais ici.
 // Cadence : un réglage par entité et par famille toutes les 500 ms au plus, et 24 messages par 10 secondes au plus,
 // sous la limite du serveur (30 par 10 secondes, au-delà il ferme la connexion).
 // Aucun HTML construit par concaténation : createElement et textContent seulement (Trusted Types).
-// Points d'accroche de S-W4b : voir « S-W4b » plus bas (vue 3D, sources et lecture de la télé, historique de l'air).
+// Vue 3D : une iframe « sandbox » qui n'a que la permission d'exécuter des scripts (origine opaque, aucun accès aux
+// cookies ni au stockage de ce site).
+// Elle ne parle que par postMessage, avec un schéma strict vérifié des deux côtés. Elle ne reçoit que les états déjà
+// filtrés par rôle et ne fait que désigner une lampe, une pièce ou des mesures : ce script décide seul de la suite.
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
@@ -34,6 +38,24 @@
   var TOLERANCE_KELVIN = 100;        // pour marquer un blanc comme choisi
   var TOLERANCE_TEINTE = 8;
 
+  var ID_SUR = /^[A-Za-z0-9_.-]{1,80}$/;   // identifiants échangés avec la vue 3D (même motif que la page)
+  var DELAI_PRET_MS = 10000;         // sans « pret » de la vue 3D dans ce délai, on la retire
+  var DELAI_AIR_MS = 10000;          // sans réponse du graphique de l'air dans ce délai, on propose de réessayer
+  var POINTS_AIR_MAX = 288;          // même borne que le serveur
+  var EVENEMENTS_EN_ATTENTE_MAX = 3; // lecture, suivant, précédent : appuis gardés par appareil en attendant l'envoi
+  var COULEUR_NEUTRE = "#9AA0A6";
+  var COULEURS_MOTS = {              // couleur de la pastille d'un mot dans la vue 3D
+    "bon": "#4E9F6D", "correct": "#8FA33A", "médiocre": "#D98F2B", "mauvais": "#D6503A",
+    "frais": "#4A8FC9", "agréable": "#4E9F6D", "chaud": "#D98F2B"
+  };
+  var DUREES_AIR = [[6, "6 h"], [24, "24 h"], [168, "7 jours"]];
+  var SERIES_AIR = [
+    { cle: "co2", nom: "CO2", unite: " ppm", dec: 0 },
+    { cle: "pm25", nom: "PM2,5", unite: " µg/m3", dec: 0 },
+    { cle: "temperature", nom: "Température", unite: "°", dec: 1 },
+    { cle: "humidite", nom: "Humidité", unite: " %", dec: 0 }
+  ];
+
   var ws = null;
   var reconnexion = 0;
   var delai = null;
@@ -53,6 +75,8 @@
   var signaturePied = "";
   var volet = null;                  // le volet ouvert, voir ouvrirVolet
   var compteur = 0;
+  var vue3d = null;                  // la vue 3D : {iframe, pret, minuterie, choix, derniers, premier, echec}
+  var sequenceEvenement = 0;         // distingue deux appuis successifs sur lecture, suivant ou précédent
 
   // ------------------------------------------------------------------ petits outils
   function el(balise, classe, texte) {
@@ -106,6 +130,12 @@
     else if (nom === "fermer") { chemin("M6 6l12 12M18 6 6 18"); }
     else if (nom === "coche") { chemin("m5 12.5 4.5 4.5L19 7.5"); }
     else if (nom === "bouclier") { chemin("M12 3 4.5 6v5.5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6z"); }
+    else if (nom === "air") { chemin("M3 9h11a3 3 0 1 0-3-3"); chemin("M3 14h15a3 3 0 1 1-3 3"); chemin("M3 19h6"); }
+    else if (nom === "lecture") { chemin("M8 5v14l11-7z"); }
+    else if (nom === "pause") { chemin("M8 5v14M16 5v14"); }
+    else if (nom === "suivant") { chemin("M6 5v14l9-7zM18 5v14"); }
+    else if (nom === "precedent") { chemin("M18 5v14l-9-7zM6 5v14"); }
+    else if (nom === "muet") { chemin("M4 9v6h4l5 4V5L8 9z"); chemin("M17 9l4 6M21 9l-4 6"); }
     else if (nom === "tele") {
       var r = document.createElementNS(NS, "rect");
       r.setAttribute("x", "3"); r.setAttribute("y", "5"); r.setAttribute("width", "18"); r.setAttribute("height", "12");
@@ -191,6 +221,8 @@
       v.texte = texteLampe(v);
     } else {
       if (b.volume !== null && b.volume !== undefined) { v.volume = b.volume; }
+      if (b.source !== null && b.source !== undefined) { v.source = b.source; }
+      if (b.muet !== null && b.muet !== undefined) { v.muet = b.muet; }
       v.texte = texteTele(v);
     }
     return v;
@@ -201,7 +233,7 @@
     var b = brouillons[o.entite];
     if (!b) {
       b = { allumee: o.allumee, intensite: o.intensite, kelvin: o.kelvin, teinte: o.teinte, mode: o.mode,
-            volume: o.volume, pendants: 0 };
+            volume: o.volume, source: o.source, muet: o.muet, pendants: 0 };
       brouillons[o.entite] = b;
     }
     return b;
@@ -217,9 +249,13 @@
     });
   }
 
+  // Lecture, suivant et précédent sont des appuis : chacun compte, aucun ne remplace le précédent.
+  function estAppui(action) { return action === "lecture" || action === "suivant" || action === "precedent"; }
+
   function famille(action) {
     if (action === "allumer" || action === "eteindre") { return "onoff"; }
     if (action === "blanc" || action === "couleur") { return "mode"; }
+    if (estAppui(action)) { sequenceEvenement += 1; return action + "#" + sequenceEvenement; }
     return action;
   }
 
@@ -228,6 +264,11 @@
     if (action === "eteindre") { return "Éteindre"; }
     if (action === "intensite") { return "Intensité " + valeur + " %"; }
     if (action === "volume") { return "Volume " + valeur + " %"; }
+    if (action === "source") { return "Source " + valeur; }
+    if (action === "lecture") { return "Lecture ou pause"; }
+    if (action === "suivant") { return "Piste suivante"; }
+    if (action === "precedent") { return "Piste précédente"; }
+    if (action === "muet") { return valeur ? "Couper le son" : "Rétablir le son"; }
     if (action === "blanc") { return "Blanc " + valeur + " K, " + motChaleur(valeur); }
     if (action === "couleur") { return "Couleur " + (typeof valeur === "string" ? valeur : nomTeinte(valeur)); }
     return action;
@@ -254,10 +295,16 @@
     else if (action === "eteindre") { b.allumee = false; }
     else if (action === "intensite") { b.allumee = true; b.intensite = valeur; }
     else if (action === "volume") { b.allumee = true; b.volume = valeur; }
+    else if (action === "source") { b.source = valeur; }
+    else if (action === "muet") { b.muet = valeur; }
     else if (action === "blanc") { b.allumee = true; b.mode = "blanc"; b.kelvin = valeur; b.teinte = null; }
     else if (action === "couleur") {
       var h = typeof valeur === "number" ? valeur : (COULEURS.filter(function (c) { return c.nom.toLowerCase() === valeur; })[0] || { h: 0 }).h;
       b.allumee = true; b.mode = "couleur"; b.teinte = h; b.kelvin = null;
+    }
+    if (estAppui(action)) {
+      var enFile = Object.keys(file).filter(function (c) { return file[c].entite === entite && estAppui(file[c].action); });
+      if (enFile.length >= EVENEMENTS_EN_ATTENTE_MAX) { return; }
     }
     derniere[entite] = { action: action, valeur: valeur, libelle: libelleAction(action, valeur) };
     var fam = famille(action);
@@ -265,7 +312,8 @@
     // une extinction en attente (régler l'intensité allume de toute façon).
     Object.keys(file).forEach(function (c) {
       if (file[c].entite !== entite) { return; }
-      if (fam === "onoff" || file[c].fam === "onoff") { delete file[c]; }
+      var neutre = action === "source" || action === "muet" || estAppui(action);   // ne touche pas à l'allumage
+      if (fam === "onoff" || (!neutre && file[c].fam === "onoff")) { delete file[c]; }
     });
     file[entite + "|" + fam] = { entite: entite, action: action, valeur: valeur, fam: fam };
     planifierPompe();
@@ -347,7 +395,8 @@
     valeur: "Cette valeur n'est pas permise pour cet appareil.",
     protegee: "Pièce protégée : aucun réglage n'est possible ici.",
     securite: "Ce réglage est refusé par les règles de sécurité de la maison.",
-    indisponible: "La maison ne répond pas pour le moment."
+    indisponible: "La maison ne répond pas pour le moment.",
+    capteur: "Cette pièce n'a pas de capteur d'air."
   };
 
   function texteRefus(cause, entite) {
@@ -372,8 +421,12 @@
       erreurReglage = null;
       planifierEtats(300);
       afficher();
+    } else if (m.type === "air") {
+      recuAir(m);
     } else if (m.type === "erreur") {
-      if (m.genre === "regler") {
+      if (m.genre === "air_historique") {
+        erreurAir(m.cause);
+      } else if (m.genre === "regler") {
         var x = attente.shift() || m.entite;
         finReglage(x);
         var b = brouillons[x];
@@ -550,7 +603,25 @@
       tete.appendChild(el("span", "secondaire", allumees === 0 ? "Tout éteint" : allumees + (allumees > 1 ? " allumées" : " allumée")));
     }
     s.appendChild(tete);
-    if (p.mesures) { s.appendChild(mesuresDe(p.mesures)); }
+    if (p.mesures) {
+      var ul = mesuresDe(p.mesures);
+      s.appendChild(ul);
+      if (p.mesures.statut !== "aucun") {
+        // Une liste ne peut pas être un bouton : le clic sur la liste est un raccourci, le bouton est la vraie commande.
+        ul.classList.add("mesures--cliquable");
+        ul.addEventListener("click", function () { ouvrirAir(p.id, "air:" + p.id); });
+        var ba = el("button", "bouton-air");
+        ba.type = "button";
+        ba.dataset.cle = "air:" + p.id;
+        ba.setAttribute("aria-haspopup", "dialog");
+        ba.setAttribute("aria-expanded", volet && volet.entite === "air:" + p.id ? "true" : "false");
+        ba.setAttribute("aria-label", "Historique de l'air, " + p.nom);
+        ba.appendChild(icone("air"));
+        ba.appendChild(document.createTextNode("Historique de l'air"));
+        ba.addEventListener("click", function () { ouvrirAir(p.id, ba.dataset.cle); });
+        s.appendChild(ba);
+      }
+    }
     if (p.tele) { s.appendChild(ligneTele(fusion(p.tele, "tele"))); }
     lampes.forEach(function (l) { s.appendChild(ligneLampe(l)); });
     if (!lampes.length && !p.tele && !p.mesures) {
@@ -620,6 +691,7 @@
   function afficher() {
     afficherListe();
     majVolet();
+    majVue3d();
   }
 
   // ------------------------------------------------------------------ glisseur
@@ -719,13 +791,32 @@
   }
 
   // ------------------------------------------------------------------ volet de réglage
-  // S-W4b : la vue 3D (iframe isolée), les sources et la lecture de la télé et l'historique de l'air se brancheront ici,
-  // dans le corps du volet (volet.corps) et dans la carte de la pièce. Rien de cela n'est présent en S-W4a.
+  // Trois sortes de volet : la lampe (intensité, blancs, couleurs), la télé (volume, lecture, sources) et l'air d'une pièce
+  // (graphique en fonction du temps). L'« entité » d'un volet d'air est « air: » suivi de l'identifiant de la pièce.
+  function pieceDe(id) {
+    if (!etats) { return null; }
+    for (var i = 0; i < etats.pieces.length; i++) { if (etats.pieces[i].id === id) { return etats.pieces[i]; } }
+    return null;
+  }
+
+  function ouvrirAir(pieceId, cle) {
+    var p = pieceDe(pieceId);
+    if (!p || p.protegee || !p.mesures || p.mesures.statut === "aucun") { return; }
+    ouvrirVolet("air:" + pieceId, "air", cle);
+  }
+
   function ouvrirVolet(entite, type, cle) {
     if (volet) { fermerVolet(false); }
-    var t = chercher(entite);
-    if (!t) { return; }
-    var o = t.objet;
+    var o;
+    if (type === "air") {
+      var pa = pieceDe(entite.slice(4));
+      if (!pa) { return; }
+      o = { nom: "Air, " + pa.nom };
+    } else {
+      var t = chercher(entite);
+      if (!t) { return; }
+      o = t.objet;
+    }
     var voile = el("div", "voile");
     voile.setAttribute("data-superposition-voulue", "voile de la feuille");
     var feuille = el("div", "feuille");
@@ -740,7 +831,7 @@
     var tete = el("div", "volet-tete");
     var marque;
     if (type === "lampe") { marque = sphere(o); }
-    else { marque = el("span", "puce puce--assistant"); marque.appendChild(icone("tele")); }
+    else { marque = el("span", "puce puce--assistant"); marque.appendChild(icone(type === "air" ? "air" : "tele")); }
     tete.appendChild(marque);
     var texte = el("div", "texte");
     var titre = el("h2", null, o.nom);
@@ -762,8 +853,11 @@
     feuille.appendChild(pied);
 
     volet = { entite: entite, type: type, cle: cle, voile: voile, feuille: feuille, corps: corps, pied: pied, marque: marque,
-              sous: sous, titre: titre, glisseurs: {}, choix: [], onglets: null, panneaux: {}, onglet: null };
-    if (type === "lampe") { construireLampe(o); } else { construireTele(); }
+              sous: sous, titre: titre, glisseurs: {}, choix: [], onglets: null, panneaux: {}, onglet: null,
+              tele: null, air: null };
+    if (type === "lampe") { construireLampe(o); }
+    else if (type === "air") { construireAir(entite.slice(4)); }
+    else { construireTele(); }
 
     $("volet-maison").appendChild(voile);
     $("volet-maison").appendChild(feuille);
@@ -781,6 +875,7 @@
   function fermerVolet(rendreFocus) {
     if (!volet) { return; }
     var cle = volet.cle;
+    if (volet.air && volet.air.minuterie) { clearTimeout(volet.air.minuterie); }
     vider($("volet-maison"));
     $("contenu-maison").removeAttribute("inert");
     $("contenu-maison").removeAttribute("aria-hidden");
@@ -950,7 +1045,15 @@
     if (volet.onglets) { choisir(o.mode === "couleur" ? "couleur" : "blanc"); }
   }
 
-  // S-W4b : sources et lecture de la télé. En S-W4a, seul le volume se règle, l'allumage et l'extinction sont sur la ligne.
+  // Volet de la télé : volume, lecture (précédent, lecture ou pause, suivant), coupure du son et choix de la source.
+  // Le serveur dit, appareil par appareil, ce qui est permis (`peut`) : un bouton absent de `peut` reste caché.
+  var COMMANDES_TELE = [
+    { cle: "precedent", icone: "precedent", libelle: "Précédent" },
+    { cle: "lecture", icone: "lecture", libelle: "Lecture" },
+    { cle: "suivant", icone: "suivant", libelle: "Suivant" },
+    { cle: "muet", icone: "muet", libelle: "Muet" }
+  ];
+
   function construireTele() {
     var entite = volet.entite;
     var gl = creerGlisseur({
@@ -962,9 +1065,113 @@
     });
     volet.glisseurs.volume = gl;
     volet.corps.appendChild(gl.racine);
-    var eteinte = el("p", "secondaire", "Allumez la télé pour régler le volume.");
+
+    var cmd = el("div", "commandes-media");
+    cmd.setAttribute("role", "group");
+    cmd.setAttribute("aria-label", "Lecture");
+    var boutons = {};
+    COMMANDES_TELE.forEach(function (d) {
+      var b = el("button", "commande-media");
+      b.type = "button";
+      b.dataset.cle = "media:" + d.cle;
+      b.appendChild(icone(d.icone));
+      var lib = el("span", null, d.libelle);
+      b.appendChild(lib);
+      if (d.cle === "muet") { b.setAttribute("aria-pressed", "false"); }
+      b.addEventListener("click", function () {
+        var t = chercher(entite);
+        if (!t) { return; }
+        if (d.cle === "muet") { demander(entite, "muet", !fusion(t.objet, "tele").muet); }
+        else { demander(entite, d.cle); }
+      });
+      cmd.appendChild(b);
+      boutons[d.cle] = { bouton: b, libelle: lib, enLecture: false };
+    });
+    volet.corps.appendChild(cmd);
+
+    var blocSource = el("div", "reglage");
+    blocSource.appendChild(el("span", "etiquette", "Source"));
+    var grille = el("div", "choix-grille choix-grille--sources");
+    grille.setAttribute("role", "group");
+    grille.setAttribute("aria-label", "Source");
+    blocSource.appendChild(grille);
+    volet.corps.appendChild(blocSource);
+
+    var eteinte = el("p", "secondaire", "Allumez la télé pour la régler.");
     volet.corps.appendChild(eteinte);
     volet.eteinte = eteinte;
+    volet.tele = { cmd: cmd, boutons: boutons, blocSource: blocSource, grille: grille, signature: null };
+  }
+
+  // Les tuiles de source sont reconstruites seulement quand la liste proposée par la télé change.
+  function majSources(v, peut) {
+    var tele = volet.tele;
+    var sources = Array.isArray(v.sources) ? v.sources : [];
+    var visible = v.allumee && !!peut.source && sources.length > 0;
+    tele.blocSource.hidden = !visible;
+    var signature = JSON.stringify(sources);
+    if (signature === tele.signature) { return; }
+    tele.signature = signature;
+    vider(tele.grille);
+    volet.choix = [];
+    var entite = volet.entite;
+    sources.forEach(function (s) {
+      if (!s || typeof s.nom !== "string" || typeof s.source !== "string") { return; }
+      var bt = el("button", "choix-volet");
+      bt.type = "button";
+      bt.appendChild(el("b", null, s.nom));
+      bt.setAttribute("aria-pressed", "false");
+      bt.addEventListener("click", function () { demander(entite, "source", s.source); });
+      tele.grille.appendChild(bt);
+      volet.choix.push({ bouton: bt, test: function (x) { return x.source === s.source; } });
+    });
+  }
+
+  function majTele(v, actif) {
+    var tele = volet.tele;
+    var peut = v.peut && typeof v.peut === "object" ? v.peut : {};
+    var g = volet.glisseurs.volume;
+    g.desactiver(!actif || !v.allumee);
+    g.racine.hidden = !v.allumee;
+    volet.eteinte.hidden = !!v.allumee;
+    g.maj(v.allumee && typeof v.volume === "number" ? v.volume : null);
+    var quelqueUn = false;
+    COMMANDES_TELE.forEach(function (d) {
+      var b = tele.boutons[d.cle];
+      var permis = !!peut[d.cle];
+      b.bouton.hidden = !permis;
+      if (permis) { quelqueUn = true; }
+      b.bouton.setAttribute("aria-disabled", actif ? "false" : "true");
+    });
+    tele.cmd.hidden = !v.allumee || !quelqueUn;
+    var muet = tele.boutons.muet;
+    muet.bouton.setAttribute("aria-pressed", v.muet === true ? "true" : "false");
+    var lect = tele.boutons.lecture;
+    var enLecture = v.lecture === "lecture";
+    lect.libelle.textContent = v.lecture === "lecture" ? "Pause" : (v.lecture === "pause" ? "Lecture" : "Lecture ou pause");
+    if (lect.enLecture !== enLecture) {
+      lect.enLecture = enLecture;
+      lect.bouton.replaceChild(icone(enLecture ? "pause" : "lecture"), lect.bouton.firstChild);
+    }
+    majSources(v, peut);
+  }
+
+  // Coche et état « choisi » des tuiles d'un volet (blancs, couleurs ou sources).
+  function majChoix(v, actif) {
+    volet.choix.forEach(function (c) {
+      var oui = !!c.test(v);
+      c.bouton.setAttribute("aria-pressed", oui ? "true" : "false");
+      c.bouton.setAttribute("aria-disabled", actif ? "false" : "true");
+      var coche = c.bouton.querySelector(".coche");
+      if (oui && !coche) {
+        var cc = el("span", "coche");
+        cc.setAttribute("aria-hidden", "true");
+        cc.appendChild(icone("coche"));
+        c.bouton.appendChild(cc);
+      } else if (!oui && coche) {
+        c.bouton.removeChild(coche);
+      }
+    });
   }
 
   function pied(v, type) {
@@ -1000,6 +1207,13 @@
 
   function majVolet() {
     if (!volet) { return; }
+    if (volet.type === "air") {
+      var pa = pieceDe(volet.entite.slice(4));
+      if (!pa || pa.protegee || !pa.mesures || pa.mesures.statut === "aucun") { fermerVolet(false); return; }
+      volet.titre.textContent = "Air, " + pa.nom;
+      volet.sous.textContent = "Historique des mesures";
+      return;
+    }
     var t = chercher(volet.entite);
     if (!t) { fermerVolet(false); return; }
     var v = fusion(t.objet, t.type);
@@ -1017,27 +1231,10 @@
           else if (n === "teinte") { g.maj(v.mode === "couleur" && v.teinte !== null && v.teinte !== undefined ? v.teinte : null); }
         });
       }
-      volet.choix.forEach(function (c) {
-        var oui = !!c.test(v);
-        c.bouton.setAttribute("aria-pressed", oui ? "true" : "false");
-        c.bouton.setAttribute("aria-disabled", actif ? "false" : "true");
-        var coche = c.bouton.querySelector(".coche");
-        if (oui && !coche) {
-          var cc = el("span", "coche");
-          cc.setAttribute("aria-hidden", "true");
-          cc.appendChild(icone("coche"));
-          c.bouton.appendChild(cc);
-        } else if (!oui && coche) {
-          c.bouton.removeChild(coche);
-        }
-      });
     } else {
-      var g = volet.glisseurs.volume;
-      g.desactiver(!actif || !v.allumee);
-      g.racine.hidden = !v.allumee;
-      volet.eteinte.hidden = !!v.allumee;
-      g.maj(v.allumee && typeof v.volume === "number" ? v.volume : null);
+      majTele(v, actif);
     }
+    majChoix(v, actif);
     var noeuds = pied(v, t.type);
     var signature = JSON.stringify([v.statut, v.reglage, v.texte, erreurReglage, derniere[v.entite] || null]);
     if (signature !== signaturePied) {
@@ -1046,6 +1243,509 @@
       noeuds.forEach(function (n) { volet.pied.appendChild(n); });
     }
   }
+
+  // ------------------------------------------------------------------ historique de l'air
+  // Le volet « air » montre une courbe en fonction du temps pour une pièce. Les données viennent du serveur, qui les
+  // lit au même endroit que la tablette. Le dessin est en SVG construit par createElementNS, sans attribut style.
+  var GR_L = 320, GR_H = 190, GR_G = 44, GR_D = 12, GR_HAUT = 12, GR_BAS = 28;
+  var TEXTES_AIR = {
+    delai: "Les mesures ne sont pas arrivées. Réessayez.",
+    coupure: "La connexion avec la maison est coupée.",
+    limite: "Trop de demandes à la suite. Réessayez dans un instant.",
+    droit: "Ce navigateur n'a pas accès aux mesures de l'air."
+  };
+
+  function construireAir(pieceId) {
+    var a = { piece: pieceId, heures: 24, serie: null, donnees: null, debut: null, fin: null, pas: null,
+              etat: "chargement", cause: null, minuterie: null, zone: null, barreSerie: null, boutonsDuree: [] };
+    volet.air = a;
+    var duree = el("div", "segments segments--trois");
+    duree.setAttribute("role", "group");
+    duree.setAttribute("aria-label", "Durée affichée");
+    DUREES_AIR.forEach(function (d) {
+      var b = el("button", "segment", d[1]);
+      b.type = "button";
+      b.setAttribute("aria-pressed", d[0] === a.heures ? "true" : "false");
+      b.addEventListener("click", function () {
+        if (a.heures === d[0] && a.etat !== "erreur") { return; }
+        a.heures = d[0];
+        a.boutonsDuree.forEach(function (x) { x.b.setAttribute("aria-pressed", x.h === a.heures ? "true" : "false"); });
+        demanderAir();
+      });
+      a.boutonsDuree.push({ b: b, h: d[0] });
+      duree.appendChild(b);
+    });
+    volet.corps.appendChild(duree);
+    a.barreSerie = el("div", "segments segments--serie");
+    a.barreSerie.setAttribute("role", "group");
+    a.barreSerie.setAttribute("aria-label", "Mesure affichée");
+    a.barreSerie.hidden = true;
+    volet.corps.appendChild(a.barreSerie);
+    a.zone = el("div", "graphique-air");
+    a.zone.tabIndex = -1;
+    a.zone.setAttribute("aria-live", "polite");
+    volet.corps.appendChild(a.zone);
+    demanderAir();
+  }
+
+  function demanderAir() {
+    var a = volet && volet.air;
+    if (!a) { return; }
+    if (a.minuterie) { clearTimeout(a.minuterie); a.minuterie = null; }
+    var avaitFocus = a.zone.contains(document.activeElement);
+    a.etat = "chargement";
+    a.cause = null;
+    if (!emettre({ type: "air_historique", piece: a.piece, heures: a.heures })) {
+      a.etat = "erreur";
+      a.cause = ws && ws.readyState === 1 ? "limite" : "coupure";
+    } else {
+      a.minuterie = setTimeout(function () {
+        a.minuterie = null;
+        if (volet && volet.air === a && a.etat === "chargement") { a.etat = "erreur"; a.cause = "delai"; dessinerAir(); }
+      }, DELAI_AIR_MS);
+    }
+    dessinerAir();
+    if (avaitFocus) { a.zone.focus({ preventScroll: true }); }
+  }
+
+  function pointsSurs(l) {
+    var sortie = [];
+    if (!Array.isArray(l)) { return sortie; }
+    for (var i = 0; i < l.length && sortie.length < POINTS_AIR_MAX; i++) {
+      var p = l[i];
+      if (Array.isArray(p) && p.length === 2 && typeof p[0] === "number" && typeof p[1] === "number"
+          && isFinite(p[0]) && isFinite(p[1])) { sortie.push([p[0], p[1]]); }
+    }
+    sortie.sort(function (x, y) { return x[0] - y[0]; });
+    return sortie;
+  }
+
+  function recuAir(m) {
+    var a = volet && volet.air;
+    if (!a || a.etat !== "chargement" || m.piece !== a.piece || m.heures !== a.heures) { return; }
+    if (a.minuterie) { clearTimeout(a.minuterie); a.minuterie = null; }
+    var brut = m.series && typeof m.series === "object" ? m.series : {};
+    var donnees = {};
+    var presentes = [];
+    SERIES_AIR.forEach(function (d) {
+      var pts = pointsSurs(brut[d.cle]);
+      if (pts.length) { donnees[d.cle] = pts; presentes.push(d); }
+    });
+    a.donnees = donnees;
+    a.debut = typeof m.debut === "number" && isFinite(m.debut) ? m.debut : null;
+    a.fin = typeof m.fin === "number" && isFinite(m.fin) ? m.fin : null;
+    a.pas = typeof m.pas === "number" && isFinite(m.pas) && m.pas > 0 ? m.pas : null;
+    if (!presentes.length) {
+      a.etat = "vide";
+    } else {
+      a.etat = "ok";
+      if (!a.serie || !donnees[a.serie]) { a.serie = presentes[0].cle; }
+    }
+    construireBarreSerie(presentes);
+    dessinerAir();
+  }
+
+  function erreurAir(cause) {
+    var a = volet && volet.air;
+    if (!a || a.etat !== "chargement") { return; }
+    if (a.minuterie) { clearTimeout(a.minuterie); a.minuterie = null; }
+    a.etat = "erreur";
+    a.cause = cause;
+    dessinerAir();
+  }
+
+  function coupureAir() {
+    var a = volet && volet.air;
+    if (!a || a.etat !== "chargement") { return; }
+    erreurAir("coupure");
+  }
+
+  function construireBarreSerie(presentes) {
+    var a = volet.air;
+    vider(a.barreSerie);
+    a.barreSerie.hidden = presentes.length < 2;
+    if (presentes.length < 2) { return; }
+    var boutons = [];
+    presentes.forEach(function (d) {
+      var b = el("button", "segment", d.nom);
+      b.type = "button";
+      b.setAttribute("aria-pressed", d.cle === a.serie ? "true" : "false");
+      b.addEventListener("click", function () {
+        a.serie = d.cle;
+        boutons.forEach(function (x) { x.b.setAttribute("aria-pressed", x.cle === a.serie ? "true" : "false"); });
+        dessinerAir();
+      });
+      boutons.push({ b: b, cle: d.cle });
+      a.barreSerie.appendChild(b);
+    });
+  }
+
+  function dessinerAir() {
+    var a = volet && volet.air;
+    if (!a) { return; }
+    vider(a.zone);
+    if (a.etat === "chargement") {
+      a.zone.appendChild(el("p", "secondaire", "Chargement des mesures..."));
+    } else if (a.etat === "erreur") {
+      var texte = TEXTES_AIR[a.cause] || texteRefus(a.cause, "");
+      var al = alerteIcone("alerte--danger", texte, "alert", false);
+      if (a.cause !== "droit" && a.cause !== "capteur" && a.cause !== "protegee") {
+        var re = el("button", "bouton", "Réessayer");
+        re.type = "button";
+        re.addEventListener("click", demanderAir);
+        al.lastChild.appendChild(re);
+      }
+      a.zone.appendChild(al);
+    } else if (a.etat === "vide") {
+      a.zone.appendChild(el("p", "secondaire", "Aucune mesure sur cette période."));
+    } else {
+      var def = null;
+      SERIES_AIR.forEach(function (d) { if (d.cle === a.serie) { def = d; } });
+      if (def && a.donnees[def.cle]) { courbeAir(a, def); }
+    }
+  }
+
+  function deux(n) { return (n < 10 ? "0" : "") + n; }
+
+  function nombreFr(v, dec) { return v.toFixed(dec).replace(".", ","); }
+
+  function tempsAir(t, heures, complet) {
+    var d = new Date(t * 1000);
+    var jour = deux(d.getDate()) + "/" + deux(d.getMonth() + 1);
+    var heure = deux(d.getHours()) + ":" + deux(d.getMinutes());
+    if (complet || (heures > 6 && heures <= 48)) { return jour + " " + heure; }
+    return heures <= 6 ? heure : jour;
+  }
+
+  function noeudSvg(nom, attrs) {
+    var n = document.createElementNS(NS, nom);
+    Object.keys(attrs).forEach(function (k) { n.setAttribute(k, String(attrs[k])); });
+    return n;
+  }
+
+  function courbeAir(a, def) {
+    var pts = a.donnees[def.cle];
+    var xmin = a.debut !== null && a.fin !== null && a.fin > a.debut ? a.debut : pts[0][0];
+    var xmax = a.debut !== null && a.fin !== null && a.fin > a.debut ? a.fin : pts[pts.length - 1][0];
+    if (xmax <= xmin) { xmax = xmin + 1; }
+    var vmin = Infinity, vmax = -Infinity, somme = 0;
+    pts.forEach(function (p) { vmin = Math.min(vmin, p[1]); vmax = Math.max(vmax, p[1]); somme += p[1]; });
+    var marge = (vmax - vmin) * 0.1;
+    if (!(marge > 0)) { marge = 1; }
+    var ymin = vmin - marge, ymax = vmax + marge;
+    if (def.cle !== "temperature" && ymin < 0) { ymin = 0; }
+    var larg = GR_L - GR_G - GR_D, haut = GR_H - GR_HAUT - GR_BAS;
+    function X(t) { return GR_G + borne((t - xmin) / (xmax - xmin), 0, 1) * larg; }
+    function Y(v) { return GR_HAUT + (1 - (v - ymin) / (ymax - ymin)) * haut; }
+    function r1(n) { return Math.round(n * 10) / 10; }
+
+    var dernier = pts[pts.length - 1][1];
+    var libelle = "";
+    DUREES_AIR.forEach(function (d) { if (d[0] === a.heures) { libelle = d[1]; } });
+    var synthese = def.nom + " : dernière valeur " + nombreFr(dernier, def.dec) + def.unite + ", minimum "
+      + nombreFr(vmin, def.dec) + def.unite + ", maximum " + nombreFr(vmax, def.dec) + def.unite + ", sur " + libelle + ".";
+
+    var svg = noeudSvg("svg", { viewBox: "0 0 " + GR_L + " " + GR_H, role: "img", focusable: "false", "class": "graph" });
+    svg.setAttribute("aria-label", synthese);
+    for (var i = 0; i < 3; i++) {
+      var v = ymin + (ymax - ymin) * i / 2;
+      var y = r1(Y(v));
+      svg.appendChild(noeudSvg("line", { x1: GR_G, x2: GR_L - GR_D, y1: y, y2: y, "class": "graph-grille" }));
+      var tv = noeudSvg("text", { x: GR_G - 6, y: r1(y + 4), "text-anchor": "end", "class": "graph-axe" });
+      tv.textContent = nombreFr(v, def.dec);
+      svg.appendChild(tv);
+    }
+    [[xmin, GR_G, "start"], [(xmin + xmax) / 2, GR_G + larg / 2, "middle"], [xmax, GR_L - GR_D, "end"]].forEach(function (e) {
+      var tt = noeudSvg("text", { x: e[1], y: GR_H - 8, "text-anchor": e[2], "class": "graph-axe" });
+      tt.textContent = tempsAir(e[0], a.heures, false);
+      svg.appendChild(tt);
+    });
+
+    // La ligne est coupée là où les mesures manquent (plus de deux fois et demie le pas).
+    var trou = a.pas ? a.pas * 2.5 : Infinity;
+    var segments = [], cour = [];
+    pts.forEach(function (p, k) {
+      if (cour.length && p[0] - pts[k - 1][0] > trou) { segments.push(cour); cour = []; }
+      cour.push(p);
+    });
+    if (cour.length) { segments.push(cour); }
+    segments.forEach(function (s) {
+      if (s.length === 1) {
+        svg.appendChild(noeudSvg("circle", { cx: r1(X(s[0][0])), cy: r1(Y(s[0][1])), r: 2, "class": "graph-point" }));
+        return;
+      }
+      var d = s.map(function (p, k) { return (k ? "L" : "M") + r1(X(p[0])) + " " + r1(Y(p[1])); }).join(" ");
+      svg.appendChild(noeudSvg("path", { d: d, "class": "graph-ligne" }));
+    });
+    var fin = pts[pts.length - 1];
+    svg.appendChild(noeudSvg("circle", { cx: r1(X(fin[0])), cy: r1(Y(fin[1])), r: 3, "class": "graph-point graph-point--fin" }));
+
+    var curseur = noeudSvg("line", { x1: 0, x2: 0, y1: GR_HAUT, y2: GR_H - GR_BAS, "class": "graph-curseur", visibility: "hidden" });
+    var repere = noeudSvg("circle", { cx: 0, cy: 0, r: 4, "class": "graph-point graph-point--curseur", visibility: "hidden" });
+    var capture = noeudSvg("rect", { x: GR_G, y: GR_HAUT, width: larg, height: haut, "class": "graph-capture" });
+    svg.appendChild(curseur);
+    svg.appendChild(repere);
+    svg.appendChild(capture);
+
+    var lecture = el("p", "graphique-lecture secondaire", "Touchez la courbe pour lire une valeur.");
+    function lire(ev) {
+      var r = capture.getBoundingClientRect();
+      if (!(r.width > 0)) { return; }
+      var t = xmin + borne((ev.clientX - r.left) / r.width, 0, 1) * (xmax - xmin);
+      var meilleur = pts[0], ecart = Infinity;
+      pts.forEach(function (p) { var e = Math.abs(p[0] - t); if (e < ecart) { ecart = e; meilleur = p; } });
+      var x = r1(X(meilleur[0]));
+      curseur.setAttribute("x1", x);
+      curseur.setAttribute("x2", x);
+      curseur.setAttribute("visibility", "visible");
+      repere.setAttribute("cx", x);
+      repere.setAttribute("cy", r1(Y(meilleur[1])));
+      repere.setAttribute("visibility", "visible");
+      lecture.textContent = tempsAir(meilleur[0], 0, true) + " : " + nombreFr(meilleur[1], def.dec) + def.unite;
+    }
+    capture.addEventListener("pointerdown", lire);
+    capture.addEventListener("pointermove", lire);
+    capture.addEventListener("pointerleave", function (ev) {
+      if (ev.pointerType !== "mouse") { return; }
+      curseur.setAttribute("visibility", "hidden");
+      repere.setAttribute("visibility", "hidden");
+      lecture.textContent = "Touchez la courbe pour lire une valeur.";
+    });
+
+    var cadre = el("div", "graphique");
+    cadre.appendChild(svg);
+    a.zone.appendChild(cadre);
+    a.zone.appendChild(el("p", "graphique-synthese", synthese));
+    a.zone.appendChild(lecture);
+  }
+
+  // ------------------------------------------------------------------ vue 3D
+  // La vue 3D est une page à part, dans une iframe « sandbox » sans same-origin. Ce script lui envoie des états déjà
+  // filtrés par le serveur selon le rôle, et n'accepte d'elle que des désignations dont les identifiants sont connus.
+  function cles(m, liste) {
+    var k = Object.keys(m);
+    return k.length === liste.length && liste.every(function (c) { return Object.prototype.hasOwnProperty.call(m, c); });
+  }
+
+  function hslVersRgb(h, s, l) {
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs(((h % 360) / 60) % 2 - 1));
+    var m = l - c / 2;
+    var t = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor((((h % 360) + 360) % 360) / 60) % 6];
+    return t.map(function (u) { return borne(Math.round((u + m) * 255), 0, 255); });
+  }
+
+  function etat3dLampe(v) {
+    if (v.statut !== "ok") { return { state: "unavailable", attributes: {} }; }
+    if (!v.allumee) { return { state: "off", attributes: {} }; }
+    var at = { brightness: typeof v.intensite === "number" ? borne(Math.round(v.intensite * 255 / 100), 0, 255) : 255 };
+    if (v.mode === "blanc" && typeof v.kelvin === "number") { at.color_temp_kelvin = borne(Math.round(v.kelvin), 1000, 40000); }
+    else if (v.mode === "couleur" && typeof v.teinte === "number") { at.rgb_color = hslVersRgb(v.teinte, 0.75, 0.58); }
+    return { state: "on", attributes: at };
+  }
+
+  function etat3dTele(v) {
+    if (v.statut !== "ok") { return { state: "unavailable", attributes: {} }; }
+    if (!v.allumee) { return { state: "off", attributes: {} }; }
+    var at = {};
+    if (typeof v.volume === "number") { at.volume_level = borne(v.volume / 100, 0, 1); }
+    return { state: "on", attributes: at };
+  }
+
+  function etats3d() {
+    var sortie = {}, n = 0;
+    (etats ? etats.pieces : []).forEach(function (p) {
+      if (p.protegee) { return; }
+      p.lumieres.forEach(function (l) {
+        if (n < 200 && ID_SUR.test(l.entite)) { sortie[l.entite] = etat3dLampe(fusion(l, "lampe")); n += 1; }
+      });
+      if (p.tele && n < 200 && ID_SUR.test(p.tele.entite)) { sortie[p.tele.entite] = etat3dTele(fusion(p.tele, "tele")); n += 1; }
+    });
+    return sortie;
+  }
+
+  function resume3d(m) {
+    if (!m || m.statut === "aucun" || m.statut === "protegee") { return null; }
+    var x = m.co2;
+    if (x && typeof x.valeur === "number") { return { texte: (arrondi(x.valeur) + " ppm" + (x.mot ? ", " + x.mot : "")).slice(0, 40), mot: x.mot }; }
+    x = m.temperature;
+    if (x && typeof x.valeur === "number") { return { texte: (arrondi(x.valeur) + "°" + (x.mot ? ", " + x.mot : "")).slice(0, 40), mot: x.mot }; }
+    return null;
+  }
+
+  function etiquettes3d() {
+    var liste = [];
+    (etats ? etats.pieces : []).forEach(function (p) {
+      if (liste.length >= 40 || !ID_SUR.test(p.id)) { return; }
+      var q = { piece: p.id, nom: String(p.nom || "").slice(0, 80), etat: "", verrou: !!p.protegee };
+      if (p.protegee) {
+        q.etat = "Pièce protégée";
+      } else {
+        var lampes = p.lumieres.map(function (l) { return fusion(l, "lampe"); });
+        var allumees = lampes.filter(function (l) { return l.allumee; }).length;
+        if (lampes.length) { q.etat = allumees === 0 ? "Tout éteint" : allumees + (allumees > 1 ? " allumées" : " allumée"); }
+        var r = resume3d(p.mesures);
+        if (r) {
+          var couleur = p.mesures && typeof p.mesures.couleur === "string" ? p.mesures.couleur : COULEUR_NEUTRE;
+          q.mesure = { texte: r.texte, couleur: couleur };
+        }
+      }
+      liste.push(q);
+    });
+    return liste;
+  }
+
+  function pastilles3d(pieceId) {
+    var p = pieceDe(pieceId);
+    var liste = [];
+    if (!p || p.protegee) { return liste; }
+    p.lumieres.forEach(function (l) {
+      var v = fusion(l, "lampe");
+      if (liste.length >= 40 || !ID_SUR.test(v.entite)) { return; }
+      liste.push({ entite: v.entite, genre: "lampe", fraction: v.allumee && typeof v.intensite === "number" ? borne(v.intensite / 100, 0, 1) : (v.allumee ? 1 : 0),
+                   allume: !!v.allumee, etat: v.statut !== "ok" ? "hors" : (v.reglage === "non_applique" ? "rate" : "ok"), surligne: false });
+    });
+    if (p.tele && ID_SUR.test(p.tele.entite) && liste.length < 40) {
+      var t = fusion(p.tele, "tele");
+      liste.push({ entite: t.entite, genre: "tele", fraction: t.allumee && typeof t.volume === "number" ? borne(t.volume / 100, 0, 1) : 0,
+                   allume: !!t.allumee, etat: t.statut !== "ok" ? "hors" : "ok", surligne: false });
+    }
+    return liste;
+  }
+
+  function charge3d(pieceId) {
+    var p = pieceDe(pieceId);
+    if (!p || p.protegee || !p.mesures) { return null; }
+    var m = p.mesures;
+    var charge = { piece: p.id, nom: String(p.nom || "").slice(0, 80), statut: String(m.statut || "aucun").slice(0, 20),
+                   texte: typeof m.texte === "string" ? m.texte.slice(0, 200) : "",
+                   alerte: typeof m.alerte === "string" ? m.alerte.slice(0, 160) : "",
+                   couleur: typeof m.couleur === "string" ? m.couleur : COULEUR_NEUTRE, lignes: [] };
+    [["temperature", "Température", "°"], ["humidite", "Humidité", " %"], ["co2", "CO2", " ppm"], ["pm25", "PM2,5", " µg/m3"]].forEach(function (g) {
+      var x = m[g[0]];
+      if (!x || typeof x !== "object" || charge.lignes.length >= 12) { return; }
+      var ok = typeof x.valeur === "number";
+      charge.lignes.push({ nom: g[1], valeur: ok ? arrondi(x.valeur) + g[2] : "absente", mot: ok && typeof x.mot === "string" ? x.mot.slice(0, 30) : "",
+                           suivant: "", couleur: ok && COULEURS_MOTS[x.mot] ? COULEURS_MOTS[x.mot] : COULEUR_NEUTRE });
+    });
+    return charge;
+  }
+
+  function poster3d(m, signature) {
+    if (!vue3d || !vue3d.pret || !vue3d.iframe || !vue3d.iframe.contentWindow) { return; }
+    var sig = signature !== undefined ? signature : JSON.stringify(m);
+    if (vue3d.derniers[m.type] === sig) { return; }
+    vue3d.derniers[m.type] = sig;
+    // L'origine de la page est opaque : « * » est la seule cible possible, d'où la vérification du contenu des deux côtés.
+    vue3d.iframe.contentWindow.postMessage(m, "*");
+  }
+
+  function majVue3d() {
+    var section = $("vue-3d");
+    if (!section) { return; }
+    var voulue = !!etats && !!etats.configure && etats.pieces.length > 0;
+    section.hidden = !voulue;
+    if (!voulue) { retirer3d(); return; }
+    if (!vue3d) { creer3d(); return; }
+    if (!vue3d.pret) { return; }
+    var choix = vue3d.choix && pieceDe(vue3d.choix) && !pieceDe(vue3d.choix).protegee ? vue3d.choix : null;
+    vue3d.choix = choix;
+    $("entiere-3d").hidden = !choix;
+    poster3d({ type: "etats", etats: etats3d() });
+    poster3d({ type: "etiquettes", liste: etiquettes3d() });
+    poster3d({ type: "choisir", id: choix, duree: vue3d.premier ? 0 : 800 }, JSON.stringify(choix));
+    poster3d({ type: "pastilles", liste: choix ? pastilles3d(choix) : [] });
+    poster3d({ type: "mesures", charge: choix ? charge3d(choix) : null });
+    vue3d.premier = false;
+  }
+
+  function creer3d() {
+    var f = document.createElement("iframe");
+    f.className = "iframe-3d";
+    f.setAttribute("sandbox", "allow-scripts");
+    f.setAttribute("title", "Vue 3D de la maison");
+    f.setAttribute("referrerpolicy", "no-referrer");
+    vue3d = { iframe: f, pret: false, minuterie: null, choix: null, derniers: {}, premier: true, echec: false };
+    vue3d.minuterie = setTimeout(function () {
+      if (vue3d && vue3d.iframe === f && !vue3d.pret) { echec3d(); }
+    }, DELAI_PRET_MS);
+    message("texte-3d", "");
+    f.src = "/vue3d";
+    $("cadre-3d").appendChild(f);
+  }
+
+  function echec3d() {
+    if (!vue3d) { return; }
+    if (vue3d.minuterie) { clearTimeout(vue3d.minuterie); }
+    vide3d();
+    vue3d.iframe = null;
+    vue3d.minuterie = null;
+    vue3d.echec = true;
+    $("entiere-3d").hidden = true;
+    message("texte-3d", "La vue 3D n'est pas disponible pour le moment.");
+  }
+
+  function vide3d() { var c = $("cadre-3d"); if (c) { vider(c); } }
+
+  function retirer3d() {
+    if (!vue3d) { return; }
+    if (vue3d.minuterie) { clearTimeout(vue3d.minuterie); }
+    vide3d();
+    vue3d = null;
+    message("texte-3d", "");
+  }
+
+  function surPret3d() {
+    if (!vue3d || vue3d.pret) { return; }
+    if (vue3d.minuterie) { clearTimeout(vue3d.minuterie); vue3d.minuterie = null; }
+    vue3d.pret = true;
+    vue3d.derniers = {};
+    vue3d.premier = true;
+    var largeur = $("cadre-3d").clientWidth;
+    poster3d({ type: "grand", actif: true, taille: largeur < 500 ? 44 : 56, police: largeur < 500 ? 14 : 18 });
+    majVue3d();
+  }
+
+  function choisirPiece3d(id) {
+    var p = pieceDe(id);
+    if (!vue3d || !p || p.protegee) { return; }
+    vue3d.choix = id;
+    majVue3d();
+  }
+
+  function designer3d(m) {
+    if (volet) { return; }
+    if (m.genre === "piece") { if (pieceDe(m.id)) { choisirPiece3d(m.id); } return; }
+    if (m.genre === "mesures") { if (pieceDe(m.id)) { ouvrirAir(m.id, "air:" + m.id); } return; }
+    var t = chercher(m.entite);
+    if (!t || t.piece.protegee) { return; }
+    var v = fusion(t.objet, t.type);
+    if (v.statut !== "ok" || (t.type === "lampe" && !v.reglable)) { return; }
+    ouvrirVolet(m.entite, t.type, "ouvrir:" + m.entite);
+  }
+
+  $("entiere-3d").addEventListener("click", function () {
+    if (!vue3d) { return; }
+    vue3d.choix = null;
+    majVue3d();
+  });
+
+  // Messages de la vue 3D : fenêtre de l'iframe, origine opaque, objet simple, clés exactes, identifiants sûrs et connus.
+  window.addEventListener("message", function (ev) {
+    if (!vue3d || !vue3d.iframe || ev.source !== vue3d.iframe.contentWindow || ev.origin !== "null") { return; }
+    var m = ev.data;
+    if (!m || typeof m !== "object" || Object.prototype.toString.call(m) !== "[object Object]") { return; }
+    if (m.type === "pret") {
+      if (cles(m, ["type", "version"]) && typeof m.version === "string" && m.version.length <= 32) { surPret3d(); }
+      return;
+    }
+    if (m.type !== "designation" || !vue3d.pret) { return; }
+    if (m.genre === "lampe" || m.genre === "pastille") {
+      if (cles(m, ["type", "genre", "entite"]) && typeof m.entite === "string" && ID_SUR.test(m.entite)) { designer3d(m); }
+    } else if (m.genre === "piece" || m.genre === "mesures") {
+      if (cles(m, ["type", "genre", "id"]) && typeof m.id === "string" && ID_SUR.test(m.id)) { designer3d(m); }
+    }
+  });
 
   // ------------------------------------------------------------------ connexion
   function connecter() {
@@ -1074,6 +1774,7 @@
       st.hidden = false;
       reconnexion = Math.min(reconnexion + 1, 6);
       delai = setTimeout(connecter, 1000 * reconnexion);
+      coupureAir();
       afficher();
     };
   }

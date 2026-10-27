@@ -7,7 +7,8 @@ sinon config/ à la racine du dépôt, voir poc/maison.py). Sorties :
   avec `extras.haEntity`. Repère glTF : y vers le haut, x et -z = x et y du plan.
 - genere/android/maison3d/vue3d.html de la configuration : page autonome (three.js inclus, aucune
   connexion requise) qui affiche la scène et anime les lampes, rangée dans les assets de l'APK par
-  build.gradle.kts. Voir README.md pour l'interface `window.maison3d`.
+  build.gradle.kts, et servie telle quelle par le serveur web (route /vue3d, iframe isolée). Voir README.md pour
+  l'interface `window.vue3d` (alias `window.maison3d`, que la tablette Android appelle encore) et pour le pont postMessage.
 Le modèle de page (vue3d_modele.html) et three.js restent ici, dans le moteur.
 
 Usage : python carte/3d/generer_3d.py
@@ -26,7 +27,7 @@ import maison  # noqa: E402
 CARTE = maison.chemin("carte")
 PAGE = maison.chemin("genere/android/maison3d/vue3d.html")
 EP = 0.10  # épaisseur des murs, en m
-LINTEAU = 5.10  # haut des portes
+LINTEAU = 2.10  # haut des portes
 
 COUL_SOL = {"sejour": "#C9B79C", "circulation": "#B9B4AC", "chambre": "#A9B8C9", "salle_de_bain": "#A7C4BE"}
 COUL_MUR = "#EDEBE6"
@@ -276,19 +277,26 @@ def main():
         "medias": meubles.get("medias", []), "groupes_medias": meubles.get("groupes_medias", {}),
         "emprise": pieces["repere"]["emprise"],
     }
+    page = assembler_page(scene, version, pieces["date"])
+    PAGE.parent.mkdir(parents=True, exist_ok=True)
+    PAGE.write_text(page, encoding="utf-8")
+    print(f"modele.glb : {len(objets)} nœuds ({len(b_murs)} pans de mur, {len(meubles['meubles'])} meubles, "
+          f"{len(lampes['lampes'])} ampoules). vue3d.html : {len(page) // 1024} Ko")
+
+
+def assembler_page(scene, version, date):
+    """Texte de vue3d.html : le modèle de page, three.js exposé en window.THREE et les données de la scène. Séparé de
+    main() pour que les tests (et la mise en page du client web) puissent bâtir la page sans toucher aux fichiers."""
     modele = (ICI / "vue3d_modele.html").read_text(encoding="utf-8")
     three = (ICI / "vendor" / "three.module.min.js").read_text(encoding="utf-8")
     # le module three.js se termine par « export{a as B,...} » : on l'expose en window.THREE
     m = re.search(r"export\s*\{([^}]*)\}\s*;?\s*$", three)
     paires = [e.strip().split(" as ") for e in m.group(1).split(",")]
     three = three[:m.start()] + "window.THREE={" + ",".join(f"{p[-1]}:{p[0]}" for p in paires) + "};"
-    page = (modele.replace("/*THREE*/", three.replace("</script", "<\\/script"))
-                  .replace("/*SCENE*/", json.dumps(scene, ensure_ascii=False))
-                  .replace("{{VERSION}}", version).replace("{{DATE}}", pieces["date"]))
-    PAGE.parent.mkdir(parents=True, exist_ok=True)
-    PAGE.write_text(page, encoding="utf-8")
-    print(f"modele.glb : {len(objets)} nœuds ({len(b_murs)} pans de mur, {len(meubles['meubles'])} meubles, "
-          f"{len(lampes['lampes'])} ampoules). vue3d.html : {len(page) // 1024} Ko")
+    donnees = json.dumps(scene, ensure_ascii=False).replace("</", "<\\/")
+    return (modele.replace("/*THREE*/", three.replace("</script", "<\\/script"))
+                  .replace("/*SCENE*/", donnees)
+                  .replace("{{VERSION}}", version).replace("{{DATE}}", date))
 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ Pour déplacer une lampe ou un meuble : corriger `lampes.json` ou `meubles.json`
 - `?allumer=light.salon_plafond,light.cuisine_suspensions` : lampes allumées d'emblée, sans animation (0.5.0), pour les captures des maquettes.
 - `?pr=1.25` : résolution de la toile en pixels réels par pixel CSS (1,25 sur l'accueil de la tablette, 1,5 sans le paramètre), jamais au-dessus de celle de l'écran.
 
-## Interface JavaScript `window.maison3d`
+## Interface JavaScript `window.maison3d` (alias de `window.vue3d`)
 
 | Appel | Effet |
 |---|---|
@@ -59,6 +59,16 @@ Pour déplacer une lampe ou un meuble : corriger `lampes.json` ou `meubles.json`
 | `maison3d.medias()` | 0.6.0 : télé et enceintes, avec l'état et le volume montrés. |
 
 La même chose passe par `postMessage` si la page est dans une iframe : `{type: "etat", entite, state, attributes}`, `{type: "etats", etats}`, `{type: "montrer", cibles}`, et depuis la 0.4.1 `teintes`, `poussieres`, `desaturer`, `pause`, puis `palette` (0.4.2).
+
+## Dans le client web (serveur 0.52.0, client web 0.7.0)
+
+Le serveur web sert la page générée sur `/vue3d`, et l'écran Maison la monte dans une iframe `sandbox="allow-scripts"` sans `allow-same-origin`. L'objet global s'appelle `window.vue3d`, avec l'alias `window.maison3d` pour que le code de la tablette Android reste valable.
+
+- **CSP propre** : la page est servie avec une politique qui porte un hachage SHA-256 par bloc `<script>` et `<style>` en ligne, calculé à chaque envoi. Aucun réseau, aucun cadre, aucun worker, `frame-ancestors 'self'`. Un script en ligne non haché ne s'exécute pas, et le code de la page n'appelle ni `fetch`, ni `XMLHttpRequest`, ni `WebSocket`, ni stockage.
+- **Pont `postMessage` strict** : l'iframe n'a pas d'origine, la cible des messages est donc `*` et tout est validé à la réception. Le parent n'accepte que la fenêtre de l'iframe, l'origine `null`, des clés exactes et des identifiants au motif `[A-Za-z0-9_.-]{1,80}`. La page n'accepte que la fenêtre parente, des types connus (`etats`, `etiquettes`, `choisir`, `pastilles`, `mesures`, `grand`), des champs typés et des nombres bornés. Un message mal formé est ignoré sans appel.
+- **Vers le parent** : `pret` (version de la page, 32 caractères au plus) une fois la scène prête, et `designation` quand l'utilisateur touche une lampe, une pastille, une pièce ou ses mesures. Le parent ouvre alors le volet existant, la page n'appelle jamais le serveur. Une désignation reçue pendant qu'un volet est ouvert est ignorée.
+- **États déjà filtrés** : le parent n'envoie que ce que le rôle de la personne peut voir. Une pièce protégée n'a ni valeur, ni désignation possible.
+- **Sans la page** : si `vue3d.html` n'existe pas ou si `pret` n'arrive pas en 10 secondes, l'iframe est retirée et l'écran Maison s'affiche sans maquette.
 
 ## Retour vers l'appli
 

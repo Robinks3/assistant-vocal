@@ -24,6 +24,9 @@ Ce que ce module garantit :
   donc échangé par un GET avec l'en-tête X-Ticket (un site tiers ne peut pas l'ajouter sans préambule CORS, et aucun
   préambule n'est servi). Le coeur de l'appairage est dans appairage_web.py, le module WebAuthn dans webauthn.py.
 - Les en-têtes de sécurité de la note de conception (section 4.7) sont posés sur toutes les réponses, refus compris.
+  Seule exception, voulue : /vue3d (S-W4b), la maquette 3D, qui remplace la politique de contenu par la sienne
+  (empreintes de ses blocs en ligne, aucun réseau, cadrable par l'écran Maison seulement) et vit dans une iframe sans
+  allow-same-origin.
 - Le journal ne reçoit que l'adresse et une cause courte d'une liste fermée : jamais un cookie, un jeton, un
   en-tête complet ni le chemin demandé.
 
@@ -32,6 +35,8 @@ adresse ici. Les barrières contre les essais répétés sont celles de l'appair
 une limite de messages par connexion pour les propriétaires connectés.
 """
 import asyncio
+import base64
+import hashlib
 import hmac
 import html
 import itertools
@@ -58,7 +63,7 @@ DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.6.0"
+VERSION_CLIENT = "0.7.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -114,14 +119,46 @@ FERMETURE_REVOQUE = 4001     # code de fermeture d'un WebSocket dont l'appareil 
 # que journal_web.projeter laisse voir, defi et preuve n'acceptent hors propriétaire que les actions personnelles.
 # Les demandes (S-W3) sont ouvertes à tout rôle, bornées par les quotas de demande_web.py et par la même chaîne de
 # contrôle que les demandes des autres appareils. L'écran Maison (S-W4a) l'est aussi : la liste des pièces et des
-# entités de chaque rôle est filtrée par maison_web.py, jamais par ce tableau.
+# entités de chaque rôle est filtrée par maison_web.py, jamais par ce tableau. Il en va de même de l'historique de l'air
+# (S-W4b), que maison_web.py réserve aux rôles qui ont les mesures.
 MESSAGES_TOUT_ROLE = frozenset({"moi", "abonner_journal", "desabonner_journal", "journal_page", "vie_privee",
-                                "defi", "preuve", "demande_texte", "demande_voix", "etats", "regler"})
+                                "defi", "preuve", "demande_texte", "demande_voix", "etats", "regler", "air_historique"})
 
 # Politique de contenu de la note 4.7, avec frame-ancestors 'none' (aucune page ne s'encadre dans un autre site).
 CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
        "object-src 'none'; worker-src 'self'; manifest-src 'self'; media-src 'self' blob:; frame-src 'self'; "
        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; require-trusted-types-for 'script'")
+
+# Vue 3D de l'écran Maison (S-W4b) : la page est générée hors du serveur (carte/3d/generer_3d.py) et déposée dans le
+# dossier de configuration. Elle vit dans une iframe sandbox sans allow-same-origin, donc dans une origine opaque, et
+# n'a droit qu'à sa propre CSP : chaque script et chaque style en ligne est autorisé par son empreinte SHA-256, rien
+# d'autre (ni réseau, ni cadre, ni formulaire, ni worker). Le texte de la page est celui du fichier, empreintes
+# recalculées si le fichier change.
+FICHIER_3D = "genere/android/maison3d/vue3d.html"
+_BLOCS_EN_LIGNE = re.compile(r"<(script|style)\b([^>]*)>(.*?)</\1\s*>", re.S | re.I)
+
+
+def empreintes_en_ligne(texte):
+    """(empreintes des scripts, empreintes des styles) en ligne de la page, au format des sources de CSP. Un script
+    avec src n'est pas en ligne : il n'est pas compté, donc la CSP le refuserait."""
+    scripts, styles = [], []
+    for balise, attributs, contenu in _BLOCS_EN_LIGNE.findall(texte):
+        if balise.lower() == "script" and re.search(r"\bsrc\s*=", attributs, re.I):
+            continue
+        h = "'sha256-" + base64.b64encode(hashlib.sha256(contenu.encode("utf-8")).digest()).decode("ascii") + "'"
+        (scripts if balise.lower() == "script" else styles).append(h)
+    return scripts, styles
+
+
+def csp_vue3d(texte):
+    """CSP de vue3d.html : empreintes seulement, aucune source réseau, cadrable par la seule page Maison."""
+    scripts, styles = empreintes_en_ligne(texte)
+    return ("default-src 'none'; script-src " + " ".join(scripts or ["'none'"])
+            + "; style-src " + " ".join(styles or ["'none'"])
+            + "; img-src data: blob:; connect-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; "
+              "worker-src 'none'; frame-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'; "
+              "sandbox allow-scripts; require-trusted-types-for 'script'")
+
 
 # Taille des messages WebSocket. Tout message fait au plus TAILLE_MESSAGE, sauf demande_voix (un enregistrement de 20 s
 # en base64, environ 853 Ko) qui peut aller jusqu'à TAILLE_MESSAGE_VOIX. La limite du protocole est la seconde, la
@@ -363,6 +400,7 @@ class ServiceWeb:
         self.demandeur = None         # coroutine (Demande vers dict) posée par le serveur, None : demandes indisponibles
         self.quotas = demande_web.Quotas()
         self.maison = None            # maison_web.Maison posée par le serveur, None : écran Maison indisponible
+        self.fichier_3d = None        # chemin de vue3d.html, None : celui du dossier de configuration (réglé par les tests)
         self._taches = set()          # les demandes en cours : gardées en vie jusqu'à leur réponse
         self._ids = itertools.count(1)
         self._dernier_entretien = time.monotonic()
@@ -606,6 +644,16 @@ class ServiceWeb:
             return self.reponse(HTTPStatus.NOT_FOUND, "Introuvable.\n")
         return self.reponse(HTTPStatus.OK, corps, genre, cache)
 
+    def _vue3d(self):
+        """La page de la vue 3D, avec sa propre CSP (empreintes des blocs en ligne). 404 si elle n'a pas été générée :
+        l'écran Maison fonctionne alors sans maquette."""
+        chemin = self.fichier_3d or maison.chemin(FICHIER_3D)
+        try:
+            texte = Path(chemin).read_text(encoding="utf-8")
+        except OSError:
+            return self.reponse(HTTPStatus.NOT_FOUND, "Introuvable.\n")
+        return self.reponse(HTTPStatus.OK, texte, _HTML, _NO_CACHE, {"Content-Security-Policy": csp_vue3d(texte)})
+
     # Parcours HTTP
     def _ouverture_websocket(self, ip, chemin, entetes):
         if chemin == "/ws/appairage" and self.appairage:
@@ -689,6 +737,8 @@ class ServiceWeb:
                 refus_journal(ip, "droit insuffisant")
                 return self.reponse(HTTPStatus.FORBIDDEN, "Accès refusé.\n")
             return self._fichier_protege(nom, _JS)
+        if chemin == "/vue3d":
+            return self._vue3d()
         if chemin == "/api/etat":
             return self.json(HTTPStatus.OK, {"session": True, "serveur": self.version})
         if chemin == "/oublier" and self.appairage:
@@ -851,6 +901,8 @@ class ServiceWeb:
                 raise maison_web.RefusMaison("indisponible")
             if genre == maison_web.GENRE_ETATS:
                 rep = await self.maison.etats_pour(role)
+            elif genre == maison_web.GENRE_AIR:
+                rep = await self.maison.air_historique(role, msg)
             else:
                 personne = acces.cle_habitant(maison.CLE_PROPRIETAIRE) if role == AW.ROLE_PROPRIETAIRE else None
                 rep = await self.maison.regler(role, personne, msg)
