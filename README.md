@@ -6,7 +6,7 @@ tournent sur la tablette, le téléphone ou le PC, et un LLM n'est appelé qu'en
 de la demande seulement.
 
 <p align="center">
-  <img src="docs/images/ecoute.gif" width="900" alt="La tablette écoute une demande, allume la lampe de la télé et répond">
+  <img src="docs/images/ecoute.gif" width="900" alt="La tablette écoute une demande, éteint la lampe de la télé et répond">
 </p>
 
 Ce dépôt est le moteur : il ne contient rien d'un logement réel. Chacun y branche sa propre configuration
@@ -81,10 +81,10 @@ pas à pas et l'estimation du coût sont dans [docs/INSTALLER.md](docs/INSTALLER
 <table>
   <tr>
     <td width="50%"><img src="docs/images/accueil.gif" alt="Écran ambiant : heure, plan 3D, musique"><br><sub>Écran ambiant : heure, plan 3D, musique en cours.</sub></td>
-    <td width="50%"><img src="docs/images/maison.gif" alt="La maison en grand, une lampe réglée"><br><sub>La maison en grand : une lampe réglée, la télé allumée.</sub></td>
+    <td width="50%"><img src="docs/images/maison.gif" alt="La maison en grand, des lampes réglées"><br><sub>La maison en grand : la cuisine allumée, la suspension baissée, la lampe de la télé poussée.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/meteo.gif" alt="Météo, vent mesuré et mer"><br><sub>Météo, vent mesuré sur la carte du plan d'eau, prévisions marines.</sub></td>
+    <td width="50%"><img src="docs/images/meteo.gif" alt="Météo à Marseille, prévisions"><br><sub>Météo à Marseille : prévisions heure par heure et sur sept jours, mer au Prado.</sub></td>
     <td width="50%"><img src="docs/images/sante.gif" alt="Panneau santé avec des valeurs fictives"><br><sub>Santé, affichée à son propriétaire seul devant l'écran (valeurs fictives).</sub></td>
   </tr>
 </table>
