@@ -24,7 +24,9 @@ PCM_MAX_OCTETS = 2 * TAUX * DUREE_MAX_S   # int16, mono : 640 000 octets
 PCM_MIN_OCTETS = 2 * TAUX // 5            # moins de 0,2 s : rien à transcrire
 BASE64_MAX = 4 * ((PCM_MAX_OCTETS + 2) // 3)
 
-GENRES = ("demande_texte", "demande_voix")
+GENRE_TEXTE = "demande_texte"
+GENRE_VOIX = "demande_voix"
+GENRES = (GENRE_TEXTE, GENRE_VOIX)
 ROLES = ("administrateur", "habitant", "invite")
 FENETRE_DEFAUT_S = 600
 # Demandes permises par fenêtre, par appareil. 0 : ce rôle n'a pas le droit de demander par ce moyen.
@@ -130,6 +132,18 @@ def pcm_valide(brut):
     if len(octets) % 2 or not PCM_MIN_OCTETS <= len(octets) <= PCM_MAX_OCTETS:
         raise RefusDemande("audio")
     return octets
+
+
+def texte_transcrit(texte):
+    """Le texte rendu par la transcription d'une demande parlée : espaces réduits, coupé à TEXTE_MAX caractères et
+    sans caractère de contrôle. RefusDemande("transcription") s'il ne reste rien (rien compris, silence)."""
+    if not isinstance(texte, str):
+        raise RefusDemande("transcription")
+    propre = "".join(" " if c in "\n\t\r" else c for c in texte if ord(c) >= 32 and ord(c) != 127 or c in "\n\t\r")
+    propre = " ".join(propre.split())[:TEXTE_MAX].strip()
+    if not propre:
+        raise RefusDemande("transcription")
+    return propre
 
 
 def essai_du_message(msg):

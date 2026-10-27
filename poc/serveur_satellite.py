@@ -475,9 +475,10 @@ class Moteur:
         Appareil, personne et rôle viennent de la session (demande_web.Demande), jamais du message. L'essai effectif
         est celui du serveur OU celui du message (llm_texte). La réponse revient au navigateur en texte : une demande
         du téléphone ne fait jamais parler la tablette. Les étapes sont poussées au journal comme pour un satellite."""
-        if demande.genre != "demande_texte":
+        if demande.genre not in demande_web.GENRES:
             raise demande_web.RefusDemande("indisponible")
-        texte = demande.texte
+        parlee = demande.genre == demande_web.GENRE_VOIX
+        texte = await self.transcrire_web(demande) if parlee else demande.texte
         ident = J.nouvel_id()
         A.ID_DEMANDE.set(ident)  # le journal (A.journaliser) lit l'identifiant dans le contexte de cette tâche
         service = getattr(self, "service_web", None)
@@ -487,7 +488,7 @@ class Moteur:
                 service.publier_etape(ident, auteur, "entendu", maison.maintenant().strftime("%H:%M:%S"))
             except Exception as e:
                 print(f"Journal web : étape impossible ({type(e).__name__})")
-        print(f"[{demande.appareil}] demande écrite du client web : {A.pour_console(texte)}"
+        print(f"[{demande.appareil}] demande {'parlée' if parlee else 'écrite'} du client web : {A.pour_console(texte)}"
               + (f" (personne : {demande.personne})" if demande.personne else ""))
         avant = R.registre().version
         try:
@@ -504,7 +505,31 @@ class Moteur:
             await self.diffuser({"etat": "routines_maj", "version": reg.version})
         return {"id": ident, "texte": texte, "reponse": res["reponse"],
                 "actions": actions_lisibles(" | ".join(str(x) for x in res["actions"]), self.noms), "cerveau": res["cerveau"], "ms": res["ms"],
-                "essai": bool(res["essai"]), "erreur": bool(res["erreur"])}
+                "essai": bool(res["essai"]), "erreur": bool(res["erreur"]), "saisie": "voix" if parlee else "texte"}
+
+    def transcrire_locale(self, signal_f32):
+        """Transcription d'une demande du client web : le moteur du PC s'il est chargé, sinon Whisper de Home Assistant,
+        qui reste dans la maison. Jamais transcrire_api, ni le repli en ligne de transcrire() : la voix d'un navigateur
+        ne quitte pas la maison, quel que soit le moteur choisi pour les satellites."""
+        if self.stt:
+            return self.stt.transcrire(signal_f32)
+        return transcrire_ha(SERVICES_STT_HA["ha_whisper"][0], signal_f32)
+
+    async def transcrire_web(self, demande):
+        """Le texte d'une demande parlée du client web. L'enregistrement est déjà validé (demande_web.pcm_valide) : PCM
+        16 bits, 16 kHz, mono, 20 s au plus. RefusDemande("transcription") si le moteur échoue ou n'entend rien. Le
+        son n'est ni gardé ni journalisé, seul le texte l'est (par la chaîne ordinaire)."""
+        signal = np.frombuffer(demande.pcm, dtype="<i2").astype(np.float32) / 32768.0
+        t = time.perf_counter()
+        try:
+            async with self.verrou_stt:
+                texte = await asyncio.to_thread(self.transcrire_locale, signal)
+        except Exception as e:  # seulement la classe en console : le texte d'une exception pourrait citer du contenu
+            print(f"[{demande.appareil}] transcription du client web en échec ({e.__class__.__name__})")
+            raise demande_web.RefusDemande("transcription")
+        print(f"[{demande.appareil}] transcription locale du client web : {round((time.perf_counter() - t) * 1000)} ms "
+              f"pour {len(signal) / TAUX:.1f} s")
+        return demande_web.texte_transcrit(texte)
 
     def messages_routines(self, genre, msg, essai, personne, appareil, role):
         """Messages réseau des routines (note 7.4), dans un fil : le contexte de la requête porte la personne, le rôle

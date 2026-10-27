@@ -400,6 +400,183 @@ def test_un_refus_du_demandeur_arrive_en_erreur_motivee(service):
     assert scenario_ws(service, jeton, corps)["cause"] == "transcription"
 
 
+def brancher_voix(service):
+    """Un demandeur factice pour les deux genres : il rend le texte « transcrit » d'une demande parlée."""
+    vus = []
+
+    async def demandeur(demande):
+        vus.append(demande)
+        texte = demande.texte if demande.texte is not None else "texte transcrit"
+        return {"id": "0123456789ab", "texte": texte, "reponse": "ok", "actions": [], "cerveau": "x", "ms": 1,
+                "essai": demande.essai, "erreur": False, "saisie": "voix" if demande.pcm else "texte"}
+    service.demandeur = demandeur
+    return vus
+
+
+async def parler_ws(ws, brut=None, **plus):
+    await envoyer(ws, {"type": "demande_voix", "pcm": pcm(1.0) if brut is None else brut, **plus})
+    return await recevoir_reponse(ws)
+
+
+def test_une_demande_vocale_arrive_au_demandeur_avec_la_session_et_l_enregistrement(service):
+    appareil, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        return await parler_ws(ws, personne=maison.CLE_PROPRIETAIRE, role="administrateur", essai=False)
+    rep = scenario_ws(service, jeton, corps)
+    assert rep["type"] == "reponse" and rep["genre"] == "demande_voix" and rep["saisie"] == "voix"
+    d = vus[0]
+    assert d.genre == "demande_voix" and d.texte is None and len(d.pcm) == 2 * D.TAUX
+    assert d.personne is None and d.role == "habitant" and d.appareil == "web:" + appareil["id"]
+    assert d.essai is False
+
+
+def test_une_demande_vocale_sans_essai_precise_reste_en_essai(service):
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        return await parler_ws(ws)
+    scenario_ws(service, jeton, corps)
+    assert vus[0].essai is True
+
+
+def test_un_enregistrement_de_vingt_secondes_passe_malgre_sa_taille(service):
+    """Environ 853 Ko en base64 : bien au-dessus des 64 Ko des autres messages, sous la limite du protocole."""
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+    gros = pcm(20.0)
+    assert len(gros) > W.TAILLE_MESSAGE
+
+    async def corps(ws):
+        return await parler_ws(ws, gros)
+    assert scenario_ws(service, jeton, corps)["type"] == "reponse"
+    assert len(vus[0].pcm) == D.PCM_MAX_OCTETS
+
+
+CAS_PCM_TEXTES = {nom: v for nom, v in CAS_PCM_REFUSES.items() if isinstance(v, str)}  # ce que JSON sait porter
+
+
+@pytest.mark.parametrize("brut", list(CAS_PCM_TEXTES.values()), ids=list(CAS_PCM_TEXTES))
+def test_un_enregistrement_mal_forme_ou_trop_long_est_refuse_sans_consommer_de_place(service, monkeypatch, brut):
+    regler_quotas(monkeypatch, voix={"invite": 1})
+    _, _, jeton = appairer_direct(service, "invite")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        refus = await parler_ws(ws, brut)
+        return refus, await parler_ws(ws)  # la place n'a pas été prise par le refus
+    refus, suite = scenario_ws(service, jeton, corps)
+    assert refus == {"type": "erreur", "cause": "audio", "genre": "demande_voix"}
+    assert suite["type"] == "reponse" and len(vus) == 1
+
+
+def test_un_enregistrement_absent_ou_d_un_autre_type_est_refuse(service):
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        reps = []
+        for plus in ({}, {"pcm": None}, {"pcm": 12}, {"pcm": [1, 2]}, {"pcm": {"a": 1}}):
+            await envoyer(ws, {"type": "demande_voix", **plus})
+            reps.append(await recevoir_reponse(ws))
+        return reps
+    reps = scenario_ws(service, jeton, corps)
+    assert [r["cause"] for r in reps] == ["audio"] * 5 and vus == []
+
+
+def test_un_enregistrement_trop_long_pour_le_protocole_ferme_la_connexion(service):
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        await envoyer(ws, {"type": "demande_voix", "pcm": "A" * (W.TAILLE_MESSAGE_VOIX + 10)})
+        return await fermeture(ws)
+    assert scenario_ws(service, jeton, corps) == 1009
+    assert vus == []
+
+
+def test_seule_la_demande_vocale_a_le_droit_d_etre_grosse(service):
+    """Les autres messages, de tout rôle, sont bornés à 64 Ko : la connexion se ferme sur un message plus gros."""
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        await envoyer(ws, {"type": "demande_texte", "texte": "a", "remplissage": "x" * W.TAILLE_MESSAGE})
+        return await fermeture(ws)
+    assert scenario_ws(service, jeton, corps) == 1009
+    assert vus == []
+
+
+def test_un_message_de_64_ko_pile_ou_moins_passe_encore(service):
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        return await demander(ws, "bonjour", remplissage="x" * (W.TAILLE_MESSAGE - 200))
+    assert scenario_ws(service, jeton, corps)["type"] == "reponse" and len(vus) == 1
+
+
+def test_le_navigateur_non_associe_ne_peut_pas_envoyer_de_gros_messages(service):
+    brancher_voix(service)
+
+    async def lance():
+        serveur, port = await lancer(service)
+        try:
+            ws = await ouvrir_ws(port, "/ws/appairage")
+            await envoyer(ws, {"type": "code", "code": "x" * (W.TAILLE_MESSAGE + 10)})
+            return await fermeture(ws)
+        finally:
+            await arreter(serveur)
+    assert asyncio.run(lance()) == 1009
+
+
+def test_le_quota_de_voix_est_separe_de_celui_du_texte_et_motive(service, monkeypatch):
+    regler_quotas(monkeypatch, texte={"invite": 1}, voix={"invite": 1})
+    _, _, jeton = appairer_direct(service, "invite")
+    brancher_voix(service)
+
+    async def corps(ws):
+        return [await demander(ws), await parler_ws(ws), await parler_ws(ws), await demander(ws)]
+    reps = scenario_ws(service, jeton, corps)
+    assert [r["type"] for r in reps] == ["reponse", "reponse", "erreur", "erreur"]
+    assert reps[2]["cause"] == "quota" and reps[2]["genre"] == "demande_voix" and reps[2]["attente_s"] > 0
+    assert reps[3]["genre"] == "demande_texte"
+
+
+def test_un_role_sans_droit_de_voix_est_refuse_avant_toute_lecture_de_l_enregistrement(service, monkeypatch):
+    regler_quotas(monkeypatch, voix={"invite": 0})
+    _, _, jeton = appairer_direct(service, "invite")
+    vus = brancher_voix(service)
+
+    async def corps(ws):
+        return await parler_ws(ws, "pas du base64 du tout")
+    assert scenario_ws(service, jeton, corps) == {"type": "erreur", "cause": "droit", "genre": "demande_voix"}
+    assert vus == []
+
+
+def test_la_voix_et_le_texte_se_partagent_le_drapeau_en_cours(service):
+    _, _, jeton = appairer_direct(service, "habitant")
+    vus = []
+
+    async def corps(ws):
+        bloque = asyncio.Event()
+        brancher_depuis(service, bloque, vus)
+        await parler_ws_sans_attente(ws)
+        await asyncio.sleep(0.2)
+        await envoyer(ws, {"type": "demande_texte", "texte": "pendant"})
+        refus = await recevoir_reponse(ws)
+        bloque.set()
+        await recevoir_reponse(ws)
+        return refus
+    assert scenario_ws(service, jeton, corps)["cause"] == "occupe"
+
+
+async def parler_ws_sans_attente(ws):
+    await envoyer(ws, {"type": "demande_voix", "pcm": pcm(1.0)})
+
+
 def test_la_connexion_reste_lisible_pendant_une_demande_longue(service):
     """La demande est lancée à part : un « moi » reçoit sa réponse avant celle de la demande."""
     _, _, jeton = appairer_direct(service, "habitant")
@@ -509,6 +686,7 @@ def moteur_de_test(monkeypatch, essai_serveur=False):
     moteur.assistant, moteur.essai, moteur.cerveau_actif = a, essai_serveur, "claude"
     moteur.noms = lambda c: c
     moteur.service_web = None
+    moteur.stt, moteur.stt_actif = None, "pc"
     return moteur, ha, a.cerveau
 
 
@@ -518,7 +696,7 @@ def repondre(moteur, **champs):
     base.update(champs)
 
     async def lance():
-        moteur.verrou = asyncio.Lock()
+        moteur.verrou, moteur.verrou_stt = asyncio.Lock(), asyncio.Lock()
         return await moteur.repondre_web(D.Demande(**{k: base[k] for k in ("genre", "texte", "pcm", "essai",
                                                                             "appareil", "personne", "role")}))
     return asyncio.run(lance())
@@ -557,11 +735,118 @@ def test_serveur_reel_message_reel_agit_mais_seulement_par_le_point_de_controle(
     assert "erreur" in etage and "erreur" in appareil
 
 
-def test_une_demande_vocale_n_est_pas_encore_servie(monkeypatch):
+class MoteurStt:
+    """Un moteur de transcription du PC : rend le texte voulu et note le signal reçu."""
+
+    def __init__(self, texte="allume le salon", panne=False):
+        self.texte, self.panne, self.signaux = texte, panne, []
+
+    def transcrire(self, signal):
+        self.signaux.append(signal)
+        if self.panne:
+            raise RuntimeError("clé secrète sk-456 dans la panne")
+        return self.texte
+
+
+def interdire_les_moteurs_en_ligne(monkeypatch):
+    def jamais(*a, **k):
+        raise AssertionError("la voix d'un navigateur a quitté la maison")
+    monkeypatch.setattr(S, "transcrire_api", jamais)
+    monkeypatch.setattr(S, "stt_api_configuree", lambda: True)
+
+
+def parler(moteur, octets=None, **champs):
+    octets = bytes(2 * D.TAUX) if octets is None else octets  # une seconde de silence
+    return repondre(moteur, genre="demande_voix", texte=None, pcm=octets, **champs)
+
+
+def test_une_demande_vocale_est_transcrite_par_le_moteur_du_pc_puis_suit_la_meme_chaine(monkeypatch):
+    interdire_les_moteurs_en_ligne(monkeypatch)
+    moteur, ha, cerveau = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt("allume le salon")
+    res = parler(moteur, essai=False, role="administrateur", personne="camille")
+    assert res["texte"] == "allume le salon" and res["saisie"] == "voix" and res["essai"] is False
+    assert cerveau.vu == (False, "camille", "web:ab12", "administrateur", "web")
+    # La voix passe par le même point de contrôle : un seul ordre part, l'éclairage permis.
+    assert [url for url, _ in ha.client.posts] == ["http://ha/api/services/light/turn_on"]
+    assert "interdit" in cerveau.resultats[1]["erreur"]
+    assert len(moteur.stt.signaux) == 1 and moteur.stt.signaux[0].dtype.name == "float32"
+    assert len(moteur.stt.signaux[0]) == D.TAUX
+
+
+def test_le_pcm_est_lu_en_16_bits_petit_boutiste_et_ramene_entre_moins_un_et_un(monkeypatch):
+    import numpy as np
     moteur, _, _ = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt()
+    octets = np.array([0, 16384, -32768, 32767] * (D.PCM_MIN_OCTETS // 8), dtype="<i2").tobytes()
+    parler(moteur, octets)
+    signal = moteur.stt.signaux[0]
+    assert signal[:4].tolist() == [0.0, 0.5, -1.0, 32767 / 32768]
+
+
+def test_une_demande_vocale_sans_moteur_du_pc_passe_par_whisper_de_home_assistant(monkeypatch):
+    interdire_les_moteurs_en_ligne(monkeypatch)
+    moteur, _, _ = moteur_de_test(monkeypatch)
+    moteur.stt = None
+    appels = []
+    monkeypatch.setattr(S, "transcrire_ha", lambda cible, signal: appels.append((cible, len(signal))) or "ouvre le volet")
+    res = parler(moteur)
+    assert res["texte"] == "ouvre le volet"
+    assert appels == [(S.SERVICES_STT_HA["ha_whisper"][0], D.TAUX)]
+
+
+def test_le_moteur_choisi_pour_les_satellites_ne_change_pas_la_voie_du_navigateur(monkeypatch):
+    """Même si le serveur transcrit en ligne pour les satellites, la voix d'un navigateur reste dans la maison."""
+    interdire_les_moteurs_en_ligne(monkeypatch)
+    moteur, _, _ = moteur_de_test(monkeypatch)
+    moteur.stt, moteur.stt_actif = MoteurStt(), "api"
+    assert parler(moteur)["texte"] == "allume le salon"
+
+
+def test_une_transcription_en_echec_est_une_cause_motivee_sans_fuite(monkeypatch, capsys):
+    moteur, ha, _ = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt(panne=True)
     with pytest.raises(D.RefusDemande) as e:
-        repondre(moteur, genre="demande_voix", texte=None, pcm=b"\0" * D.PCM_MIN_OCTETS)
-    assert e.value.cause == "indisponible"
+        parler(moteur)
+    assert e.value.cause == "transcription" and ha.client.posts == []
+    sortie = capsys.readouterr().out
+    assert "RuntimeError" in sortie and "sk-456" not in sortie
+
+
+@pytest.mark.parametrize("texte", ["", "   ", "\n\t", None])
+def test_une_transcription_vide_ne_part_pas_dans_la_chaine(monkeypatch, texte):
+    moteur, ha, cerveau = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt(texte)
+    with pytest.raises(D.RefusDemande) as e:
+        parler(moteur)
+    assert e.value.cause == "transcription" and cerveau.vu is None and ha.client.posts == []
+
+
+def test_une_transcription_trop_longue_est_coupee_comme_un_texte_ecrit(monkeypatch):
+    moteur, _, _ = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt("mot " * 400)
+    assert len(parler(moteur)["texte"]) <= D.TEXTE_MAX
+
+
+def test_texte_transcrit_nettoie_les_espaces_et_les_caracteres_de_controle():
+    assert D.texte_transcrit("  allume \n la\tcuisine\x00 ") == "allume la cuisine"
+    assert len(D.texte_transcrit("a " * 500)) <= D.TEXTE_MAX
+    for vide in ("", " \n ", "\x00\x01", 12, None):
+        with pytest.raises(D.RefusDemande) as e:
+            D.texte_transcrit(vide)
+        assert e.value.cause == "transcription"
+
+
+def test_une_demande_vocale_ecrit_au_journal_seulement_le_texte(monkeypatch):
+    """Le son n'est ni gardé ni passé au journal : la chaîne ordinaire n'en voit que la transcription."""
+    interdire_les_moteurs_en_ligne(monkeypatch)
+    moteur, _, cerveau = moteur_de_test(monkeypatch)
+    moteur.stt = MoteurStt("allume le salon")
+    vus = []
+    monkeypatch.setattr(A, "journaliser", lambda *x, **k: vus.append(x))
+    parler(moteur, bytes([1, 0]) * D.TAUX)
+    assert vus and all(isinstance(v, (str, float, int, list)) for x in vus for v in x)
+    assert not any(isinstance(v, (bytes, bytearray)) for x in vus for v in x)
 
 
 def test_la_reponse_du_moteur_est_du_json_pur(monkeypatch):
@@ -602,6 +887,16 @@ def test_repondre_web_n_appelle_que_llm_texte_et_aucun_service():
         assert not re.search(motif, source), motif
 
 
+@pytest.mark.parametrize("fonction", ["transcrire_locale", "transcrire_web"])
+def test_la_transcription_des_demandes_du_navigateur_n_a_aucune_voie_en_ligne(fonction):
+    import textwrap
+    source = sans_commentaires(textwrap.dedent(inspect.getsource(getattr(S.Moteur, fonction))))
+    for motif in (r"transcrire_api", r"stt_api_configuree", r"self\.transcrire\(", r"stt_actif", r"requests\.",
+                  r"httpx", r"urllib", r"anthropic", r"STT_API"):
+        assert not re.search(motif, source, re.I), (fonction, motif)
+    assert ("ha_whisper" in source) == (fonction == "transcrire_locale")
+
+
 def test_aucun_moteur_en_ligne_dans_le_module_des_demandes():
     source = sans_commentaires((RACINE / "demande_web.py").read_text(encoding="utf-8"))
     assert "transcrire_api" not in source and "anthropic" not in source.lower()
@@ -630,6 +925,20 @@ def test_la_page_demander_n_a_ni_script_ni_style_en_ligne():
     assert not re.search(r"\son[a-z]+=", html), "aucun gestionnaire d'événement en ligne"
     js = (RACINE / "web" / "demander.js").read_text(encoding="utf-8")
     assert "innerHTML" not in js and "insertAdjacentHTML" not in js and "document.write" not in js and "eval(" not in js
+
+
+def test_le_client_enregistre_en_16_khz_mono_pour_20_secondes_au_plus_et_ne_pose_pas_de_style_en_ligne():
+    """Le micro : même format et mêmes bornes que le serveur (demande_web), CSP stricte respectée (CSSOM, pas
+    d'attribut style), micro libéré à l'arrêt, à l'annulation et quand la page se cache."""
+    js = (RACINE / "web" / "demander.js").read_text(encoding="utf-8")
+    html = (RACINE / "web" / "demander.html").read_text(encoding="utf-8")
+    assert f"TAUX = {D.TAUX};" in js and f"DUREE_MAX_S = {D.DUREE_MAX_S};" in js
+    assert "getUserMedia" in js and '"demande_voix"' in js and "setInt16(i * 2, pcm[i], true)" in js
+    assert 'setAttribute("style"' not in js and ".cssText" not in js and "style.setProperty" in js
+    assert "getTracks().forEach" in js and "pagehide" in js and "visibilitychange" in js
+    assert 'id="bouton-micro"' in html and 'id="orbe-ecoute"' in html and 'id="annuler-ecoute"' in html
+    assert "hidden" in re.search(r'<button id="bouton-micro"[^>]*>', html).group(0), "caché tant que le script ne l'a pas validé"
+    assert "microphone=(self)" in W.ENTETES_SECURITE["Permissions-Policy"]
 
 
 def test_le_client_web_ne_parle_qu_a_son_serveur():

@@ -237,6 +237,7 @@ def variantes_journal():
 
 def variantes_demander():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "demander.html").read_text(encoding="utf-8"))))
+    brut = montrer(brut, "bouton-micro")   # le script le montre quand le navigateur sait enregistrer
     out = {"demander-repos": brut}
     etapes = ('<li class="etape"><span class="fort">Entendu</span><span class="secondaire chiffres">0,0 s</span></li>'
               '<li class="etape"><span class="fort">Compris</span><span class="secondaire chiffres">0,4 s</span></li>'
@@ -269,6 +270,24 @@ def variantes_demander():
     en_cours = en_cours.replace('id="bouton-envoyer"', 'id="bouton-envoyer" disabled')
     debut = "".join(etapes.split("</li>")[:2]) + "</li>"
     out["demander-encours"] = remplir(montrer(en_cours, "carte-etapes"), "etapes-demande", debut)
+    # 11a, écoute : l'orbe, le niveau du micro (hauteurs posées par le script, ici en dur), la saisie écrite à portée.
+    ecoute = montrer(brut, "carte-ecoute")
+    hauteurs = (18, 32, 55, 80, 62, 90, 48, 70, 36, 58, 24, 40, 16)
+    barres = "".join(f'<i style="--h:{h}%"></i>' for h in hauteurs)
+    ecoute = remplir(ecoute, "niveau-micro", barres).replace(" niveau-micro--repos", "")
+    ecoute = remplir(ecoute, "duree-ecoute", "7 s sur 20 s")
+    ecoute = ecoute.replace('aria-label="Dire la demande">', 'aria-label="Dire la demande" disabled>')
+    ecoute = ecoute.replace('id="bouton-envoyer"', 'id="bouton-envoyer" disabled')
+    out["demander-ecoute"] = ecoute
+    out["demander-ecoute-repos"] = montrer(brut, "carte-ecoute")   # niveau au repos, avant le premier son
+    long_ecoute = ecoute.replace('placeholder=', 'value="' + LONG_NOM + ' avec une demande très longue" placeholder=')
+    out["demander-ecoute-long"] = remplir(montrer(long_ecoute, "erreur-demande"), "erreur-demande",
+                                          "Le micro est refusé pour ce site. Autorisez-le dans les réglages du "
+                                          "navigateur, ou écrivez la demande.")
+    refus = remplir(montrer(brut, "erreur-demande"), "erreur-demande",
+                    "Le micro est refusé pour ce site. Autorisez-le dans les réglages du navigateur, ou écrivez la "
+                    "demande.")
+    out["demander-micro-refuse"] = refus
     return out
 
 
@@ -334,7 +353,7 @@ def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
               **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin()}
-    assert len(toutes) >= 34
+    assert len(toutes) >= 38
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom

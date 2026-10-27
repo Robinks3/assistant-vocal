@@ -119,13 +119,21 @@ CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; styl
        "object-src 'none'; worker-src 'self'; manifest-src 'self'; media-src 'self' blob:; frame-src 'self'; "
        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; require-trusted-types-for 'script'")
 
-# En-têtes de toutes les réponses. Permissions-Policy est fermée : le lot S-W3 ouvrira microphone=(self).
+# Taille des messages WebSocket. Tout message fait au plus TAILLE_MESSAGE, sauf demande_voix (un enregistrement de 20 s
+# en base64, environ 853 Ko) qui peut aller jusqu'à TAILLE_MESSAGE_VOIX. La limite du protocole est la seconde, la
+# première est appliquée par chaque boucle sur tout autre message.
+TAILLE_MESSAGE = 2 ** 16
+TAILLE_MESSAGE_VOIX = 2 ** 20
+CODE_TROP_GROS = 1009
+
+# En-têtes de toutes les réponses. Permissions-Policy ne laisse que le microphone, et à la page elle-même (S-W3,
+# écran Demander). Caméra, position, capteurs, paiement et USB restent fermés.
 ENTETES_SECURITE = {
     "Content-Security-Policy": CSP,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), "
-                          "microphone=(), payment=(), usb=()",
+                          "microphone=(self), payment=(), usb=()",
     "Strict-Transport-Security": "max-age=31536000",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
@@ -709,6 +717,9 @@ class ServiceWeb:
                     break
                 except websockets.ConnectionClosed:
                     break
+                if len(brut) > TAILLE_MESSAGE:  # seule une demande vocale a le droit d'être grosse, et pas ici
+                    conn.envoyer(None, fermer=CODE_TROP_GROS)
+                    break
                 msg = self._lire(brut)
                 genre = msg.get("type") if msg else None
                 if genre == "code":
@@ -750,6 +761,9 @@ class ServiceWeb:
                 msg = self._lire(brut)
                 if msg is None:
                     conn.envoyer(None, fermer=1008)
+                    break
+                if len(brut) > TAILLE_MESSAGE and msg.get("type") != demande_web.GENRE_VOIX:
+                    conn.envoyer(None, fermer=CODE_TROP_GROS)
                     break
                 try:
                     rep = self._client(conn, msg)
@@ -907,7 +921,8 @@ async def demarrer(adresse, port, version, sessions=None, service=None):
         return reponse
 
     serveur = await websockets.serve(service.traiter_websocket, adresse, port, process_request=avant,
-                                     process_response=apres, max_size=2 ** 16, ping_interval=20)
+                                     process_response=apres, max_size=TAILLE_MESSAGE_VOIX,
+                                     ping_interval=20)
     service.port = serveur.sockets[0].getsockname()[1]
     serveur.service_web = service
     return serveur

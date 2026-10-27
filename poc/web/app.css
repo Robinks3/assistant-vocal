@@ -216,3 +216,24 @@ legend.libelle{padding:0}
 .actions-faites{margin:0;padding:0 0 0 var(--e5)}
 .actions-faites li{padding:var(--e1) 0;overflow-wrap:anywhere}
 .liens-reponse{margin-top:var(--e3)}
+.bouton--envoi[hidden]{display:none}
+
+/* Demander, écoute (S-W3, commit voix) : orbe, niveau du micro */
+.carte--ecoute{margin-top:var(--e3)}
+.carte--ecoute[hidden]{display:none}
+.orbe--l{display:flex;align-items:center;justify-content:center;width:112px;height:112px;border:0;padding:0;color:#fff}
+.orbe--l .i{width:44px;height:44px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.orbe-voix{position:relative;display:flex;align-items:center;justify-content:center;width:176px;height:176px;margin:var(--e2) auto 0}
+.orbe-voix::before,.orbe-voix::after{content:"";position:absolute;border-radius:50%;border:2px solid var(--assistant);opacity:0;pointer-events:none}
+.orbe-voix--ecoute::before{inset:12px;opacity:.55}
+.orbe-voix--ecoute::after{inset:0;opacity:.28}
+@media (prefers-reduced-motion:no-preference){
+  .orbe-voix--ecoute::before{animation:respire 1.6s ease-in-out infinite}
+  .orbe-voix--ecoute::after{animation:respire 1.6s ease-in-out .3s infinite}
+}
+@keyframes respire{50%{transform:scale(1.07)}}
+.statut-voix{margin-top:var(--e1);text-align:center;font-size:1.0625rem;font-weight:500}
+.aide--centre{text-align:center;margin-top:var(--e1);font-variant-numeric:tabular-nums}
+.niveau-micro{display:flex;align-items:center;justify-content:center;gap:4px;height:40px;margin:var(--e3) 0 var(--e2)}
+.niveau-micro i{display:block;width:5px;height:var(--h,8%);min-height:4px;border-radius:3px;background:var(--assistant);opacity:.85}
+.niveau-micro--repos i{background:var(--bord-controle);opacity:.6}

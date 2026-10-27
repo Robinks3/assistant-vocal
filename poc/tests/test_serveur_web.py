@@ -76,7 +76,10 @@ def verifier_entetes_securite(entetes):
     assert entetes["x-content-type-options"] == "nosniff"
     assert entetes["referrer-policy"] == "no-referrer"
     assert entetes["strict-transport-security"].startswith("max-age=")
-    assert "microphone=()" in entetes["permissions-policy"]
+    politique = entetes["permissions-policy"]
+    assert "microphone=(self)" in politique  # S-W3 : le micro, à la page seule (écran Demander)
+    for ferme in ("camera", "geolocation", "accelerometer", "gyroscope", "magnetometer", "payment", "usb"):
+        assert f"{ferme}=()" in politique
     assert entetes["cross-origin-opener-policy"] == "same-origin"
     assert entetes["cross-origin-resource-policy"] == "same-origin"
     assert "cache-control" in entetes
