@@ -75,8 +75,9 @@ ADMINISTRATION = CONFIG.get("administration") if isinstance(CONFIG.get("administ
 # locale par le serveur HTTP du client web, et rpId de WebAuthn), session_jours (durée de vie d'un cookie de session
 # sans usage), invite_jours (durée de l'accès d'un navigateur invité, lot S-W1b), quotas (demandes permises par
 # appareil et par fenêtre, pour le texte et pour la voix, selon le rôle, lot S-W3), maison (écran Maison, lot S-W4a :
-# reglage_attente_s, pieces avec leurs lumières, leur télé et leur drapeau protegee, roles). Voir serveur_web.py,
-# demande_web.py, maison_web.py.
+# reglage_attente_s, pieces avec leurs lumières, leur télé et leur drapeau protegee, roles), meteo (écran Météo et mer,
+# lot S-W5 : roles, true pour chaque rôle qui voit l'écran). Voir serveur_web.py, demande_web.py, maison_web.py,
+# meteo_web.py.
 CLIENT_WEB = CONFIG.get("client_web") if isinstance(CONFIG.get("client_web"), dict) else {}
 # Section journal (0.39.0) : conserver_jours (durée de garde de l'historique qui contient les phrases), taille_max_ko
 # et fichiers_max (rotation du journal des durées, qui ne contient aucune phrase), phrases_dans_la_console

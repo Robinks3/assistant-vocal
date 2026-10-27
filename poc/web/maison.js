@@ -1703,8 +1703,13 @@
     vue3d.premier = true;
     var largeur = $("cadre-3d").clientWidth;
     poster3d({ type: "grand", actif: true, taille: largeur < 500 ? 44 : 56, police: largeur < 500 ? 14 : 18 });
+    poster3d({ type: "modeDeveloppeur", actif: C.modeDeveloppeur() });
     majVue3d();
   }
+
+  // Mode développeur (Réglages) : la vue 3D cache ses détails techniques elle aussi. Envoyé à chaque changement
+  // et dès que la page est prête (poster3d attend la vue prête et n'envoie pas deux fois la même valeur).
+  C.surModeDeveloppeur(function (actif) { poster3d({ type: "modeDeveloppeur", actif: actif }); });
 
   function choisirPiece3d(id) {
     var p = pieceDe(id);

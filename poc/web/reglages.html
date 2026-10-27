@@ -40,11 +40,21 @@
 <h2 class="surtitre" id="titre-serveur">Serveur</h2>
 <p class="fort carte-texte">Accès par le réseau privé</p>
 <p class="secondaire">Seuls les appareils associés peuvent joindre la maison.</p>
-<dl class="resume">
+<dl class="resume dev-seulement">
 <div><dt>Client web</dt><dd id="version-client">{{version_client}}</dd></div>
 <div><dt>Serveur</dt><dd id="version-serveur">{{version_serveur}}</dd></div>
 <div><dt>Généré le</dt><dd id="date-serveur">{{date}}</dd></div>
 </dl>
+</section>
+
+<section id="carte-developpeur" class="carte" aria-labelledby="titre-developpeur">
+<h2 class="surtitre" id="titre-developpeur">Mode développeur</h2>
+<button id="bascule-dev" type="button" class="bascule" role="switch" aria-checked="true">
+<span class="bascule-texte"><b>Détails techniques</b><small>Numéros de version, durées des étapes, identifiants. Actif par défaut.</small></span>
+<span id="dev-etat" class="bascule-etat">Oui</span>
+<span class="interrupteur" aria-hidden="true"></span>
+</button>
+<p class="aide">Coupé, ces détails disparaissent de tous les écrans de ce navigateur. Les avertissements de sécurité et les messages d'erreur restent affichés.</p>
 </section>
 
 <dialog id="dialogue-revoquer" class="dialogue" aria-labelledby="titre-revoquer">

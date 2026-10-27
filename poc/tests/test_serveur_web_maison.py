@@ -784,8 +784,8 @@ def test_pages_maison_exigent_une_session_et_s_ouvrent_a_tous_les_roles(service)
         assert statut_de(service.traiter("127.0.0.1", "/maison.js", entetes(jeton))) == 200, role
 
 
-def test_la_version_du_client_web_est_0_7_0():
-    assert W.VERSION_CLIENT == "0.7.0"
+def test_la_version_du_client_web_est_0_8_0():
+    assert W.VERSION_CLIENT == "0.8.0"
 
 
 def test_la_page_maison_n_a_ni_script_ni_style_en_ligne():

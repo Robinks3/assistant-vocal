@@ -329,6 +329,8 @@ def test_page_sans_script_ni_style_en_ligne_ni_ressource_externe():
                          'setAttribute("style"', "new Function"):
             if nom == "appairage.js" and interdit == "location.hash":
                 continue  # le QR porte le code dans le fragment (jamais envoyé au serveur), effacé dès la lecture
+            if nom == "client.js" and interdit == "localStorage":
+                continue  # seul le réglage « mode développeur » (oui/non) y est gardé, voir test_mode_developpeur.py
             assert interdit not in js, (nom, interdit)
 
 

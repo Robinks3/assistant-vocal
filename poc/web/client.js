@@ -116,8 +116,48 @@
     return "La clé d'accès n'a pas pu être utilisée sur ce navigateur.";
   }
 
+  // Mode développeur (client web 0.8.0). Actif par défaut. Coupé, il masque sur toutes les pages ce qui sert à déboguer
+  // (numéros de version, durées des étapes, identifiants, compteurs techniques) par l'attribut data-dev="non" de
+  // <html> et la classe .dev-seulement. Jamais une information de sécurité ni un message d'erreur utile.
+  // Seul usage du stockage local du client web, pour ce réglage, avec repli en mémoire si le navigateur le refuse.
+  var CLE_DEV = "modeDeveloppeur";
+  var devMemoire = true;
+  var ecouteursDev = [];
+
+  function modeDeveloppeur() {
+    try {
+      var v = window.localStorage.getItem(CLE_DEV);
+      if (v === "non") { return false; }
+      if (v === "oui") { return true; }
+    } catch (e) { return devMemoire; }
+    return true;
+  }
+
+  function appliquerDev() {
+    var actif = modeDeveloppeur();
+    document.documentElement.setAttribute("data-dev", actif ? "oui" : "non");
+    ecouteursDev.forEach(function (f) { try { f(actif); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } });
+    return actif;
+  }
+
+  function reglerDeveloppeur(actif) {
+    devMemoire = !!actif;
+    try { window.localStorage.setItem(CLE_DEV, actif ? "oui" : "non"); } catch (e) { /* repli en mémoire */ }
+    return appliquerDev();
+  }
+
+  // [f] est appelée tout de suite, puis à chaque changement (aussi venu d'un autre onglet).
+  function surModeDeveloppeur(f) {
+    ecouteursDev.push(f);
+    try { f(modeDeveloppeur()); } catch (e) { /* idem */ }
+  }
+
+  appliquerDev();
+  window.addEventListener("storage", function (ev) { if (ev.key === CLE_DEV || ev.key === null) { appliquerDev(); } });
+
   window.Client = {
     deB64u: deB64u, versB64u: versB64u, heure: heure, duree: duree, ouvrirWs: ouvrirWs, disponible: disponible,
-    creerCle: creerCle, signer: signer, texteErreur: texteErreur, erreurNavigateur: erreurNavigateur
+    creerCle: creerCle, signer: signer, texteErreur: texteErreur, erreurNavigateur: erreurNavigateur,
+    modeDeveloppeur: modeDeveloppeur, reglerDeveloppeur: reglerDeveloppeur, surModeDeveloppeur: surModeDeveloppeur
   };
 })();

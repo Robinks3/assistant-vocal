@@ -30,7 +30,7 @@
 <h2 class="surtitre" id="titre-ecoute">Écoute en cours</h2>
 <div class="orbe-voix orbe-voix--ecoute"><button id="orbe-ecoute" type="button" class="orbe orbe--l" aria-label="Arrêter l'écoute et envoyer"><svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg></button></div>
 <p id="statut-voix" class="statut-voix" role="status">Je vous écoute</p>
-<p id="duree-ecoute" class="aide aide--centre">0 s sur 20 s</p>
+<p id="duree-ecoute" class="aide aide--centre dev-seulement">0 s sur 20 s</p>
 <div id="niveau-micro" class="niveau-micro niveau-micro--repos" role="img" aria-label="Niveau du micro"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <button id="annuler-ecoute" type="button" class="bouton bouton--plein">Annuler</button>
 </section>
@@ -68,14 +68,14 @@
 <ul id="liste-actions" class="actions-faites"></ul>
 </section>
 
-<section id="carte-etapes" class="carte" aria-labelledby="titre-etapes" hidden>
+<section id="carte-etapes" class="carte dev-seulement" aria-labelledby="titre-etapes" hidden>
 <h2 class="surtitre" id="titre-etapes">Étapes</h2>
 <ol id="etapes-demande" class="etapes"></ol>
 </section>
 
 <p id="liens-reponse" class="liens-reponse" hidden><a class="lien" href="/journal">Voir dans le journal</a></p>
 
-<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+<p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
 </main>
 </body>
 </html>

@@ -14,6 +14,7 @@
 <link rel="icon" type="image/png" href="/icones/icone-192.png">
 <link rel="apple-touch-icon" href="/icones/apple-touch-icon.png">
 <link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
 <script src="/app.js" defer></script>
 </head>
 <body>
@@ -39,12 +40,13 @@
 <p class="secondaire">Les autres fonctions du client web arrivent dans les prochaines versions.</p>
 <a class="bouton bouton--principal bouton--plein" href="/demander">Demander</a>
 <a class="bouton bouton--plein" href="/maison">Maison</a>
+<a class="bouton bouton--plein" href="/meteo">Météo et mer</a>
 <a class="bouton bouton--plein" href="/journal">Journal</a>
 <a class="bouton bouton--plein" href="/vie-privee">Vie privée</a>
 <a class="bouton bouton--plein" href="/reglages">Réglages</a>
 </section>
 
-<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+<p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
 </main>
 </body>
 </html>

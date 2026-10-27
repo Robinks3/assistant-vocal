@@ -221,8 +221,8 @@ def test_le_parent_n_accepte_que_des_cles_exactes_et_des_identifiants_surs():
 
 def test_les_messages_du_parent_a_la_page_sont_des_types_connus_seulement():
     js = MAISON_JS.read_text(encoding="utf-8")
-    envoyes = set(re.findall(r'poster3d\(\{ type: "([a-z]+)"', js))
-    assert envoyes == {"etats", "etiquettes", "choisir", "pastilles", "mesures", "grand"}
+    envoyes = set(re.findall(r'poster3d\(\{ type: "([a-zA-Z]+)"', js))
+    assert envoyes == {"etats", "etiquettes", "choisir", "pastilles", "mesures", "grand", "modeDeveloppeur"}
     page = MODELE.read_text(encoding="utf-8")
     pont = set(re.findall(r"^  ([a-zA-Z]+): \[d => ", page[page.index("const PONT = {"):], re.M))
     assert envoyes <= pont
@@ -241,7 +241,7 @@ const JEUX = { neutre: 1, couleur: 1 };
 const PARENT = { postMessage: (m, cible) => envoyes.push([m, cible]) };
 const AUTRE = {};
 globalThis.window = { parent: PARENT, vue3d: {} };
-for (const n of ["rotation", "fondu", "nomsAuSol", "poussieres", "desaturer", "pause", "grand"]) window.vue3d[n] = rec(n);
+for (const n of ["rotation", "fondu", "nomsAuSol", "poussieres", "desaturer", "pause", "grand", "modeDeveloppeur"]) window.vue3d[n] = rec(n);
 let ecouteur = null;
 globalThis.addEventListener = (type, f) => { if (type === "message") ecouteur = f; };
 /*PONT*/
@@ -287,11 +287,15 @@ def test_la_page_applique_un_message_valide_du_parent_et_un_seul(tmp_path):
         parent({"type": "choisir", "id": "salon", "duree": 800}),
         parent({"type": "etats", "etats": {"light.salon_plafond": {"state": "on", "attributes": {"brightness": 128}}}}),
         parent({"type": "grand", "actif": True, "taille": 44, "police": 14}),
+        parent({"type": "modeDeveloppeur", "actif": False}),
+        parent({"type": "modeDeveloppeur", "actif": True, "intrus": "x"}),
     ])["recus"]
     assert s[0] == {"retour": True, "appels": [["choisir", "salon", 800]]}
     assert s[1]["retour"] is True and s[1]["appels"][0][0] == "etats"
     assert s[1]["appels"][0][1]["light.salon_plafond"] == {"attributes": {"brightness": 128}, "state": "on"}
     assert s[2] == {"retour": True, "appels": [["grand", True, 44, 14]]}
+    assert s[3] == {"retour": True, "appels": [["modeDeveloppeur", False]]}
+    assert s[4] == {"retour": True, "appels": [["modeDeveloppeur", True]]}
 
 
 @pytest.mark.skipif(NODE is None, reason="node absent")
@@ -305,6 +309,8 @@ def test_la_page_rejette_sans_rien_appeler_les_messages_mal_formes(tmp_path):
         {"type": "etats", "etats": [{"entity_id": f"l{i}", "state": "on"} for i in range(201)]},
         {"type": "fondu"}, {"type": "fondu", "actif": "oui"}, {"type": "fondu", "actif": 1},
         {"type": "grand", "actif": None}, {"type": "pause", "actif": "true"},
+        {"type": "modeDeveloppeur"}, {"type": "modeDeveloppeur", "actif": "oui"}, {"type": "modeDeveloppeur", "actif": 1},
+        {"type": "modeDeveloppeur", "actif": None},
         {"type": "montrer", "cibles": ["x"] * 41}, {"type": "montrer", "entite": "a b c"},
         {"type": "montrer", "entite": "<img src=x onerror=alert(1)>"}, {"type": "montrer", "entite": "a" * 81},
         {"type": "etiquettes", "liste": "x"}, {"type": "etiquettes", "liste": [{}] * 41},
@@ -345,7 +351,7 @@ def test_la_page_borne_les_nombres_et_nettoie_les_champs_inconnus(tmp_path):
 @pytest.mark.skipif(NODE is None, reason="node absent")
 def test_la_page_n_emet_que_pret_et_designation_avec_des_champs_sers(tmp_path):
     bons = [
-        {"type": "pret", "version": "0.7.0"},
+        {"type": "pret", "version": "0.8.0"},
         {"type": "designation", "genre": "lampe", "entite": "light.salon_plafond"},
         {"type": "designation", "genre": "pastille", "entite": "media_player.tele_salon"},
         {"type": "designation", "genre": "piece", "id": "salon"},

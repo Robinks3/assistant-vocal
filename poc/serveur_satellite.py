@@ -118,6 +118,7 @@ import administration  # noqa: E402
 import demande_web  # noqa: E402
 import maison  # noqa: E402
 import maison_web  # noqa: E402
+import meteo_web  # noqa: E402
 import serveur_web  # noqa: E402
 import journal_web as J  # noqa: E402
 import routines as R  # noqa: E402
@@ -1046,6 +1047,20 @@ def maison_pour_web(moteur):
         return await air_historique_depuis_ha(getattr(getattr(moteur, "assistant", None), "ha", None), piece, heures)
 
     return maison_web.Maison(etats, mesures, appeler, essai_serveur=lambda: bool(moteur.essai), historique=historique)
+
+
+def meteo_pour_web(moteur):
+    """Écran Météo et mer du client web (S-W5) : les deux fournisseurs de meteo_web.Meteo, branchés sur les lectures
+    déjà en cache de meteo_mer et de vent_mesure (aucune source de plus). Une source éteinte (METEO_MER=0 ou
+    VENT_MESURE=0) n'a pas de fournisseur : meteo_web ne la compte pas comme une panne."""
+    async def mer():
+        return await moteur.meteo_mer.donnees()
+
+    async def vent():
+        return await moteur.vent_mesure.donnees()
+
+    return meteo_web.Meteo(mer if getattr(moteur, "meteo_mer", None) is not None else None,
+                           vent if getattr(moteur, "vent_mesure", None) is not None else None)
 
 
 class Calibration:
@@ -1994,6 +2009,7 @@ async def servir(args):
             moteur.service_web = service_web
             service_web.demandeur = moteur.repondre_web  # demandes écrites (S-W3) : même chaîne que les autres
             service_web.maison = maison_pour_web(moteur)  # écran Maison (S-W4a) : états et réglages filtrés par rôle
+            service_web.meteo = meteo_pour_web(moteur)  # écran Météo et mer (S-W5) : prévisions et balises en cache
             serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
         except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir
