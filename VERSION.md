@@ -4,6 +4,12 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Documentation (2026-10-27), superpositions des maquettes du client web (S-W0d), sans changement de version
+Session S-W0d du plan. Les superpositions relevées dans les maquettes du client web sont corrigées (maquettes
+1.0.1). Nouvel outil `poc/outils/verifier_mise_en_page.py`, qui mesure les chevauchements et débordements d'une
+page dans un navigateur sans fenêtre, et test `poc/tests/test_maquettes_mise_en_page.py`. Serveur, appli Home
+Assistant et appli inchangés.
+
 ## Serveur 0.46.0 (2026-10-27), socle HTTP du client web
 Mineure. Session S-W1a du plan. Appli Home Assistant 0.46.0 (copie aussi `serveur_web.py` et `web/`), appli
 Android inchangée (0.46.0).
