@@ -4,6 +4,28 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.52.0 (2026-10-27), vue 3D, volet télé complet et graphique de l'air dans le client web
+Mineure. Session S-W4b du plan. Appli Home Assistant 0.52.0 (le déploiement copie aussi `vue3d.html` quand elle est
+générée), appli Android inchangée. Client web 0.7.0.
+- Vue 3D : la page `vue3d.html` (produite par `carte/3d/generer_3d.py`) est servie par la route `/vue3d`, réservée aux
+  sessions ouvertes. Sa CSP est propre : un hachage SHA-256 par script et par style en ligne recalculé à chaque envoi,
+  aucune source réseau, `frame-ancestors 'self'`, `sandbox allow-scripts`. Elle est montée dans une iframe
+  `sandbox="allow-scripts"` sans `allow-same-origin` : origine opaque, aucun accès aux cookies ni à la page.
+- Pont `postMessage` à schéma strict des deux côtés : types connus seulement, champs typés et bornés, identifiants au
+  motif sûr, fenêtre et origine `null` vérifiées côté Maison, fenêtre parente vérifiée côté page. La page n'émet que
+  `pret` et `designation` (jamais un ordre), l'écran Maison décide seul de ce qu'il en fait avec les droits du rôle.
+  Les états envoyés à la 3D sont ceux déjà filtrés par rôle. `window.vue3d` remplace `window.maison3d`, gardé en alias
+  pour la tablette Android.
+- Volet de la télé complet : allumer, éteindre, volume, source (prise dans la liste renvoyée par Home Assistant),
+  lecture et pause, piste suivante et précédente, muet, pour les seuls rôles qui ont la télé. `SERVICES_WEB` élargi à
+  ces services, chacun passant par `acces.controler_service` avec la liste étroite `services_permis`, et le plafond de
+  volume de sécurité s'applique. Une commande que l'appareil ne sait pas faire n'est pas proposée.
+- Message `air_historique` (rôles qui ont les mesures seulement) : mêmes données que la tablette
+  (`historique_air.py`), durée et nombre de points bornés, réponse reconstruite et mise en cache une minute.
+  `serveur_satellite.air_historique_depuis_ha` factorise les deux appels à Home Assistant pour la tablette et le web.
+- Client web 0.7.0 : toucher la carte des mesures d'une pièce ouvre un graphique en fonction du temps (6 h, 24 h,
+  7 jours, quatre séries), dessiné en SVG par `createElementNS` (CSP sans style en ligne, sans `innerHTML`).
+
 ## Serveur 0.51.0 (2026-10-27), écran Maison du client web
 Mineure. Session S-W4a du plan. Appli Home Assistant 0.51.0 (copie aussi `maison_web.py`), appli Android inchangée.
 Client web 0.6.0.

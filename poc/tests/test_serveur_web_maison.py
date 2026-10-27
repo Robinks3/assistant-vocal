@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import acces
+import historique_air as AH
 import maison
 import maison_web as MW
 import mesures as ME
@@ -451,7 +452,9 @@ def test_une_valeur_hors_borne_ou_mal_typee_est_refusee(entite, action, valeur):
     ("light.salon_plafond", ["allumer"]), ("light.salon_plafond", 3),
     ("media_player.tele_salon", "couleur"), ("media_player.tele_salon", "intensite"),
     ("media_player.tele_salon", "blanc"), ("media_player.tele_salon", "play_media"),
-    ("media_player.tele_salon", "source"), ("media_player.tele_salon", "lire"),
+    ("media_player.tele_salon", "stop"), ("media_player.tele_salon", "lire"),
+    ("media_player.tele_salon", "avance_rapide"), ("media_player.tele_salon", "select_source"),
+    ("media_player.tele_salon", "play_pause"), ("media_player.tele_salon", "media_stop"),
 ])
 def test_une_action_hors_liste_est_refusee(entite, action):
     f = Faux()
@@ -540,7 +543,11 @@ def test_le_plafond_de_volume_de_securite_s_applique_au_volume_de_la_television(
 def test_les_services_permis_de_l_ecran_sont_plus_etroits_que_la_liste_blanche_du_llm():
     assert MW.SERVICES_WEB["light"] == frozenset({"turn_on", "turn_off"})
     assert "toggle" not in MW.SERVICES_WEB["light"]
-    assert MW.SERVICES_WEB["media_player"] == frozenset({"turn_on", "turn_off", "volume_set"})
+    assert MW.SERVICES_WEB["media_player"] == frozenset({
+        "turn_on", "turn_off", "volume_set", "select_source", "media_play_pause", "media_next_track",
+        "media_previous_track", "volume_mute"})
+    for exclu in ("media_stop", "play_media", "media_seek", "toggle"):
+        assert exclu not in MW.SERVICES_WEB["media_player"]
     for domaine, services in MW.SERVICES_WEB.items():
         assert services <= set(acces.liste_blanche.SERVICES_PERMIS[domaine])
 
@@ -672,10 +679,10 @@ async def echange(ws, msg):
     return await recevoir_reponse(ws)
 
 
-def test_les_deux_messages_sont_dans_la_liste_blanche_des_roles():
+def test_les_trois_messages_sont_dans_la_liste_blanche_des_roles():
     for genre in MW.GENRES:
         assert genre in W.MESSAGES_TOUT_ROLE
-    assert set(MW.GENRES) == {"etats", "regler"}
+    assert set(MW.GENRES) == {"etats", "regler", "air_historique"}
 
 
 def test_etats_par_websocket_filtre_selon_le_role_de_la_session(service):
@@ -777,8 +784,8 @@ def test_pages_maison_exigent_une_session_et_s_ouvrent_a_tous_les_roles(service)
         assert statut_de(service.traiter("127.0.0.1", "/maison.js", entetes(jeton))) == 200, role
 
 
-def test_la_version_du_client_web_est_0_6_0():
-    assert W.VERSION_CLIENT == "0.6.0"
+def test_la_version_du_client_web_est_0_7_0():
+    assert W.VERSION_CLIENT == "0.7.0"
 
 
 def test_la_page_maison_n_a_ni_script_ni_style_en_ligne():
@@ -823,3 +830,326 @@ def test_serveur_satellite_ne_donne_a_la_maison_que_des_entites_de_la_configurat
     fonction = source[debut:source.index("\ndef ", debut + 10)]
     assert "/api/states/" in fonction and "/api/services/" in fonction
     assert "msg" not in fonction, "la fonction ne lit jamais un message du navigateur"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Volet télé complet (S-W4b) : source, lecture, suivant, précédent, muet
+# ---------------------------------------------------------------------------------------------------------------
+
+SOURCES = ["HDMI 1", "HDMI 2", "Lecteur"]
+# 2048 source, 1 pause, 32 suivant, 16 précédent, 8 muet
+FONCTIONS = 2048 | 1 | 32 | 16 | 8
+
+
+@pytest.fixture(autouse=True)
+def tuiles_de_source_sans_configuration(monkeypatch):
+    """Par défaut, aucune tuile nommée dans reglages.tele : les sources annoncées par Home Assistant servent telles
+    quelles. Le test des tuiles nommées remet les siennes."""
+    reglages = {k: v for k, v in (maison.CONFIG.get("reglages") or {}).items() if k != "tele"}
+    monkeypatch.setitem(maison.CONFIG, "reglages", reglages)
+
+
+def tele_complete(etat="playing", fonctions=FONCTIONS, **en_plus):
+    attrs = {"volume_level": 0.3, "source_list": list(SOURCES), "source": "HDMI 1", "is_volume_muted": False,
+             "supported_features": fonctions}
+    attrs.update(en_plus)
+    return {"state": etat, "attributes": attrs}
+
+
+def faux_tele(**kw):
+    f = Faux()
+    f.etats["media_player.tele_salon"] = tele_complete(**kw)
+    return f
+
+
+def test_le_volet_tele_annonce_les_sources_de_home_assistant_et_ce_que_l_appareil_sait_faire():
+    tele = courir(faux_tele().maison().etats_pour("habitant"))["pieces"][0]["tele"]
+    assert [t["source"] for t in tele["sources"]] == SOURCES and tele["source"] == "HDMI 1"
+    assert tele["lecture"] == "lecture" and tele["muet"] is False
+    assert tele["peut"] == {"source": True, "lecture": True, "suivant": True, "precedent": True, "muet": True}
+
+
+def test_une_tele_eteinte_ou_injoignable_n_annonce_aucune_commande():
+    for etat in ("off", "unavailable"):
+        tele = courir(faux_tele(etat=etat).maison().etats_pour("habitant"))["pieces"][0]["tele"]
+        assert tele["sources"] == [] and tele["peut"] == {} and tele["lecture"] is None
+
+
+def test_une_commande_que_l_appareil_ne_sait_pas_faire_n_est_pas_proposee():
+    tele = courir(faux_tele(fonctions=2048 | 8).maison().etats_pour("habitant"))["pieces"][0]["tele"]
+    assert tele["peut"] == {"source": True, "lecture": False, "suivant": False, "precedent": False, "muet": True}
+    f = faux_tele(fonctions=2048)
+    assert refus(f.maison(), "habitant", reel("media_player.tele_salon", "lecture")) == "action"
+    assert f.appels == []
+
+
+def test_la_source_choisie_doit_etre_dans_la_liste_que_home_assistant_donne_pour_cette_entite():
+    f = faux_tele()
+    m = f.maison()
+    regle(m, "habitant", reel("media_player.tele_salon", "source", "HDMI 2"))
+    assert f.appels[-1][:3] == ("media_player", "select_source",
+                                {"source": "HDMI 2", "entity_id": "media_player.tele_salon"})
+    avant = len(f.appels)
+    for mauvaise in ("HDMI 9", "", None, 3, ["HDMI 1"], {"a": 1}, "hdmi 1", "HDMI 1 "):
+        msg = reel("media_player.tele_salon", "source")
+        msg["valeur"] = mauvaise
+        assert refus(m, "habitant", msg) in ("valeur", "format"), mauvaise
+    assert len(f.appels) == avant
+
+
+def test_les_commandes_de_lecture_n_acceptent_aucune_valeur_et_le_muet_un_booleen():
+    f = faux_tele()
+    m = f.maison()
+    for action, service_ in (("lecture", "media_play_pause"), ("suivant", "media_next_track"),
+                             ("precedent", "media_previous_track")):
+        regle(m, "habitant", reel("media_player.tele_salon", action))
+        assert f.appels[-1][:3] == ("media_player", service_, {"entity_id": "media_player.tele_salon"})
+        assert refus(m, "habitant", reel("media_player.tele_salon", action, 1)) == "valeur"
+    regle(m, "habitant", reel("media_player.tele_salon", "muet", True))
+    assert f.appels[-1][1] == "volume_mute" and f.appels[-1][2]["is_volume_muted"] is True
+    for mauvaise in (1, "oui", None):
+        msg = reel("media_player.tele_salon", "muet")
+        if mauvaise is not None:
+            msg["valeur"] = mauvaise
+        assert refus(m, "habitant", msg) == "valeur"
+
+
+def test_une_tele_eteinte_ne_change_pas_de_source_ni_ne_lit():
+    f = faux_tele(etat="off")
+    m = f.maison()
+    for action, valeur in (("source", "HDMI 2"), ("lecture", None), ("suivant", None), ("muet", True)):
+        assert refus(m, "habitant", reel("media_player.tele_salon", action, valeur)) == "action"
+    assert f.appels == []
+    regle(m, "habitant", reel("media_player.tele_salon", "allumer"))
+    assert f.appels[-1][1] == "turn_on"
+
+
+def test_une_tele_injoignable_refuse_ses_commandes():
+    f = faux_tele(etat="unavailable")
+    assert refus(f.maison(), "habitant", reel("media_player.tele_salon", "lecture")) == "injoignable"
+    assert f.appels == []
+
+
+def test_seuls_les_roles_qui_ont_la_tele_la_commandent_et_les_services_hors_liste_sont_inatteignables(monkeypatch):
+    f = faux_tele()
+    m = f.maison()
+    for action, valeur in (("source", "HDMI 2"), ("lecture", None), ("muet", True), ("volume", 10), ("allumer", None)):
+        assert refus(m, "invite", reel("media_player.tele_salon", action, valeur)) == "entite"
+    assert f.appels == []
+    # un rôle sans droit « tele » dans la configuration, même habitant, ne commande rien
+    sans = copy.deepcopy(SECTION)
+    sans["roles"]["habitant"]["tele"] = False
+    monkeypatch.setattr(maison, "CLIENT_WEB", {"maison": sans})
+    assert refus(f.maison(), "habitant", reel("media_player.tele_salon", "lecture")) in ("entite", "droit")
+    assert f.appels == []
+    # les services de la télé non listés sont refusés par le contrôle central, même s'ils venaient d'ailleurs
+    assert acces.controler_service("media_player", "media_stop", {"entity_id": "media_player.tele_salon"},
+                                   None, services_permis=MW.SERVICES_WEB["media_player"]) is not None
+    assert acces.controler_service("media_player", "play_media", {"entity_id": "media_player.tele_salon"},
+                                   None, services_permis=MW.SERVICES_WEB["media_player"]) is not None
+
+
+def test_tout_service_de_la_tele_passe_par_le_controle_central_avec_la_liste_etroite(monkeypatch):
+    vus = []
+
+    def espion(domaine, service_, corps, personne=None, services_permis=None):
+        vus.append((domaine, service_, services_permis))
+        return None
+    monkeypatch.setattr(acces, "controler_service", espion)
+    f = faux_tele()
+    m = f.maison()
+    for action, valeur in (("source", "HDMI 2"), ("lecture", None), ("suivant", None), ("precedent", None),
+                           ("muet", False)):
+        regle(m, "habitant", reel("media_player.tele_salon", action, valeur))
+    assert [v[1] for v in vus] == ["select_source", "media_play_pause", "media_next_track", "media_previous_track",
+                                   "volume_mute"]
+    assert all(v[0] == "media_player" and v[2] == MW.SERVICES_WEB["media_player"] for v in vus)
+
+
+def test_les_tuiles_nommees_de_la_configuration_ne_valent_que_pour_les_sources_annoncees(monkeypatch):
+    monkeypatch.setitem(maison.CONFIG, "reglages", {"tele": {"sources": [
+        {"nom": "TNT", "source": "TV"}, {"nom": "Absente", "source": "Source inconnue"}, {"nom": 3, "source": "TV"}]}})
+    f = faux_tele(source_list=["TV", "HDMI 2"], source="TV")
+    tele = courir(f.maison().etats_pour("habitant"))["pieces"][0]["tele"]
+    assert tele["sources"] == [{"nom": "TNT", "source": "TV"}]
+    # une source qui n'a pas de tuile reste choisissable seulement si Home Assistant l'annonce
+    regle(f.maison(), "habitant", reel("media_player.tele_salon", "source", "HDMI 2"))
+    assert refus(f.maison(), "habitant", reel("media_player.tele_salon", "source", "Source inconnue")) == "valeur"
+
+
+def test_une_source_trop_longue_ou_en_double_n_est_pas_annoncee():
+    f = faux_tele(source_list=["HDMI 1", "HDMI 1", "", "x" * 200, 7, "TV"])
+    tele = courir(f.maison().etats_pour("habitant"))["pieces"][0]["tele"]
+    assert [t["source"] for t in tele["sources"]] == ["HDMI 1", "TV"]
+    assert refus(f.maison(), "habitant", reel("media_player.tele_salon", "source", "x" * 200)) == "valeur"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Historique de l'air (S-W4b)
+# ---------------------------------------------------------------------------------------------------------------
+
+def brut_air(piece="salon", h=24):
+    return {"type": "air", "piece": piece, "heures": h, "debut": 1000, "fin": 1000 + h * 3600, "pas": 300,
+            "series": {"co2": [[1000, 600.0], [1300, 650.5]], "pm25": [[1000, 4]], "temperature": [],
+                       "humidite": [[1000, 45.0]]}}
+
+
+class FauxAir:
+    def __init__(self, brut=None, echec=None):
+        self.brut, self.echec, self.appels = brut, echec, []
+
+    async def __call__(self, piece, heures):
+        self.appels.append((piece, heures))
+        if self.echec is not None:
+            raise self.echec
+        return brut_air(piece, heures) if self.brut is None else self.brut
+
+
+def maison_air(air, f=None):
+    f = f or Faux()
+    return MW.Maison(f.lire, f.lire_mesures, f.appeler, horloge=f.horloge, historique=air), f
+
+
+def demande_air(m, role, msg):
+    return courir(m.air_historique(role, msg))
+
+
+def refus_air(m, role, msg):
+    with pytest.raises(MW.RefusMaison) as e:
+        courir(m.air_historique(role, msg))
+    return e.value.cause
+
+
+def test_l_historique_de_l_air_rend_les_quatre_courbes_d_une_piece_visible():
+    air = FauxAir()
+    m, _ = maison_air(air)
+    rep = demande_air(m, "habitant", {"type": "air_historique", "piece": "salon", "heures": 6})
+    assert rep["type"] == "air" and rep["piece"] == "salon" and rep["heures"] == 6
+    assert set(rep["series"]) == {"co2", "pm25", "temperature", "humidite"}
+    assert rep["series"]["co2"] == [[1000, 600.0], [1300, 650.5]]
+    assert air.appels == [("salon", 6)]
+
+
+def test_la_duree_par_defaut_est_de_24_heures_et_le_resultat_est_garde_en_cache():
+    air = FauxAir()
+    m, f = maison_air(air)
+    msg = {"type": "air_historique", "piece": "salon"}
+    assert demande_air(m, "habitant", msg)["heures"] == 24
+    demande_air(m, "administrateur", msg)
+    assert len(air.appels) == 1, "deuxième demande servie par le cache"
+    f.t += MW.CACHE_AIR_S + 1
+    demande_air(m, "habitant", msg)
+    assert len(air.appels) == 2
+
+
+@pytest.mark.parametrize("role", ["invite", "partage", None, "", 3])
+def test_l_historique_de_l_air_est_refuse_a_qui_n_a_pas_les_mesures(role):
+    air = FauxAir()
+    m, _ = maison_air(air)
+    assert refus_air(m, role, {"type": "air_historique", "piece": "salon"}) == "droit"
+    assert air.appels == []
+
+
+@pytest.mark.parametrize("msg,cause", [
+    (None, "format"), ("salon", "format"), ([], "format"),
+    ({"type": "air_historique", "piece": "salon", "entite": "sensor.x"}, "format"),
+    ({"type": "air_historique", "piece": "salon", "url": "http://x"}, "format"),
+    ({"type": "air_historique"}, "entite"),
+    ({"type": "air_historique", "piece": 3}, "entite"),
+    ({"type": "air_historique", "piece": "../salon"}, "entite"),
+    ({"type": "air_historique", "piece": "Salon"}, "entite"),
+    ({"type": "air_historique", "piece": "inconnue"}, "entite"),
+    ({"type": "air_historique", "piece": "salon", "heures": 0}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": -3}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": 169}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": 1e9}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": 2.5}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": True}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": "24"}, "valeur"),
+    ({"type": "air_historique", "piece": "salon", "heures": None}, "valeur"),
+    ({"type": "air_historique", "piece": "chambre"}, "protegee"),
+])
+def test_l_historique_de_l_air_refuse_un_message_hors_schema_sans_interroger_home_assistant(msg, cause):
+    air = FauxAir()
+    m, _ = maison_air(air)
+    assert refus_air(m, "habitant", msg) == cause
+    assert air.appels == []
+
+
+def test_les_bornes_de_duree_sont_acceptees():
+    air = FauxAir()
+    m, _ = maison_air(air)
+    for h in (1, 168):
+        assert demande_air(m, "habitant", {"type": "air_historique", "piece": "salon", "heures": h})["heures"] == h
+
+
+def test_une_piece_hors_de_la_liste_du_role_n_est_pas_revelee(monkeypatch):
+    section = copy.deepcopy(SECTION)
+    section["roles"]["habitant"] = {"pieces": ["salon"], "mesures": True, "tele": True}
+    monkeypatch.setattr(maison, "CLIENT_WEB", {"maison": section})
+    air = FauxAir()
+    m, _ = maison_air(air)
+    assert refus_air(m, "habitant", {"type": "air_historique", "piece": "couloir"}) == "entite"
+    assert air.appels == []
+
+
+def test_sans_fournisseur_ou_en_cas_d_echec_le_graphique_est_indisponible_sans_texte_interne(capsys):
+    m, _ = maison_air(None)
+    assert refus_air(m, "habitant", {"type": "air_historique", "piece": "salon"}) == "indisponible"
+    m, _ = maison_air(FauxAir(echec=RuntimeError("chemin secret /srv/x")))
+    assert refus_air(m, "habitant", {"type": "air_historique", "piece": "salon"}) == "indisponible"
+    sortie = capsys.readouterr().out
+    assert "chemin secret" not in sortie and "RuntimeError" in sortie
+
+
+def test_une_piece_sans_capteur_donne_la_cause_capteur():
+    m, _ = maison_air(FauxAir(echec=AH.ErreurAir("aucun capteur dans cette pièce")))
+    assert refus_air(m, "habitant", {"type": "air_historique", "piece": "salon"}) == "capteur"
+
+
+def test_la_reponse_de_l_historique_est_reconstruite_et_bornee():
+    brut = brut_air()
+    brut["series"]["co2"] = [[i, 400.0 + i] for i in range(AH.POINTS_MAX + 50)] + [[1, float("nan")]]
+    brut["series"]["pm25"] = [[1, 2], "x", [1], [1, 2, 3], [1, "a"], [1, float("inf")], [1, 1e12], [True, 1]]
+    brut["series"]["inconnue"] = [[1, 1]]
+    brut["secret"] = "jeton-exemple-secret"
+    m, _ = maison_air(FauxAir(brut=brut))
+    rep = demande_air(m, "habitant", {"type": "air_historique", "piece": "salon"})
+    assert len(rep["series"]["co2"]) == AH.POINTS_MAX
+    assert "inconnue" not in rep["series"] and "secret" not in rep and "jeton-exemple-secret" not in repr(rep)
+    assert rep["series"]["pm25"] == [[1, 2]], "ni NaN, ni infini, ni booléen, ni valeur démesurée"
+    for forme in ({}, {"series": 3}, {"series": {}, "debut": "x", "fin": 1, "pas": 1},
+                  {"series": {}, "debut": float("inf"), "fin": 1, "pas": 1}):
+        m, _ = maison_air(FauxAir(brut=forme))
+        assert refus_air(m, "habitant", {"type": "air_historique", "piece": "salon"}) == "indisponible"
+
+
+def test_air_historique_par_websocket_est_refuse_a_l_invite_et_servi_a_l_habitant(service):
+    f = Faux()
+    service.maison = maison_air(FauxAir(), f)[0]
+    _, _, jeton_h = appairer_direct(service, "habitant", "Habitant", conn=1)
+    _, _, jeton_i = appairer_direct(service, "invite", "Invité", conn=2)
+
+    async def corps(ws):
+        return [await echange(ws, {"type": "air_historique", "piece": "salon", "heures": 12}),
+                await echange(ws, {"type": "air_historique", "piece": "salon", "entite": "sensor.x"}),
+                await echange(ws, {"type": "air_historique", "piece": "chambre"})]
+    bon, hors_schema, protegee = scenario_ws(service, jeton_h, corps)
+    assert bon["type"] == "air" and bon["heures"] == 12 and bon["piece"] == "salon"
+    assert hors_schema == {"type": "erreur", "cause": "format", "genre": "air_historique"}
+    assert protegee["cause"] == "protegee" and protegee["genre"] == "air_historique"
+
+    async def invite(ws):
+        return await echange(ws, {"type": "air_historique", "piece": "salon"})
+    rep = scenario_ws(service, jeton_i, invite)
+    assert rep["type"] == "erreur" and rep["cause"] == "droit" and rep["genre"] == "air_historique"
+    assert "series" not in rep
+
+
+def test_l_historique_de_l_air_par_websocket_dit_indisponible_sans_maison(service):
+    service.maison = None
+    _, _, jeton = appairer_direct(service, "habitant")
+
+    async def corps(ws):
+        return await echange(ws, {"type": "air_historique", "piece": "salon"})
+    assert scenario_ws(service, jeton, corps)["cause"] == "indisponible"

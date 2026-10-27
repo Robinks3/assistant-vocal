@@ -82,7 +82,7 @@ def test_s_l7_la_page_porte_les_mesures_par_piece(copie):
     html = sorties(copie)[1].read_text(encoding="utf-8")
     # le pont : export, message, carton
     assert "choisir, etiquettes, pastilles, mesures," in html
-    assert 'd.type === "mesures"' in html and 'id="mesures"' in html and "function rendreMesures()" in html
+    assert "mesures: [d =>" in html and 'id="mesures"' in html and "function rendreMesures()" in html
     # la pastille de l'étiquette ne prend que le texte et la couleur envoyés par l'appli, échappés et validés
     assert "q.mesure.texte" in html and "couleurSure(q.mesure.couleur)" in html
     assert "#[0-9A-Fa-f]{6}" in html

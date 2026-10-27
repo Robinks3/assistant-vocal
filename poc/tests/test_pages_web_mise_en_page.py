@@ -5,6 +5,7 @@ Chrome sans fenêtre, ce test fabrique dans un dossier temporaire une variante s
 scripts retirés, texte des gabarits rempli, lignes d'exemple posées là où le script les construit), puis lance
 `poc/outils/verifier_mise_en_page.py` en 360, 390 et 430 de large, thèmes clair et sombre. Ignoré sans Chrome.
 """
+import math
 import os
 import re
 import shutil
@@ -22,7 +23,7 @@ ADMIN = RACINE / "poc" / "admin"
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.6.0", "{{version_serveur}}": "0.51.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.7.0", "{{version_serveur}}": "0.52.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -336,6 +337,12 @@ I_FERMER = _svg("M6 6l12 12M18 6 6 18")
 I_COCHE = _svg("m5 12.5 4.5 4.5L19 7.5")
 I_BOUCLIER = _svg("M12 3 4.5 6v5.5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6z")
 I_TELE = _svg("M9 21h6M12 17v4", rect=True)
+I_AIR = _svg("M3 9h11a3 3 0 1 0-3-3", "M3 14h15a3 3 0 1 1-3 3", "M3 19h6")
+I_LECTURE = _svg("M8 5v14l11-7z")
+I_PAUSE = _svg("M8 5v14M16 5v14")
+I_SUIVANT = _svg("M6 5v14l9-7zM18 5v14")
+I_PRECEDENT = _svg("M18 5v14l-9-7zM6 5v14")
+I_MUET = _svg("M4 9v6h4l5 4V5L8 9z", "M17 9l4 6M21 9l-4 6")
 
 SPHERES = {
     "blanc": '<span class="sphere" aria-hidden="true" style="--lumiere-vif:rgb(255,207,143);--lumiere-profond:rgb(189,153,106)"></span>',
@@ -387,7 +394,15 @@ def mesure(classe, avant, gras="", apres=""):
 
 def carte_piece(nom, lampes=(), tele="", mesures=(), resume=""):
     tete = f'<div class="piece-tete"><h2>{nom}</h2>' + (f'<span class="secondaire">{resume}</span>' if resume else "") + "</div>"
-    liste = ('<ul class="mesures" aria-label="Mesures de la pièce">' + "".join(mesures) + "</ul>") if mesures else ""
+    liste = ""
+    if mesures:
+        # Comme maison.js : la liste est cliquable et suivie du bouton d'historique, sauf sans aucun capteur.
+        cliquable = not all("mesure--aucune" in m for m in mesures)
+        classe = "mesures mesures--cliquable" if cliquable else "mesures"
+        liste = f'<ul class="{classe}" aria-label="Mesures de la pièce">' + "".join(mesures) + "</ul>"
+        if cliquable:
+            liste += (f'<button type="button" class="bouton-air" aria-haspopup="dialog" aria-expanded="false" '
+                      f'aria-label="Historique de l\'air, {nom}">{I_AIR}Historique de l\'air</button>')
     return f'<section class="carte carte--vide piece" aria-label="{nom}">{tete}{liste}{tele}{"".join(lampes)}</section>'
 
 
@@ -604,6 +619,153 @@ def variantes_maison_volet():
     return out
 
 
+def commande_media(libelle, icone, presse=None):
+    """Un bouton de lecture du volet de la télé, comme `construireTele` dans maison.js."""
+    pression = "" if presse is None else f' aria-pressed="{"true" if presse else "false"}"'
+    return (f'<button type="button" class="commande-media" data-cle="media:{libelle.lower()}"{pression} aria-disabled="false">'
+            f'{icone}<span>{libelle}</span></button>')
+
+
+def source_tele(nom, choisie=False):
+    coche = f'<span class="coche" aria-hidden="true">{I_COCHE}</span>' if choisie else ""
+    return (f'<button type="button" class="choix-volet" aria-pressed="{"true" if choisie else "false"}">'
+            f'<b>{nom}</b>{coche}</button>')
+
+
+def volet_tele_complet(nom, allumee=True, lecture="pause", muet=False, sources=("TV", "HDMI 1", "Lecteur", "Console"),
+                       choisie=0, boutons=("precedent", "lecture", "suivant", "muet"), pied=""):
+    """Volet de la télé avec volume, commandes de lecture et sources (ou la phrase de la télé éteinte)."""
+    puce = f'<span class="puce puce--assistant">{I_TELE}</span>'
+    if not allumee:
+        corps = '<p class="secondaire">Allumez la télé pour la régler.</p>'
+        return _feuille(nom, puce, "Éteinte", corps, pied)
+    corps = glisseur(1, "Volume", "22 %", 0, 100, 22, rempli=True)
+    cmds = []
+    if "precedent" in boutons:
+        cmds.append(commande_media("Précédent", I_PRECEDENT))
+    if "lecture" in boutons:
+        cmds.append(commande_media("Pause" if lecture == "lecture" else "Lecture",
+                                   I_PAUSE if lecture == "lecture" else I_LECTURE))
+    if "suivant" in boutons:
+        cmds.append(commande_media("Suivant", I_SUIVANT))
+    if "muet" in boutons:
+        cmds.append(commande_media("Muet", I_MUET, presse=muet))
+    if cmds:
+        corps += f'<div class="commandes-media" role="group" aria-label="Lecture">{"".join(cmds)}</div>'
+    if sources:
+        tuiles = "".join(source_tele(s, i == choisie) for i, s in enumerate(sources))
+        corps += ('<div class="reglage"><span class="etiquette">Source</span>'
+                  f'<div class="choix-grille choix-grille--sources" role="group" aria-label="Source">{tuiles}</div></div>')
+    corps += '<p class="secondaire" hidden>Allumez la télé pour la régler.</p>'
+    return _feuille(nom, puce, "Allumée, volume 22 %", corps, pied)
+
+
+def bouton_duree(texte, presse):
+    return f'<button type="button" class="segment" aria-pressed="{"true" if presse else "false"}">{texte}</button>'
+
+
+def barre_duree(heures=24):
+    boutons = "".join(bouton_duree(t, h == heures) for h, t in ((6, "6 h"), (24, "24 h"), (168, "7 jours")))
+    return f'<div class="segments segments--trois" role="group" aria-label="Durée affichée">{boutons}</div>'
+
+
+def barre_serie(noms, choisie):
+    boutons = "".join(bouton_duree(n, n == choisie) for n in noms)
+    return f'<div class="segments segments--serie" role="group" aria-label="Mesure affichée">{boutons}</div>'
+
+
+def graphique_air(nom="CO2", unite=" ppm", base=820, amplitude=300, dec=0):
+    """La courbe que `courbeAir` dessine : mêmes classes, mêmes repères (viewBox 320 x 190)."""
+    larg, haut, g, d, h0 = 320, 190, 44, 12, 12
+    zone_l, zone_h = larg - g - d, haut - h0 - 28
+    points = [(g + zone_l * i / 47, h0 + zone_h * (0.5 - 0.4 * math.sin(i / 7))) for i in range(48)]
+    trace = " ".join(("L" if i else "M") + f"{x:.1f} {y:.1f}" for i, (x, y) in enumerate(points))
+    grille = ""
+    for i in range(3):
+        y = h0 + zone_h * (1 - i / 2)
+        valeur = str(base + (i - 1) * amplitude)
+        grille += (f'<line x1="{g}" x2="{larg - d}" y1="{y:.1f}" y2="{y:.1f}" class="graph-grille"/>'
+                   f'<text x="{g - 6}" y="{y + 4:.1f}" text-anchor="end" class="graph-axe">{valeur}</text>')
+    axe = "".join(f'<text x="{x}" y="{haut - 8}" text-anchor="{a}" class="graph-axe">{t}</text>'
+                  for x, a, t in ((g, "start", "12:00"), (g + zone_l / 2, "middle", "18:00"), (larg - d, "end", "00:00")))
+    fx, fy = points[-1]
+    synthese = (f"{nom} : dernière valeur {base + 40}{unite}, minimum {base - amplitude}{unite}, "
+                f"maximum {base + amplitude}{unite}, sur 24 h.")
+    svg = (f'<svg viewBox="0 0 {larg} {haut}" role="img" focusable="false" class="graph" aria-label="{synthese}">{grille}{axe}'
+           f'<path d="{trace}" class="graph-ligne"/><circle cx="{fx:.1f}" cy="{fy:.1f}" r="3" class="graph-point graph-point--fin"/>'
+           f'<line x1="0" x2="0" y1="{h0}" y2="{haut - 28}" class="graph-curseur" visibility="hidden"/>'
+           f'<circle cx="0" cy="0" r="4" class="graph-point graph-point--curseur" visibility="hidden"/>'
+           f'<rect x="{g}" y="{h0}" width="{zone_l}" height="{zone_h}" class="graph-capture"/></svg>')
+    return (f'<div class="graphique">{svg}</div><p class="graphique-synthese">{synthese}</p>'
+            '<p class="graphique-lecture secondaire">Touchez la courbe pour lire une valeur.</p>')
+
+
+def volet_air(piece, zone, series=(), choisie="CO2", heures=24):
+    puce = f'<span class="puce puce--assistant">{I_AIR}</span>'
+    corps = barre_duree(heures)
+    if len(series) >= 2:
+        corps += barre_serie(series, choisie)
+    corps += f'<div class="graphique-air" tabindex="-1" aria-live="polite">{zone}</div>'
+    return _feuille(f"Air, {piece}", puce, "Historique des mesures", corps, "")
+
+
+def alerte_air_volet(texte, reessayer=True):
+    bouton = '<button type="button" class="bouton">Réessayer</button>' if reessayer else ""
+    return ('<div class="alerte alerte--icone alerte--danger" role="alert">' + I_ALERTE + f"<div>{texte}{bouton}</div></div>")
+
+
+def cadre_3d(page, iframe=True, entiere=False, echec=False):
+    """L'écran Maison avec sa section 3D : iframe vide (la vraie page n'est pas servie ici) ou message d'échec."""
+    html = montrer(page, "vue-3d")
+    if iframe and not echec:
+        html = remplir(html, "cadre-3d", '<iframe class="iframe-3d" sandbox="allow-scripts" title="Vue 3D de la maison" '
+                                         'referrerpolicy="no-referrer"></iframe>')
+    if entiere:
+        html = montrer(html, "entiere-3d")
+    if echec:
+        html = remplir(montrer(html, "texte-3d"), "texte-3d", "La vue 3D n'est pas disponible pour le moment.")
+    return html
+
+
+def variantes_maison_s_w4b():
+    """Lot S-W4b : volet de la télé complet, graphique de l'air, écran avec la vue 3D."""
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "maison.html").read_text(encoding="utf-8"))))
+    brut = brut.replace("{{nom_assistant}}", "Iris")
+    salon = carte_piece(
+        "Salon", resume="2 allumées", mesures=MESURES_SALON,
+        tele=ligne_tele("Télé du salon", "Allumée, volume 22 %", True),
+        lampes=[ligne_lampe("Lampe du canapé", "blanc", "80 %, 2700 K, chaud", True),
+                ligne_lampe("Suspension", "eteinte", "Éteinte", False)])
+    fond = page_maison(brut, [salon])
+    out = {}
+    out["maison-tele-complete"] = avec_volet(fond, volet_tele_complet("Télé du salon", lecture="lecture"))
+    out["maison-tele-complete-muet"] = avec_volet(fond, volet_tele_complet("Télé du salon", muet=True, choisie=2))
+    out["maison-tele-sans-source"] = avec_volet(fond, volet_tele_complet(
+        "Télé du salon", sources=(), boutons=("lecture", "muet")))
+    out["maison-tele-sans-commande"] = avec_volet(fond, volet_tele_complet("Télé du salon", sources=(), boutons=()))
+    out["maison-tele-sources-longues"] = avec_volet(fond, volet_tele_complet(
+        LONG_NOM, sources=("Télévision numérique terrestre", LONG_NOM, "HDMI 1", "HDMI 2 avec un nom un peu long", "AV")))
+    out["maison-tele-complete-eteinte"] = avec_volet(fond, volet_tele_complet("Télé du salon", allumee=False))
+    out["maison-air-courbe"] = avec_volet(fond, volet_air(
+        "Salon", graphique_air(), series=("CO2", "PM2,5", "Température", "Humidité")))
+    out["maison-air-une-serie"] = avec_volet(fond, volet_air(
+        "Chambre", graphique_air("Température", "°", 21, 4, 1)))
+    out["maison-air-chargement"] = avec_volet(fond, volet_air(
+        "Salon", '<p class="secondaire">Chargement des mesures...</p>', heures=168))
+    out["maison-air-vide"] = avec_volet(fond, volet_air(
+        "Salon", '<p class="secondaire">Aucune mesure sur cette période.</p>', heures=6))
+    out["maison-air-erreur"] = avec_volet(fond, volet_air(
+        "Salon", alerte_air_volet("Les mesures ne sont pas arrivées. Réessayez.")))
+    out["maison-air-droit"] = avec_volet(fond, volet_air(
+        "Salon", alerte_air_volet("Ce navigateur n'a pas accès aux mesures de l'air.", reessayer=False)))
+    out["maison-air-nom-long"] = avec_volet(fond, volet_air(
+        LONG_NOM, graphique_air().replace("CO2 :", LONG_NOM + " :"), series=("CO2", "PM2,5", "Température", "Humidité")))
+    out["maison-3d"] = cadre_3d(fond)
+    out["maison-3d-piece-choisie"] = cadre_3d(fond, entiere=True)
+    out["maison-3d-echec"] = cadre_3d(fond, echec=True)
+    return out
+
+
 def variante_accueil():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
     return {"accueil-connecte": garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"])}
@@ -634,8 +796,9 @@ def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
               **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin(),
-              **variantes_maison(), **variantes_maison_volet()}
-    assert len(toutes) >= 57
+              **variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b()}
+    assert len(toutes) >= 72
+    assert {"maison-tele-complete", "maison-air-courbe", "maison-3d"} <= set(toutes)
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -684,7 +847,7 @@ def test_ecran_maison_sans_defaut_de_mise_en_page(tmp_path):
     shutil.copytree(WEB / "polices", pages / "polices")
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
-    ecrire(pages, {**variantes_maison(), **variantes_maison_volet()})
+    ecrire(pages, {**variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b()})
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,

@@ -919,8 +919,39 @@ def nom_appareil_maison(moteur, ident):
     return nom or "Appareil de la maison"
 
 
+async def air_historique_depuis_ha(ha, piece, h, nom="web"):
+    """Les deux appels à Home Assistant de l'historique de l'air (S-L8, repris par le client web en S-W4b) : le relevé
+    des capteurs donne les entités de la pièce, puis une seule requête d'historique bornée. Rend la réponse de
+    AH.mettre_en_forme, ou lève AH.ErreurAir (texte en français) quand la pièce n'a pas d'historique à donner. Toute
+    autre exception remonte telle quelle, à l'appelant d'en réduire le texte à sa classe."""
+    corresp = ME.correspondance(maison.CONFIG)
+    if ha is None:
+        raise AH.ErreurAir("Home Assistant non configuré sur ce serveur")
+    if not corresp:
+        raise AH.ErreurAir("aucune pièce reliée aux zones (correspondance_pieces)")
+    import securite
+    protegees = maison.liste("zones_protegees") if securite.PROTEGER_OCCUPANT else []
+    h = AH.heures(h)
+    r = await asyncio.to_thread(
+        lambda: ha.client.post(f"{ha.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))
+    releve = ME.lire_releve(r.text) if r.status_code == 200 else None
+    if releve is None:
+        print(f"[{nom}] air_historique : Home Assistant a répondu {r.status_code}, relevé illisible")
+        raise AH.ErreurAir("relevé des capteurs indisponible")
+    entites = AH.entites_de_piece(releve, corresp, piece, protegees)
+    tous = [i for ids in entites.values() for i in ids]
+    debut, fin = AH.bornes(time.time(), h)
+    chemin, params = AH.requete(debut, fin, tous)
+    r = await asyncio.to_thread(lambda: ha.client.get(f"{ha.url}{chemin}", params=params, timeout=30))
+    if r.status_code != 200:
+        print(f"[{nom}] air_historique : l'historique de Home Assistant a répondu {r.status_code}")
+        raise AH.ErreurAir("historique indisponible")
+    historique = AH.lire_historique(r.json(), set(tous))
+    return AH.mettre_en_forme(piece, h, debut, fin, entites, historique)
+
+
 def maison_pour_web(moteur):
-    """Écran Maison du client web (S-W4a) : les trois fournisseurs de maison_web.Maison, branchés sur Home Assistant.
+    """Écran Maison du client web (S-W4a) : les quatre fournisseurs de maison_web.Maison, branchés sur Home Assistant.
     Lecture : seulement les entités que maison_web demande (celles de la configuration). Appel : jamais en mode
     essai, et le texte d'une exception ne sort pas d'ici (maison_web ne garde que sa classe)."""
     def ha():
@@ -969,7 +1000,10 @@ def maison_pour_web(moteur):
             raise RuntimeError(f"Home Assistant a répondu {r.status_code}")
         return "envoye"
 
-    return maison_web.Maison(etats, mesures, appeler, essai_serveur=lambda: bool(moteur.essai))
+    async def historique(piece, heures):
+        return await air_historique_depuis_ha(getattr(getattr(moteur, "assistant", None), "ha", None), piece, heures)
+
+    return maison_web.Maison(etats, mesures, appeler, essai_serveur=lambda: bool(moteur.essai), historique=historique)
 
 
 class Calibration:
@@ -1454,36 +1488,9 @@ class Satellite:
         Le texte d'une exception n'est jamais renvoyé, seulement sa classe."""
         ident = msg.get("id")
         ha = getattr(getattr(self.moteur, "assistant", None), "ha", None)
-        corresp = ME.correspondance(maison.CONFIG)
-        if ha is None:
-            await self.envoyer(etat="air_historique", id=ident, erreur="Home Assistant non configuré sur ce serveur")
-            return
-        if not corresp:
-            await self.envoyer(etat="air_historique", id=ident,
-                               erreur="aucune pièce reliée aux zones (correspondance_pieces)")
-            return
-        import securite
-        protegees = maison.liste("zones_protegees") if securite.PROTEGER_OCCUPANT else []
         piece, h = msg.get("piece"), AH.heures(msg.get("heures"))
         try:
-            r = await asyncio.to_thread(
-                lambda: ha.client.post(f"{ha.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))
-            releve = ME.lire_releve(r.text) if r.status_code == 200 else None
-            if releve is None:
-                print(f"[{self.nom}] air_historique : Home Assistant a répondu {r.status_code}, relevé illisible")
-                await self.envoyer(etat="air_historique", id=ident, erreur="relevé des capteurs indisponible")
-                return
-            entites = AH.entites_de_piece(releve, corresp, piece, protegees)
-            tous = [i for ids in entites.values() for i in ids]
-            debut, fin = AH.bornes(time.time(), h)
-            chemin, params = AH.requete(debut, fin, tous)
-            r = await asyncio.to_thread(lambda: ha.client.get(f"{ha.url}{chemin}", params=params, timeout=30))
-            if r.status_code != 200:
-                print(f"[{self.nom}] air_historique : l'historique de Home Assistant a répondu {r.status_code}")
-                await self.envoyer(etat="air_historique", id=ident, erreur="historique indisponible")
-                return
-            historique = AH.lire_historique(r.json(), set(tous))
-            donnees = AH.mettre_en_forme(piece, h, debut, fin, entites, historique)
+            donnees = await air_historique_depuis_ha(ha, piece, h, self.nom)
         except AH.ErreurAir as e:
             await self.envoyer(etat="air_historique", id=ident, erreur=str(e))
             return
