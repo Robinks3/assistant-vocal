@@ -4,6 +4,13 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.55.1 (2026-10-27), logement de l'orbe coupé en deux dans la barre du client web
+Correctif. Appli Home Assistant 0.55.1 (même code), appli Android inchangée. Client web 0.9.1, page 3D inchangée.
+- Le propriétaire ne garde que la moitié basse du logement : plus de berceau soulevé au-dessus de la barre, dont le
+  bord haut redevient droit. Un demi-disque de 33 px de rayon est creusé dans la barre, centré sur ce bord, avec le
+  filet qui suit son contour, l'ombre qui tombe de la lèvre et un liseré clair au fond. L'orbe garde sa place, sa
+  moitié haute dépasse de la barre. Le masque SVG et le débord de 40 px des calques de la barre disparaissent.
+
 ## Serveur 0.55.0 (2026-10-27), barre d'onglets du bas et vue 3D lisible sur téléphone dans le client web
 Mineure. Appli Home Assistant 0.55.0 (même code), appli Android inchangée. Client web 0.9.0, page 3D 0.9.0.
 - Barre d'onglets fixe en bas de chaque écran du client web (Accueil, Journal, Maison, Météo), avec l'orbe du micro
