@@ -4,6 +4,30 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.50.0 (2026-10-27), demander depuis le client web
+Mineure. Session S-W3 du plan. Appli Home Assistant 0.50.0 (copie aussi `demande_web.py`), appli Android inchangée.
+Client web 0.5.0.
+- Nouveau `poc/demande_web.py` : quotas par appareil et par rôle (fenêtre glissante, `client_web.quotas` de
+  `maison.json`, faibles pour l'invité), validation du texte, de l'enregistrement (PCM 16 bits, 16 kHz, mono, 20 s au
+  plus) et liste fermée des causes de refus renvoyées au navigateur.
+- Messages `demande_texte` et `demande_voix` acceptés sur la connexion web seulement, ouverts à tout rôle mais bornés
+  par les quotas. Appareil, personne et rôle sont ceux de la session : le champ `personne` du message n'est jamais lu.
+  L'essai effectif est celui du serveur OU celui du message, jamais l'inverse.
+- `Moteur.repondre_web` : même chaîne que les autres appareils (`llm_texte`, donc phrase protégée, routines, cerveau,
+  `acces.controler_service` et `securite.verifier` pour chaque action). La réponse revient en texte au navigateur, la
+  tablette ne parle jamais pour une demande du téléphone. Les étapes vont au journal comme celles des satellites.
+- `llm_texte` accepte le rôle de l'appelant. Le rôle d'un navigateur associé (`web:<id>`) est lu dans son entrée
+  d'appairage (avant, `role_effectif` le voyait invité).
+- Client web 0.5.0 : écran Demander (`/demander`), demande écrite puis demande vocale (bouton micro, planches 11a
+  Écoute, 11b Réponse, 11c Essai de la maquette).
+- Demande vocale : le navigateur envoie un enregistrement PCM 16 bits, 16 kHz, mono (de 0,2 à 20 s), échantillonné
+  côté client. Le serveur le valide, le transcrit en local seulement (reconnaissance du PC, sinon Whisper de Home
+  Assistant, jamais de repli en ligne) puis suit la chaîne du texte. Le texte compris revient avec la réponse. Limites
+  du WebSocket : 64 Kio par message, 1 Mio pour la voix, fermeture 1009 au-delà. `Permissions-Policy` ouvre
+  `microphone=(self)`.
+- Hors de ce lot : le bouton « Ce n'était pas ça » (le mécanisme `A.RETOURS` est côté satellite) et la transcription
+  en direct pendant l'écoute (le texte compris n'apparaît qu'avec la réponse).
+
 ## Serveur 0.49.0 (2026-10-27), journal du client web
 Mineure. Session S-W2 du plan. Appli Home Assistant 0.49.0 (copie aussi `journal_web.py`), appli Android inchangée.
 Client web 0.4.0. La 0.48.0 est celle du graphique de l'air (S-L8), sur une autre branche.

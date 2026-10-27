@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Demander</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/demander.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="lien-retour"><a href="/">Accueil</a></p>
+<h1 class="titre-page">Demander</h1>
+
+<button id="bascule-essai" type="button" class="bascule" role="switch" aria-checked="false">
+<span class="bascule-texte"><b>Essai, sans agir</b><small>{{nom_assistant}} dit ce qu'elle ferait, rien ne bouge</small></span>
+<span id="essai-etat" class="bascule-etat">Non</span>
+<span class="interrupteur" aria-hidden="true"></span>
+</button>
+<div id="bandeau-essai" class="alerte alerte--info" role="status" hidden><b>Mode essai.</b> Rien ne sera fait dans la maison. {{nom_assistant}} dit seulement ce qu'elle ferait.</div>
+
+<section id="carte-ecoute" class="carte carte--ecoute" aria-labelledby="titre-ecoute" hidden>
+<h2 class="surtitre" id="titre-ecoute">Écoute en cours</h2>
+<div class="orbe-voix orbe-voix--ecoute"><button id="orbe-ecoute" type="button" class="orbe orbe--l" aria-label="Arrêter l'écoute et envoyer"><svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg></button></div>
+<p id="statut-voix" class="statut-voix" role="status">Je vous écoute</p>
+<p id="duree-ecoute" class="aide aide--centre">0 s sur 20 s</p>
+<div id="niveau-micro" class="niveau-micro niveau-micro--repos" role="img" aria-label="Niveau du micro"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<button id="annuler-ecoute" type="button" class="bouton bouton--plein">Annuler</button>
+</section>
+
+<form id="formulaire-demande" class="carte carte--saisie" aria-labelledby="titre-saisie" novalidate>
+<h2 class="surtitre" id="titre-saisie">Votre demande</h2>
+<label class="libelle" for="demande-ecrite">Écrivez-la ici, ou dites-la</label>
+<div class="saisie">
+<input class="champ" id="demande-ecrite" name="demande" type="text" maxlength="400" placeholder="Par exemple : allume la cuisine" autocomplete="off" enterkeyhint="send">
+<button id="bouton-micro" type="button" class="bouton bouton--envoi" aria-label="Dire la demande" hidden><svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg></button>
+<button id="bouton-envoyer" type="submit" class="bouton bouton--principal bouton--envoi" aria-label="Envoyer"><svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M4 12 20 4l-5 16-3.5-6.5z"/><path d="M11.5 13.5 20 4"/></svg></button>
+</div>
+<p id="aide-saisie" class="aide">400 caractères au plus à l'écrit, 20 secondes à l'oral. La voix est comprise dans la maison, elle n'est pas gardée. La demande passe par les mêmes contrôles que sur la tablette.</p>
+</form>
+
+<p id="statut-demande" class="statut-demande" role="status" hidden></p>
+<p id="erreur-demande" class="alerte" role="alert" hidden></p>
+
+<section id="carte-reponse" class="carte" aria-labelledby="titre-reponse" hidden>
+<h2 class="surtitre" id="titre-reponse">Votre demande</h2>
+<p id="reponse-demande" class="phrase"></p>
+<p id="reponse-meta" class="secondaire"></p>
+<div class="reponse-assistant">
+<span class="orbe orbe--m" aria-hidden="true"></span>
+<div class="reponse-texte">
+<h2 class="surtitre" id="titre-reponse-assistant">Réponse de {{nom_assistant}}</h2>
+<p id="reponse-texte" class="phrase"></p>
+</div>
+</div>
+<p id="reponse-essai" class="pastille pastille--lumiere pastille--sans-point" hidden>Essai, sans effet</p>
+</section>
+
+<section id="carte-actions" class="carte" aria-labelledby="titre-actions" hidden>
+<h2 class="surtitre" id="titre-actions">Actions faites</h2>
+<ul id="liste-actions" class="actions-faites"></ul>
+</section>
+
+<section id="carte-etapes" class="carte" aria-labelledby="titre-etapes" hidden>
+<h2 class="surtitre" id="titre-etapes">Étapes</h2>
+<ol id="etapes-demande" class="etapes"></ol>
+</section>
+
+<p id="liens-reponse" class="liens-reponse" hidden><a class="lien" href="/journal">Voir dans le journal</a></p>
+
+<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+</body>
+</html>

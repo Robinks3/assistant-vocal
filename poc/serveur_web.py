@@ -49,6 +49,7 @@ from websockets.http11 import Response
 
 import acces
 import appairage_web as AW
+import demande_web
 import journal_web
 import maison
 
@@ -56,7 +57,7 @@ DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.4.0"
+VERSION_CLIENT = "0.5.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -90,12 +91,14 @@ PAGES_PROTEGEES = {
     "/reglages": ("reglages.html", False),
     "/journal": ("journal.html", False),
     "/vie-privee": ("vie-privee.html", False),
+    "/demander": ("demander.html", False),
 }
 SCRIPTS_PROTEGES = {
     "/associer.js": ("associer.js", True),
     "/reglages.js": ("reglages.js", False),
     "/journal.js": ("journal.js", False),
     "/vie-privee.js": ("vie-privee.js", False),
+    "/demander.js": ("demander.js", False),
 }
 MAX_APPAIRAGES_WS = 8        # navigateurs en train de saisir un code, en même temps
 INACTIF_APPAIRAGE_S = 130    # un navigateur qui ne dit rien est lâché après un peu plus de 2 minutes
@@ -106,21 +109,31 @@ ETAPES_DIRECT = ("entendu",)  # étapes poussées en direct : les autres arriven
 FERMETURE_REVOQUE = 4001     # code de fermeture d'un WebSocket dont l'appareil vient d'être retiré
 # Messages ouverts à tout rôle : le reste est réservé au propriétaire. Le journal et la vie privée ne montrent que ce
 # que journal_web.projeter laisse voir, defi et preuve n'acceptent hors propriétaire que les actions personnelles.
+# Les demandes (S-W3) sont ouvertes à tout rôle, bornées par les quotas de demande_web.py et par la même chaîne de
+# contrôle que les demandes des autres appareils.
 MESSAGES_TOUT_ROLE = frozenset({"moi", "abonner_journal", "desabonner_journal", "journal_page", "vie_privee",
-                                "defi", "preuve"})
+                                "defi", "preuve", "demande_texte", "demande_voix"})
 
 # Politique de contenu de la note 4.7, avec frame-ancestors 'none' (aucune page ne s'encadre dans un autre site).
 CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
        "object-src 'none'; worker-src 'self'; manifest-src 'self'; media-src 'self' blob:; frame-src 'self'; "
        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; require-trusted-types-for 'script'")
 
-# En-têtes de toutes les réponses. Permissions-Policy est fermée : le lot S-W3 ouvrira microphone=(self).
+# Taille des messages WebSocket. Tout message fait au plus TAILLE_MESSAGE, sauf demande_voix (un enregistrement de 20 s
+# en base64, environ 853 Ko) qui peut aller jusqu'à TAILLE_MESSAGE_VOIX. La limite du protocole est la seconde, la
+# première est appliquée par chaque boucle sur tout autre message.
+TAILLE_MESSAGE = 2 ** 16
+TAILLE_MESSAGE_VOIX = 2 ** 20
+CODE_TROP_GROS = 1009
+
+# En-têtes de toutes les réponses. Permissions-Policy ne laisse que le microphone, et à la page elle-même (S-W3,
+# écran Demander). Caméra, position, capteurs, paiement et USB restent fermés.
 ENTETES_SECURITE = {
     "Content-Security-Policy": CSP,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), "
-                          "microphone=(), payment=(), usb=()",
+                          "microphone=(self), payment=(), usb=()",
     "Strict-Transport-Security": "max-age=31536000",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
@@ -302,6 +315,7 @@ class Connexion:
         self.genre = genre          # « appairage » ou « client »
         self.identite = identite
         self.abonne_journal = False  # a demandé le journal (abonner_journal) : reçoit les entrées neuves
+        self.demande_en_cours = False  # une demande (S-W3) est en train d'être traitée : pas de deuxième en même temps
         self._dernier = None
 
     def envoyer(self, message, fermer=None):
@@ -342,6 +356,9 @@ class ServiceWeb:
         self.niveaux = None
         self.lisibles = None
         self.nom_appareil_ha = None
+        self.demandeur = None         # coroutine (Demande vers dict) posée par le serveur, None : demandes indisponibles
+        self.quotas = demande_web.Quotas()
+        self._taches = set()          # les demandes en cours : gardées en vie jusqu'à leur réponse
         self._ids = itertools.count(1)
         self._dernier_entretien = time.monotonic()
 
@@ -470,6 +487,7 @@ class ServiceWeb:
     def retirer_acces(self, identite):
         """Un appareil est retiré : ses sessions sont révoquées, ses connexions coupées, les listes se rafraîchissent."""
         self.sessions.revoquer(identite=identite)
+        self.quotas.oublier(identite)
         for c in list(self.connexions.values()):
             if c.identite == identite:
                 c.envoyer(None, fermer=FERMETURE_REVOQUE)
@@ -492,6 +510,7 @@ class ServiceWeb:
         if self.appairage:
             self.appairage.purger()
         self.sessions.purger()
+        self.quotas.purger()
 
     # Barrières d'entrée
     def hotes_permis(self):
@@ -698,6 +717,9 @@ class ServiceWeb:
                     break
                 except websockets.ConnectionClosed:
                     break
+                if len(brut) > TAILLE_MESSAGE:  # seule une demande vocale a le droit d'être grosse, et pas ici
+                    conn.envoyer(None, fermer=CODE_TROP_GROS)
+                    break
                 msg = self._lire(brut)
                 genre = msg.get("type") if msg else None
                 if genre == "code":
@@ -740,10 +762,20 @@ class ServiceWeb:
                 if msg is None:
                     conn.envoyer(None, fermer=1008)
                     break
+                if len(brut) > TAILLE_MESSAGE and msg.get("type") != demande_web.GENRE_VOIX:
+                    conn.envoyer(None, fermer=CODE_TROP_GROS)
+                    break
                 try:
                     rep = self._client(conn, msg)
                 except AW.ErreurAppairage as e:
                     rep = {"type": "erreur", "cause": e.cause}
+                except demande_web.RefusDemande as e:
+                    rep = self._erreur_demande(e, msg.get("type"))
+                if asyncio.iscoroutine(rep):  # une demande acceptée : traitée à part, la connexion reste lisible
+                    tache = asyncio.ensure_future(rep)
+                    self._taches.add(tache)
+                    tache.add_done_callback(self._taches.discard)
+                    rep = None
                 if rep is not None:
                     conn.envoyer(rep)
         finally:
@@ -793,7 +825,55 @@ class ServiceWeb:
                     return self._appliquer_niveau(a, res["cible"])
                 return self._effacer_journal(a)
             return {"type": "revoque", "cible": res["cible"]}
+        if genre in demande_web.GENRES:
+            return self._demande(conn, a, genre, msg)
         raise AW.ErreurAppairage("action")
+
+    # Demandes (S-W3)
+    @staticmethod
+    def _erreur_demande(refus, genre):
+        rep = {"type": "erreur", "cause": refus.cause, "genre": genre if genre in demande_web.GENRES else None}
+        if refus.attente_s:
+            rep["attente_s"] = refus.attente_s
+        return rep
+
+    def _demande(self, conn, a, genre, msg):
+        """Accepte une demande écrite ou parlée, ou la refuse. Tout ce qui compte vient de la session : le rôle et
+        la personne sont ceux de l'appareil associé, le champ « personne » du message n'est jamais lu. Les refus
+        sont levés ici (RefusDemande), la demande acceptée est rendue sous la forme d'une coroutine que
+        boucle_client lance à part. Seul le texte (ou la transcription) part vers la chaîne des demandes, qui passe
+        par le même point de contrôle que les autres appareils."""
+        role = a["role"]
+        if self.demandeur is None:
+            raise demande_web.RefusDemande("indisponible")
+        if role not in AW.ROLES_WEB or demande_web.quota(genre, role) <= 0:
+            raise demande_web.RefusDemande("droit")
+        if conn.demande_en_cours:
+            raise demande_web.RefusDemande("occupe")
+        texte = pcm = None
+        if genre == "demande_texte":
+            texte = demande_web.texte_valide(msg.get("texte"))
+        else:
+            pcm = demande_web.pcm_valide(msg.get("pcm"))
+        self.quotas.compter(conn.identite, role, genre)
+        personne = acces.cle_habitant(maison.CLE_PROPRIETAIRE) if role == AW.ROLE_PROPRIETAIRE else None
+        demande = demande_web.Demande(genre, texte, pcm, demande_web.essai_du_message(msg), conn.identite, personne,
+                                      role)
+        conn.demande_en_cours = True
+        return self._traiter_demande(conn, demande)
+
+    async def _traiter_demande(self, conn, demande):
+        try:
+            res = await self.demandeur(demande)
+            rep = {"type": "reponse", "genre": demande.genre, **res}
+        except demande_web.RefusDemande as e:
+            rep = self._erreur_demande(e, demande.genre)
+        except Exception as e:  # jamais le texte d'une exception vers le navigateur : seulement sa classe, en console
+            print(f"Client web : demande en échec ({type(e).__name__})")
+            rep = self._erreur_demande(demande_web.RefusDemande("indisponible"), demande.genre)
+        finally:
+            conn.demande_en_cours = False
+        conn.envoyer(rep)
 
     def liste_appareils(self, identite_courante=None):
         """Les appareils associés (sans clé), avec « en_ligne » pour ceux dont un navigateur est connecté."""
@@ -841,7 +921,8 @@ async def demarrer(adresse, port, version, sessions=None, service=None):
         return reponse
 
     serveur = await websockets.serve(service.traiter_websocket, adresse, port, process_request=avant,
-                                     process_response=apres, max_size=2 ** 16, ping_interval=20)
+                                     process_response=apres, max_size=TAILLE_MESSAGE_VOIX,
+                                     ping_interval=20)
     service.port = serveur.sockets[0].getsockname()[1]
     serveur.service_web = service
     return serveur
