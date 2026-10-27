@@ -84,6 +84,16 @@ de maison.json remplie, pas pour le rôle invité) :
                               air, alerte}}}} ou {"etat":"mesures","id","erreur"}. Les zones protégées sont écartées
                               dès Home Assistant et leurs pièces ne portent aucune valeur. Forme détaillée dans
                               mesures.py, mêmes cas de test que l'appli (tests/cas_mesures.json).
+Depuis le lot S-L8 (mêmes conditions que "mesures", pas pour le rôle invité) :
+  {"type": "air_historique", "id", "piece", "heures"}  courbes de l'air d'une pièce (CO2, particules fines,
+                              température, humidité) lues dans l'historique de Home Assistant. "piece" est un
+                              identifiant de correspondance_pieces, "heures" vaut 1 à 168 (24 sans valeur). Les
+                              entités demandées à Home Assistant sont déduites du relevé des capteurs de la pièce,
+                              jamais fournies par le client. Réponse {"etat":"air_historique","id","donnees":
+                              {piece, heures, debut, fin, pas, series:{co2, pm25, temperature, humidite}}} (secondes
+                              Unix, séries de [secondes, valeur] réduites par moyenne, une clé seulement pour les
+                              grandeurs que la pièce mesure) ou {"etat":"air_historique","id","erreur"}. Pièce
+                              protégée : refusée. Forme détaillée dans historique_air.py.
 Appairage d'un nouveau téléphone : wss://<hôte>:8766/appairage?nom=<nom>, sans jeton. Le serveur
 envoie {"etat":"appairage","code"}, puis {"etat":"appaire","jeton"} quand un téléphone connu accepte,
 ou {"etat":"appairage_refuse"}. Sans administrateur connecté et depuis le réseau local, le message `appairage`
@@ -114,6 +124,7 @@ import sante_hist as SH  # noqa: E402
 import meteo_mer as MM  # noqa: E402
 import vent_mesure as VM  # noqa: E402
 import mesures as ME  # noqa: E402
+import historique_air as AH  # noqa: E402
 
 TAUX = 16000
 BLOC = 1280            # 80 ms, taille attendue par openWakeWord
@@ -249,6 +260,7 @@ class Moteur:
                 "meteo_mer": getattr(self, "meteo_mer", None) is not None,
                 "vent_mesure": getattr(self, "vent_mesure", None) is not None,
                 "mesures": self.assistant.ha is not None and bool(ME.correspondance(maison.CONFIG)),
+                "air_historique": self.assistant.ha is not None and bool(ME.correspondance(maison.CONFIG)),
                 "routines": bool(R.reglage("active")),
                 "empreinte": self.empreinte_tls}
 
@@ -1276,6 +1288,53 @@ class Satellite:
         print(f"[{self.nom}] mesures : {len(donnees['pieces'])} pièces servies")
         await self.envoyer(etat="mesures", id=ident, donnees=donnees)
 
+    async def repondre_air_historique(self, msg):
+        """Historique de l'air d'une pièce (S-L8) : le relevé des capteurs (gabarit de mesures.py) donne les entités de la
+        pièce, puis une seule requête d'historique bornée à Home Assistant. Le client ne fournit ni entité ni durée libre.
+        Le texte d'une exception n'est jamais renvoyé, seulement sa classe."""
+        ident = msg.get("id")
+        ha = getattr(getattr(self.moteur, "assistant", None), "ha", None)
+        corresp = ME.correspondance(maison.CONFIG)
+        if ha is None:
+            await self.envoyer(etat="air_historique", id=ident, erreur="Home Assistant non configuré sur ce serveur")
+            return
+        if not corresp:
+            await self.envoyer(etat="air_historique", id=ident,
+                               erreur="aucune pièce reliée aux zones (correspondance_pieces)")
+            return
+        import securite
+        protegees = maison.liste("zones_protegees") if securite.PROTEGER_OCCUPANT else []
+        piece, h = msg.get("piece"), AH.heures(msg.get("heures"))
+        try:
+            r = await asyncio.to_thread(
+                lambda: ha.client.post(f"{ha.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))
+            releve = ME.lire_releve(r.text) if r.status_code == 200 else None
+            if releve is None:
+                print(f"[{self.nom}] air_historique : Home Assistant a répondu {r.status_code}, relevé illisible")
+                await self.envoyer(etat="air_historique", id=ident, erreur="relevé des capteurs indisponible")
+                return
+            entites = AH.entites_de_piece(releve, corresp, piece, protegees)
+            tous = [i for ids in entites.values() for i in ids]
+            debut, fin = AH.bornes(time.time(), h)
+            chemin, params = AH.requete(debut, fin, tous)
+            r = await asyncio.to_thread(lambda: ha.client.get(f"{ha.url}{chemin}", params=params, timeout=30))
+            if r.status_code != 200:
+                print(f"[{self.nom}] air_historique : l'historique de Home Assistant a répondu {r.status_code}")
+                await self.envoyer(etat="air_historique", id=ident, erreur="historique indisponible")
+                return
+            historique = AH.lire_historique(r.json(), set(tous))
+            donnees = AH.mettre_en_forme(piece, h, debut, fin, entites, historique)
+        except AH.ErreurAir as e:
+            await self.envoyer(etat="air_historique", id=ident, erreur=str(e))
+            return
+        except Exception as e:
+            print(f"[{self.nom}] air_historique : erreur inattendue ({e.__class__.__name__})")
+            await self.envoyer(etat="air_historique", id=ident, erreur=f"erreur inattendue ({e.__class__.__name__})")
+            return
+        n = sum(len(v) for v in donnees["series"].values())
+        print(f"[{self.nom}] air_historique : {piece} sur {h} h, {n} points servis")
+        await self.envoyer(etat="air_historique", id=ident, donnees=donnees)
+
     async def repondre_vent_mesure(self, msg):
         """Vent mesuré sur le plan d'eau pour la page « Vent mesuré » (0.24.0). Aucune donnée
         personnelle : servi à toute connexion, chiffrée ou non. Une ligne de journal par réponse."""
@@ -1412,6 +1471,8 @@ class Satellite:
             asyncio.create_task(self.repondre_meteo_mer(msg))
         elif msg.get("type") == "mesures":
             asyncio.create_task(self.repondre_mesures(msg))
+        elif msg.get("type") == "air_historique":
+            asyncio.create_task(self.repondre_air_historique(msg))
         elif msg.get("type") == "vent_mesure":
             asyncio.create_task(self.repondre_vent_mesure(msg))
         elif msg.get("type") == "ha":

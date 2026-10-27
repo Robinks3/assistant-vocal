@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.48.0 (2026-10-27), historique de l'air d'une pièce
+Mineure. Session S-L8 du plan. Appli Home Assistant 0.48.0 (copie aussi `historique_air.py`), appli Android 0.47.0.
+- Nouveau message `air_historique` (le client donne une pièce et une durée en heures, rien d'autre). Le serveur
+  déduit les entités du relevé des capteurs de la carte (`correspondance_pieces`, thermomètre dédié prioritaire,
+  identifiants `sensor.*` validés), refuse une pièce inconnue ou protégée, plafonne la durée à 168 h, puis
+  interroge `/api/history/period` de Home Assistant (états seuls, sans attributs).
+- Mise en forme dans `poc/historique_air.py` : un état vaut jusqu'au suivant sans dépasser 2 h (comme la carte),
+  `unavailable` et `unknown` font un trou et jamais un zéro, au plus 288 intervalles égaux en moyenne pondérée par
+  le temps, puis moyenne entre capteurs d'une même grandeur. Réponse : CO2, PM2.5, température, humidité.
+- Capacité `air_historique` annoncée, type permis aux rôles du foyer (administrateur, habitant, partage), refusé à
+  l'invité (`poc/acces.py`). `mesures.marquer_dedies` extrait pour être partagé avec la carte.
+- Tests : `poc/tests/test_historique_air.py`. `deployer.sh` copie le nouveau module.
+
 ## Serveur 0.47.0 (2026-10-27), appairage WebAuthn du client web
 Mineure. Session S-W1b du plan. Appli Home Assistant 0.47.0 (copie aussi `webauthn.py` et `appairage_web.py`),
 appli Android inchangée (0.46.2). Client web 0.3.0.
