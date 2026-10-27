@@ -6,6 +6,12 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.46.1 (2026-10-27), garde de la page 3D
+Correctif (versionCode 85), serveur inchangé (0.46.0).
+- Le build refuse une page `genere/android/maison3d/vue3d.html` produite avant la 0.46.0 : sans la fonction
+  `maison3d.mesures`, les pastilles de mesures de la vue 3D restaient invisibles sans aucune erreur. Il faut alors
+  relancer `python carte/3d/generer_3d.py`.
+
 ## 0.46.0 (2026-10-27), mesures dans la vue 3D et sur l'accueil
 Mineure (versionCode 84). Session S-L7 du plan, serveur inchangé (0.45.1).
 - Les mesures des pièces s'affichent dans la vue 3D : pastille sous le nom de chaque pièce, carton de la pièce

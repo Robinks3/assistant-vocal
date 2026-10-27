@@ -9,7 +9,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.46.0"
+val versionApplication = "0.46.1"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -80,6 +80,10 @@ if (fabriqueApk && !File(dossierLu, "genere/android/maison3d/vue3d.html").exists
 // Page d'avant la 0.31.0 (ancien nom du pont JavaScript) : la vue 3D ne parlerait plus à l'appli.
 if (fabriqueApk && "Maison3dAndroid" !in File(dossierLu, "genere/android/maison3d/vue3d.html").readText(Charsets.UTF_8)) {
     throw GradleException("${dossierLu.path}/genere/android/maison3d/vue3d.html périmée (pont d'avant la 0.31.0) : relancer python carte/3d/generer_3d.py.")
+}
+// Page d'avant la 0.46.0 (S-L7) : sans maison3d.mesures, les pastilles de mesures restent invisibles sans erreur.
+if (fabriqueApk && "function mesures(" !in File(dossierLu, "genere/android/maison3d/vue3d.html").readText(Charsets.UTF_8)) {
+    throw GradleException("${dossierLu.path}/genere/android/maison3d/vue3d.html périmée (sans les mesures de la 0.46.0) : relancer python carte/3d/generer_3d.py.")
 }
 val maison: Map<*, *> = try {
     groovy.json.JsonSlurper().parseText(File(dossierLu, "maison.json").readText(Charsets.UTF_8)) as Map<*, *>
@@ -154,7 +158,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 84
+        versionCode = 85
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
