@@ -114,6 +114,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import assistant as A  # noqa: E402
 import acces  # noqa: E402
 import administration  # noqa: E402
+import demande_web  # noqa: E402
 import maison  # noqa: E402
 import serveur_web  # noqa: E402
 import journal_web as J  # noqa: E402
@@ -423,12 +424,13 @@ class Moteur:
         print(f"[{appareil}] note {verdict} : {A.pour_console(entendu)}" + (f" ({A.pour_console(effet)})" if effet else ""))
         return effet or "noté"
 
-    def llm_texte(self, texte, essai, personne=None, appareil=None, canal="appli"):
+    def llm_texte(self, texte, essai, personne=None, appareil=None, canal="appli", role=None):
         """Phrase déjà transcrite et non comprise par le téléphone (mode « Cet appareil », appli 0.10.0) :
         seulement le LLM du serveur, avec ses garde-fous. Essai effectif : celui du serveur ou celui du
         téléphone (0.28.0, un téléphone en réel ne lève plus l'essai du serveur).
         personne : qui parle d'après la tablette (règle 3 de securite.py, « ma chambre »), ou rien.
-        appareil : identité de l'appareil appairé, pour l'historique et la leçon à annuler."""
+        appareil : identité de l'appareil appairé, pour l'historique et la leçon à annuler.
+        role : rôle de l'appareil quand l'appelant le connaît mieux que ROLE_DE (le client web, S-W3)."""
         import securite
         essai = self.essai or bool(essai)
         refus = securite.phrase_protegee(texte, personne)
@@ -438,7 +440,7 @@ class Moteur:
         a = self.assistant
         t = time.perf_counter()
         erreur = ""
-        with a.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
+        with a.requete(essai=essai, personne=personne, appareil=appareil, role=role, canal=canal):
             # Routines (0.42.0, note 5.1) : brouillon en attente, demande de création ou déclencheur passent avant le
             # LLM ordinaire, qui agirait sur-le-champ sur « quand je dis ... ».
             from dictionnaire import epurer
@@ -465,6 +467,44 @@ class Moteur:
                           parole, actions)
         return {"reponse": parole, "actions": list(actions), "cerveau": nom, "ms": round(duree * 1000),
                 "erreur": erreur, "essai": essai}
+
+    async def repondre_web(self, demande):
+        """Demande d'un navigateur associé (S-W3, client web), écrite. Même chaîne que les autres appareils :
+        llm_texte, donc phrase protégée, routines, cerveau, puis acces.controler_service et securite.verifier pour
+        chaque action. Rien d'autre n'est appelé ici : aucune voie vers Home Assistant qui contourne ce contrôle.
+        Appareil, personne et rôle viennent de la session (demande_web.Demande), jamais du message. L'essai effectif
+        est celui du serveur OU celui du message (llm_texte). La réponse revient au navigateur en texte : une demande
+        du téléphone ne fait jamais parler la tablette. Les étapes sont poussées au journal comme pour un satellite."""
+        if demande.genre != "demande_texte":
+            raise demande_web.RefusDemande("indisponible")
+        texte = demande.texte
+        ident = J.nouvel_id()
+        A.ID_DEMANDE.set(ident)  # le journal (A.journaliser) lit l'identifiant dans le contexte de cette tâche
+        service = getattr(self, "service_web", None)
+        auteur = {"appareil": demande.appareil, "personne": demande.personne}
+        if service is not None:
+            try:
+                service.publier_etape(ident, auteur, "entendu", maison.maintenant().strftime("%H:%M:%S"))
+            except Exception as e:
+                print(f"Journal web : étape impossible ({type(e).__name__})")
+        print(f"[{demande.appareil}] demande écrite du client web : {A.pour_console(texte)}"
+              + (f" (personne : {demande.personne})" if demande.personne else ""))
+        avant = R.registre().version
+        try:
+            async with self.verrou:
+                res = await asyncio.to_thread(self.llm_texte, texte, demande.essai, demande.personne,
+                                              demande.appareil, "web", demande.role)
+        finally:
+            A.ID_DEMANDE.set(None)
+        derniere = lire_journal(1)
+        if derniere:
+            await self.diffuser_historique(derniere[0])
+        reg = R.registre()
+        if reg.version != avant:  # une routine créée ou lancée à l'écrit change la liste, chaque client la redemande
+            await self.diffuser({"etat": "routines_maj", "version": reg.version})
+        return {"id": ident, "texte": texte, "reponse": res["reponse"],
+                "actions": actions_lisibles(" | ".join(str(x) for x in res["actions"]), self.noms), "cerveau": res["cerveau"], "ms": res["ms"],
+                "essai": bool(res["essai"]), "erreur": bool(res["erreur"])}
 
     def messages_routines(self, genre, msg, essai, personne, appareil, role):
         """Messages réseau des routines (note 7.4), dans un fil : le contexte de la requête porte la personne, le rôle
@@ -1626,7 +1666,13 @@ async def servir(args):
         sys.exit("SATELLITE_JETON absent ou trop court dans poc/.env")
     moteur = Moteur(args.essai)
     moteur.appareils = acces.Appareils(A.DONNEES, jetons)
-    A.ROLE_DE = lambda identite: acces.role_effectif(identite, moteur.appareils)  # rôle écrit dans le journal
+    def role_de_identite(identite):  # rôle écrit dans le journal
+        if str(identite or "").startswith("web:"):  # navigateur associé : le rôle est celui de son entrée d'appairage
+            web = getattr(moteur, "service_web", None)
+            entree = web._appareil(identite) if web is not None else None
+            return entree["role"] if entree else "invite"
+        return acces.role_effectif(identite, moteur.appareils)
+    A.ROLE_DE = role_de_identite
     print("  jetons fixes acceptés : "
           + ", ".join(f"{n} ({acces.role_effectif(n, moteur.appareils)})" for n in sorted(set(jetons.values()))))
     for phrase in acces.avertissements_roles():
@@ -1818,6 +1864,7 @@ async def servir(args):
                 A.JOURNAL.parent, A.NIVEAUX_WEB, lisibles=lambda t: actions_lisibles(t, moteur.noms),
                 nom_appareil_ha=lambda ident: nom_appareil_maison(moteur, ident))
             moteur.service_web = service_web
+            service_web.demandeur = moteur.repondre_web  # demandes écrites (S-W3) : même chaîne que les autres
             serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
         except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir

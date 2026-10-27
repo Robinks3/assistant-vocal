@@ -22,7 +22,7 @@ ADMIN = RACINE / "poc" / "admin"
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.4.0", "{{version_serveur}}": "0.49.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.5.0", "{{version_serveur}}": "0.50.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -235,6 +235,43 @@ def variantes_journal():
     return out
 
 
+def variantes_demander():
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "demander.html").read_text(encoding="utf-8"))))
+    out = {"demander-repos": brut}
+    etapes = ('<li class="etape"><span class="fort">Entendu</span><span class="secondaire chiffres">0,0 s</span></li>'
+              '<li class="etape"><span class="fort">Compris</span><span class="secondaire chiffres">0,4 s</span></li>'
+              '<li class="etape"><span class="fort">Fait</span><span class="secondaire chiffres">0,9 s</span></li>'
+              '<li class="etape"><span class="fort">Répondu</span><span class="secondaire chiffres">1,2 s</span></li>')
+    reponse = montrer(brut, "carte-reponse", "carte-actions", "carte-etapes", "liens-reponse")
+    reponse = remplir(reponse, "reponse-demande", "« Allume la lampe du salon »")
+    reponse = remplir(reponse, "reponse-meta", "18:42, écrite sur cet appareil")
+    reponse = remplir(reponse, "reponse-texte", "C'est fait, la lampe du salon est allumée.")
+    reponse = remplir(reponse, "liste-actions", "<li>Salon, lampe du salon allumée</li>")
+    reponse = remplir(reponse, "etapes-demande", etapes)
+    out["demander-reponse"] = reponse
+    essai = montrer(reponse, "bandeau-essai", "reponse-essai")
+    essai = essai.replace('aria-checked="false"', 'aria-checked="true"')
+    essai = remplir(essai, "essai-etat", "Oui")
+    out["demander-essai"] = essai
+    long = remplir(reponse, "reponse-demande", "« " + LONG_NOM + " : peux-tu baisser le chauffage dans toutes les "
+                   "pièces et fermer les volets du rez-de-chaussée avant ce soir »")
+    long = remplir(long, "reponse-texte", "Je baisse le chauffage à 19 degrés dans le salon, la cuisine, la chambre "
+                   "d'amis et le couloir, puis je ferme les volets du rez-de-chaussée. " * 2)
+    long = remplir(long, "liste-actions", "".join(
+        f"<li>{LONG_NOM}, chauffage 19 degrés, pièce {i}</li>" for i in range(1, 4)))
+    long = long.replace('placeholder=', 'value="' + LONG_NOM + ' avec une demande très longue" placeholder=')
+    out["demander-long"] = long
+    erreur = remplir(montrer(brut, "erreur-demande"), "erreur-demande",
+                     "Vous avez atteint la limite de demandes de ce navigateur. Vous pourrez demander de nouveau "
+                     "dans 8 min 20 s.")
+    out["demander-erreur"] = erreur
+    en_cours = remplir(montrer(brut, "statut-demande"), "statut-demande", "La demande est en cours de traitement.")
+    en_cours = en_cours.replace('id="bouton-envoyer"', 'id="bouton-envoyer" disabled')
+    debut = "".join(etapes.split("</li>")[:2]) + "</li>"
+    out["demander-encours"] = remplir(montrer(en_cours, "carte-etapes"), "etapes-demande", debut)
+    return out
+
+
 def variantes_vie_privee():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "vie-privee.html").read_text(encoding="utf-8"))))
     out = {}
@@ -296,8 +333,8 @@ def ecrire(dossier, variantes):
 def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
-              **variantes_vie_privee(), **variante_accueil(), **variantes_admin()}
-    assert len(toutes) >= 28
+              **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin()}
+    assert len(toutes) >= 34
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -313,7 +350,7 @@ def test_ecrans_web_sans_defaut_de_mise_en_page(tmp_path):
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
     ecrire(pages, {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
-                   **variantes_vie_privee(), **variante_accueil()})
+                   **variantes_demander(), **variantes_vie_privee(), **variante_accueil()})
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", "main"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
