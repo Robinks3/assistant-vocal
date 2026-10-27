@@ -206,6 +206,18 @@ def _lecture(capteurs, classe, maintenant, fuseau):
     return {"valeur": _moyenne(dedies if dedies else [v for _, v in bons]), "ts": None, "depuis": None}
 
 
+def marquer_dedies(capteurs):
+    """Pose c['dedie'] : vrai pour un capteur d'un appareil qui n'expose que température et humidité (thermomètre
+    dédié). Partagé avec l'historique de l'air (historique_air.py) pour choisir les mêmes capteurs que la carte."""
+    classes_par_appareil = {}
+    for c in capteurs:
+        if c.get("appareil"):
+            classes_par_appareil.setdefault(c["appareil"], set()).add(c.get("classe"))
+    for c in capteurs:
+        cl = classes_par_appareil.get(c.get("appareil"))
+        c["dedie"] = bool(cl) and cl <= set(CLASSES_THERMOMETRE)
+
+
 def mesures_par_piece(releve, corresp, protegees, fuseau="UTC", noms=None):
     """Mesures de chaque pièce de [corresp] à partir du [releve] du gabarit.
 
@@ -222,14 +234,7 @@ def mesures_par_piece(releve, corresp, protegees, fuseau="UTC", noms=None):
     protegees = {str(z).lower() for z in protegees}
     maintenant = float(releve.get("maintenant") or 0)
     capteurs = [c for c in releve.get("capteurs") or [] if isinstance(c, dict)]
-    # Un appareil qui n'expose que température et humidité est dédié.
-    classes_par_appareil = {}
-    for c in capteurs:
-        if c.get("appareil"):
-            classes_par_appareil.setdefault(c["appareil"], set()).add(c.get("classe"))
-    for c in capteurs:
-        cl = classes_par_appareil.get(c.get("appareil"))
-        c["dedie"] = bool(cl) and cl <= set(CLASSES_THERMOMETRE)
+    marquer_dedies(capteurs)
     sortie = {}
     for piece, zones in corresp.items():
         nom = noms.get(piece) or piece

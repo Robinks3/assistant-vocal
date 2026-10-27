@@ -6,6 +6,22 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.47.0 (2026-10-27), graphique de l'air d'une pièce
+Mineure (versionCode 87). Session S-L8 du plan, serveur 0.48.0.
+- Toucher la carte des mesures de la vue 3D (maison en grand) ou la ligne de l'air de l'accueil ouvre un graphique
+  plein écran : CO2 et particules fines PM2,5 d'une pièce en fonction du temps, 24 h par défaut, au choix 6 h,
+  24 h ou 7 jours. Un second onglet montre la température et l'humidité.
+- Les bandes de couleur reprennent les seuils des mesures (bon, correct, médiocre, mauvais), avec le mot de la
+  classe écrit sur la bande. Un doigt posé sur la courbe lit la valeur et l'heure, avec le mot de l'air.
+- Axe du temps à l'heure locale (clé `fuseau` de la configuration). Les trous de mesure restent des trous, jamais
+  une ligne tirée par-dessus. États dits en clair : chargement, aucune mesure, serveur injoignable avec un bouton
+  « Réessayer ».
+- Les données viennent du serveur par le message `air_historique` (historique de Home Assistant, pièce connue
+  seulement, 7 jours au plus). Une pièce protégée n'ouvre pas de graphique. Le graphique se ferme avec la croix,
+  ou seul après 45 s sans toucher, comme la maison en grand.
+- Dessin fait à la main (Canvas), sans bibliothèque. Logique pure dans `AirHistorique.kt`, testée à part.
+- La page 3D désigne maintenant le genre `mesures` quand on touche la carte (régénérer `vue3d.html`).
+
 ## 0.46.2 (2026-10-27), levée complète de la règle 1
 Correctif (versionCode 86), serveur 0.46.1.
 - `Mesures.zonesProtegees()` ne renvoie plus rien quand `Securite.PROTEGER_OCCUPANT` est faux : la chambre de

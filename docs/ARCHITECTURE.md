@@ -306,7 +306,7 @@ réponse. Les messages du serveur portent un champ `etat`, ceux de l'appareil un
 | `vad` | `silero` ou `energie` |
 | `passerelle_ha`, `previsions` | Home Assistant configuré sur ce serveur (jeton présent) |
 | `appairage`, `empreinte` | Port chiffré actif, empreinte de sa clé publique |
-| `vision`, `meteo_mer`, `vent_mesure` | Fonctions présentes sur ce serveur |
+| `vision`, `meteo_mer`, `vent_mesure`, `air_historique` | Fonctions présentes sur ce serveur |
 | `sante`, `sante_historique` | Calculées pour chaque connexion : vraies seulement sur la liaison chiffrée et pour une clé permise |
 | `routines` | Vrai quand la fonction est active (`routines.active`, 0.42.0). Les messages de routines restent réservés à la liaison chiffrée, quelle que soit la valeur |
 
@@ -406,9 +406,14 @@ même si une voie oubliait la liste des domaines interdits. Un corps qui n'est p
 | `sante_jour` | `id`, `date` (`AAAA-MM-JJ`) | Idem | Idem |
 | `meteo_mer` | `id` | `{"etat":"meteo_mer","id","donnees"}` ou `erreur` | Section `mer` active. Servi à toute connexion |
 | `vent_mesure` | `id` | `{"etat":"vent_mesure","id","donnees"}` ou `erreur` | Sections `mer` et `vent` actives. Servi à toute connexion |
+| `air_historique` | `id`, `piece` (identifiant de pièce de la carte), `heures` (1 à 168, 24 par défaut) | `{"etat":"air_historique","id","donnees"}` ou `erreur` | Home Assistant et `correspondance_pieces` configurés. Types du foyer (administrateur, habitant, partage), refusé à l'invité. Pièce protégée refusée |
 
-La forme détaillée de `donnees` est décrite dans les docstrings de `sante.py`, `sante_hist.py`, `meteo_mer.py`
-et `vent_mesure.py`.
+La forme détaillée de `donnees` est décrite dans les docstrings de `sante.py`, `sante_hist.py`, `meteo_mer.py`,
+`vent_mesure.py` et `historique_air.py`. Pour `air_historique`, le client ne choisit ni entité ni durée hors bornes :
+le serveur déduit les capteurs de la pièce (ceux de la carte) et interroge `/api/history/period` de Home Assistant.
+`donnees` vaut `{piece, heures, debut, fin, pas, series}` (secondes Unix), avec une clé de `series` par grandeur
+mesurée dans la pièce (`co2`, `pm25`, `temperature`, `humidite`) et des points `[secondes, valeur]` moyennés par
+intervalle. Les trous n'ont pas de point.
 
 ## 4. La sécurité
 

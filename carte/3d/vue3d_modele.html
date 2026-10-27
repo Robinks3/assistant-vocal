@@ -1572,6 +1572,16 @@ const PLAN_SOL = new T.Plane(new T.Vector3(0, 1, 0), 0);
 function designer(x, y) {
   const d = grandEtat.taille;
   for (const p of grandEtat.positions) if (Math.hypot(p.x - x, p.y - y) <= d / 2 + 8) return { genre: "pastille", entite: p.entite };
+  // S-L8 : toucher la carte des mesures de la pièce choisie ouvre le graphique de son air (la carte est visible
+  // seulement avec des mesures lues, une pièce protégée n'en montre aucune).
+  if (grandEtat.piece) {
+    const cm = document.getElementById("mesures");
+    const mc = grandEtat.mesures;
+    if (cm && cm.classList.contains("visible") && mc && mc.statut !== "protegee" && mc.statut !== "aucun" && Array.isArray(mc.lignes) && mc.lignes.length) {
+      const r = cm.getBoundingClientRect();
+      if (x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 12) return { genre: "mesures", id: grandEtat.piece };
+    }
+  }
   if (!grandEtat.piece) {
     for (const n of couche.children) {
       if (n.style.opacity === "0" || !n.dataset.piece) continue;

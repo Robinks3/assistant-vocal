@@ -68,6 +68,8 @@ class SatelliteService : Service() {
         const val DELAI_METEO_MER_MS = 25_000L
         /** Vent mesuré (0.29.0) : le serveur lit ses sources en parallèle, 20 s au plus pour StationsOfficielles. */
         const val DELAI_VENT_MESURE_MS = 25_000L
+        /** Historique de l'air (0.47.0) : une requête d'historique à HA, 7 jours réduits à 288 points. */
+        const val DELAI_AIR_HISTORIQUE_MS = 20_000L
         const val ACTION_ARRETER = "assistant.vocal.jarvis.ARRETER"
         /** Réponse à une demande d'appairage depuis la notification (extra « id »). */
         const val ACTION_APPAIRER = "assistant.vocal.jarvis.APPAIRER"
@@ -488,6 +490,28 @@ class SatelliteService : Service() {
                 principal.post { suite(r) }
             }, "vent-mesure").start()
         }
+        // Historique de l'air d'une pièce (0.47.0) : même chemin, la pièce et la durée viennent de la vue. Le serveur
+        // refuse tout ce qui n'est pas une pièce connue et plafonne la durée à 7 jours.
+        Etat.airHistoriqueDispo = {
+            val m = moteurLocal
+            m != null && (m.transcriptionPc?.airHistoriqueDispo == true || m.passerelle.airHistoriqueDispo)
+        }
+        Etat.actionAirHistorique = { piece, heures, suite ->
+            val m = moteurLocal
+            val pc = m?.transcriptionPc
+            if (m == null) suite(null)
+            else Thread({
+                val r = try {
+                    if (pc != null && pc.airHistoriqueDispo) pc.airHistorique(piece, heures, DELAI_AIR_HISTORIQUE_MS)
+                    else if (m.passerelle.airHistoriqueDispo) m.passerelle.echanger(
+                        org.json.JSONObject().put("type", "air_historique").put("id", 1).put("piece", piece).put("heures", heures),
+                        "air_historique", DELAI_AIR_HISTORIQUE_MS / 1000,
+                    )
+                    else null
+                } catch (_: Exception) { null }
+                principal.post { suite(r) }
+            }, "air-historique").start()
+        }
         Etat.actionVisionSuspendre = { oui -> vision?.suspendre(oui) }
         Etat.actionVisionRecharger = { vision?.rechargerProfils() }
         Etat.surNouvelleCommande = { entree -> maison?.nouvelleCommande(entree) }
@@ -681,6 +705,8 @@ class SatelliteService : Service() {
         Etat.actionSante = null
         Etat.actionMeteoMer = null
         Etat.actionVentMesure = null
+        Etat.actionAirHistorique = null
+        Etat.airHistoriqueDispo = { false }
         Etat.actionSanteHistorique = null
         Etat.historiqueSante = { false }
         Etat.actionVisionSuspendre = null

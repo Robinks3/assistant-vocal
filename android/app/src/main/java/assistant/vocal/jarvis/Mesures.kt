@@ -26,8 +26,9 @@ object Mesures {
     val MOTS_AIR = listOf("bon", "correct", "médiocre", "mauvais")
     val COULEURS_AIR = listOf("#D4E6C8", "#EDD48A", "#EE9A45", "#D6503A")
     const val COULEUR_GRIS = "#9AA0A6"
-    private val SEUILS_CO2 = doubleArrayOf(800.0, 1000.0, 1500.0)
-    private val SEUILS_PM25 = doubleArrayOf(9.0, 35.4, 55.4)
+    /** Seuils publics (S-L8) : le graphique de l'air en trace les bandes avec les mêmes valeurs que les mots et les couleurs. */
+    val SEUILS_CO2 = doubleArrayOf(800.0, 1000.0, 1500.0)
+    val SEUILS_PM25 = doubleArrayOf(9.0, 35.4, 55.4)
     const val SEUIL_FRAIS = 19.0
     const val SEUIL_CHAUD = 24.0
     /** Au-delà de 2 h sans nouvelle valeur, une mesure n'est plus montrée ni colorée. */
@@ -318,11 +319,19 @@ object Mesures {
      * ou dont tout est muet ne parle jamais. Vide quand personne n'a rien à dire.
      */
     fun ligneAccueil(pieces: Map<String, PieceMesures>, noms: Map<String, String> = emptyMap()): String {
-        val parlantes = pieces.filter { (_, p) -> p.statut == Statut.OK || p.statut == Statut.SANS_AIR || p.statut == Statut.SANS_THERMOMETRE }
-        if (parlantes.isEmpty()) return ""
-        val alerte = parlantes.entries.filter { it.value.air?.aerer == true }.maxByOrNull { it.value.air?.rang ?: 0 }
-        val choix = alerte ?: parlantes.entries.first()
+        val choix = pieceAccueil(pieces) ?: return ""
         return ligneAccueil(nomAffiche(choix.key, noms), choix.value)
+    }
+
+    /**
+     * Pièce que dit la ligne de l'accueil (S-L8, pour que toucher la ligne ouvre le graphique de cette pièce) : celle
+     * dont l'air est à aérer (la pire), sinon la première qui a quelque chose à dire. Null quand personne ne parle.
+     */
+    fun pieceAccueil(pieces: Map<String, PieceMesures>): Map.Entry<String, PieceMesures>? {
+        val parlantes = pieces.filter { (_, p) -> p.statut == Statut.OK || p.statut == Statut.SANS_AIR || p.statut == Statut.SANS_THERMOMETRE }
+        if (parlantes.isEmpty()) return null
+        val alerte = parlantes.entries.filter { it.value.air?.aerer == true }.maxByOrNull { it.value.air?.rang ?: 0 }
+        return alerte ?: parlantes.entries.first()
     }
 
     /** Alertes de toutes les pièces, la plus grave d'abord (une phrase par pièce à aérer). */
