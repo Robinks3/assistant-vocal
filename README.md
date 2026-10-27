@@ -156,6 +156,7 @@ serveur compris, est dans [docs/INSTALLER.md](docs/INSTALLER.md).
 |---|---|
 | [docs/INSTALLER.md](docs/INSTALLER.md) | Installer pas à pas depuis une machine vierge : matériel, Python, `poc/.env`, appli Android, serveur, appli Home Assistant. |
 | [docs/CONFIGURER.md](docs/CONFIGURER.md) | Décrire sa maison : chaque section de `maison.json`, le dictionnaire, le plan, les modules facultatifs. |
+| [docs/ACCES-TAILSCALE.md](docs/ACCES-TAILSCALE.md) | Ouvrir le client web depuis un téléphone : Tailscale Serve, modèle d'ACL du tailnet, essai pas à pas. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Reprendre le code : blocs, protocole, sécurité, ajouter un écran ou un outil, tests, versions. |
 | [docs/QUOI-TOURNE-OU.md](docs/QUOI-TOURNE-OU.md) | Chaque modèle, sa machine, sa taille, sa licence, ce qu'il envoie. |
 | [docs/FAQ.md](docs/FAQ.md) | Dépannage, message d'erreur par message d'erreur. |

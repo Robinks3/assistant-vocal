@@ -64,7 +64,7 @@ déploiement. Il peut rester éteint en mode Cet appareil ou avec l'appli Home A
 | Besoin | Valeur |
 |---|---|
 | Système | Windows 10 ou 11 conseillé (scripts `.bat` et `.ps1`). Linux ou macOS possibles pour la partie Python, avec les réserves de l'étape 3. |
-| Python | 5.11 ou 5.13 sous Windows, 5.11 obligatoire sous Linux, voir l'étape 3. |
+| Python | 3.11 ou 3.13 sous Windows, 3.11 obligatoire sous Linux, voir l'étape 3. |
 | Réseau | Le même réseau local que la tablette. Ports TCP 8765 (en clair) et 8766 (chiffré) ouverts en entrée. |
 | Micro et haut-parleurs | Seulement pour faire tourner l'assistant sur le PC lui-même (`poc/assistant.py`). |
 | Android Studio | Pour compiler l'APK, sur ce PC ou sur une autre machine. |
@@ -84,7 +84,7 @@ SFace par OpenCV), et en option le relais santé, la météo marine, le vent mes
 | Musique | Facultative. Le code appelle `music_assistant.play_media` et `music_assistant.search` (intégration Music Assistant), et décrit les enceintes Enceintes natives derrière chaque lecteur. Sans enceinte « toutes » dans `appareils.musique`, les commandes de musique sont refusées proprement. |
 | Applis Wyoming | Facultatives : Speech-to-Phrase, Piper et openWakeWord (Whisper pour essai). Le serveur les joint sous les noms `core-speech-to-phrase:10300`, `core-piper:10200`, `core-openwakeword:10400` et `core-whisper:10300`. Elles sont nécessaires à l'appli Home Assistant de l'assistant (profil sans modèle local) et au choix de transcription « Sur Home Assistant ». |
 | Appli SSH | Pour `ha-app/deployer.sh` et `ha-app/configurer-options.py` : une session SSH sur Home Assistant qui dispose de `tar`, `curl`, `nc` et de la variable `SUPERVISOR_TOKEN`. |
-| Processeur | L'appli Home Assistant de l'assistant est déclarée pour `amd64` et `aarch64` (`ha-app/jarvis/config.yaml`), donc un Home Assistant sur Raspberry Pi peut l'installer. L'image de base `python:5.12-slim` existe pour les deux. Les dépendances Python du profil `ha` sont pures ou fournissent une roue `aarch64`, mais le démarrage n'a pas été essayé sur une carte ARM : vérifiez le journal de l'appli au premier lancement. |
+| Processeur | L'appli Home Assistant de l'assistant est déclarée pour `amd64` et `aarch64` (`ha-app/jarvis/config.yaml`), donc un Home Assistant sur Raspberry Pi peut l'installer. L'image de base `python:3.12-slim` existe pour les deux. Les dépendances Python du profil `ha` sont pures ou fournissent une roue `aarch64`, mais le démarrage n'a pas été essayé sur une carte ARM : vérifiez le journal de l'appli au premier lancement. |
 
 ## 2. Récupérer le moteur et activer le garde-fou
 
@@ -133,11 +133,11 @@ Aucune version n'est fixée dans `poc/requirements.txt` ni dans les scripts. Ce 
 
 | Système | Version de Python |
 |---|---|
-| Windows | 5.11 ou 5.13 : les dépendances s'installent avec l'une comme avec l'autre. |
-| Linux | 5.11 obligatoire. Sous Linux, openwakeword 0.6.0 exige `tflite-runtime`, qui n'existe pas au-delà de Python 5.11 : avec une version plus récente, l'installation des dépendances échoue. |
+| Windows | 3.11 ou 3.13 : les dépendances s'installent avec l'une comme avec l'autre. |
+| Linux | 3.11 obligatoire. Sous Linux, openwakeword 0.6.0 exige `tflite-runtime`, qui n'existe pas au-delà de Python 3.11 : avec une version plus récente, l'installation des dépendances échoue. |
 | macOS | Non essayé. |
 
-L'appli Home Assistant, elle, tourne sur l'image `python:5.12-slim` (`ha-app/jarvis/Dockerfile`), sans
+L'appli Home Assistant, elle, tourne sur l'image `python:3.12-slim` (`ha-app/jarvis/Dockerfile`), sans
 openwakeword : elle n'est pas concernée.
 
 Les scripts `.bat` et `.ps1` cherchent l'interpréteur dans `.venv\Scripts\python.exe` à la racine du
@@ -148,13 +148,13 @@ dépôt : l'environnement doit porter ce nom et cet emplacement.
 Windows :
 
 ```powershell
-py 5.11 -m venv .venv
+py -3.11 -m venv .venv
 ```
 
-Linux (5.11 obligatoire) ou macOS :
+Linux (3.11 obligatoire) ou macOS :
 
 ```bash
-python5.11 -m venv .venv
+python3.11 -m venv .venv
 ```
 
 Dans la suite, `.venv\Scripts\python` (Windows) devient `.venv/bin/python` sous Linux et macOS.
@@ -434,6 +434,10 @@ est `appareil:<id>`.
 
 Quand tous les appareils passent par le port chiffré, coupez l'ancien accès en clair avec
 `JARVIS_ANCIEN_ACCES=0` dans `poc/.env`, ou fermez le port en clair avec `--port 0`.
+
+Pour ouvrir le client web depuis un téléphone (port 8767, publié par Tailscale Serve, avec une ACL du tailnet en
+liste blanche), suivez [ACCES-TAILSCALE.md](ACCES-TAILSCALE.md). Le client web ne demande aucune règle de pare-feu
+Windows : il n'écoute qu'en boucle locale.
 
 ## 7. Appli Android
 
@@ -821,7 +825,7 @@ Les libellés exacts dépendent de la version de Home Assistant :
 1. Paramètres, Applis (anciennement Modules complémentaires), Boutique.
 2. Menu en haut à droite, Rechercher des mises à jour, pour faire apparaître les applis locales.
 3. Ouvrez l'appli (nom de la section `assistant`) dans la section des applis locales, puis Installer. L'image est construite sur place
-   (`python:5.12-slim`), ce qui prend quelques minutes.
+   (`python:3.12-slim`), ce qui prend quelques minutes.
 4. Dans l'onglet de configuration, réglez les options, puis Démarrer.
 
 | Option | Rôle |

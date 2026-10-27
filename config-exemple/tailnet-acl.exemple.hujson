@@ -1,0 +1,100 @@
+// Modèle de politique d'accès (ACL) d'un tailnet, en liste blanche. Valeurs fictives.
+//
+// Ce fichier ne s'applique à rien tout seul. Il se lit avec docs/ACCES-TAILSCALE.md, section 5 : le copier hors du
+// dépôt, remplacer les noms par les vrais, ajouter les flux existants du tailnet (bloc « À COMPLÉTER »), le coller
+// dans la console d'administration (Access controls), regarder le panneau de prévisualisation et le bloc "tests",
+// puis seulement enregistrer. Tailscale lit ce format (HuJSON) : commentaires et virgules finales permis.
+//
+// Principe : tout ce qui n'est pas écrit dans "acls" est refusé. Le téléphone de Camille atteint le PC de
+// l'assistant sur le port 443 (Tailscale Serve, qui sert le client web) et sur rien d'autre. Les ports 8765 et 8766
+// du serveur (satellites) ne sont pas ouverts au tailnet : les tablettes et téléphones de la maison passent par le
+// réseau local, pas par le tailnet.
+{
+	// Qui peut poser les étiquettes. Un appareil étiqueté n'appartient plus à un utilisateur : il porte
+	// les droits de son étiquette (et sa clé n'expire plus, à vérifier dans la console).
+	"tagOwners": {
+		"tag:assistant-pc": ["camille@exemple.org"],
+		"tag:sante":        ["camille@exemple.org"],
+	},
+
+	// Les personnes. Les téléphones et portables de Camille se rattachent à son compte, sans étiquette.
+	"groups": {
+		"group:proprietaire": ["camille@exemple.org"],
+	},
+
+	// Nom court pour une adresse du tailnet (ici celle, fictive, du PC de l'assistant). Non utilisé par les règles
+	// ci-dessous, qui visent l'étiquette, mais pratique pour écrire une règle par adresse.
+	"hosts": {
+		"pc-assistant": "100.64.0.10",
+	},
+
+	"acls": [
+		// 1. Le propriétaire joint le client web : HTTPS (443) sur le PC de l'assistant, rien d'autre.
+		{
+			"action": "accept",
+			"src":    ["group:proprietaire"],
+			"dst":    ["tag:assistant-pc:443"],
+		},
+
+		// 2. Le PC de l'assistant joint le service de santé (reseau.sante_url de maison.json), et rien d'autre.
+		//    Supprimer ce bloc si le relais santé n'est pas utilisé.
+		{
+			"action": "accept",
+			"src":    ["tag:assistant-pc"],
+			"dst":    ["tag:sante:8096"],
+		},
+
+		// 3. Une autre personne, à qui le PC est partagé (docs/ACCES-TAILSCALE.md, section 6) : le client web seul.
+		//    Une règle dont la source est "*" s'appliquerait aussi à elle. À décommenter et adapter :
+		//
+		// {
+		//	"action": "accept",
+		//	"src":    ["dominique@exemple.org"],
+		//	"dst":    ["tag:assistant-pc:443"],
+		// },
+
+		// À COMPLÉTER avant d'enregistrer : les flux qui existent déjà sur le tailnet et qui doivent survivre
+		// (synchronisations, SSH d'administration, tableau de bord, autres services). Une règle par flux, avec
+		// le port exact. Exemple, à décommenter et adapter :
+		//
+		// {
+		//	"action": "accept",
+		//	"src":    ["group:proprietaire"],
+		//	"dst":    ["tag:sante:22"],
+		// },
+		//
+		// Tant qu'un flux n'est pas écrit ici, il sera coupé à l'enregistrement.
+	],
+
+	// Vérifications que la console rejoue à chaque modification. Si l'un de ces tests échoue, la politique est
+	// refusée et l'ancienne reste en place. Les "deny" sont l'essentiel : ils prouvent que les ports du serveur
+	// ne sont pas joignables depuis le tailnet.
+	"tests": [
+		{
+			"src":    "camille@exemple.org",
+			"accept": ["tag:assistant-pc:443"],
+			"deny": [
+				"tag:assistant-pc:8765",
+				"tag:assistant-pc:8766",
+				"tag:assistant-pc:8767",
+				"tag:assistant-pc:22",
+				"tag:assistant-pc:3389",
+				"tag:assistant-pc:445",
+			],
+		},
+		{
+			"src":    "tag:sante",
+			"deny": [
+				"tag:assistant-pc:443",
+				"tag:assistant-pc:8765",
+				"tag:assistant-pc:8766",
+				"tag:assistant-pc:8767",
+			],
+		},
+		{
+			"src":    "tag:assistant-pc",
+			"accept": ["tag:sante:8096"],
+			"deny":   ["tag:sante:22"],
+		},
+	],
+}
