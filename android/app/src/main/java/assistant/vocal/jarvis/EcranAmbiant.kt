@@ -144,7 +144,15 @@ internal class EcranAmbiant(private val ctx: Context) {
      * Mesures de la pièce principale sur l'accueil (S-L7) : « Salon 21°, air bon », ou la pièce dont l'air est à aérer.
      * Une ligne sous la météo, vide (GONE) sans capteur, sans relevé ou pour une pièce protégée.
      */
-    private val ligneAir = texte(Palette.texte2).apply { visibility = View.GONE }
+    private val ligneAir = texte(Palette.texte2).apply {
+        visibility = View.GONE
+        // S-L8 : toucher la ligne ouvre le graphique de l'air de la pièce qu'elle nomme.
+        isClickable = true
+        contentDescription = "Air de la pièce, toucher pour voir le graphique"
+        setOnClickListener { pieceAir?.let { ouvrirAir(it) } }
+    }
+    /** Pièce que dit la ligne de l'air (null sans ligne), mise à jour avec elle par [lignePieces]. */
+    private var pieceAir: String? = null
     /**
      * Santé du propriétaire (0.19.0), en graphes depuis la 0.26.0 (anneau des pas, 7 nuits, cœur au repos), seulement
      * quand il est reconnu et seul, en vivant plein. Retirée de l'arbre (GONE, sans libellé) dès qu'elle ne l'est plus.
@@ -210,7 +218,9 @@ internal class EcranAmbiant(private val ctx: Context) {
     private val maisonGrand = VueMaisonGrand(ctx)
     private var grandToucheLe = 0L
     /** La maison est en grand : la veille la compte comme une activité (MainActivity.majVeille). */
-    val enGrand: Boolean get() = maisonGrand.ouverte
+    val enGrand: Boolean get() = maisonGrand.ouverte || airGraphique.ouverte
+    /** Graphique de l'air d'une pièce (S-L8), plein écran au-dessus de tout sauf de la veille OLED. */
+    private val airGraphique = VueAirGraphique(ctx)
     private var contenuLu: String? = null
     private var pieces: List<MaisonEnGrand.Piece> = emptyList()
 
@@ -260,6 +270,7 @@ internal class EcranAmbiant(private val ctx: Context) {
         vue.addView(plan.vue, P(0f, 0f, 0f, 0f, n, n))
         vue.addView(couche, P(0f, 0f, 0f, 0f, n, n))
         vue.addView(maisonGrand.vue, P(0f, 0f, 0f, 0f, n, n))
+        vue.addView(airGraphique.vue, P(0f, 0f, 0f, 0f, n, n))
         vue.addView(aod, P(0f, 0f, 0f, 0f, n, n))
         vue.setBackgroundColor(Palette.fond)
         for ((i, l) in libellesPoints.withIndex()) {
@@ -279,6 +290,16 @@ internal class EcranAmbiant(private val ctx: Context) {
         }
         maisonGrand.surChange = { if (maisonGrand.ouverte) majGrand(dernier, SystemClock.elapsedRealtime()) }
         maisonGrand.surToucher = { grandToucheLe = SystemClock.elapsedRealtime() }
+        airGraphique.surFermer = { fermerAir() }
+        airGraphique.surToucher = { grandToucheLe = SystemClock.elapsedRealtime() }
+        airGraphique.demander = { piece, heures, suite ->
+            val envoi = Etat.actionAirHistorique
+            if (envoi == null || !Etat.airHistoriqueDispo()) {
+                suite(org.json.JSONObject().put("erreur", "Le serveur ne sait pas encore donner l'historique de l'air"))
+            } else {
+                envoi(piece, heures, suite)
+            }
+        }
         vue.surEchelle = { appliquer(it) }
         // Pendant l'écoute et la réponse, toucher l'écran n'importe où arrête.
         vue.capter = { _, _ -> capturable() }
@@ -355,6 +376,7 @@ internal class EcranAmbiant(private val ctx: Context) {
         // Pixels CSS de la page 3D par pixel de maquette (la page compte en dp).
         plan.unite = s / ctx.resources.displayMetrics.density
         maisonGrand.echelle(s)
+        airGraphique.echelle(s)
         cleRepos = ""
         cleEchange = ""
         zoneOrbe = null
@@ -421,10 +443,14 @@ internal class EcranAmbiant(private val ctx: Context) {
         musique.tic()
         majDisposition()
         // Maison en grand : retour à l'accueil après 45 s sans toucher, compte suspendu sous un doigt posé.
-        if (maisonGrand.ouverte) {
+        // Le graphique de l'air (S-L8) suit le même compte : un doigt posé dessus le suspend.
+        if (enGrand) {
             val t = SystemClock.elapsedRealtime()
-            if (vue.doigtPose || maisonGrand.doigtSurPiste) grandToucheLe = t
-            else if (t - max(grandToucheLe, dernierToucherLe) > MaisonEnGrand.RETOUR_MS) fermerGrand()
+            if (vue.doigtPose || airGraphique.doigtPose || maisonGrand.doigtSurPiste) grandToucheLe = t
+            else if (t - max(grandToucheLe, dernierToucherLe) > MaisonEnGrand.RETOUR_MS) {
+                fermerAir()
+                fermerGrand()
+            }
         }
         plan.intensite(Disposition.intensite(jour(), sombre() ?: Station.nuit()))
         rafraichir()
@@ -486,7 +512,10 @@ internal class EcranAmbiant(private val ctx: Context) {
         majSalut(e, maintenant)
         majOrbe(e, maintenant)
         // La maison en grand ne vit qu'au repos, en vivant plein, sans l'orbe.
-        if (maisonGrand.ouverte && (!vivantAccueil || !actif || mode != Accueil.Mode.REPOS || orbeOuvert)) fermerGrand()
+        if (enGrand && (!vivantAccueil || !actif || mode != Accueil.Mode.REPOS || orbeOuvert)) {
+            fermerAir()
+            fermerGrand()
+        }
         majPlan(maintenant)
         placerOrbe(zonePlan)
         majZone(e, maintenant)
@@ -847,7 +876,10 @@ internal class EcranAmbiant(private val ctx: Context) {
     private fun lignePieces(e: Etat.Instantane): String {
         val connues = piecesConnues()
         val brutes = Mesures.deEtat(e)
-        if (brutes.isEmpty()) return ""
+        if (brutes.isEmpty()) {
+            pieceAir = null
+            return ""
+        }
         // Même double barrière que les étiquettes : une pièce protégée pour la personne présente ne dit rien.
         val lus = MaisonEnGrand.index(e.lumieres, e.mediasPlan)
         val qui = e.quiParle()
@@ -855,6 +887,8 @@ internal class EcranAmbiant(private val ctx: Context) {
             val p = connues.firstOrNull { it.id == id }
             if (p != null && MaisonEnGrand.protegee(p, lus, qui)) Mesures.PROTEGEE else m
         }
+        // La ligne et la pièce que le toucher ouvre en graphique viennent du même choix.
+        pieceAir = Mesures.pieceAccueil(sures)?.key
         return Mesures.ligneAccueil(sures, Mesures.nomsPieces)
     }
 
@@ -978,7 +1012,10 @@ internal class EcranAmbiant(private val ctx: Context) {
         }
         if (couche.alpha != o) couche.alpha = o
         // Jamais en grand en AOD, écran éteint ou sous un panneau.
-        if (maisonGrand.ouverte && (!v || !montrable)) fermerGrand()
+        if (enGrand && (!v || !montrable)) {
+            fermerAir()
+            fermerGrand()
+        }
         plan.regler(o, montrable, vivant)
         aod.opacite = (1f - vie) * visible
         majRegime(eclat, actifVoulu)
@@ -992,7 +1029,10 @@ internal class EcranAmbiant(private val ctx: Context) {
     private fun majRegime(e: Float, voulu: Boolean) {
         if (voulu != actif) {
             actif = voulu
-            if (!voulu && maisonGrand.ouverte) fermerGrand()
+            if (!voulu) {
+                fermerAir()
+                fermerGrand()
+            }
             plan.regime(if (voulu) 1f else 0f, if (voulu) Veille.DUREE_REPRISE_MS.toInt() else Veille.DUREE_RETRAIT_MS.toInt())
             // Passage en retrait : la santé quitte l'écran tout de suite.
             majSante(dernier, SystemClock.elapsedRealtime())
@@ -1055,15 +1095,40 @@ internal class EcranAmbiant(private val ctx: Context) {
         plan.disposer(z, MaisonEnGrand.DUREE_CADRAGE_MS.toInt())
     }
 
-    /** Ce que la page a désigné sous le doigt : une pastille, une pièce, ou le vide. */
+    /** Ce que la page a désigné sous le doigt : une pastille, une pièce, la carte des mesures, ou le vide. */
     private fun designe(d: org.json.JSONObject?) {
-        if (!maisonGrand.ouverte || d == null) return
+        if (!maisonGrand.ouverte || airGraphique.ouverte || d == null) return
         grandToucheLe = SystemClock.elapsedRealtime()
         when (d.optString("genre")) {
             "pastille" -> maisonGrand.pastille(d.optString("entite"))
             "piece" -> choisirPiece(d.optString("id"))
+            "mesures" -> ouvrirAir(d.optString("id"))
             else -> videGrand()
         }
+    }
+
+    /**
+     * S-L8 : graphique de l'air d'une pièce, ouvert en touchant la carte des mesures (maison en grand) ou la ligne de
+     * l'air de l'accueil. Une pièce protégée pour la personne présente ne s'ouvre pas, comme ses mesures ne se disent pas.
+     */
+    private fun ouvrirAir(id: String) {
+        if (id.isEmpty() || airGraphique.ouverte || !vivantAccueil || !actif) return
+        val e = dernier
+        val p = piecesConnues().firstOrNull { it.id == id }
+        if (p != null && MaisonEnGrand.protegee(p, MaisonEnGrand.index(e.lumieres, e.mediasPlan), e.quiParle())) {
+            if (maisonGrand.ouverte) maisonGrand.dire("${p.nom} : pièce protégée, pas de graphique.")
+            return
+        }
+        grandToucheLe = SystemClock.elapsedRealtime()
+        serviceJusqua = 0L
+        airGraphique.ouvrir(id, Mesures.nomAffiche(id, Mesures.nomsPieces))
+    }
+
+    private fun fermerAir() {
+        if (!airGraphique.ouverte) return
+        airGraphique.fermer()
+        // La maison en grand dessous (si elle y est) repart pour un tour complet de son délai.
+        grandToucheLe = SystemClock.elapsedRealtime()
     }
 
     private fun choisirPiece(id: String) {
@@ -1164,6 +1229,7 @@ internal class EcranAmbiant(private val ctx: Context) {
     private val revoirGrand = Runnable { if (maisonGrand.ouverte) majGrand(dernier, SystemClock.elapsedRealtime()) }
 
     fun liberer() {
+        airGraphique.fermer()
         maisonGrand.fermer()
         plan.liberer()
     }
