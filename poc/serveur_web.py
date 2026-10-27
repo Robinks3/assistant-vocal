@@ -52,12 +52,13 @@ import appairage_web as AW
 import demande_web
 import journal_web
 import maison
+import maison_web
 
 DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.5.0"
+VERSION_CLIENT = "0.6.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -92,6 +93,7 @@ PAGES_PROTEGEES = {
     "/journal": ("journal.html", False),
     "/vie-privee": ("vie-privee.html", False),
     "/demander": ("demander.html", False),
+    "/maison": ("maison.html", False),
 }
 SCRIPTS_PROTEGES = {
     "/associer.js": ("associer.js", True),
@@ -99,6 +101,7 @@ SCRIPTS_PROTEGES = {
     "/journal.js": ("journal.js", False),
     "/vie-privee.js": ("vie-privee.js", False),
     "/demander.js": ("demander.js", False),
+    "/maison.js": ("maison.js", False),
 }
 MAX_APPAIRAGES_WS = 8        # navigateurs en train de saisir un code, en même temps
 INACTIF_APPAIRAGE_S = 130    # un navigateur qui ne dit rien est lâché après un peu plus de 2 minutes
@@ -110,9 +113,10 @@ FERMETURE_REVOQUE = 4001     # code de fermeture d'un WebSocket dont l'appareil 
 # Messages ouverts à tout rôle : le reste est réservé au propriétaire. Le journal et la vie privée ne montrent que ce
 # que journal_web.projeter laisse voir, defi et preuve n'acceptent hors propriétaire que les actions personnelles.
 # Les demandes (S-W3) sont ouvertes à tout rôle, bornées par les quotas de demande_web.py et par la même chaîne de
-# contrôle que les demandes des autres appareils.
+# contrôle que les demandes des autres appareils. L'écran Maison (S-W4a) l'est aussi : la liste des pièces et des
+# entités de chaque rôle est filtrée par maison_web.py, jamais par ce tableau.
 MESSAGES_TOUT_ROLE = frozenset({"moi", "abonner_journal", "desabonner_journal", "journal_page", "vie_privee",
-                                "defi", "preuve", "demande_texte", "demande_voix"})
+                                "defi", "preuve", "demande_texte", "demande_voix", "etats", "regler"})
 
 # Politique de contenu de la note 4.7, avec frame-ancestors 'none' (aucune page ne s'encadre dans un autre site).
 CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
@@ -358,6 +362,7 @@ class ServiceWeb:
         self.nom_appareil_ha = None
         self.demandeur = None         # coroutine (Demande vers dict) posée par le serveur, None : demandes indisponibles
         self.quotas = demande_web.Quotas()
+        self.maison = None            # maison_web.Maison posée par le serveur, None : écran Maison indisponible
         self._taches = set()          # les demandes en cours : gardées en vie jusqu'à leur réponse
         self._ids = itertools.count(1)
         self._dernier_entretien = time.monotonic()
@@ -827,7 +832,36 @@ class ServiceWeb:
             return {"type": "revoque", "cible": res["cible"]}
         if genre in demande_web.GENRES:
             return self._demande(conn, a, genre, msg)
+        if genre in maison_web.GENRES:
+            return self._maison(conn, a, genre, msg)
         raise AW.ErreurAppairage("action")
+
+    # Écran Maison (S-W4a)
+    def _maison(self, conn, a, genre, msg):
+        """Vue des pièces ou réglage d'une lampe ou de la télé. Le rôle est celui de l'appareil associé, la personne
+        est le propriétaire pour un administrateur et personne pour les autres : rien de cela n'est lu dans le
+        message. Rendu : une coroutine que boucle_client lance à part (Home Assistant peut être lent)."""
+        if a["role"] not in AW.ROLES_WEB:
+            raise AW.ErreurAppairage("droit")
+        return self._traiter_maison(conn, a["role"], genre, msg)
+
+    async def _traiter_maison(self, conn, role, genre, msg):
+        try:
+            if self.maison is None:
+                raise maison_web.RefusMaison("indisponible")
+            if genre == maison_web.GENRE_ETATS:
+                rep = await self.maison.etats_pour(role)
+            else:
+                personne = acces.cle_habitant(maison.CLE_PROPRIETAIRE) if role == AW.ROLE_PROPRIETAIRE else None
+                rep = await self.maison.regler(role, personne, msg)
+        except maison_web.RefusMaison as e:
+            rep = {"type": "erreur", "cause": e.cause, "genre": genre}
+            if e.entite:
+                rep["entite"] = e.entite
+        except Exception as e:  # jamais le texte d'une exception vers le navigateur : seulement sa classe, en console
+            print(f"Client web : maison en échec ({type(e).__name__})")
+            rep = {"type": "erreur", "cause": "indisponible", "genre": genre}
+        conn.envoyer(rep)
 
     # Demandes (S-W3)
     @staticmethod
