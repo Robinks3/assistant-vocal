@@ -10,8 +10,8 @@ import serveur_satellite as S
 import serveur_web as W
 import webauthn as WA
 from test_serveur_web_appairage import (  # noqa: F401  (fixtures réutilisées)
-    ORIGINE, appairer_direct, arreter, attendre, envoyer, horloge, journal, lancer, ouvrir_ws, recevoir,
-    recevoir_reponse, service, signer)
+    ORIGINE, appairer_direct, arreter, attendre, entetes, envoyer, horloge, journal, lancer, ouvrir_ws, recevoir,
+    recevoir_reponse, service, signer, statut_de)
 
 
 def aujourd_hui():
@@ -483,5 +483,23 @@ def test_effacer_ne_demande_aucun_effet_sans_preuve(service, tmp_path):
     direct, faux = asyncio.run(scenario())
     assert direct == {"type": "erreur", "cause": "droit"} and faux == {"type": "erreur", "cause": "preuve"}
     assert [f.read_text(encoding="utf-8") for f in sorted(m.dossier.glob("assistant-*.jsonl"))] == avant
+
+
+# Pages Journal et Vie privée
+
+def test_pages_journal_et_vie_privee_exigent_une_session_et_s_ouvrent_a_tous_les_roles(service):
+    for chemin in ("/journal", "/vie-privee"):
+        rep = service.traiter("127.0.0.1", chemin, entetes())
+        assert statut_de(rep) == 303 and rep[1]["Location"] == "/appairage", chemin
+    for chemin in ("/journal.js", "/vie-privee.js"):
+        assert statut_de(service.traiter("127.0.0.1", chemin, entetes())) == 401, chemin
+    for conn, role in enumerate(("administrateur", "habitant", "invite"), start=1):
+        _, _, jeton = appairer_direct(service, role, f"Appareil {role}", conn=conn)
+        for chemin in ("/journal", "/vie-privee"):
+            rep = service.traiter("127.0.0.1", chemin, entetes(jeton))
+            assert statut_de(rep) == 200, (role, chemin)
+            assert "{{" not in rep[2].decode("utf-8"), (role, chemin)
+        for chemin in ("/journal.js", "/vie-privee.js"):
+            assert statut_de(service.traiter("127.0.0.1", chemin, entetes(jeton))) == 200, (role, chemin)
 
 

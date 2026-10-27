@@ -4,6 +4,31 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.49.0 (2026-10-27), journal du client web
+Mineure. Session S-W2 du plan. Appli Home Assistant 0.49.0 (copie aussi `journal_web.py`), appli Android inchangée.
+Client web 0.4.0. La 0.48.0 est celle du graphique de l'air (S-L8), sur une autre branche.
+- Cœur `poc/journal_web.py` : trois niveaux de vie privée (Tout, Action seulement, Discret), visibilité calculée
+  pour chaque spectateur (le propriétaire de la maison et un habitant n'ont pas les mêmes droits sur les entrées des
+  autres), projection d'une entrée selon le spectateur, lecture par pages de sept jours, effacement des entrées d'une
+  personne, conservation de 30 jours. Un navigateur ne reçoit jamais ce qu'il n'a pas le droit de voir : la
+  projection se fait côté serveur, le client n'affiche que ce qu'il reçoit. Les demandes de santé des autres ne sont
+  jamais diffusées aux habitants.
+- Journal du serveur : chaque entrée garde son niveau d'alors, l'identifiant de la demande (`ID_DEMANDE`) relie la
+  carte « En cours » à l'entrée écrite ensuite. Fichiers par jour `assistant-AAAA-MM-JJ.jsonl`, `vie_privee_web.json`
+  pour le choix de chacun (niveau par défaut : Discret).
+- Messages du WebSocket : `abonner_journal`, `desabonner_journal`, `journal_page`, `vie_privee`, et les envois
+  `journal_ajout`, `journal_etape` (étape « entendu » seulement, en direct, pour l'auteur), `journal_retrait`,
+  `journal_efface`. Changer de niveau ou effacer ses entrées exige la clé d'accès (`defi` puis `preuve`) pour tous les
+  rôles, y compris pour devenir plus discret. Le niveau ne vaut que pour les demandes à venir.
+- Écrans du client web : `/journal` (liste par jour, filtres Tout, Les miennes, Autres, Refus, feuille de détail, carte
+  « En cours », jours plus anciens) et `/vie-privee` (trois niveaux, aperçu de ce que voient les autres, alertes,
+  « Le journal garde vos demandes 30 jours. Le son n'est jamais conservé. », « Effacer mes entrées du journal »).
+  Liens depuis l'accueil.
+- Hors de ce lot : le client web n'émet pas encore de demandes (S-W3), les entrées viennent des satellites, des
+  routines et du micro du PC. Le bouton « Ce n'était pas ça » et l'effacement de `musique.jsonl` restent à faire.
+- Tests : droits par rôle et par spectateur (un appareil non auteur ne reçoit rien qu'il ne peut voir), retenue de 30
+  jours, preuve obligatoire, pages protégées. Variantes de mise en page des deux écrans et de l'accueil.
+
 ## Outil (2026-10-27), profils Chrome fixes pour le contrôle de mise en page, sans changement de version
 - `poc/outils/verifier_mise_en_page.py` ne crée plus un profil Chrome neuf à chaque lancement. Au premier
   démarrage d'un profil, Chrome teste sous Windows un mot de passe vide, compté comme un échec de connexion : à

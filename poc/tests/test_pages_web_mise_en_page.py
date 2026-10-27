@@ -22,7 +22,7 @@ ADMIN = RACINE / "poc" / "admin"
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.3.0", "{{version_serveur}}": "0.47.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.4.0", "{{version_serveur}}": "0.49.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -168,6 +168,110 @@ def variantes_reglages():
     return out
 
 
+def sans_dialogues(html):
+    return re.sub(r"<dialog\b.*?</dialog>\n?", "", html, flags=re.S)
+
+
+def dialogue_ouvert(html, ident):
+    seul = html
+    for autre in re.findall(r'<dialog id="([^"]+)"', html):
+        if autre != ident:
+            seul = re.sub(r'<dialog id="%s".*?</dialog>\n?' % autre, "", seul, flags=re.S)
+    return seul.replace(f'<dialog id="{ident}"', f'<dialog open data-superposition-voulue id="{ident}"')
+
+
+def entree_journal(heure, titre, sous="", mien=False, statut="ok"):
+    marques = ""
+    if mien:
+        marques += '<span class="pastille pastille--assistant">Vous</span>'
+    classe = {"ok": "pastille pastille--ok", "refus": "pastille pastille--danger"}.get(statut, "pastille")
+    libelle = {"ok": "Fait", "refus": "Refusé"}.get(statut, statut)
+    marques += f'<span class="{classe}">{libelle}</span>'
+    corps = f'<span class="fort entree-titre">{titre}</span>'
+    if sous:
+        corps += f'<span class="secondaire entree-sous">{sous}</span>'
+    corps += f'<span class="entree-marques">{marques}</span>'
+    return (f'<button type="button" class="entree"><span class="entree-heure chiffres">{heure}</span>'
+            f'<span class="entree-corps">{corps}</span></button>')
+
+
+def journal_exemple():
+    return ('<h3 class="jour">Aujourd\'hui</h3>'
+            + entree_journal("18:42", "Allume la lampe du salon", "Salon, lampe du salon", mien=True)
+            + entree_journal("09:05", LONG_NOM + " : peux-tu baisser le chauffage dans toutes les pièces",
+                             "Chambre d'amis, chauffage 19 degrés, volets, lumière du couloir")
+            + '<h3 class="jour">Hier</h3>'
+            + entree_journal("22:10", "Ouvre le portail", "Entrée", mien=True, statut="refus")
+            + '<h3 class="jour">24 oct.</h3>'
+            + '<button type="button" class="entree"><span class="entree-heure chiffres">07:30</span>'
+              '<span class="entree-corps"><span class="fort entree-titre">Une demande</span>'
+              '<span class="secondaire entree-sous">Détail non partagé</span></span></button>')
+
+
+def variantes_journal():
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "journal.html").read_text(encoding="utf-8"))))
+    out = {}
+    base = remplir(sans_dialogues(brut), "niveau-courant", "Action seulement")
+    liste = montrer(remplir(base, "liste-journal", journal_exemple()), "bouton-plus")
+    out["journal-liste"] = liste
+    etapes = ('<li class="etape"><span class="fort">Entendu</span><span class="secondaire chiffres">0,0 s</span></li>'
+              '<li class="etape"><span class="fort">Compris</span><span class="secondaire chiffres">0,4 s</span></li>')
+    out["journal-encours"] = remplir(montrer(liste, "carte-encours"), "etapes-encours", etapes)
+    out["journal-vide"] = montrer(base, "vide-journal")
+    out["journal-erreur"] = remplir(montrer(liste, "erreur-journal"), "erreur-journal",
+                                    "La connexion avec l'assistant est coupée. Nouvelle tentative.")
+    detail = dialogue_ouvert(brut, "dialogue-detail")
+    detail = remplir(detail, "titre-detail", "Allume la lampe du salon et baisse le chauffage de la chambre d'amis")
+    detail = remplir(detail, "detail-pastille",
+                     '<span class="pastille pastille--assistant">Vous</span><span class="pastille pastille--ok">Fait</span>')
+    lignes = "".join(f"<div><dt>{n}</dt><dd>{v}</dd></div>" for n, v in (
+        ("Jour", "Aujourd'hui"), ("Heure", "18:42"), ("Phrase", "Allume la lampe du salon"),
+        ("Actions", "Salon, lampe du salon"), ("Réponse", "C'est fait."), ("Appareil", LONG_NOM),
+        ("Chemin", "Satellite"), ("Durée", "1,2 s"), ("Vie privée alors", "Action seulement")))
+    detail = remplir(detail, "detail-liste", lignes)
+    detail = remplir(montrer(detail, "detail-etapes"), "detail-etapes", etapes)
+    out["journal-detail"] = remplir(montrer(detail, "detail-note"), "detail-note",
+                                    "Seul cet appareil voit les étapes de ses propres demandes.")
+    return out
+
+
+def variantes_vie_privee():
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "vie-privee.html").read_text(encoding="utf-8"))))
+    out = {}
+    base = sans_dialogues(brut)
+    base = remplir(base, "apercu-titre", "Une demande")
+    base = remplir(base, "apercu-sous", "Détail non partagé")
+    base = remplir(base, "actuel", "Niveau actuel : Discret depuis le 27 oct. à 18:42.")
+    base = base.replace('value="discret">', 'value="discret" checked>')
+    out["vie-privee-discret"] = base
+    action = base.replace(' checked>', '>').replace('value="action">', 'value="action" checked>')
+    action = remplir(action, "apercu-titre", "Une demande")
+    action = remplir(action, "apercu-sous", "Lampe du salon allumée")
+    action = remplir(montrer(action, "alerte-niveau"), "alerte-niveau",
+                     "Les actions seules en disent déjà long : une lumière éteinte ou une porte fermée à telle heure "
+                     "révèle vos habitudes, par exemple l'heure du coucher ou votre présence.")
+    action = action.replace(' disabled>Enregistrer', '>Enregistrer')
+    out["vie-privee-action"] = action
+    tout = action.replace(' checked>', '>').replace('value="tout">', 'value="tout" checked>')
+    tout = remplir(tout, "apercu-titre", "Allume la lampe du salon")
+    tout = remplir(tout, "apercu-sous", "Lampe du salon allumée. Réponse : c'est fait.")
+    tout = remplir(tout, "alerte-niveau", "Les autres habitants verront vos phrases et les réponses de l'assistant, "
+                                          "avec l'heure et l'appareil.")
+    out["vie-privee-tout"] = remplir(montrer(tout, "erreur-niveau"), "erreur-niveau",
+                                     "La clé d'accès n'a pas été reconnue. Réessayez.")
+    succes = remplir(montrer(base, "succes-niveau"), "succes-niveau", "Niveau enregistré : Discret.")
+    out["vie-privee-succes"] = remplir(montrer(succes, "succes-effacer"), "succes-effacer", "3 entrées effacées.")
+    dialogue = dialogue_ouvert(brut, "dialogue-effacer")
+    out["vie-privee-dialogue"] = remplir(montrer(dialogue, "erreur-dialogue-effacer"), "erreur-dialogue-effacer",
+                                         "La clé d'accès n'a pas été reconnue. Réessayez.")
+    return out
+
+
+def variante_accueil():
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
+    return {"accueil-connecte": garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"])}
+
+
 def variantes_admin():
     brut = (ADMIN / "index.html").read_text(encoding="utf-8")
     brut = retirer_scripts(brut)
@@ -191,8 +295,9 @@ def ecrire(dossier, variantes):
 
 def test_les_variantes_sont_bien_fabriquees(tmp_path):
     """Garde-fou : les variantes statiques ne sont pas vides et ne gardent aucun gabarit non rempli."""
-    toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_admin()}
-    assert len(toutes) >= 15
+    toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
+              **variantes_vie_privee(), **variante_accueil(), **variantes_admin()}
+    assert len(toutes) >= 28
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -207,7 +312,8 @@ def test_ecrans_web_sans_defaut_de_mise_en_page(tmp_path):
     shutil.copytree(WEB / "polices", pages / "polices")
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
-    ecrire(pages, {**variantes_appairage(), **variantes_associer(), **variantes_reglages()})
+    ecrire(pages, {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
+                   **variantes_vie_privee(), **variante_accueil()})
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", "main"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
