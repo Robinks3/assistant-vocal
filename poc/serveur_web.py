@@ -49,13 +49,14 @@ from websockets.http11 import Response
 
 import acces
 import appairage_web as AW
+import journal_web
 import maison
 
 DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.3.0"
+VERSION_CLIENT = "0.4.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -87,17 +88,26 @@ FICHIERS = {
 PAGES_PROTEGEES = {
     "/associer": ("associer.html", True),
     "/reglages": ("reglages.html", False),
+    "/journal": ("journal.html", False),
+    "/vie-privee": ("vie-privee.html", False),
 }
 SCRIPTS_PROTEGES = {
     "/associer.js": ("associer.js", True),
     "/reglages.js": ("reglages.js", False),
+    "/journal.js": ("journal.js", False),
+    "/vie-privee.js": ("vie-privee.js", False),
 }
 MAX_APPAIRAGES_WS = 8        # navigateurs en train de saisir un code, en même temps
 INACTIF_APPAIRAGE_S = 130    # un navigateur qui ne dit rien est lâché après un peu plus de 2 minutes
 LIMITE_MESSAGES = (30, 10)   # messages d'un propriétaire connecté : 30 par 10 secondes
 SAUVEGARDE_SESSIONS_S = 600  # l'expiration glissante n'est réécrite qu'au plus toutes les 10 minutes
 ENTRETIEN_S = 60
+ETAPES_DIRECT = ("entendu",)  # étapes poussées en direct : les autres arrivent avec l'entrée écrite
 FERMETURE_REVOQUE = 4001     # code de fermeture d'un WebSocket dont l'appareil vient d'être retiré
+# Messages ouverts à tout rôle : le reste est réservé au propriétaire. Le journal et la vie privée ne montrent que ce
+# que journal_web.projeter laisse voir, defi et preuve n'acceptent hors propriétaire que les actions personnelles.
+MESSAGES_TOUT_ROLE = frozenset({"moi", "abonner_journal", "desabonner_journal", "journal_page", "vie_privee",
+                                "defi", "preuve"})
 
 # Politique de contenu de la note 4.7, avec frame-ancestors 'none' (aucune page ne s'encadre dans un autre site).
 CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
@@ -291,6 +301,7 @@ class Connexion:
         self.ws = ws
         self.genre = genre          # « appairage » ou « client »
         self.identite = identite
+        self.abonne_journal = False  # a demandé le journal (abonner_journal) : reçoit les entrées neuves
         self._dernier = None
 
     def envoyer(self, message, fermer=None):
@@ -327,6 +338,10 @@ class ServiceWeb:
         self.appairage = None
         self.connexions = {}
         self.sur_ha = lambda message: None
+        self.journal_dossier = None   # dossier des fichiers du journal, réglé par brancher_journal
+        self.niveaux = None
+        self.lisibles = None
+        self.nom_appareil_ha = None
         self._ids = itertools.count(1)
         self._dernier_entretien = time.monotonic()
 
@@ -342,6 +357,102 @@ class ServiceWeb:
             inactivite_s=self.sessions.duree_s, horloge=horloge, sur_evenement=self.evenement,
             sur_revocation=self.retirer_acces, journal=lambda t: journaliser(t))
         return self.appairage
+
+    # Journal (S-W2)
+    def brancher_journal(self, dossier, niveaux, lisibles=None, nom_appareil_ha=None):
+        """Branche le journal : son dossier, les niveaux de vie privée (journal_web.Niveaux), la traduction des actions
+        en phrases lisibles (texte vers liste) et le nom des appareils de la maison (identité vers nom)."""
+        self.journal_dossier = Path(dossier)
+        self.niveaux = niveaux
+        self.lisibles = lisibles
+        self.nom_appareil_ha = nom_appareil_ha
+
+    def nom_appareil(self, appareil):
+        """Nom lisible de l'appareil d'une entrée : un navigateur associé, un appareil de la maison, ou le micro du PC."""
+        a = str(appareil or "")
+        if not a:
+            return "Micro du PC"
+        if a.startswith("web:"):
+            x = self._appareil(a.split("/", 1)[0])
+            return x["nom"] if x else "Navigateur retiré"
+        if self.nom_appareil_ha:
+            try:
+                return self.nom_appareil_ha(a) or "Appareil de la maison"
+            except Exception:
+                pass
+        return "Appareil de la maison"
+
+    def _abonnes_journal(self):
+        """(connexion, spectateur) de chaque navigateur abonné au journal dont l'appareil est encore connu."""
+        sortie = []
+        for c in list(self.connexions.values()):
+            if c.genre == "client" and c.abonne_journal:
+                a = self._appareil(c.identite)
+                if a is not None:
+                    sortie.append((c, journal_web.spectateur_de(a)))
+        return sortie
+
+    def publier_ajout(self, ligne):
+        """Une entrée vient d'être écrite : chaque navigateur abonné la reçoit sous la forme que son niveau de droit
+        permet, ou ne la reçoit pas du tout (journal_web.projeter décide)."""
+        if self.journal_dossier is None:
+            return
+        for c, spect in self._abonnes_journal():
+            entree = journal_web.projeter(ligne, spect, self.lisibles, self.nom_appareil)
+            if entree is not None:
+                c.envoyer({"type": "journal_ajout", "entree": entree})
+
+    def publier_etape(self, ident, auteur, nom, t):
+        """Une étape d'une demande en cours : seul son auteur la reçoit. auteur = {appareil, personne}."""
+        if self.journal_dossier is None or nom not in ETAPES_DIRECT:
+            return
+        for c, spect in self._abonnes_journal():
+            if journal_web.auteur_visible_en_direct(auteur, spect):
+                c.envoyer({"type": "journal_etape", "id": str(ident), "nom": str(nom), "t": str(t)})
+
+    def _journal(self, conn, a, msg):
+        """Réponses du journal, ouvertes à tout rôle : chacun ne voit que ce que journal_web.projeter lui laisse."""
+        if self.journal_dossier is None:
+            raise AW.ErreurAppairage("action")
+        genre = msg.get("type")
+        spect = journal_web.spectateur_de(a)
+        if genre == "desabonner_journal":
+            conn.abonne_journal = False
+            return {"type": "journal_ferme"}
+        if genre == "vie_privee":
+            return self._reponse_niveau(spect)
+        reprise = msg.get("reprise") if genre == "journal_page" else None
+        entrees, plus = journal_web.lire(self.journal_dossier, spect, self.lisibles, self.nom_appareil,
+                                         reprise=reprise if isinstance(reprise, str) else None)
+        if genre == "abonner_journal":
+            conn.abonne_journal = True
+        return {"type": "journal" if genre == "abonner_journal" else "journal_page", "entrees": entrees, "plus": plus,
+                "niveau": self.niveaux.niveau_de(spect.cle), "conserve_jours": journal_web.conserver_jours()}
+
+    def _reponse_niveau(self, spect):
+        return {"type": "vie_privee", "niveau": self.niveaux.niveau_de(spect.cle),
+                "depuis": self.niveaux.depuis(spect.cle), "niveaux": list(journal_web.NIVEAUX),
+                "conserve_jours": journal_web.conserver_jours()}
+
+    def _appliquer_niveau(self, a, niveau):
+        """Niveau de vie privée confirmé par la clé d'accès : il vaut pour les demandes à venir seulement."""
+        spect = journal_web.spectateur_de(a)
+        try:
+            self.niveaux.definir(spect.cle, niveau)
+        except ValueError:
+            raise AW.ErreurAppairage("cible") from None
+        return self._reponse_niveau(spect)
+
+    def _effacer_journal(self, a):
+        """Efface les entrées de ce spectateur (confirmé par la clé d'accès) et prévient chaque écran qui les montrait."""
+        spect = journal_web.spectateur_de(a)
+        retirees = journal_web.effacer(self.journal_dossier, spect)
+        for c, autre in self._abonnes_journal():
+            ids = [journal_web.id_de(l) for l in retirees
+                   if journal_web.projeter(l, autre, lambda t: [], lambda x: "") is not None]
+            if ids:
+                c.envoyer({"type": "journal_retrait", "ids": ids})
+        return {"type": "journal_efface", "n": len(retirees)}
 
     def evenement(self, cible, message, conn=None):
         """Aiguille un événement de l'appairage : le nouveau navigateur, les propriétaires connectés ou Home Assistant."""
@@ -642,7 +753,8 @@ class ServiceWeb:
             await conn.vider()
 
     def _client(self, conn, msg):
-        """Réponse à un message d'un navigateur associé. Un rôle autre que propriétaire ne peut que se décrire."""
+        """Réponse à un message d'un navigateur associé. Un rôle autre que propriétaire ne peut que se décrire, lire
+        le journal qu'il a le droit de voir et régler sa propre vie privée (MESSAGES_TOUT_ROLE)."""
         a = self._appareil(conn.identite)
         if a is None:
             raise AW.ErreurAppairage("droit")
@@ -654,7 +766,9 @@ class ServiceWeb:
             return {"type": "moi", "appareil": self.appairage.vue_appareil(a), "proprietaire": proprietaire,
                     "dernier_proprietaire": dernier, "nom": self.nom,
                     "serveur": {"version": self.version, "date": self.date, "client": VERSION_CLIENT}}
-        if not proprietaire:
+        if genre in ("abonner_journal", "desabonner_journal", "journal_page", "vie_privee"):
+            return self._journal(conn, a, msg)
+        if not proprietaire and genre not in MESSAGES_TOUT_ROLE:
             raise AW.ErreurAppairage("droit")
         if genre == "appareils":
             return {"type": "appareils", "appareils": self.liste_appareils(conn.identite),
@@ -672,6 +786,12 @@ class ServiceWeb:
             res = self.appairage.preuve(conn.id, msg.get("reponse"))
             if res["action"] == "confirmer":
                 return {"type": "confirme", "appareil": res["appareil"]}
+            if res["action"] in AW.ACTIONS_PERSONNELLES:
+                if res.get("identite") != conn.identite or self.journal_dossier is None:
+                    raise AW.ErreurAppairage("preuve", "appareil")
+                if res["action"] == "vie_privee":
+                    return self._appliquer_niveau(a, res["cible"])
+                return self._effacer_journal(a)
             return {"type": "revoque", "cible": res["cible"]}
         raise AW.ErreurAppairage("action")
 

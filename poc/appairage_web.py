@@ -31,10 +31,13 @@ import time
 import unicodedata
 from pathlib import Path
 
+import journal_web
 import webauthn as WA
 
 ROLES_WEB = ("administrateur", "habitant", "invite")
 ROLE_PROPRIETAIRE = "administrateur"
+# Actions confirmées par la clé d'accès qui ne concernent que les entrées de celui qui les demande : tout rôle.
+ACTIONS_PERSONNELLES = ("vie_privee", "journal_effacer")
 CHIFFRES_CODE = 6
 VALIDITE_CODE_S = 120      # le code vaut 2 minutes
 VALIDITE_SAISIE_S = 120    # une fois le bon code saisi : 2 minutes de plus pour créer la clé et confirmer
@@ -371,9 +374,15 @@ class AppairageWeb:
         """Options de signature pour une action sensible. Le défi est lié à la connexion, à l'action et à la cible,
         à usage unique, et dure une minute."""
         a = self.appareils.par_identite(identite)
-        if not a or a["role"] != ROLE_PROPRIETAIRE:
+        if not a or (a["role"] != ROLE_PROPRIETAIRE and action not in ACTIONS_PERSONNELLES):
             raise ErreurAppairage("droit")
-        if action == "confirmer":
+        if action in ACTIONS_PERSONNELLES:
+            # Vie privée et effacement du journal : ouvertes à tout rôle, car elles ne touchent que ses propres entrées.
+            if action == "vie_privee" and cible not in journal_web.NIVEAUX:
+                raise ErreurAppairage("cible")
+            if action == "journal_effacer":
+                cible = None
+        elif action == "confirmer":
             o = self._vivante()
             if not o or o["etat"] != "attente":
                 raise ErreurAppairage("etat")
@@ -398,7 +407,8 @@ class AppairageWeb:
         if not d or d["expire"] <= self.horloge():
             raise ErreurAppairage("defi")
         a = self.appareils.par_identite(d["identite"])
-        if not a or a["role"] != ROLE_PROPRIETAIRE or not isinstance(reponse, dict):
+        if (not a or not isinstance(reponse, dict)
+                or (a["role"] != ROLE_PROPRIETAIRE and d["action"] not in ACTIONS_PERSONNELLES)):
             raise ErreurAppairage("preuve", "appareil")
         cred = a["credential"]
         try:
@@ -418,6 +428,9 @@ class AppairageWeb:
             if not o or o["id"] != d["cible"] or o["etat"] != "attente":
                 raise ErreurAppairage("etat")
             return {"action": "confirmer", "appareil": self.finaliser()}
+        if d["action"] in ACTIONS_PERSONNELLES:
+            # La signature est vérifiée ici, l'effet (changer son niveau, effacer ses entrées) est celui du serveur web.
+            return {"action": d["action"], "cible": d["cible"], "identite": d["identite"]}
         self.revoquer(d["cible"])
         return {"action": "revoquer", "cible": d["cible"]}
 

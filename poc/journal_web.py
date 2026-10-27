@@ -229,14 +229,14 @@ def conserver_jours():
     return maison.entier(maison.JOURNAL, "conserver_jours", CONSERVER_JOURS_DEFAUT)
 
 
-def _fichiers(dossier, avant=None, retention=None, maintenant=None):
-    """Fichiers journaliers dans la rétention, du plus récent au plus ancien, strictement avant la date donnée."""
+def _fichiers(dossier, reprise=None, retention=None, maintenant=None):
+    """Fichiers journaliers dans la rétention, du plus récent au plus ancien, à partir du jour de reprise (inclus)."""
     maintenant = maintenant or maison.maintenant()
     limite = (maintenant - timedelta(days=retention or conserver_jours())).strftime("%Y-%m-%d")
     sortie = []
     for f in Path(dossier).glob("assistant-????-??-??.jsonl"):
         jour = f.stem[len("assistant-"):]
-        if jour >= limite and (avant is None or jour < avant):
+        if jour >= limite and (reprise is None or jour <= reprise):
             sortie.append((jour, f))
     return sorted(sortie, reverse=True)
 
@@ -257,21 +257,22 @@ def _lignes(fichier):
     return sortie
 
 
-def lire(dossier, spect, lisibles=None, nom_appareil=None, avant=None, jours=JOURS_PAR_PAGE, retention=None,
+def lire(dossier, spect, lisibles=None, nom_appareil=None, reprise=None, jours=JOURS_PAR_PAGE, retention=None,
          maintenant=None):
-    """(entrées, plus) : les entrées visibles par ce spectateur sur les `jours` derniers jours à journal, la plus
-    récente d'abord, et la date du jour plus ancien encore disponible (None s'il n'y en a plus)."""
-    if avant is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(avant)):
-        avant = None
-    fichiers = _fichiers(dossier, avant, retention, maintenant)
+    """(entrées, plus) : les entrées visibles par ce spectateur sur les `jours` jours à journal les plus récents
+    (à partir du jour de reprise, inclus), la plus récente d'abord. plus est le jour par lequel reprendre pour la
+    page suivante, None s'il n'y en a plus."""
+    if reprise is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(reprise)):
+        reprise = None
+    fichiers = _fichiers(dossier, reprise, retention, maintenant)
     sortie = []
-    for jour, f in fichiers[:jours]:
+    for rang, (jour, f) in enumerate(fichiers[:jours]):
         for ligne in reversed(_lignes(f)):
             p = projeter(ligne, spect, lisibles, nom_appareil)
             if p is not None:
                 sortie.append(p)
-                if len(sortie) >= ENTREES_MAX:
-                    return sortie, jour
+        if len(sortie) >= ENTREES_MAX and rang + 1 < len(fichiers):  # arrêt entre deux jours, jamais au milieu
+            return sortie, fichiers[rang + 1][0]
     plus = fichiers[jours][0] if len(fichiers) > jours else None
     return sortie, plus
 

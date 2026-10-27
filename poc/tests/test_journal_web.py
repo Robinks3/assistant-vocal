@@ -15,7 +15,7 @@ INCONNU = J.Spectateur("", "web:dddd4444", "web:dddd4444")
 
 
 def ligne(texte="allume la lampe du bureau", personne="camille", appareil="appareil:tab1", niveau="tout",
-          actions="light.turn_on ['light.bureau']", horodatage="2026-10-27T09:15:00", **autres):
+          actions="light.turn_on ['light.salon_plafond']", horodatage="2026-10-27T09:15:00", **autres):
     base = {"horodatage": horodatage, "texte": texte, "voie": "dictionnaire", "total_s": "0.42",
             "reponse": "C'est fait.", "actions": actions, "appareil": appareil, "personne": personne,
             "role": "habitant", "id": "0123456789ab", "niveau": niveau, "statut": "ok", "canal": "voix",
@@ -112,7 +112,7 @@ def test_la_sante_reste_visible_pour_son_auteur():
 
 def test_un_refus_de_securite_suit_le_niveau_de_son_auteur():
     refus = ligne(niveau="action", voie="dictionnaire refus", statut="refus",
-                  actions="light.turn_on ['light.chambre'] (refusé : sécurité)")
+                  actions="light.turn_on ['light.chambre_sacha_plafond'] (refusé : sécurité)")
     p = J.projeter(refus, PROPRIO)
     assert p["statut"] == "refus" and p["motif"] == "refusé : sécurité"
     assert "phrase" not in p
@@ -164,9 +164,21 @@ def test_lire_pagine_par_jours(tmp_path):
         ecrire(tmp_path, jour, ligne(id=f"{k:012x}", horodatage=jour + "T10:00:00"))
     premiere, plus = J.lire(tmp_path, PROPRIO, maintenant=maintenant)
     assert len(premiere) == J.JOURS_PAR_PAGE and plus == "2026-10-20"
-    suite, plus2 = J.lire(tmp_path, PROPRIO, avant=plus, maintenant=maintenant)
-    assert [e["id"] for e in suite] == [f"{k:012x}" for k in (8, 9)] or len(suite) == 2
+    suite, plus2 = J.lire(tmp_path, PROPRIO, reprise=plus, maintenant=maintenant)
+    # La page suivante reprend au jour annoncé, aucun jour n'est sauté.
+    assert [e["id"] for e in suite] == [f"{k:012x}" for k in (7, 8, 9)]
     assert plus2 is None
+
+
+def test_lire_s_arrete_entre_deux_jours_quand_le_plafond_est_atteint(tmp_path, monkeypatch):
+    monkeypatch.setattr(J, "ENTREES_MAX", 3)
+    maintenant = datetime(2026, 10, 27, 12, 0, tzinfo=maison.ZONE)
+    ecrire(tmp_path, "2026-10-27", *[ligne(id=f"{k:012x}") for k in range(5)])
+    ecrire(tmp_path, "2026-10-26", ligne(id="00000000ffff"))
+    entrees, plus = J.lire(tmp_path, PROPRIO, maintenant=maintenant)
+    assert len(entrees) == 5 and plus == "2026-10-26"
+    suite, fin = J.lire(tmp_path, PROPRIO, reprise=plus, maintenant=maintenant)
+    assert [e["id"] for e in suite] == ["00000000ffff"] and fin is None
 
 
 def test_lire_ignore_une_date_mal_formee_et_les_lignes_cassees(tmp_path):
@@ -175,7 +187,7 @@ def test_lire_ignore_une_date_mal_formee_et_les_lignes_cassees(tmp_path):
     dossier.mkdir(exist_ok=True)
     (dossier / "assistant-2026-10-27.jsonl").write_text(
         "pas du json\n[1,2]\n" + json.dumps(ligne()) + "\n", encoding="utf-8")
-    entrees, _ = J.lire(dossier, PROPRIO, avant="../../etc", maintenant=maintenant)
+    entrees, _ = J.lire(dossier, PROPRIO, reprise="../../etc", maintenant=maintenant)
     assert len(entrees) == 1
 
 
@@ -215,7 +227,7 @@ def journal_ecrit(tmp_path, monkeypatch):
     return tmp_path / "journal"
 
 
-def journaliser_comme(personne, appareil, canal="voix", voie="dictionnaire", actions=("light.turn_on ['light.bureau']",),
+def journaliser_comme(personne, appareil, canal="voix", voie="dictionnaire", actions=("light.turn_on ['light.salon_plafond']",),
                       texte="allume la lampe du bureau", parole="C'est fait."):
     jeton = A.REQUETE.set(A.Requete(personne=personne, appareil=appareil, canal=canal))
     try:
@@ -263,7 +275,7 @@ def test_journaliser_reprend_l_id_de_la_demande_annoncee(journal_ecrit):
 
 def test_journaliser_un_refus_porte_le_statut_refus(journal_ecrit):
     journaliser_comme("camille", "appareil:tab1", voie="dictionnaire refus",
-                      actions=("light.turn_on ['light.chambre'] (refusé : sécurité)",))
+                      actions=("light.turn_on ['light.chambre_sacha_plafond'] (refusé : sécurité)",))
     (e,) = lignes_ecrites(journal_ecrit)
     assert e["statut"] == "refus" and J.motif(e) == "refusé : sécurité"
 
