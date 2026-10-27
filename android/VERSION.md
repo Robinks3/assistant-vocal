@@ -6,6 +6,23 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.48.0 (2026-10-27), mode développeur
+Nouveauté (versionCode 89).
+- Nouveau réglage « Mode développeur », dans Réglages, section Général (et dans le tiroir du téléphone), avec deux
+  boutons Désactivé et Activé. Il est activé par défaut, y compris sur une installation qui n'a jamais enregistré
+  le réglage : rien ne change tant qu'on ne le coupe pas. Le changement s'applique tout de suite, sans redémarrage.
+- Désactivé, tout ce qui sert au débogage disparaît : numéro de version et date de compilation (en-tête des
+  réglages, pied du téléphone, couche de service de l'accueil, écran des appareils et des visages, notification du
+  service), section Diagnostic et déroulé des étapes, durée de chaque réponse (réponse en direct et historique),
+  détail technique de la voie dans l'historique, vumètre et niveau du micro, seuil chiffré du réveil, détail de la
+  connexion, version et passerelle du serveur, cadence et millisecondes par image de la caméra, adresse, jeton et
+  empreinte de clé de l'écran des appareils.
+- Restent affichés : la météo, la maison, les cartes, les réponses, un état simple « Connecté » ou « Non connecté »,
+  « Caméra active », et les erreurs, qui gardent leur message.
+- La page 3D reçoit le réglage par le pont existant (`maison3d.modeDeveloppeur(actif)`, appel gardé : sans effet sur
+  une page qui ne le connaît pas encore).
+- La sécurité en dur (`Securite.kt`) ne dépend pas du mode et n'est pas touchée.
+
 ## 0.47.1 (2026-10-27), bouton Fermer du graphique de l'air
 Correctif (versionCode 88).
 - Le bouton Fermer du graphique de l'air sortait en haut à gauche, à moitié hors de l'écran : la mise à l'échelle

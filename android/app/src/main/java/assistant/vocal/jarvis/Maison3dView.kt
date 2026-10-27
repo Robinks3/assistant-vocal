@@ -85,7 +85,12 @@ class Maison3dView(context: Context, resolution: Float = 0f) : FrameLayout(conte
         addView(web, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         // Résolution de la page réglable une fois au chargement (?pr=1.25), 1,5 par défaut.
         web.loadUrl(if (resolution > 0f) "$PAGE?pr=${String.format(java.util.Locale.ROOT, "%.2f", resolution)}" else PAGE)
+        // Mode développeur (0.48.0) : mis en file avant tout le reste, la page le reçoit dès qu'elle est prête.
+        modeDeveloppeur(ModeDeveloppeur.actif(context))
     }
+
+    /** Montre ou cache les repères de débogage de la page 3D (version, cadence, compteurs). */
+    fun modeDeveloppeur(actif: Boolean) = appeler(Maison3dPont.scriptModeDeveloppeur(actif))
 
     // ------------------------------------------------ 0.18.1
 

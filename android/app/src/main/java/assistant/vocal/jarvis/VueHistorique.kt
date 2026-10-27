@@ -92,6 +92,8 @@ internal object VueHistorique {
     }
 
     fun carte(ctx: Context, e: Etat.EntreeHistorique): View {
+        // Mode développeur coupé (0.48.0) : ni durée de la réponse ni détail technique de la voie.
+        val dev = ModeDeveloppeur.actif(ctx)
         val carte = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             background = Decor.fondSousCarte(ctx, 14f, if (e.erreur) Couleur.ROUGE else Couleur.CHAMP_BORD)
@@ -118,7 +120,7 @@ internal object VueHistorique {
         )
         entete.addView(
             texte(ctx, 14f, Couleur.TEXTE_2).apply {
-                text = duree(e.duree)
+                text = ModeDeveloppeur.dureeReponse(dev, duree(e.duree))
                 gravity = Gravity.END
             },
             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
@@ -135,7 +137,7 @@ internal object VueHistorique {
         )
 
         carte.addView(ligne(ctx, "Compris par", e.comprisPar.ifBlank { "-" }), parametres(ctx, 4))
-        if (e.detailVoie.isNotBlank()) {
+        if (dev && e.detailVoie.isNotBlank()) {
             carte.addView(texte(ctx, 13f, Couleur.GRIS).apply { text = e.detailVoie }, parametres(ctx, 2))
         }
 

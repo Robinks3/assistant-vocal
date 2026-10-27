@@ -202,6 +202,13 @@ internal class Maison3dPont(private val executer: (String) -> Unit) {
         fun scriptRegime(niveau: Float, dureeMs: Int): String =
             "if (typeof maison3d.regime === \"function\") maison3d.regime(${nombre(niveau.coerceIn(0f, 1f))}, ${dureeMs.coerceAtLeast(0)})"
 
+        /**
+         * Mode développeur (0.48.0) : la page cache ses repères de débogage (version, cadence, compteurs) quand
+         * [actif] est faux. Sans effet sur une page qui ne connaît pas encore la fonction.
+         */
+        fun scriptModeDeveloppeur(actif: Boolean): String =
+            "if (typeof maison3d.modeDeveloppeur === \"function\") maison3d.modeDeveloppeur($actif)"
+
         /** Scène atténuée (écoute) ou pleine, en [dureeMs]. */
         fun scriptAttenuer(opacite: Float, dureeMs: Int): String =
             "maison3d.attenuer(${nombre(opacite.coerceIn(0f, 1f))}, ${dureeMs.coerceAtLeast(0)})"
