@@ -27,6 +27,9 @@
       var connecte = r.ok;
       $('carte-appairage').hidden = connecte;
       $('carte-connecte').hidden = !connecte;
+      // La barre du bas et les réglages ne servent qu'à un appareil appairé.
+      $('onglets').hidden = !connecte;
+      $('lien-reglages').hidden = !connecte;
       if (connecte) { statut('Connecté', 'ok'); }
       else { statut('Appareil non appairé', 'assistant'); }
     }).catch(function () {

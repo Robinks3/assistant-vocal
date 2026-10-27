@@ -18,9 +18,10 @@
 <script src="/app.js" defer></script>
 </head>
 <body>
-<main class="contenu">
+<main class="contenu contenu--onglets">
 <div class="barre-haut">
 <span id="statut" class="pastille" role="status">Vérification en cours</span>
+<a id="lien-reglages" class="avatar" href="/reglages" aria-label="Réglages et vie privée" hidden><svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-4 3.6-6 7-6s6.2 2 7 6"/></svg></a>
 </div>
 <p class="salut">{{nom_assistant}}</p>
 <h1 class="cache-visuel">Accueil de {{nom_assistant}}</h1>
@@ -37,16 +38,11 @@
 <section id="carte-connecte" class="carte" aria-labelledby="titre-connecte" hidden>
 <h2 class="surtitre" id="titre-connecte">Session</h2>
 <p class="fort carte-texte">Cet appareil est connecté</p>
-<p class="secondaire">Les autres fonctions du client web arrivent dans les prochaines versions.</p>
-<a class="bouton bouton--principal bouton--plein" href="/demander">Demander</a>
-<a class="bouton bouton--plein" href="/maison">Maison</a>
-<a class="bouton bouton--plein" href="/meteo">Météo et mer</a>
-<a class="bouton bouton--plein" href="/journal">Journal</a>
-<a class="bouton bouton--plein" href="/vie-privee">Vie privée</a>
-<a class="bouton bouton--plein" href="/reglages">Réglages</a>
+<p class="secondaire">Touchez le micro, en bas, pour parler à {{nom_assistant}}.</p>
 </section>
 
 <p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
 </main>
+{{onglets-cache:accueil}}
 </body>
 </html>

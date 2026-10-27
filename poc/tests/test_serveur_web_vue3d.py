@@ -222,7 +222,7 @@ def test_le_parent_n_accepte_que_des_cles_exactes_et_des_identifiants_surs():
 def test_les_messages_du_parent_a_la_page_sont_des_types_connus_seulement():
     js = MAISON_JS.read_text(encoding="utf-8")
     envoyes = set(re.findall(r'poster3d\(\{ type: "([a-zA-Z]+)"', js))
-    assert envoyes == {"etats", "etiquettes", "choisir", "pastilles", "mesures", "grand", "modeDeveloppeur"}
+    assert envoyes == {"etats", "etiquettes", "choisir", "pastilles", "mesures", "grand", "modeDeveloppeur", "disposition", "vue"}
     page = MODELE.read_text(encoding="utf-8")
     pont = set(re.findall(r"^  ([a-zA-Z]+): \[d => ", page[page.index("const PONT = {"):], re.M))
     assert envoyes <= pont
@@ -241,7 +241,7 @@ const JEUX = { neutre: 1, couleur: 1 };
 const PARENT = { postMessage: (m, cible) => envoyes.push([m, cible]) };
 const AUTRE = {};
 globalThis.window = { parent: PARENT, vue3d: {} };
-for (const n of ["rotation", "fondu", "nomsAuSol", "poussieres", "desaturer", "pause", "grand", "modeDeveloppeur"]) window.vue3d[n] = rec(n);
+for (const n of ["rotation", "fondu", "nomsAuSol", "poussieres", "desaturer", "pause", "grand", "modeDeveloppeur", "vue"]) window.vue3d[n] = rec(n);
 let ecouteur = null;
 globalThis.addEventListener = (type, f) => { if (type === "message") ecouteur = f; };
 /*PONT*/
@@ -289,6 +289,7 @@ def test_la_page_applique_un_message_valide_du_parent_et_un_seul(tmp_path):
         parent({"type": "grand", "actif": True, "taille": 44, "police": 14}),
         parent({"type": "modeDeveloppeur", "actif": False}),
         parent({"type": "modeDeveloppeur", "actif": True, "intrus": "x"}),
+        parent({"type": "vue", "nom": "dessus"}),
     ])["recus"]
     assert s[0] == {"retour": True, "appels": [["choisir", "salon", 800]]}
     assert s[1]["retour"] is True and s[1]["appels"][0][0] == "etats"
@@ -296,6 +297,7 @@ def test_la_page_applique_un_message_valide_du_parent_et_un_seul(tmp_path):
     assert s[2] == {"retour": True, "appels": [["grand", True, 44, 14]]}
     assert s[3] == {"retour": True, "appels": [["modeDeveloppeur", False]]}
     assert s[4] == {"retour": True, "appels": [["modeDeveloppeur", True]]}
+    assert s[5] == {"retour": True, "appels": [["vue", "dessus"]]}
 
 
 @pytest.mark.skipif(NODE is None, reason="node absent")
@@ -311,6 +313,7 @@ def test_la_page_rejette_sans_rien_appeler_les_messages_mal_formes(tmp_path):
         {"type": "grand", "actif": None}, {"type": "pause", "actif": "true"},
         {"type": "modeDeveloppeur"}, {"type": "modeDeveloppeur", "actif": "oui"}, {"type": "modeDeveloppeur", "actif": 1},
         {"type": "modeDeveloppeur", "actif": None},
+        {"type": "vue"}, {"type": "vue", "nom": "dessous"}, {"type": "vue", "nom": 1},
         {"type": "montrer", "cibles": ["x"] * 41}, {"type": "montrer", "entite": "a b c"},
         {"type": "montrer", "entite": "<img src=x onerror=alert(1)>"}, {"type": "montrer", "entite": "a" * 81},
         {"type": "etiquettes", "liste": "x"}, {"type": "etiquettes", "liste": [{}] * 41},

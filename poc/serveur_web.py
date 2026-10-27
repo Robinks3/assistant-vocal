@@ -64,7 +64,7 @@ DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.8.0"
+VERSION_CLIENT = "0.9.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -101,6 +101,8 @@ PAGES_PROTEGEES = {
     "/demander": ("demander.html", False),
     "/maison": ("maison.html", False),
     "/meteo": ("meteo.html", False),
+    # L'orbe de la barre du bas : la page Demander qui ouvre le micro dès son chargement.
+    "/ecouter": ("demander.html", False),
 }
 SCRIPTS_PROTEGES = {
     "/associer.js": ("associer.js", True),
@@ -140,6 +142,41 @@ CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; styl
 # recalculées si le fichier change.
 FICHIER_3D = "genere/android/maison3d/vue3d.html"
 _BLOCS_EN_LIGNE = re.compile(r"<(script|style)\b([^>]*)>(.*?)</\1\s*>", re.S | re.I)
+
+# Barre d'onglets du bas (maquette docs/maquettes/client-web/accueil.html) : Accueil, Journal, l'orbe du micro au
+# centre, Maison, Météo. Une page la demande par le modèle {{onglets:CLE}}, ou {{onglets-cache:CLE}} pour qu'elle
+# naisse masquée (l'accueil ne la montre qu'une fois la session vérifiée). CLE est l'onglet allumé, « aucun » pour
+# Réglages et Vie privée. L'orbe ouvre /ecouter, sauf sur la page Demander où demander.js le relie au micro.
+ONGLETS = (("accueil", "/", "Accueil"), ("journal", "/journal", "Journal"), ("demander", "/ecouter", "Demander"),
+           ("maison", "/maison", "Maison"), ("meteo", "/meteo", "Météo"))
+_ICONES_ONGLETS = {
+    "accueil": '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/>',
+    "journal": '<rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4"/>',
+    "demander": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
+    "maison": '<path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/>',
+    "meteo": '<path d="M7.5 17.5a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17.7 9.9a3.8 3.8 0 0 1-.7 7.6z"/>'
+             '<path d="M9 20.5l.8-2M13 20.5l.8-2"/>',
+}
+_MODELE_ONGLETS = re.compile(r"\{\{onglets(-cache)?:(\w+)\}\}")
+
+
+def barre_onglets(actif, nom_assistant, cache=False):
+    """Le HTML de la barre du bas, onglet `actif` allumé. Seul le nom de l'assistant vient de l'extérieur : échappé."""
+    morceaux = []
+    for cle, lien, libelle in ONGLETS:
+        icone = ('<svg class="i" aria-hidden="true" focusable="false" viewBox="0 0 24 24">'
+                 + _ICONES_ONGLETS[cle] + "</svg>")
+        courant = ' aria-current="page"' if cle == actif else ""
+        if cle == "demander":
+            cible = "/demander" if actif == "demander" else lien
+            etiquette = html.escape(f"Demander à {nom_assistant}", quote=True)
+            morceaux.append(f'<a id="onglet-micro" class="onglet onglet--orbe" href="{cible}"{courant} '
+                            f'aria-label="{etiquette}"><span class="orbe">{icone}</span><span>{libelle}</span></a>')
+        else:
+            morceaux.append(f'<a class="onglet" href="{lien}"{courant}>{icone}<span>{libelle}</span></a>')
+    masque = " hidden" if cache else ""
+    return (f'<nav id="onglets" class="onglets" aria-label="Navigation principale"{masque}>'
+            '<span class="onglets-filet" aria-hidden="true"></span>' + "".join(morceaux) + "</nav>")
 
 
 def empreintes_en_ligne(texte):
@@ -631,6 +668,7 @@ class ServiceWeb:
     def page(self, nom_fichier):
         """Une page HTML dont les modèles {{...}} sont remplis (valeurs échappées)."""
         modele = (DOSSIER / nom_fichier).read_text(encoding="utf-8")
+        modele = _MODELE_ONGLETS.sub(lambda m: barre_onglets(m.group(2), self.nom, cache=bool(m.group(1))), modele)
         valeurs = {"nom_assistant": self.nom, "version_client": VERSION_CLIENT, "version_serveur": self.version,
                    "date": self.date}
         for cle, v in valeurs.items():

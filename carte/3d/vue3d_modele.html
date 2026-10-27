@@ -54,6 +54,7 @@
     color: #E8E2D8; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75); transition: opacity .3s; }
   /* cadenas devant le nom d'une pièce protégée : une classe, car la page n'admet aucun attribut style (CSP du client web) */
   .cad { vertical-align: -0.05em; margin-right: 0.35em; }
+  #grand.etroit .etiq { white-space: normal; width: max-content; line-height: 1.15; }
   .etiq b { font-weight: 400; display: block; }
   .etiq small { display: block; color: #D6CFC3; }
   .past { position: absolute; left: 0; top: 0; border-radius: 50%; opacity: 0; transition: opacity .15s;
@@ -1174,7 +1175,7 @@ function image(t) {
       // onde qui se referme sur la lampe qui s'éteint
       const w = (t - lp.implo0) / 900;
       if (w >= 1) { lp.implo0 = -1; lp.implo.material.opacity = 0; }
-      else { encore = true; lp.implo.scale.setScalar(2.4 - 5.15 * doux(w)); lp.implo.material.opacity = 0.5 * Math.sin(Math.PI * w); }
+      else { encore = true; lp.implo.scale.setScalar(2.4 - 2.15 * doux(w)); lp.implo.material.opacity = 0.5 * Math.sin(Math.PI * w); }
     }
     lp.implo.visible = lp.implo0 >= 0;
     if (lp.attente) {
@@ -1350,6 +1351,11 @@ function centrePiece(id) {
 function versEcran(v) {
   const p = v.clone().project(camera);
   return { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight, devant: p.z < 1 };
+}
+// largeur à l'écran du sol d'une pièce, plancher de 64 px pour qu'un nom court ne soit jamais coupé
+function largeurPieceEcran(id) {
+  const xs = (POLY[id] || []).map(([x, y]) => versEcran(V(x, y, 0)).x);
+  return xs.length ? Math.max(64, Math.round(Math.max(...xs) - Math.min(...xs))) : 64;
 }
 function dansPolygone(x, y, q) {
   let dedans = false;
@@ -1571,11 +1577,27 @@ function dessinerGrand(t) {
   if (!grandEtat.actif) return encore;
   const enVol = !!vol || !!zoneAnim;
   if (!id) {
+    // écran de téléphone : un nom plus large que sa pièce passe à la ligne au lieu de chevaucher la pièce voisine
+    const etroit = w < 500;
+    couche.classList.toggle("etroit", etroit);
     for (const n of couche.children) {
       const c = centrePiece(n.dataset.piece); if (!c) continue;
       const e = versEcran(V(c[0], c[1], 0.05));
+      if (etroit) n.style.maxWidth = largeurPieceEcran(n.dataset.piece) + "px";
+      else if (n.style.maxWidth) n.style.maxWidth = "";
       n.style.transform = `translate(${e.x.toFixed(1)}px, ${e.y.toFixed(1)}px) translate(-50%, -50%)`;
       n.style.opacity = enVol ? "0" : "1";
+    }
+    // sur téléphone, deux noms qui se recouvrent : la pièce la plus large à l'écran garde le sien, l'autre s'efface
+    if (etroit && !enVol) {
+      const gardes = [];
+      const ordre = [...couche.children].filter(n => centrePiece(n.dataset.piece))
+        .sort((a, b) => largeurPieceEcran(b.dataset.piece) - largeurPieceEcran(a.dataset.piece));
+      for (const n of ordre) {
+        const r = n.getBoundingClientRect();
+        const touche = gardes.some(g => r.left < g.right + 4 && r.right > g.left - 4 && r.top < g.bottom + 2 && r.bottom > g.top - 2);
+        if (touche) n.style.opacity = "0"; else gardes.push(r);
+      }
     }
     grandEtat.positions = [];
     return encore;
@@ -1660,7 +1682,7 @@ window.vue3d = {
   lampes: () => DONNEES.lampes.map(l => ({ entite: l.entite, nom: l.nom, piece: l.piece, on: lampes.get(l.entite).on })),
   // 0.6.0 : télé et enceintes connues de la page, avec l'état et le volume montrés
   medias: () => (DONNEES.medias || []).map(m => { const o = medias.get(m.entite); return { entite: m.entite, alias: m.alias, nom: m.nom, type: m.type, etat: o.etat, volume: o.volume }; }),
-  vue: nom => { vueDessus = nom === "dessus"; cadrer(); },
+  vue: nom => { vueDessus = nom === "dessus"; document.getElementById("b-vue").textContent = vueDessus ? "Vue en perspective" : "Vue de dessus"; cadrer(); },
   montrer, ensemble,
   murs: h => reglerMurs(Math.max(0.2, Math.min(DONNEES.hauteur, h))),
   jour: reglerJour,
@@ -1865,6 +1887,7 @@ const PONT = {
   desaturer: [d => [bo(d.actif)], a => window.vue3d.desaturer(a)],
   pause: [d => [bo(d.actif)], a => window.vue3d.pause(a)],
   modeDeveloppeur: [d => [bo(d.actif)], a => window.vue3d.modeDeveloppeur(a)],
+  vue: [d => d.nom === "dessus" || d.nom === "perspective" ? [d.nom] : null, n => window.vue3d.vue(n)],
   disposition: [d => [{ x: nb(d.x, 0, 1), y: nb(d.y, 0, 1), largeur: nb(d.largeur, 0, 1), hauteur: nb(d.hauteur, 0, 1), duree_ms: nb(d.duree_ms, 0, 10000) }], z => disposition(z)],
   regime: [d => [nb(d.niveau, 0, 1), nb(d.duree_ms, 0, 10000)], (n, t) => regler(n, t)],
   grand: [d => [bo(d.actif), nb(d.taille, 8, 400), nb(d.police, 6, 80)], (a, t, p) => window.vue3d.grand(a, t, p)],

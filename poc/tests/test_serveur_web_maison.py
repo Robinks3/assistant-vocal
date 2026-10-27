@@ -785,7 +785,7 @@ def test_pages_maison_exigent_une_session_et_s_ouvrent_a_tous_les_roles(service)
 
 
 def test_la_version_du_client_web_est_0_8_0():
-    assert W.VERSION_CLIENT == "0.8.0"
+    assert W.VERSION_CLIENT == "0.9.0"
 
 
 def test_la_page_maison_n_a_ni_script_ni_style_en_ligne():

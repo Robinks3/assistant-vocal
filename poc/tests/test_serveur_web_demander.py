@@ -915,7 +915,7 @@ def test_pages_demander_exigent_une_session_et_s_ouvrent_a_tous_les_roles(servic
         page = service.traiter("127.0.0.1", "/demander", entetes(jeton))
         assert statut_de(page) == 200, role
         html = page[2].decode("utf-8")
-        assert "{{" not in html and "0.8.0" in html and maison.NOM_ASSISTANT in html, role
+        assert "{{" not in html and "0.9.0" in html and maison.NOM_ASSISTANT in html, role
         assert statut_de(service.traiter("127.0.0.1", "/demander.js", entetes(jeton))) == 200, role
 
 
@@ -952,4 +952,5 @@ def test_le_client_web_ne_parle_qu_a_son_serveur():
 def test_l_accueil_connecte_propose_demander(service):
     _, _, jeton = appairer_direct(service, "habitant")
     rep = service.traiter("127.0.0.1", "/", entetes(jeton))
-    assert statut_de(rep) == 200 and 'href="/demander"' in rep[2].decode("utf-8")
+    corps = rep[2].decode("utf-8")
+    assert statut_de(rep) == 200 and 'id="onglet-micro"' in corps and 'href="/ecouter"' in corps

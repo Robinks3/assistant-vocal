@@ -15,8 +15,7 @@
 <script src="/maison.js" defer></script>
 </head>
 <body>
-<main id="contenu-maison" class="contenu">
-<p class="lien-retour"><a href="/">Accueil</a></p>
+<main id="contenu-maison" class="contenu contenu--onglets">
 <h1 class="titre-page">Maison</h1>
 
 <div id="bandeau-essai" class="alerte alerte--info" role="status" hidden><b>Mode essai.</b> Rien ne sera fait dans la maison. {{nom_assistant}} dit seulement ce qu'elle ferait.</div>
@@ -42,6 +41,7 @@
 
 <p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
 </main>
+{{onglets:maison}}
 <div id="volet-maison"></div>
 </body>
 </html>

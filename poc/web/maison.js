@@ -861,8 +861,11 @@
 
     $("volet-maison").appendChild(voile);
     $("volet-maison").appendChild(feuille);
-    $("contenu-maison").setAttribute("inert", "");
-    $("contenu-maison").setAttribute("aria-hidden", "true");
+    // La barre du bas passe sous la feuille : elle sort elle aussi du parcours au clavier.
+    ["contenu-maison", "onglets"].forEach(function (id) {
+      $(id).setAttribute("inert", "");
+      $(id).setAttribute("aria-hidden", "true");
+    });
     voile.addEventListener("click", function () { fermerVolet(true); });
     fermer.addEventListener("click", function () { fermerVolet(true); });
     feuille.addEventListener("keydown", clavierVolet);
@@ -877,8 +880,10 @@
     var cle = volet.cle;
     if (volet.air && volet.air.minuterie) { clearTimeout(volet.air.minuterie); }
     vider($("volet-maison"));
-    $("contenu-maison").removeAttribute("inert");
-    $("contenu-maison").removeAttribute("aria-hidden");
+    ["contenu-maison", "onglets"].forEach(function (id) {
+      $(id).removeAttribute("inert");
+      $(id).removeAttribute("aria-hidden");
+    });
     volet = null;
     signatureListe = "";
     afficher();
@@ -1703,6 +1708,10 @@
     vue3d.premier = true;
     var largeur = $("cadre-3d").clientWidth;
     poster3d({ type: "grand", actif: true, taille: largeur < 500 ? 44 : 56, police: largeur < 500 ? 14 : 18 });
+    // le plan occupe tout le cadre (la zone par défaut est celle de la tablette, où un panneau couvre la droite),
+    // et sur téléphone il se voit de dessus : en perspective, les pièces du fond sont trop serrées pour leurs noms
+    poster3d({ type: "disposition", x: 0.04, y: 0.06, largeur: 0.92, hauteur: 0.84, duree_ms: 0 });
+    if (largeur < 500) { poster3d({ type: "vue", nom: "dessus" }); }
     poster3d({ type: "modeDeveloppeur", actif: C.modeDeveloppeur() });
     majVue3d();
   }

@@ -232,6 +232,8 @@
     $("bouton-envoyer").disabled = visible || occupe;   // la saisie écrite reste à portée, mais ne part pas pendant l'écoute
     $("demande-ecrite").readOnly = visible || occupe;
     if (visible) { afficherNiveau([]); }
+    var orbe = $("onglet-micro");
+    if (orbe) { orbe.setAttribute("aria-pressed", visible ? "true" : "false"); }
   }
 
   function arreterEcoute(envoyerLeSon) {
@@ -274,7 +276,9 @@
     if (e.total >= ECH_MAX) { arreterEcoute(true); }
   }
 
-  function demarrerEcoute() {
+  // auto : lancée par l'orbe d'une autre page, sans geste sur celle-ci. Si le navigateur garde le son bloqué faute de
+  // geste, l'écoute est abandonnée sans bruit et la page invite à toucher le micro.
+  function demarrerEcoute(auto) {
     if (occupe || ecoute) { return; }
     var md = navigator.mediaDevices;
     var AC = window.AudioContext || window.webkitAudioContext;
@@ -301,6 +305,13 @@
         e.source.connect(e.noeud);
         e.noeud.connect(e.contexte.destination);          // sortie muette : le bloc de sortie reste à zéro
         if (e.contexte.state === "suspended") { e.contexte.resume(); }
+        if (auto === true) {
+          setTimeout(function () {
+            if (ecoute !== e || e.contexte.state !== "suspended") { return; }
+            annulerEcoute();
+            message("erreur-demande", "Touchez le micro pour parler.");
+          }, 400);
+        }
         e.minuterie = setTimeout(function () { if (ecoute === e) { arreterEcoute(true); } },
                                  (DUREE_MAX_S + 1) * 1000);
         $("duree-ecoute").textContent = "0 s sur " + DUREE_MAX_S + " s";
@@ -372,7 +383,12 @@
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext || window.webkitAudioContext)) {
     $("bouton-micro").hidden = false;
   }
-  $("bouton-micro").addEventListener("click", demarrerEcoute);
+  $("bouton-micro").addEventListener("click", function () { demarrerEcoute(false); });
+  // L'orbe de la barre du bas parle et se tait sans quitter la page.
+  $("onglet-micro").addEventListener("click", function (ev) {
+    ev.preventDefault();
+    if (ecoute) { arreterEcoute(true); } else { demarrerEcoute(false); }
+  });
   $("orbe-ecoute").addEventListener("click", function () { arreterEcoute(true); });
   $("annuler-ecoute").addEventListener("click", annulerEcoute);
   document.addEventListener("visibilitychange", function () { if (document.hidden) { annulerEcoute(); } });
@@ -382,4 +398,9 @@
     if (ws && ws.readyState === 1) { envoyer({ type: "desabonner_journal" }); }
   });
   connecter();
+  // /ecouter : arrivée par l'orbe d'une autre page, le micro s'ouvre aussitôt et l'adresse redevient /demander.
+  if (window.location.pathname === "/ecouter") {
+    window.history.replaceState(null, "", "/demander");
+    if (!$("bouton-micro").hidden) { demarrerEcoute(true); }
+  }
 })();

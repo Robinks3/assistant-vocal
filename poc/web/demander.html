@@ -15,8 +15,7 @@
 <script src="/demander.js" defer></script>
 </head>
 <body>
-<main class="contenu">
-<p class="lien-retour"><a href="/">Accueil</a></p>
+<main class="contenu contenu--onglets">
 <h1 class="titre-page">Demander</h1>
 
 <button id="bascule-essai" type="button" class="bascule" role="switch" aria-checked="false">
@@ -77,5 +76,6 @@
 
 <p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
 </main>
+{{onglets:demander}}
 </body>
 </html>

@@ -65,9 +65,55 @@ button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:3px solid var(--assistant);outline-offset:2px}
 .cache-visuel{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* Une seule colonne, centrée, sans barre fixe : rien ne se superpose au contenu. */
+/* Une seule colonne, centrée. Seule la barre d'onglets est fixe : le contenu lui réserve sa hauteur en bas
+   (.contenu--onglets), si bien qu'au bout du défilement rien ne reste dessous. */
 .contenu{width:100%;max-width:480px;margin:0 auto;
   padding:max(var(--e6),env(safe-area-inset-top)) max(var(--e4),env(safe-area-inset-right)) max(var(--e8),env(safe-area-inset-bottom)) max(var(--e4),env(safe-area-inset-left))}
+.contenu--onglets{padding-bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+
+/* Barre d'onglets du bas (maquette accueil.html), rendue par serveur_web.barre_onglets. Au centre, la matière de la
+   barre se soulève en berceau derrière l'orbe du micro : disque de 38 px de rayon centré sur le bord haut, raccordé au
+   bord par deux congés de 12 px, sans angle. Les deux couches débordent de 40 px au-dessus de la barre pour porter ce
+   berceau : le contour vient d'un masque SVG de 128 px centré, le reste de la largeur d'un dégradé plein qui commence
+   au bord (les deux se recouvrent de 4 px de chaque côté). .onglets-filet porte la couleur du filet sous ce contour,
+   ::after la surface sous le même contour décalé de 1 px vers l'intérieur (rayons 37 et 13, mêmes centres de congés) :
+   il reste 1 px de filet tout du long. ::before fond le contenu qui défile juste au-dessus de la barre. Tous passent
+   derrière les onglets (z-index:-1 dans le contexte d'empilement de la barre). Centres des congés à 12 px au-dessus du
+   bord et à sqrt(50^2 - 12^2) = 48,54 px du milieu, points de raccord sur la droite qui les joint au centre du disque. */
+.onglets{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;
+  padding:var(--e2) max(var(--e2),env(safe-area-inset-right)) max(var(--e4),env(safe-area-inset-bottom)) max(var(--e2),env(safe-area-inset-left))}
+.onglets::before{content:"";position:absolute;z-index:-1;left:0;right:0;bottom:100%;height:32px;pointer-events:none;background:linear-gradient(180deg,transparent,var(--fond-bas))}
+.onglets-filet,.onglets::after{position:absolute;z-index:-1;inset:-40px 0 0;pointer-events:none}
+.onglets-filet{background:var(--filet);
+  -webkit-mask:linear-gradient(90deg,#000 calc(50% - 60px),transparent 0 calc(50% + 60px),#000 0) 0 40px/100% 100% no-repeat,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='440'%3E%3Cpath d='M0 40H15.46A12 12 0 0 0 27.11 30.88A38 38 0 0 1 100.89 30.88A12 12 0 0 0 112.54 40H128V440H0Z'/%3E%3C/svg%3E") 50% 0/128px 440px no-repeat;
+  mask:linear-gradient(90deg,#000 calc(50% - 60px),transparent 0 calc(50% + 60px),#000 0) 0 40px/100% 100% no-repeat,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='440'%3E%3Cpath d='M0 40H15.46A12 12 0 0 0 27.11 30.88A38 38 0 0 1 100.89 30.88A12 12 0 0 0 112.54 40H128V440H0Z'/%3E%3C/svg%3E") 50% 0/128px 440px no-repeat}
+.onglets::after{content:"";background:linear-gradient(180deg,var(--surface-haut) 40px,var(--surface-bas));
+  -webkit-mask:linear-gradient(90deg,#000 calc(50% - 60px),transparent 0 calc(50% + 60px),#000 0) 0 41px/100% 100% no-repeat,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='440'%3E%3Cpath d='M0 41H15.46A13 13 0 0 0 28.08 31.12A37 37 0 0 1 99.92 31.12A13 13 0 0 0 112.54 41H128V440H0Z'/%3E%3C/svg%3E") 50% 0/128px 440px no-repeat;
+  mask:linear-gradient(90deg,#000 calc(50% - 60px),transparent 0 calc(50% + 60px),#000 0) 0 41px/100% 100% no-repeat,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='440'%3E%3Cpath d='M0 41H15.46A13 13 0 0 0 28.08 31.12A37 37 0 0 1 99.92 31.12A13 13 0 0 0 112.54 41H128V440H0Z'/%3E%3C/svg%3E") 50% 0/128px 440px no-repeat}
+.onglet{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;min-height:56px;min-width:var(--cible);padding:var(--e1) 0;border-radius:var(--r-m);
+  font-size:.75rem;font-weight:500;color:var(--texte-2);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.onglet[aria-current="page"]{color:var(--assistant)}
+.onglet[aria-current="page"] svg{filter:drop-shadow(0 0 6px var(--assistant))}
+/* Le berceau est creusé d'un logement (::before, 33 px de rayon, même centre) : dégradé inversé de la surface et ombre
+   portée par la lèvre du haut, liseré clair en bas, la lumière venant d'en haut. L'orbe flotte dedans sans le toucher :
+   2 px plus haut que le centre, 5 px de jour, et son ombre tombe au fond du logement. Son libellé reste dans le HTML
+   mais ne s'affiche pas, l'aria-label du lien le dit déjà. */
+.onglet--orbe{position:relative;color:var(--texte-1)}
+.onglet--orbe>span:last-child{display:none}
+.onglet--orbe::before{content:"";position:absolute;left:calc(50% - 33px);top:calc(-1 * var(--e2) - 33px);width:66px;height:66px;border-radius:50%;pointer-events:none;
+  background:linear-gradient(180deg,var(--surface-bas),var(--surface-haut));
+  box-shadow:inset 0 4px 7px -1px rgba(var(--ombre-rgb),.32),inset 0 -1px 0 var(--reflet),0 1px 0 var(--reflet)}
+.onglet--orbe .orbe{position:absolute;left:calc(50% - 28px);top:calc(-1 * var(--e2) - 30px);width:56px;height:56px;display:flex;align-items:center;justify-content:center;color:#fff;
+  box-shadow:0 7px 9px -3px rgba(var(--ombre-rgb),.5),0 0 18px -6px var(--assistant),inset 0 -6px 12px rgba(0,0,0,.28),inset 0 2px 3px rgba(255,255,255,.5)}
+.onglet--orbe .orbe svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.onglet--orbe[aria-pressed="true"] .orbe{box-shadow:0 0 0 3px var(--assistant),0 7px 9px -3px rgba(var(--ombre-rgb),.5)}
+.onglet:active{transform:translateY(1px)}
+
+/* Entrée vers Réglages et Vie privée, dans la barre du haut de l'accueil : n'allume aucun onglet. */
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:var(--cible);height:var(--cible);border-radius:var(--r-pilule);
+  color:var(--sur-assistant);border:1px solid rgba(var(--ombre-rgb),.25);
+  background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.55),transparent 45%),linear-gradient(160deg,var(--assistant),var(--assistant-profond));
+  box-shadow:0 2px 6px rgba(var(--ombre-rgb),.3),inset 0 1px 0 rgba(255,255,255,.4)}
 .barre-haut{display:flex;align-items:center;justify-content:space-between;gap:var(--e3);margin-bottom:var(--e5)}
 
 .salut{margin-bottom:var(--e1);font-size:1.0625rem;color:var(--texte-2);overflow-wrap:anywhere}

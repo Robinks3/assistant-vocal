@@ -49,7 +49,7 @@ async def echange(ws, msg):
 
 def test_le_message_meteo_est_dans_la_liste_blanche_et_la_version_du_client_est_0_8_0():
     assert MW.GENRES == ("meteo",) and "meteo" in W.MESSAGES_TOUT_ROLE
-    assert W.VERSION_CLIENT == "0.8.0"
+    assert W.VERSION_CLIENT == "0.9.0"
 
 
 def test_la_page_et_le_script_exigent_une_session(service):
@@ -76,7 +76,7 @@ def test_la_page_est_servie_a_chaque_role_avec_les_en_tetes_de_securite(service)
 def test_la_page_meteo_est_dans_les_tables_protegees_et_liee_depuis_l_accueil():
     assert W.PAGES_PROTEGEES["/meteo"][0] == "meteo.html" and W.SCRIPTS_PROTEGES["/meteo.js"][0] == "meteo.js"
     accueil = (RACINE / "web" / "index.html").read_text(encoding="utf-8")
-    assert 'href="/meteo"' in accueil and "Météo et mer" in accueil
+    assert "{{onglets-cache:accueil}}" in accueil and 'href="/meteo"' in W.barre_onglets("accueil", "Iris")
 
 
 # ------------------------------------------------------------------ message par WebSocket

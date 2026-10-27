@@ -20,10 +20,13 @@ OUTIL = RACINE / "poc" / "outils" / "verifier_mise_en_page.py"
 WEB = RACINE / "poc" / "web"
 ADMIN = RACINE / "poc" / "admin"
 
+# serveur_web d'abord : outils/ a son propre module mesures, qui masquerait celui du serveur
+import serveur_web  # noqa: E402
+
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.8.0", "{{version_serveur}}": "0.54.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.9.0", "{{version_serveur}}": "0.55.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -59,7 +62,13 @@ def lien_relatif(html):
 def gabarits(html):
     for cle, valeur in GABARITS.items():
         html = html.replace(cle, valeur)
-    return html
+    return onglets(html)
+
+
+def onglets(html):
+    """La barre du bas telle que le serveur la rend, visible même là où le script la dévoile."""
+    return serveur_web._MODELE_ONGLETS.sub(
+        lambda m: serveur_web.barre_onglets(m.group(2), GABARITS["{{nom_assistant}}"]), html)
 
 
 def garder(html, gardees, toutes):
@@ -575,8 +584,10 @@ def volet_tele(nom, allumee=True, pied="", injoignable=False):
 
 
 def avec_volet(page, volet):
-    html = page.replace('<main id="contenu-maison" class="contenu">', '<main id="contenu-maison" class="contenu" inert aria-hidden="true">')
-    assert "inert" in html
+    html = page.replace('<main id="contenu-maison" class="contenu contenu--onglets">',
+                        '<main id="contenu-maison" class="contenu contenu--onglets" inert aria-hidden="true">')
+    html = html.replace('<nav id="onglets" class="onglets"', '<nav id="onglets" class="onglets" inert aria-hidden="true"')
+    assert html.count("inert") == 2
     return html.replace('<div id="volet-maison"></div>', volet)
 
 
@@ -912,7 +923,8 @@ def variantes_meteo_s_w5():
 
 def variante_accueil():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
-    return {"accueil-connecte": garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"])}
+    connecte = montrer(garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"]), "lien-reglages")
+    return {"accueil-connecte": connecte}
 
 
 def variantes_admin():

@@ -4,6 +4,26 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.55.0 (2026-10-27), barre d'onglets du bas et vue 3D lisible sur téléphone dans le client web
+Mineure. Appli Home Assistant 0.55.0 (même code), appli Android inchangée. Client web 0.9.0, page 3D 0.9.0.
+- Barre d'onglets fixe en bas de chaque écran du client web (Accueil, Journal, Maison, Météo), avec l'orbe du micro
+  au centre, à la place de la grande page de menu de l'accueil (demande du propriétaire). Rendue par le serveur
+  (`barre_onglets`, modèles `{{onglets:CLE}}` et `{{onglets-cache:CLE}}`), seul le nom de l'assistant y entre,
+  échappé. L'accueil ne la montre qu'une fois la session vérifiée, Réglages et Vie privée passent par un bouton en
+  haut de l'accueil.
+- L'orbe ouvre `/ecouter` (la page Demander, qui lance le micro aussitôt et reprend l'adresse `/demander`). Sur la
+  page Demander, il parle et se tait sans quitter la page. Si le navigateur garde le son bloqué faute de geste, la
+  page invite à toucher le micro au lieu d'écouter dans le vide.
+- Au centre, la matière de la barre se soulève en berceau derrière l'orbe (disque de 38 px raccordé au bord par
+  deux congés de 12 px, masque SVG), creusé d'un logement éclairé d'en haut où l'orbe flotte sans le toucher, son
+  ombre tombant au fond. Il remplace l'encoche des essais précédents, dont le raccord faisait une marche.
+  Le libellé du micro ne s'affiche plus (l'`aria-label` le garde), les autres libellés partagent une même ligne
+  de base, et le contenu réserve la hauteur de la barre en bas.
+- Vue 3D sur téléphone (cadre de moins de 500 px) : le plan occupe tout le cadre (message `disposition`) et se voit
+  de dessus (nouveau message `vue` du pont, `nom` à `dessus` ou `perspective`). Les noms des pièces passent à la
+  ligne, et si deux noms se recouvrent encore, celui de la pièce la plus étroite à l'écran s'efface.
+- Tests : `test_serveur_web_onglets.py`, cas `vue` et `disposition` dans `test_serveur_web_vue3d.py`.
+
 ## Serveur 0.54.1 (2026-10-27), amorçage local du premier propriétaire du client web
 Correctif. Appli Home Assistant 0.54.1 (même code), appli Android et client web inchangés.
 - Le serveur du PC n'a pas de page d'administration, donc rien pour confirmer un appairage. L'option
