@@ -1,5 +1,6 @@
 """Relais des données de santé (0.19.0). Toutes les valeurs ci-dessous sont inventées."""
 import asyncio
+import ipaddress
 import json
 import time
 
@@ -163,7 +164,8 @@ def test_configuration(monkeypatch):
     assert SA.depuis_env("pc") is None
     assert SA.personnes_permises() == {"sacha"}
     monkeypatch.setenv("SANTE_JETON", "jeton-invente-de-test")
-    assert SA.depuis_env("ha") is None  # sante-api injoignable depuis Home Assistant
+    assert SA.depuis_env("ha").profil == "ha"  # 0.53.0 : possible en profil ha avec un jeton
+    assert SA.depuis_env("autre") is None
     r = SA.depuis_env("pc")
     assert r is not None and r.url == SA.URL_DEFAUT and ".ts.net" in SA.URL_DEFAUT
     monkeypatch.setenv("SANTE_URL", "http://exemple.test:1234/")
@@ -198,16 +200,96 @@ def test_adresse_tailscale():
 
 
 # ------------------------------------------------------------ appels à sante-api
-def relais_simule(reponse, horloge=None, adresses=("100.64.0.10",), source=lambda ip, port: "100.64.0.10"):
+def relais_simule(reponse, horloge=None, adresses=("100.64.0.10",), source=lambda ip, port: "100.64.0.10",
+                  profil="pc", url="http://sante.test:8096"):
     vu = []
 
     def appel(requete):
         vu.append(requete)
         return reponse(requete) if callable(reponse) else reponse
     kw = {"horloge": horloge} if horloge else {}
-    relais = SA.Relais("http://sante.test:8096", "jeton-invente-de-test", transport=httpx.MockTransport(appel),
-                       resoudre=lambda h: list(adresses), source=source, **kw)
+    relais = SA.Relais(url, "jeton-invente-de-test", transport=httpx.MockTransport(appel),
+                       resoudre=lambda h: list(adresses), source=source, profil=profil, **kw)
     return relais, vu
+
+
+# ------------------------------------------------------------ profil ha (0.53.0)
+POINT_DOCKER = "172.30.33.3"  # adresse d'un conteneur sur le réseau pont du superviseur
+
+
+def test_ha_sans_jeton_relais_eteint(monkeypatch):
+    monkeypatch.delenv("SANTE_JETON", raising=False)
+    monkeypatch.setenv("SANTE_URL", "http://sante.test:8096")
+    assert SA.depuis_env("ha") is None
+    monkeypatch.setenv("SANTE_JETON", "   ")
+    assert SA.depuis_env("ha") is None
+
+
+def test_ha_source_pont_destination_tailscale_permise(jour_fixe):
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha",
+                               source=lambda ip, port: POINT_DOCKER)
+    d = asyncio.run(relais.resume())
+    assert len(vu) == 1 and vu[0].url.host == "100.64.0.10" and d["nuit"]["minutes"] == 432
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha",
+                               source=lambda ip, port: "fd0c:ac1e:2100::5")
+    asyncio.run(relais.resume())
+    assert len(vu) == 1
+
+
+def test_ha_source_tailscale_permise(jour_fixe):
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha")  # mode réseau hôte
+    asyncio.run(relais.resume())
+    assert len(vu) == 1
+
+
+def test_ha_destination_hors_tailscale_refusee_jeton_garde():
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha", adresses=("8.8.4.4",),
+                               source=lambda ip, port: POINT_DOCKER)
+    with pytest.raises(SA.ErreurSante, match="ne mène pas dans Tailscale") as e:
+        asyncio.run(relais.resume())
+    assert vu == [] and "jeton-invente-de-test" not in str(e.value)
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha",
+                               adresses=("192.168.0.20", "100.64.0.10"), source=lambda ip, port: POINT_DOCKER)
+    with pytest.raises(SA.ErreurSante, match="jeton gardé"):
+        asyncio.run(relais.resume())
+    assert vu == []
+
+
+def test_ha_source_publique_ou_lan_refusee():
+    for source in ("203.0.113.9", "192.168.0.20", "10.0.0.10", "127.0.0.1"):
+        relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha",
+                                   source=lambda ip, port, s=source: s)
+        with pytest.raises(SA.ErreurSante, match="ne passe pas par Tailscale"):
+            asyncio.run(relais.resume())
+        assert vu == []
+
+
+def test_pc_source_pont_refusee():
+    for source in (POINT_DOCKER, "172.30.33.2", "fd0c:ac1e:2100::5"):
+        relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="pc",
+                                   source=lambda ip, port, s=source: s)
+        with pytest.raises(SA.ErreurSante, match="ne passe pas par Tailscale"):
+            asyncio.run(relais.resume())
+        assert vu == []
+    with pytest.raises(SA.ErreurSante):  # route_tailscale seule, profil par défaut = pc
+        SA.route_tailscale(ipaddress.ip_address("100.64.0.10"), 8096, lambda ip, port: POINT_DOCKER)
+
+
+def test_https_certificat_verifie_contre_le_nom(jour_fixe):
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()), profil="ha",
+                               source=lambda ip, port: POINT_DOCKER, url="https://sante.test:8096")
+    asyncio.run(relais.resume())
+    assert vu[0].extensions.get("sni_hostname") == "sante.test" and vu[0].headers["Host"] == "sante.test:8096"
+    relais, vu = relais_simule(httpx.Response(200, json=resume_invente()))
+    asyncio.run(relais.resume())
+    assert "sni_hostname" not in vu[0].extensions
+
+
+def test_ha_jeton_jamais_dans_les_erreurs(jour_fixe):
+    relais, _ = relais_simule(httpx.Response(500), profil="ha", source=lambda ip, port: POINT_DOCKER)
+    with pytest.raises(SA.ErreurSante) as e:
+        asyncio.run(relais.resume())
+    assert "jeton-invente-de-test" not in str(e.value) and "100.64.0.10" not in str(e.value)
 
 
 @pytest.fixture

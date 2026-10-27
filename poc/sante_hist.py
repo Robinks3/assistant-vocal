@@ -10,7 +10,7 @@ Code de référence : le service de santé.
 
 Garde-fous de lecture, les mêmes que le relais (sante.py) : le nom est résolu ici, toutes ses
 adresses doivent être dans Tailscale (sante.adresse_tailscale), la route doit partir de l'interface
-Tailscale du PC (sante.route_tailscale, port 443), puis la connexion vise l'adresse vérifiée avec le
+Tailscale du PC, ou du réseau pont de Docker en profil ha (sante.route_tailscale, port 443), puis la connexion vise l'adresse vérifiée avec le
 nom en SNI et en Host, certificat vérifié. trust_env=False, délai de 20 s (4 s pour se connecter),
 Accept-Encoding: identity pour que le plafond de 16 Mo, lu en flux, porte sur les octets reçus, une
 seule lecture en vol, au plus une lecture toutes les 10 min (requête conditionnelle ensuite), panne
@@ -968,7 +968,8 @@ class Historique:
     (les demandes l'attendent), DUREE_CACHE secondes entre deux lectures, panne gardée DUREE_ERREUR."""
 
     def __init__(self, url_sante, jeton, url_donnees=URL_DONNEES, horloge=time.monotonic, maintenant=time.time,
-                 transport=None, resoudre=SA.resoudre_dns, source=SA.source_vers):
+                 transport=None, resoudre=SA.resoudre_dns, source=SA.source_vers, profil="pc"):
+        self.profil = profil
         self.url = (url_donnees or URL_DONNEES).strip()
         self.url_sante = (url_sante or SA.URL_DEFAUT).strip().rstrip("/")
         self._jeton = jeton
@@ -991,7 +992,7 @@ class Historique:
         hote, port = morceaux.hostname, morceaux.port or 443
         try:
             ip = SA.adresse_tailscale(hote, self._resoudre)
-            SA.route_tailscale(ip, port, self._source)
+            SA.route_tailscale(ip, port, self._source, self.profil)
         except ErreurSante as e:
             # Messages du relais, ajustés : ici aucun jeton ne part, c'est la lecture qui est annulée.
             raise ErreurSante(str(e).replace("jeton gardé", "lecture annulée")
@@ -1103,7 +1104,7 @@ class Historique:
         hote, port = morceaux.hostname or "", morceaux.port or (443 if morceaux.scheme == "https" else 80)
         try:
             ip = SA.adresse_tailscale(hote, self._resoudre)
-            SA.route_tailscale(ip, port, self._source)
+            SA.route_tailscale(ip, port, self._source, self.profil)
         except ErreurSante:
             raise AnalyseIndisponible("hors Tailscale") from None
         cible = (f"{morceaux.scheme}://{f'[{ip}]' if ip.version == 6 else ip}:{port}"
@@ -1235,11 +1236,11 @@ class Historique:
 
 
 def depuis_env(profil):
-    """Historique en profil pc avec SANTE_JETON (comme le relais), sinon None. Le fichier du tableau
+    """Historique en profil pc ou ha avec SANTE_JETON (comme le relais), sinon None. Le fichier du tableau
     de bord se lit sans jeton, le jeton ne sert qu'aux analyses écrites."""
-    if profil != "pc":
+    if profil not in ("pc", "ha"):
         return None
     jeton = os.getenv("SANTE_JETON", "").strip()
     if not jeton:
         return None
-    return Historique(os.getenv("SANTE_URL", "").strip() or SA.URL_DEFAUT, jeton)
+    return Historique(os.getenv("SANTE_URL", "").strip() or SA.URL_DEFAUT, jeton, profil=profil)

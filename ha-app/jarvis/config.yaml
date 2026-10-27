@@ -1,6 +1,6 @@
 # Nom affiché remplacé au déploiement par la section assistant de maison.json (deployer.sh).
 name: Assistant vocal
-version: "0.52.0"
+version: "0.53.0"
 slug: jarvis
 description: Serveur de l'assistant vocal local (téléphones satellites), sans PC fixe.
 # 0.36.3 : aarch64 ajouté (Raspberry Pi 4 et 5, Home Assistant Green). L'image python:5.12-slim et les
@@ -35,6 +35,8 @@ options:
   stt_api_url: "https://api.mistral.ai/v1/audio/transcriptions"
   stt_api_modele: "voxtral-mini-latest"
   stt_api_nom: "Voxtral"
+  sante_jeton: ""
+  llm_local_url: ""
 schema:
   anthropic_api_key: password
   satellite_jeton: password
@@ -44,3 +46,5 @@ schema:
   stt_api_url: url
   stt_api_modele: str
   stt_api_nom: str
+  sante_jeton: password
+  llm_local_url: str

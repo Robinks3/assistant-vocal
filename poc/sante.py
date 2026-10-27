@@ -1,7 +1,9 @@
 """Relais des données de santé pour l'écran de la tablette (0.19.0, demande du 22/10/2026).
 
 Le service sante-api tourne sur un serveur-exemple, joignable seulement par
-Tailscale. Le PC est sur le tailnet, l'appli Home Assistant non : le relais n'existe qu'en profil pc.
+Tailscale. Le PC est sur le tailnet. Depuis la 0.53.0, l'appli Home Assistant (profil ha) peut aussi faire le
+relais, à condition que l'hôte de Home Assistant soit lui-même sur le tailnet : l'option `sante_jeton` de
+l'appli renseigne SANTE_JETON, vide par défaut, et sans jeton le relais n'existe pas (comme avant).
 
 Configuration dans poc/.env :
   SANTE_JETON      jeton de sante-api. Absent : pas de relais, capacité « sante » fausse.
@@ -16,8 +18,16 @@ Le relais n'est servi que sur la liaison chiffrée (wss, port 8766), jamais sur 
 Le jeton ne part que vers une adresse Tailscale (100.64.0.0/10 ou fd7a:115c:a1e0::/48) : le nom est
 résolu ici, puis la connexion vise l'adresse vérifiée. Un nom MagicDNS ne suffit pas, le DNS public
 résout aussi les noms en ts.net (vers des serveurs de Tailscale) quand Tailscale est coupé. Et comme le
-DNS public peut aussi rendre l'adresse en 100.x, le relais vérifie en plus que la route vers cette
-adresse part de l'interface Tailscale du PC (adresse locale en 100.64.0.0/10), sinon le jeton reste ici.
+DNS public peut aussi rendre l'adresse en 100.x, le relais vérifie en plus la route vers cette adresse.
+Profil pc : elle doit partir de l'interface Tailscale du PC (adresse locale en 100.64.0.0/10), sinon le
+jeton reste ici. Profil ha : le conteneur est sur le réseau pont de Docker et ne voit pas la table de
+routage de l'hôte, son adresse locale est donc une adresse du pont (172.16.0.0/12, fc00::/7) ou, si le
+réseau de l'appli un jour passe en mode hôte, une adresse Tailscale. Toute autre source (adresse publique,
+LAN) est refusée. Risque résiduel, à connaître : si Tailscale est coupé sur l'hôte de Home Assistant et que
+le DNS rend quand même une adresse en 100.x, un jeton en http clair partirait par la route par défaut de
+l'hôte, vers une adresse du CGNAT de l'opérateur qui ne mène normalement nulle part. En https le jeton ne
+part jamais vers un serveur qui n'a pas le certificat du nom, la connexion visant l'adresse avec le nom
+en SNI et vérifié, ce qui supprime le risque. Préférer une sante_url en https.
 
 Rien sur disque, rien dans les journaux : le résumé brut de sante-api (GET /api/resume?jours=8, lu en
 flux, 2 Mo au plus) est réduit tout de suite, et seule la version réduite reste 10 minutes en
@@ -81,6 +91,9 @@ TAILLE_MAX = 2_000_000  # octets, réponse brute de sante-api
 POINTS_COURBE = 60
 SEANCES_MAX = 30
 RESEAUX_TAILSCALE = (ipaddress.ip_network("100.64.0.0/10"), ipaddress.ip_network("fd7a:115c:a1e0::/48"))
+# Réseau pont privé de Docker, source possible d'un conteneur en profil ha (172.30.32.0/23 pour le superviseur de
+# Home Assistant, fd0c:ac1e:2100::/48 en IPv6). Jamais admis en profil pc.
+RESEAUX_PONT = (ipaddress.ip_network("172.16.0.0/12"), ipaddress.ip_network("fc00::/7"))
 
 CLE = re.compile(r"[a-z0-9_]{1,30}")
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -293,14 +306,16 @@ def source_vers(ip, port):
         return s.getsockname()[0]
 
 
-def route_tailscale(ip, port, source=source_vers):
+def route_tailscale(ip, port, source=source_vers, profil="pc"):
     """ErreurSante si la route vers ip ne part pas de l'interface Tailscale : Tailscale coupé, le jeton
-    partirait en clair par la route par défaut."""
+    partirait en clair par la route par défaut. Profil ha : le conteneur ne voit pas la route de l'hôte,
+    une adresse du réseau pont de Docker est admise en plus (voir la docstring de tête)."""
     try:
         locale = ipaddress.ip_address(str(source(ip, port)).split("%")[0])
     except (OSError, ValueError):
         raise ErreurSante("pas de route vers sante-api (Tailscale coupé ?), jeton gardé") from None
-    if not any(locale in r for r in RESEAUX_TAILSCALE):
+    admis = RESEAUX_TAILSCALE + (RESEAUX_PONT if profil == "ha" else ())
+    if not any(locale in r for r in admis):
         raise ErreurSante("la route vers sante-api ne passe pas par Tailscale, jeton gardé")
 
 
@@ -308,8 +323,10 @@ class Relais:
     """Appels à sante-api : une seule demande en vol (les autres l'attendent), résultat réduit gardé
     DUREE_CACHE secondes en mémoire, panne gardée DUREE_ERREUR secondes."""
 
-    def __init__(self, url, jeton, horloge=time.monotonic, transport=None, resoudre=resoudre_dns, source=source_vers):
+    def __init__(self, url, jeton, horloge=time.monotonic, transport=None, resoudre=resoudre_dns, source=source_vers,
+                 profil="pc"):
         self.url = (url or URL_DEFAUT).strip().rstrip("/")
+        self.profil = profil
         self._jeton = jeton
         self._horloge = horloge
         self._transport = transport  # httpx.MockTransport dans les tests
@@ -326,15 +343,18 @@ class Relais:
         morceaux = urlsplit(self.url)
         hote, port = morceaux.hostname or "", morceaux.port or (443 if morceaux.scheme == "https" else 80)
         ip = adresse_tailscale(hote, self._resoudre)
-        route_tailscale(ip, port, self._source)
+        route_tailscale(ip, port, self._source, self.profil)
         cible = (f"{morceaux.scheme}://{f'[{ip}]' if ip.version == 6 else ip}:{port}"
                  f"{morceaux.path.rstrip('/')}/api/resume")
         entetes = {"Authorization": f"Bearer {self._jeton}", "Host": f"{hote}:{port}"}
+        # En https la connexion vise l'adresse vérifiée, le certificat est contrôlé contre le nom.
+        extensions = {"sni_hostname": hote} if morceaux.scheme == "https" else {}
         corps = bytearray()
         try:
             with httpx.Client(transport=self._transport, trust_env=False,
                               timeout=httpx.Timeout(DELAI, connect=DELAI_CONNEXION)) as client:
-                with client.stream("GET", cible, params={"jours": JOURS_DEMANDES}, headers=entetes) as r:
+                with client.stream("GET", cible, params={"jours": JOURS_DEMANDES}, headers=entetes,
+                                   extensions=extensions) as r:
                     if r.status_code in (401, 403):
                         raise ErreurSante(f"jeton refusé par sante-api ({r.status_code})")
                     if r.status_code != 200:
@@ -397,10 +417,11 @@ class Relais:
 
 
 def depuis_env(profil):
-    """Relais configuré par SANTE_URL et SANTE_JETON (poc/.env), ou None : profil ha, ou jeton absent."""
-    if profil != "pc":
+    """Relais configuré par SANTE_URL et SANTE_JETON (poc/.env, ou option sante_jeton de l'appli HA), ou None :
+    profil inconnu, ou jeton absent."""
+    if profil not in ("pc", "ha"):
         return None
     jeton = os.getenv("SANTE_JETON", "").strip()
     if not jeton:
         return None
-    return Relais(os.getenv("SANTE_URL", "").strip() or URL_DEFAUT, jeton)
+    return Relais(os.getenv("SANTE_URL", "").strip() or URL_DEFAUT, jeton, profil=profil)
