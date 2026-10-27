@@ -165,6 +165,7 @@ class Moteur:
         self.calibration = None
         self.satellites = set()
         self.pages_admin = set()  # pages d'administration ouvertes (Ingress), voir administration.py
+        self.service_web = None   # client web (serveur_web.ServiceWeb), None s'il n'est pas démarré
         self.cerveau_actif = "claude" if cfg.get("llm_fournisseur") == "claude" else "local"
         self.cerveau_pret, self.cerveau_message = True, ""
         self.essai = essai
@@ -1696,7 +1697,21 @@ async def servir(args):
     if port_web:  # client web pour téléphone (S-W1a) : boucle locale seule par défaut, Tailscale Serve le publie
         adresse_web = getattr(args, "adresse_web", "") or serveur_web.ADRESSE_DEFAUT
         try:
-            serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION))
+            # Sessions et clés publiques dans le dossier de données (survivent au redémarrage), jamais en dur.
+            service_web = serveur_web.ServiceWeb(
+                port_web, A.VERSION, maison.maintenant().strftime("%d/%m/%Y"),
+                sessions=serveur_web.Sessions(duree_s=serveur_web.duree_session_s(),
+                                              fichier=A.DONNEES / "sessions_web.json"))
+            service_web.brancher_appairage(A.DONNEES / "appareils_web.json", invite_jours=serveur_web.invite_jours())
+
+            def vers_ha(message):  # un événement d'appairage web vers les pages d'administration ouvertes
+                try:
+                    asyncio.ensure_future(administration.notifier_web(moteur, message))
+                except RuntimeError:  # pas de boucle active
+                    pass
+            service_web.sur_ha = vers_ha
+            moteur.service_web = service_web
+            serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
         except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir
             print(f"Client web non démarré sur {adresse_web}:{port_web} : {e}")

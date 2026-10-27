@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Réglages</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/reglages.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="lien-retour"><a href="/">Accueil</a></p>
+<h1 class="titre-page">Réglages</h1>
+
+<section id="carte-appareils" class="carte" aria-labelledby="titre-appareils">
+<h2 class="surtitre" id="titre-appareils">Appareils associés</h2>
+<p id="compte-appareils" class="secondaire" role="status">Chargement</p>
+<ul id="liste-appareils" class="appareils"></ul>
+<p id="erreur-liste" class="alerte" role="alert" hidden></p>
+<div id="bloc-associer" hidden>
+<a class="bouton bouton--principal bouton--plein" href="/associer">Associer un navigateur</a>
+<p class="aide">Chaque appareil qui reste 30 jours sans se connecter perd son accès.</p>
+</div>
+</section>
+
+<section id="carte-navigateur" class="carte" aria-labelledby="titre-navigateur">
+<h2 class="surtitre" id="titre-navigateur">Ce navigateur</h2>
+<p class="carte-texte">Pour retirer cet appareil de la liste, effacer ses données locales et couper son accès, oubliez-le. Il faudra l'associer de nouveau.</p>
+<button id="bouton-oublier" type="button" class="bouton bouton--danger bouton--plein">Oublier ce navigateur</button>
+</section>
+
+<section id="carte-serveur" class="carte" aria-labelledby="titre-serveur">
+<h2 class="surtitre" id="titre-serveur">Serveur</h2>
+<p class="fort carte-texte">Accès par le réseau privé</p>
+<p class="secondaire">Seuls les appareils associés peuvent joindre la maison.</p>
+<dl class="resume">
+<div><dt>Client web</dt><dd id="version-client">{{version_client}}</dd></div>
+<div><dt>Serveur</dt><dd id="version-serveur">{{version_serveur}}</dd></div>
+<div><dt>Généré le</dt><dd id="date-serveur">{{date}}</dd></div>
+</dl>
+</section>
+
+<dialog id="dialogue-revoquer" class="dialogue" aria-labelledby="titre-revoquer">
+<h2 id="titre-revoquer" class="titre-dialogue">Révoquer <span id="nom-revoquer"></span> ?</h2>
+<p class="carte-texte">Cet appareil perd l'accès tout de suite, même s'il est ouvert en ce moment. Pour revenir, il devra être associé de nouveau avec un nouveau code.</p>
+<p id="erreur-revoquer" class="alerte" role="alert" hidden></p>
+<button id="bouton-revoquer-confirmer" type="button" class="bouton bouton--danger-plein bouton--plein">Révoquer avec ma clé d'accès</button>
+<button id="bouton-revoquer-annuler" type="button" class="bouton bouton--plein">Annuler</button>
+</dialog>
+
+<dialog id="dialogue-oublier" class="dialogue" aria-labelledby="titre-oublier">
+<h2 id="titre-oublier" class="titre-dialogue">Oublier ce navigateur ?</h2>
+<p class="carte-texte">Ce navigateur est retiré de la liste, son accès est coupé et ses données locales sont effacées. Vous reviendrez à l'écran de saisie du code.</p>
+<p id="avertissement-dernier" class="avertissement" hidden>Vous êtes le dernier propriétaire. Sans autre appareil propriétaire, la remise en route passe par la console du PC.</p>
+<p id="erreur-oublier" class="alerte" role="alert" hidden></p>
+<button id="bouton-oublier-confirmer" type="button" class="bouton bouton--danger-plein bouton--plein">Oublier ce navigateur</button>
+<button id="bouton-oublier-annuler" type="button" class="bouton bouton--plein">Annuler</button>
+</dialog>
+
+</main>
+</body>
+</html>

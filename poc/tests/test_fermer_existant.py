@@ -77,6 +77,8 @@ TYPES_ANDROID = {"appareils", "appairer", "refuser_appareil", "revoquer", "manqu
                  "reveil", "transcrire", "sante", "sante_periode", "sante_seances", "sante_seance",
                  "sante_records", "sante_jour", "vision"}
 TYPES_CLIENT_ADMIN = {"appairer", "refuser_appareil", "changer_role", "revoquer", "inviter", "annuler_invitation"}
+# Appairage web (S-W1b) : messages de la page d'administration seule (Ingress), jamais permis sur le port chiffré.
+TYPES_PAGE_WEB = {"web_ouvrir", "web_confirmer", "web_annuler", "web_revoquer"}
 
 
 def test_la_table_a_une_entree_par_role_et_les_roles_emboites():
@@ -103,10 +105,13 @@ def test_chaque_type_trouve_dans_les_sources_kotlin_est_dans_la_table():
 def test_chaque_type_du_client_d_administration_est_permis_a_l_administrateur_seul():
     source = (RACINE / "poc" / "admin" / "admin.js").read_text(encoding="utf-8")
     trouves = set(re.findall(r'type:\s*"([a-z_]+)"', source))
-    assert trouves == TYPES_CLIENT_ADMIN
-    for genre in trouves:
+    assert trouves == TYPES_CLIENT_ADMIN | TYPES_PAGE_WEB
+    for genre in TYPES_CLIENT_ADMIN:
         assert acces.type_permis("administrateur", genre), genre
         for role in ("habitant", "partage", "invite"):
+            assert not acces.type_permis(role, genre), (genre, role)
+    for genre in TYPES_PAGE_WEB:
+        for role in acces.ROLES:
             assert not acces.type_permis(role, genre), (genre, role)
 
 

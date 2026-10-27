@@ -210,8 +210,121 @@
     $("qr").removeAttribute("src");
   }
 
+  // Navigateurs web (client web, S-W1b). Le code n'arrive que dans la réponse à « web_ouvrir », jamais dans la vue.
+  var WEB_ROLES = { administrateur: "Propriétaire", habitant: "Habitant", invite: "Invité" };
+  var webOuverture = null, webFin = 0, webMinuteur = null, webConfirmation = null, webDerniere = null;
+
+  function webRoles(proprietaire) {
+    var s = $("web-role"), ancien = s.value;
+    s.replaceChildren();
+    (proprietaire ? ["habitant", "invite"] : ["administrateur", "habitant", "invite"]).forEach(function (r) {
+      var o = el("option", "", WEB_ROLES[r]);
+      o.value = r;
+      s.appendChild(o);
+    });
+    if (ancien && s.querySelector('option[value="' + ancien + '"]')) s.value = ancien;
+  }
+
+  function webEtatTexte(o) {
+    if (o.etat === "attente") return "Le navigateur a créé sa clé. Compare puis confirme.";
+    if (o.etat === "creation") return "Le code est bon, le navigateur crée sa clé...";
+    return "En attente du code sur le téléphone.";
+  }
+
+  function webVue(m) {
+    webDerniere = m;
+    $("web-indisponible").hidden = m.disponible;
+    $("web-bloc").hidden = !m.disponible;
+    if (!m.disponible) return;
+    webRoles(m.proprietaire);
+    var liste = m.appareils || [], ul = $("web-appareils");
+    ul.replaceChildren();
+    ul.hidden = !liste.length;
+    $("web-aucun").hidden = liste.length > 0;
+    liste.forEach(function (a) {
+      var li = el("li");
+      var tete = el("div", "carte-tete");
+      tete.appendChild(el("span", "nom", a.nom || "Navigateur sans nom"));
+      tete.appendChild(el("span", "discret", a.en_ligne ? "En ligne" : "Hors ligne"));
+      li.appendChild(tete);
+      li.appendChild(el("p", "discret", "Rôle : " + (WEB_ROLES[a.role] || a.role) + ". Créé le " + dateCreation(a.cree) +
+        ". Dernière connexion : " + date(a.dernier) + "."));
+      var actions = el("div", "actions");
+      var nom = a.nom || "ce navigateur";
+      if (webConfirmation === a.id) {
+        var q = el("span", "", "Révoquer " + nom + " ?");
+        q.setAttribute("role", "alert");
+        actions.appendChild(q);
+        var oui = bouton("Oui, révoquer", "danger plein", function () {
+          webConfirmation = null;
+          envoyer({ type: "web_revoquer", id: a.id });
+        });
+        oui.setAttribute("aria-label", "Oui, révoquer " + nom);
+        actions.appendChild(oui);
+        actions.appendChild(bouton("Garder", "", function () { webConfirmation = null; webVue(webDerniere); }));
+      } else {
+        var rev = bouton("Révoquer", "danger", function () { webConfirmation = a.id; webVue(webDerniere); });
+        rev.setAttribute("aria-label", "Révoquer " + nom);
+        actions.appendChild(rev);
+      }
+      li.appendChild(actions);
+      ul.appendChild(li);
+    });
+    var o = m.ouverture || { ouverte: false };
+    if (o.ouverte) {
+      if (!webOuverture) webAfficher({ code: null, reste: o.restant || 0, qr: null });
+      $("web-etat").textContent = webEtatTexte(o);
+      $("web-confirmer").hidden = o.etat !== "attente";
+    } else if (webOuverture) {
+      webMasquer();
+    }
+  }
+
+  function webAfficher(m) {
+    webOuverture = m;
+    webFin = Date.now() + m.reste * 1000;
+    $("web-ajout").hidden = true;
+    $("web-ouverture").hidden = false;
+    var code = $("web-code");
+    code.textContent = m.code ? m.code.replace(/(\d{3})(\d{3})/, "$1 $2")
+      : "Un appairage est déjà ouvert sur un autre écran. Annule-le pour en ouvrir un nouveau.";
+    if (m.code) code.setAttribute("aria-label", chiffres(m.code)); else code.removeAttribute("aria-label");
+    var qr = $("web-qr");
+    if (m.qr && m.qr.indexOf("data:image/") === 0) { qr.src = m.qr; qr.hidden = false; }
+    else { qr.removeAttribute("src"); qr.hidden = true; }
+    $("web-etat").textContent = "En attente du code sur le téléphone.";
+    clearInterval(webMinuteur);
+    webMinuteur = setInterval(webTic, 1000);
+    webTic();
+  }
+  function webTic() {
+    var reste = (webFin - Date.now()) / 1000;
+    if (reste <= 0) { webMasquer(); bandeau("L'appairage a expiré. Ouvre-en un nouveau."); return; }
+    $("web-compte").textContent = "Expire dans " + duree(reste);
+  }
+  function webMasquer() {
+    webOuverture = null;
+    clearInterval(webMinuteur);
+    $("web-ouverture").hidden = true;
+    $("web-ajout").hidden = false;
+    $("web-code").textContent = "";
+    $("web-qr").removeAttribute("src");
+    $("web-confirmer").hidden = true;
+  }
+
   function recu(m) {
-    if (m.etat === "session") {
+    if (m.etat === "web") {
+      webVue(m);
+    } else if (m.etat === "web_ouverture") {
+      webAfficher({ code: m.code, reste: m.duree, qr: m.qr });
+      bandeau("Appairage ouvert, valable " + Math.round(m.duree / 60) + " minutes.");
+    } else if (m.etat === "web_confirme") {
+      webMasquer();
+      bandeau("Navigateur associé : " + (m.nom || "sans nom") + ".");
+    } else if (m.etat === "web_evenement") {
+      if (m.evenement === "appairage_fait") bandeau("Un navigateur vient d'être associé.");
+      else if (m.evenement === "appairage_ferme") bandeau("L'appairage web est fermé.");
+    } else if (m.etat === "session") {
       $("titre").textContent = (m.assistant || "Assistant") + " : administration";
       $("sous-titre").textContent = "Connecté en tant que " + (m.utilisateur || "administrateur");
       $("infos").textContent = "Serveur " + (m.version || "");
@@ -251,6 +364,15 @@
     envoyer({ type: "annuler_invitation" });
     masquerInvitation();
     $("creer-code").focus();
+  });
+  $("web-ouvrir").addEventListener("click", function () {
+    envoyer({ type: "web_ouvrir", nom: $("web-nom").value.trim(), role: $("web-role").value });
+  });
+  $("web-confirmer").addEventListener("click", function () { envoyer({ type: "web_confirmer" }); });
+  $("web-annuler").addEventListener("click", function () {
+    envoyer({ type: "web_annuler" });
+    webMasquer();
+    $("web-ouvrir").focus();
   });
   connecter();
 })();

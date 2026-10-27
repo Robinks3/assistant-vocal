@@ -43,6 +43,12 @@ TYPES_PAGE = frozenset({"appareils", "appairer", "refuser_appareil", "revoquer",
 TYPES_APPAREILS = TYPES_PAGE
 # Invitation : le code n'est montré que dans la page.
 TYPES_PAGE_SEULE = frozenset({"inviter", "annuler_invitation"})
+# Client web (S-W1b) : la page d'administration amorce la première clé du propriétaire et sert de secours. Ces
+# messages ne passent jamais par un satellite, ni par le client web lui-même.
+TYPES_WEB = frozenset({"web_etat", "web_ouvrir", "web_confirmer", "web_annuler", "web_revoquer"})
+CAUSES_WEB = {"role": "rôle non permis (un propriétaire web existe déjà, ou rôle inconnu)", "nom": "nom invalide",
+              "droit": "droit insuffisant", "limite": "trop d'ouvertures, réessayer dans quelques minutes",
+              "etat": "aucun navigateur n'attend de confirmation", "cible": "appareil inconnu"}
 
 
 class Page:
@@ -147,6 +153,64 @@ async def gerer_appareils(moteur, msg, acteur, courant=None, page=False):
     return reponses
 
 
+def vue_web(moteur):
+    """État du client web pour la page : appareils (sans clé), ouverture en cours (jamais le code)."""
+    service = getattr(moteur, "service_web", None)
+    if service is None or service.appairage is None:
+        return {"etat": "web", "disponible": False}
+    ap = service.appairage
+    ouverture = ap.etat_ouverture()
+    if ouverture.get("ouverte"):  # durée restante plutôt qu'une date : l'horloge du navigateur peut différer
+        ouverture["restant"] = max(0, int(ouverture["expire"] - ap.horloge()))
+    return {"etat": "web", "disponible": True, "hote": service.hote, "appareils": service.liste_appareils(),
+            "ouverture": ouverture, "proprietaire": ap.appareils.a_proprietaire()}
+
+
+async def gerer_web(moteur, msg, acteur):
+    """Traite un message TYPES_WEB de la page d'administration. Renvoie les messages à répondre à la page.
+
+    Home Assistant n'ouvre un appairage de propriétaire que s'il n'en existe aucun (appairage_web.ouvrir). La page
+    confirme sans clé d'accès : l'administrateur de HA (liste blanche, Ingress) est l'autorité de dépannage."""
+    import appairage_web as AW
+    service = getattr(moteur, "service_web", None)
+    genre = msg.get("type")
+    if service is None or service.appairage is None:
+        return [{"etat": "refuse", "type": genre, "message": "client web non démarré"}, vue_web(moteur)]
+    ap = service.appairage
+    reponses = []
+    try:
+        if genre == "web_ouvrir":
+            o = ap.ouvrir(msg.get("nom"), msg.get("role"), "ha")
+            print(f"[{acteur}] appairage web ouvert pour le rôle {o['role']}")  # jamais le code
+            reponses.append({"etat": "web_ouverture", "code": o["code"], "expire": o["expire"], "duree": o["duree"],
+                             "nom": o["nom"], "role": o["role"], "qr": service.qr_appairage(o["code"])})
+        elif genre == "web_confirmer":
+            appareil = ap.finaliser()
+            print(f"[{acteur}] appairage web confirmé ({appareil['role']})")
+            reponses.append({"etat": "web_confirme", "nom": appareil["nom"], "role": appareil["role"]})
+        elif genre == "web_annuler":
+            if ap.annuler():
+                print(f"[{acteur}] appairage web annulé")
+        elif genre == "web_revoquer":
+            a = ap.revoquer(str(msg.get("id", ""))[:32])
+            print(f"[{acteur}] appareil web révoqué ({a['role']})")
+    except AW.ErreurAppairage as e:
+        reponses.append({"etat": "refuse", "type": genre, "message": CAUSES_WEB.get(e.cause, "refusé")})
+    reponses.append(vue_web(moteur))
+    return reponses
+
+
+async def notifier_web(moteur, evenement=None):
+    """Prévient les pages d'un changement côté client web (appairage fait, fermé, appareil retiré)."""
+    for p in list(moteur.pages_admin):
+        try:
+            if evenement:
+                await p.envoyer(etat="web_evenement", **evenement)
+            await p.envoyer(**vue_web(moteur))
+        except Exception:
+            pass
+
+
 async def notifier_pages(moteur, sauf=None):
     """Envoie la liste à jour aux pages ouvertes (invitation utilisée, appareil créé ou retiré)."""
     for p in list(moteur.pages_admin):
@@ -215,12 +279,17 @@ async def session_page(moteur, ws, version):
         await page.envoyer(etat="session", assistant=maison.NOM_ASSISTANT, version=version,
                            utilisateur=utilisateur[1], client_web=bool(acces.url_client()))
         await page.envoyer(**moteur.appareils.vue(avec_code=True))
+        await page.envoyer(**vue_web(moteur))
         async for brut in ws:
             try:
                 msg = json.loads(brut)
             except (ValueError, RecursionError):
                 continue
             genre = msg.get("type") if isinstance(msg, dict) else None
+            if isinstance(genre, str) and genre in TYPES_WEB:
+                for rep in await gerer_web(moteur, msg, page.nom):
+                    await page.envoyer(**rep)
+                continue
             if not isinstance(genre, str) or genre not in TYPES_PAGE:
                 await page.envoyer(etat="refuse", type=str(genre)[:40], message="message non permis")
                 continue

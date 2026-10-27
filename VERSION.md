@@ -4,6 +4,26 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.47.0 (2026-10-27), appairage WebAuthn du client web
+Mineure. Session S-W1b du plan. Appli Home Assistant 0.47.0 (copie aussi `webauthn.py` et `appairage_web.py`),
+appli Android inchangée (0.46.0). Client web 0.3.0.
+- Appairage d'un téléphone par une clé WebAuthn propre à l'appareil (ES256, attestation `none`), sans mot de passe.
+  Module pur `poc/webauthn.py` (CBOR borné, vérifications de `type`, `origin`, `rpIdHash`, drapeaux UP et UV,
+  compteur de signatures) et cœur `poc/appairage_web.py` (code à 6 chiffres de 2 minutes, trois essais, défis
+  aléatoires à usage unique, tickets, un seul navigateur à la fois pendant la fenêtre).
+- Transport : les échanges WebAuthn passent par un WebSocket de même origine (`process_request` ne voit pas le
+  corps d'un POST). Seul le cookie `__Host-session` sort d'une réponse HTTP (`GET /appairage/fin` avec un ticket).
+- Amorçage du premier propriétaire : depuis la page d'administration de Home Assistant (Ingress), nouvelle section
+  « Navigateurs web ». Elle ne crée un propriétaire que s'il n'en existe aucun. Repli en console :
+  `python poc/appairage_web.py --reinitialiser`.
+- Stockage : `appareils_web.json` (clés publiques et compteurs, droits 0600, écriture atomique) et
+  `sessions_web.json` (empreintes seulement) dans le dossier de données. La clé d'accès est redemandée pour
+  appairer et révoquer. Le changement de confidentialité n'existe pas encore dans ce lot.
+- Écrans du client web : `/appairage` (saisie du code), `/associer` (le propriétaire ouvre, confirme), `/reglages`
+  (appareils associés, révocation, oubli de ce navigateur). Contrôle de mise en page à zéro défaut
+  (`poc/tests/test_pages_web_mise_en_page.py`).
+- Nouvelle clé de configuration `client_web.invite_jours` (7 par défaut), `hote` sert aussi de rpId.
+
 ## Documentation (2026-10-27), superpositions des maquettes du client web (S-W0d), sans changement de version
 Session S-W0d du plan. Les superpositions relevées dans les maquettes du client web sont corrigées (maquettes
 1.0.1). Nouvel outil `poc/outils/verifier_mise_en_page.py`, qui mesure les chevauchements et débordements d'une

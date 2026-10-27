@@ -244,14 +244,15 @@ def test_attributs_du_cookie():
     assert "Max-Age=0" in W.en_tete_cookie_efface()
 
 
-def test_appairage_pas_encore_disponible(sessions):
+def test_page_d_appairage_publique_avec_les_entetes_de_securite(sessions):
     async def scenario(port):
-        return await get(port, "/appairage")
-    statut, entetes, corps = avec_serveur(sessions, scenario)
-    assert statut == 501
-    assert entetes["content-type"].startswith("application/json")
-    assert json.loads(corps)["etat"] == "indisponible"
-    verifier_entetes_securite(entetes)
+        return await get(port, "/appairage"), await get(port, "/appairage.js"), await get(port, "/client.js")
+    page, script, client = avec_serveur(sessions, scenario)
+    assert page[0] == 200 and page[1]["content-type"].startswith("text/html")
+    assert b"Iris" in page[2] and b"{{" not in page[2]
+    assert script[0] == 200 and client[0] == 200
+    for reponse in (page, script, client):
+        verifier_entetes_securite(reponse[1])
 
 
 def test_journal_sans_cookie_ni_jeton(sessions, journal):
@@ -305,21 +306,31 @@ def test_fichiers_statiques_servis_avec_le_bon_type(sessions):
     assert W.FICHIERS["/app.js"][1].startswith("text/javascript")
 
 
+PAGES = ("index.html", "appairage.html", "associer.html", "reglages.html")
+SCRIPTS = ("app.js", "client.js", "appairage.js", "associer.js", "reglages.js")
+
+
 def test_page_sans_script_ni_style_en_ligne_ni_ressource_externe():
-    html = (W.DOSSIER / "index.html").read_text(encoding="utf-8")
-    assert not re.search(r"<script(?![^>]*\bsrc=)", html) and "<style" not in html
-    assert not re.search(r"\sstyle=", html) and not re.search(r"\son[a-z]+=", html, re.I)
-    assert not re.search(r"(src|href|action)=\"(https?:)?//", html)
+    for nom in PAGES:
+        html = (W.DOSSIER / nom).read_text(encoding="utf-8")
+        assert not re.search(r"<script(?![^>]*\bsrc=)", html) and "<style" not in html, nom
+        assert not re.search(r"\sstyle=", html) and not re.search(r"\son[a-z]+=", html, re.I), nom
+        assert not re.search(r"(src|href|action)=\"(https?:)?//", html), nom
+        assert not re.search(r"tabindex=\"[1-9]", html), nom
     css = (W.DOSSIER / "app.css").read_text(encoding="utf-8")
     assert "@import" not in css and not re.search(r"url\(\s*[\"']?(https?:)?//", css)
-    js = (W.DOSSIER / "app.js").read_text(encoding="utf-8")
-    for interdit in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "localStorage",
-                     "location.search", "location.hash", "setAttribute('style'", "new Function"):
-        assert interdit not in js
+    for nom in SCRIPTS:
+        js = (W.DOSSIER / nom).read_text(encoding="utf-8")
+        for interdit in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "localStorage",
+                         "sessionStorage", "location.search", "location.hash", "setAttribute('style'",
+                         'setAttribute("style"', "new Function"):
+            if nom == "appairage.js" and interdit == "location.hash":
+                continue  # le QR porte le code dans le fragment (jamais envoyé au serveur), effacé dès la lecture
+            assert interdit not in js, (nom, interdit)
 
 
 def test_aucun_texte_typographique_d_ia_dans_la_coquille():
-    for nom in ("index.html", "app.css", "app.js"):
+    for nom in PAGES + SCRIPTS + ("app.css",):
         texte = (W.DOSSIER / nom).read_text(encoding="utf-8")
         interdits = {chr(c) for c in (0x2014, 0x2013, 0x2026, 0xA0, 0x202F, 0x200B, 0xFEFF)}
         assert not interdits & set(texte), nom

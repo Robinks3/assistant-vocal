@@ -34,23 +34,7 @@
     });
   }
 
-  function appairage() {
-    var bouton = $('bouton-appairage');
-    var message = $('message-appairage');
-    bouton.disabled = true;
-    fetch('/appairage', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
-      return r.json().catch(function () { return {}; });
-    }).then(function (j) {
-      message.textContent = j.message || 'L\'appairage n\'est pas encore disponible.';
-      message.hidden = false;
-    }).catch(function () {
-      message.textContent = 'Le serveur ne répond pas.';
-      message.hidden = false;
-    }).then(function () { bouton.disabled = false; });
-  }
-
   horloge();
   setInterval(horloge, 15000);
-  $('bouton-appairage').addEventListener('click', appairage);
   etat();
 })();

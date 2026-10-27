@@ -82,6 +82,28 @@ def _empreinte(texte):
     return hashlib.sha256(texte.encode("utf-8")).hexdigest()
 
 
+def ecrire_atomique(fichier, octets):
+    """Écrit un fichier de données d'un bloc (fichier temporaire puis remplacement), permissions 0600 quand le système
+    les connaît. Sert aux appareils web et aux sessions."""
+    fichier = Path(fichier)
+    fichier.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporaire = tempfile.mkstemp(dir=fichier.parent, prefix=fichier.name + ".")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(octets)
+        try:
+            os.chmod(temporaire, 0o600)
+        except OSError:
+            pass
+        os.replace(temporaire, fichier)
+    except BaseException:
+        try:
+            os.unlink(temporaire)
+        except OSError:
+            pass
+        raise
+
+
 class AppareilsWeb:
     """Les appareils web appairés, dans un fichier JSON du dossier de données (comme appareils.json).
 
@@ -109,24 +131,8 @@ class AppareilsWeb:
                 self._appareils[cle] = a
 
     def _sauver(self):
-        self.fichier.parent.mkdir(parents=True, exist_ok=True)
-        octets = json.dumps({"version": VERSION_FICHIER, "appareils": self._appareils}, ensure_ascii=False,
-                            indent=1).encode("utf-8")
-        fd, temporaire = tempfile.mkstemp(dir=self.fichier.parent, prefix=self.fichier.name + ".")
-        try:
-            with os.fdopen(fd, "wb") as f:
-                f.write(octets)
-            try:
-                os.chmod(temporaire, 0o600)
-            except OSError:
-                pass
-            os.replace(temporaire, self.fichier)
-        except BaseException:
-            try:
-                os.unlink(temporaire)
-            except OSError:
-                pass
-            raise
+        ecrire_atomique(self.fichier, json.dumps({"version": VERSION_FICHIER, "appareils": self._appareils},
+                                                 ensure_ascii=False, indent=1).encode("utf-8"))
 
     def tous(self):
         return sorted((dict(a) for a in self._appareils.values()), key=lambda a: (a["cree"], a["id"]))
@@ -215,14 +221,15 @@ class AppairageWeb:
             return None
         return self._ouverture
 
-    def _fermer(self, raison, **en_plus):
+    def _fermer(self, raison, notifier_conn=True, **en_plus):
         """Détruit l'ouverture en cours et prévient tout le monde. Raisons : expiree, essais, annulee, refusee,
-        deconnecte, remplacee, concurrent, creation_refusee."""
+        deconnecte, remplacee, concurrent, creation_refusee. notifier_conn=False quand la réponse directe à la
+        connexion du nouveau navigateur porte déjà « interrompu »."""
         o, self._ouverture = self._ouverture, None
         if o is None:
             return
         self.journal(f"appairage : interrompu ({raison})")
-        if o["conn"]:
+        if o["conn"] and notifier_conn:
             self._emettre("ouverture", {"etat": "interrompu"}, o["conn"])
         message = {"evenement": "appairage_ferme", "raison": raison, "nom": o["nom"], "role": o["role"], **en_plus}
         self._emettre("proprietaires", message)
@@ -330,7 +337,7 @@ class AppairageWeb:
                 raise WA.ErreurWebAuthn("identifiant", "déjà connu")
         except WA.ErreurWebAuthn as e:
             self.journal(f"appairage : clé refusée ({e.cause})")
-            self._fermer("creation_refusee")
+            self._fermer("creation_refusee", notifier_conn=False)
             return {"etat": "interrompu"}
         o["cle"] = res
         o["etat"] = "attente"
@@ -349,7 +356,7 @@ class AppairageWeb:
         """Appelé par le serveur quand une connexion attend : renvoie {"etat": "interrompu"} si l'ouverture a expiré."""
         o = self._ouverture
         if o and o["conn"] == conn and self.horloge() >= o["expire"]:
-            self._fermer("expiree")
+            self._fermer("expiree", notifier_conn=False)
             return {"etat": "interrompu"}
         return None
 
