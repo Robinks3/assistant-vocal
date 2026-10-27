@@ -24,10 +24,10 @@ RACINE = Path(__file__).resolve().parent.parent
 SECTION = {
     "reglage_attente_s": 5,
     "pieces": [
-        {"id": "salon", "nom": "Salon", "lumieres": ["light.salon_plafond", "light.salon_lampe"],
+        {"id": "salon", "nom": "Salon", "lumieres": ["light.salon_plafond", "light.salon_lampe_tele"],
          "tele": "media_player.tele_salon"},
-        {"id": "couloir", "nom": "Couloir", "lumieres": ["light.couloir"]},
-        {"id": "chambre", "nom": "Chambre", "lumieres": ["light.exemple75"], "protegee": True},
+        {"id": "couloir", "nom": "Couloir", "lumieres": ["light.couloir_plafond"]},
+        {"id": "chambre", "nom": "Chambre", "lumieres": ["light.chambre_sacha_plafond"], "protegee": True},
     ],
     "roles": {
         "administrateur": {"pieces": "toutes", "mesures": True, "tele": True},
@@ -40,10 +40,10 @@ ETATS = {
     "light.salon_plafond": {"state": "on", "attributes": {
         "supported_color_modes": ["color_temp", "hs"], "color_mode": "color_temp", "brightness": 128,
         "color_temp_kelvin": 2700, "min_color_temp_kelvin": 2200, "max_color_temp_kelvin": 6500}},
-    "light.salon_lampe": {"state": "off", "attributes": {"supported_color_modes": ["onoff"]}},
-    "light.couloir": {"state": "on", "attributes": {
+    "light.salon_lampe_tele": {"state": "off", "attributes": {"supported_color_modes": ["onoff"]}},
+    "light.couloir_plafond": {"state": "on", "attributes": {
         "supported_color_modes": ["hs"], "color_mode": "hs", "brightness": 255, "hs_color": [120.0, 100.0]}},
-    "light.exemple75": {"state": "on", "attributes": {"supported_color_modes": ["brightness"]}},
+    "light.chambre_sacha_plafond": {"state": "on", "attributes": {"supported_color_modes": ["brightness"]}},
     "media_player.tele_salon": {"state": "on", "attributes": {"volume_level": 0.3}},
 }
 
@@ -123,7 +123,7 @@ def test_un_habitant_voit_toutes_les_pieces_dans_l_ordre_de_la_configuration():
     assert rep["type"] == "etats" and rep["configure"] is True
     assert [p["id"] for p in rep["pieces"]] == ["salon", "couloir", "chambre"]
     salon = rep["pieces"][0]
-    assert [l["entite"] for l in salon["lumieres"]] == ["light.salon_plafond", "light.salon_lampe"]
+    assert [l["entite"] for l in salon["lumieres"]] == ["light.salon_plafond", "light.salon_lampe_tele"]
     assert salon["tele"]["entite"] == "media_player.tele_salon" and salon["tele"]["volume"] == 30
     assert salon["mesures"]["air"] == "bon"
 
@@ -160,7 +160,7 @@ def test_une_piece_protegee_n_est_qu_une_ligne_et_home_assistant_n_est_pas_inter
     chambre = rep["pieces"][2]
     assert chambre == {"id": "chambre", "nom": "Chambre", "protegee": True, "lumieres": [], "tele": None,
                        "mesures": None}
-    assert all("light.exemple75" not in lues for lues in f.lectures)
+    assert all("light.chambre_sacha_plafond" not in lues for lues in f.lectures)
     assert "chambre_lit" not in repr(rep)
 
 
@@ -178,14 +178,14 @@ def test_la_protection_de_l_occupant_vient_de_securite_pas_d_un_nom_en_dur(monke
 def test_les_entites_mal_formees_de_la_configuration_sont_ignorees(monkeypatch):
     section = copy.deepcopy(SECTION)
     section["pieces"] = [
-        {"id": "salon", "nom": "Salon", "lumieres": ["light.ok", "switch.exemple76", "light.a b", 3],
-         "tele": "light.exemple77"},
-        {"id": "salon", "nom": "Doublon", "lumieres": ["light.autre"]},
+        {"id": "salon", "nom": "Salon", "lumieres": ["light.z", "switch.chambre_camille_prise", "light.a b", 3],
+         "tele": "light.pirate"},
+        {"id": "salon", "nom": "Doublon", "lumieres": ["light.b"]},
         {"id": "Majuscule", "nom": "Mal", "lumieres": []}, {"id": "sans_nom"}, "texte",
     ]
     monkeypatch.setattr(maison, "CLIENT_WEB", {"maison": section})
     assert MW.pieces_configurees() == [
-        {"id": "salon", "nom": "Salon", "lumieres": ["light.ok"], "tele": None, "protegee": False}]
+        {"id": "salon", "nom": "Salon", "lumieres": ["light.z"], "tele": None, "protegee": False}]
 
 
 def test_le_mode_essai_du_serveur_est_annonce():
@@ -230,7 +230,7 @@ def test_les_etats_sont_mis_en_cache_une_seconde():
         await m.etats_pour("habitant")
     courir(deux())
     assert len(f.lectures) == 2
-    assert all("light.exemple75" not in lues for lues in f.lectures)
+    assert all("light.chambre_sacha_plafond" not in lues for lues in f.lectures)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -242,10 +242,10 @@ def test_vue_d_une_lampe_en_blanc_en_couleur_eteinte_et_injoignable():
     assert (blanc["statut"], blanc["intensite"], blanc["kelvin"], blanc["mode"], blanc["kmin"], blanc["kmax"]) \
         == ("ok", 50, 2700, "blanc", 2200, 6500)
     assert blanc["texte"] == "50 %, 2700 K, chaud" and blanc["blanc"] and blanc["couleur"]
-    couleur = MW.vue_lampe("light.couloir", ETATS["light.couloir"])
+    couleur = MW.vue_lampe("light.couloir_plafond", ETATS["light.couloir_plafond"])
     assert couleur["mode"] == "couleur" and couleur["teinte"] == 120 and couleur["texte"] == "100 %, vert"
     assert couleur["blanc"] is False and couleur["couleur"] is True
-    eteinte = MW.vue_lampe("light.salon_lampe", ETATS["light.salon_lampe"])
+    eteinte = MW.vue_lampe("light.salon_lampe_tele", ETATS["light.salon_lampe_tele"])
     assert eteinte["texte"] == "Éteinte" and eteinte["allumee"] is False and eteinte["reglable"] is False
     for etat in ({"state": "unavailable"}, {"state": "unknown"}, None, {}, {"state": "n'importe quoi"}):
         v = MW.vue_lampe("light.x", etat)
@@ -323,22 +323,22 @@ def test_conforme_a_la_teinte_pres_de_8_degres_avec_bouclage_autour_de_zero():
 def test_par_defaut_un_reglage_est_un_essai_et_n_appelle_pas_home_assistant():
     f = Faux()
     m = f.maison()
-    for msg in ({"type": "regler", "entite": "light.couloir", "action": "eteindre"},
-                {"type": "regler", "entite": "light.couloir", "action": "eteindre", "essai": "non"},
-                {"type": "regler", "entite": "light.couloir", "action": "eteindre", "essai": True}):
+    for msg in ({"type": "regler", "entite": "light.couloir_plafond", "action": "eteindre"},
+                {"type": "regler", "entite": "light.couloir_plafond", "action": "eteindre", "essai": "non"},
+                {"type": "regler", "entite": "light.couloir_plafond", "action": "eteindre", "essai": True}):
         rep = regle(m, "habitant", msg)
-        assert rep == {"type": "regle", "entite": "light.couloir", "statut": "essai"}
+        assert rep == {"type": "regle", "entite": "light.couloir_plafond", "statut": "essai"}
     assert f.appels == [] or all(a[3] is True for a in f.appels)
     assert m.attendus == {}, "un essai n'attend aucun résultat"
 
 
 def test_essai_faux_explicite_agit_et_le_serveur_en_essai_l_emporte():
     f = Faux()
-    rep = regle(f.maison(), "habitant", reel("light.couloir", "eteindre"))
+    rep = regle(f.maison(), "habitant", reel("light.couloir_plafond", "eteindre"))
     assert rep["statut"] == "envoye"
-    assert f.appels == [("light", "turn_off", {"entity_id": "light.couloir"}, False)]
+    assert f.appels == [("light", "turn_off", {"entity_id": "light.couloir_plafond"}, False)]
     f2 = Faux()
-    rep = regle(f2.maison(essai_serveur=True), "habitant", reel("light.couloir", "eteindre"))
+    rep = regle(f2.maison(essai_serveur=True), "habitant", reel("light.couloir_plafond", "eteindre"))
     assert rep["statut"] == "essai" and f2.appels[0][3] is True
 
 
@@ -347,8 +347,8 @@ def test_le_service_est_reconstruit_par_le_serveur():
     m = f.maison()
     regle(m, "habitant", reel("light.salon_plafond", "intensite", 40))
     regle(m, "habitant", reel("light.salon_plafond", "blanc", 4000))
-    regle(m, "habitant", reel("light.couloir", "couleur", "bleu"))
-    regle(m, "habitant", reel("light.couloir", "couleur", 359))
+    regle(m, "habitant", reel("light.couloir_plafond", "couleur", "bleu"))
+    regle(m, "habitant", reel("light.couloir_plafond", "couleur", 359))
     regle(m, "habitant", reel("light.salon_plafond", "allumer"))
     regle(m, "habitant", reel("media_player.tele_salon", "volume", 25))
     regle(m, "habitant", reel("media_player.tele_salon", "allumer"))
@@ -356,8 +356,8 @@ def test_le_service_est_reconstruit_par_le_serveur():
     assert f.appels == [
         ("light", "turn_on", {"brightness_pct": 40, "entity_id": "light.salon_plafond"}, False),
         ("light", "turn_on", {"color_temp_kelvin": 4000, "entity_id": "light.salon_plafond"}, False),
-        ("light", "turn_on", {"hs_color": [220, 100], "entity_id": "light.couloir"}, False),
-        ("light", "turn_on", {"hs_color": [359, 100], "entity_id": "light.couloir"}, False),
+        ("light", "turn_on", {"hs_color": [220, 100], "entity_id": "light.couloir_plafond"}, False),
+        ("light", "turn_on", {"hs_color": [359, 100], "entity_id": "light.couloir_plafond"}, False),
         ("light", "turn_on", {"entity_id": "light.salon_plafond"}, False),
         ("media_player", "volume_set", {"volume_level": 0.25, "entity_id": "media_player.tele_salon"}, False),
         ("media_player", "turn_on", {"entity_id": "media_player.tele_salon"}, False),
@@ -374,22 +374,22 @@ def test_une_intensite_a_zero_eteint_la_lampe():
 def test_les_cles_inconnues_du_message_sont_refusees_sans_rien_appeler():
     f = Faux()
     m = f.maison()
-    base = reel("light.couloir", "allumer")
+    base = reel("light.couloir_plafond", "allumer")
     for plus in ({"area_id": "salon"}, {"device_id": "abc"}, {"service": "light.turn_on"}, {"domaine": "lock"},
-                 {"data": {"brightness": 255}}, {"entity_id": "light.couloir"}, {"role": "administrateur"},
+                 {"data": {"brightness": 255}}, {"entity_id": "light.couloir_plafond"}, {"role": "administrateur"},
                  {"personne": "autre"}, {"label_id": "x"}, {"floor_id": "x"}):
         assert refus(m, "habitant", {**base, **plus}) == "format", plus
     assert f.appels == []
 
 
 @pytest.mark.parametrize("entite", [
-    "all", "ALL", "light.all", "light.*", ["light.couloir"], {"id": "light.couloir"}, None, 12, "", "area_id:salon",
-    "light.couloir,light.salon_plafond", "light.inconnue", "lock.porte", "switch.prise", "cover.volet",
-    "alarm_control_panel.maison", "light.couloir ", "LIGHT.COULOIR", "light.exemple78",
+    "all", "ALL", "light.y", "light.*", ["light.couloir_plafond"], {"id": "light.couloir_plafond"}, None, 12, "", "area_id:salon",
+    "light.couloir_plafond,light.salon_plafond", "light.inconnue", "lock.porte", "switch.prise", "cover.chambre_sacha",
+    "alarm_control_panel.maison", "light.couloir_plafond ", "LIGHT.COULOIR", "light.chambre_sacha_chevets",
 ])
 def test_une_entite_hors_liste_du_role_est_refusee(entite):
     f = Faux()
-    cause = refus(f.maison(), "administrateur", reel("light.couloir", "allumer") | {"entite": entite})
+    cause = refus(f.maison(), "administrateur", reel("light.couloir_plafond", "allumer") | {"entite": entite})
     assert cause in ("entite", "protegee")
     assert f.appels == []
 
@@ -397,8 +397,8 @@ def test_une_entite_hors_liste_du_role_est_refusee(entite):
 def test_une_lampe_d_une_piece_hors_liste_du_role_est_refusee_sans_rien_reveler():
     f = Faux()
     m = f.maison()
-    assert refus(m, "invite", reel("light.couloir", "eteindre")) == "entite"
-    assert refus(m, "invite", reel("light.exemple75", "eteindre")) == "entite"
+    assert refus(m, "invite", reel("light.couloir_plafond", "eteindre")) == "entite"
+    assert refus(m, "invite", reel("light.chambre_sacha_plafond", "eteindre")) == "entite"
     assert refus(m, "invite", reel("media_player.tele_salon", "eteindre")) == "entite", "télé hors droits de l'invité"
     assert f.appels == []
     regle(m, "invite", reel("light.salon_plafond", "eteindre"))
@@ -410,7 +410,7 @@ def test_une_piece_protegee_refuse_tout_reglage():
     m = f.maison()
     for role in ("administrateur", "habitant"):
         for action, valeur in (("eteindre", None), ("allumer", None), ("intensite", 10), ("blanc", 3000)):
-            assert refus(m, role, reel("light.exemple75", action, valeur)) == "protegee"
+            assert refus(m, role, reel("light.chambre_sacha_plafond", action, valeur)) == "protegee"
     assert f.appels == []
 
 
@@ -422,13 +422,13 @@ def test_une_piece_protegee_refuse_tout_reglage():
     ("light.salon_plafond", "blanc", 2199), ("light.salon_plafond", "blanc", 6501), ("light.salon_plafond", "blanc", 0),
     ("light.salon_plafond", "blanc", 2700.5), ("light.salon_plafond", "blanc", "chaud"),
     ("light.salon_plafond", "blanc", True), ("light.salon_plafond", "blanc", None),
-    ("light.couloir", "blanc", 3000),                     # lampe sans blanc réglable
+    ("light.couloir_plafond", "blanc", 3000),                     # lampe sans blanc réglable
     ("light.salon_plafond", "couleur", 361), ("light.salon_plafond", "couleur", -1),
     ("light.salon_plafond", "couleur", "turquoise"), ("light.salon_plafond", "couleur", [0, 100]),
     ("light.salon_plafond", "couleur", None), ("light.salon_plafond", "couleur", True),
     ("light.salon_plafond", "couleur", 12.5),
-    ("light.salon_lampe", "intensite", 50),               # lampe tout ou rien
-    ("light.salon_lampe", "couleur", "rouge"),
+    ("light.salon_lampe_tele", "intensite", 50),               # lampe tout ou rien
+    ("light.salon_lampe_tele", "couleur", "rouge"),
     ("light.salon_plafond", "allumer", 5), ("light.salon_plafond", "eteindre", 0),
     ("media_player.tele_salon", "volume", 101), ("media_player.tele_salon", "volume", -1),
     ("media_player.tele_salon", "volume", 0.5), ("media_player.tele_salon", "volume", "30"),
@@ -485,7 +485,7 @@ def test_un_echec_de_home_assistant_donne_injoignable_sans_son_texte(capsys):
     f = Faux()
     f.echec = True
     m = f.maison()
-    assert refus(m, "habitant", reel("light.couloir", "eteindre")) == "injoignable"
+    assert refus(m, "habitant", reel("light.couloir_plafond", "eteindre")) == "injoignable"
     assert "secret de Home Assistant" not in capsys.readouterr().out
     assert m.attendus == {}
 
@@ -493,8 +493,8 @@ def test_un_echec_de_home_assistant_donne_injoignable_sans_son_texte(capsys):
 def test_un_message_qui_n_est_pas_un_objet_ou_un_role_inconnu_est_refuse():
     f = Faux()
     m = f.maison()
-    assert refus(m, "partage", reel("light.couloir", "allumer")) == "droit"
-    assert refus(m, None, reel("light.couloir", "allumer")) == "droit"
+    assert refus(m, "partage", reel("light.couloir_plafond", "allumer")) == "droit"
+    assert refus(m, None, reel("light.couloir_plafond", "allumer")) == "droit"
     for msg in (None, "texte", [], 3):
         assert refus(m, "habitant", msg) == "format"
     assert f.appels == []
@@ -509,9 +509,9 @@ def test_tout_reglage_passe_par_le_controle_central_avec_la_personne_et_les_serv
     monkeypatch.setattr(acces, "controler_service", espion)
     f = Faux()
     m = f.maison()
-    regle(m, "administrateur", reel("light.couloir", "couleur", "rouge"), personne="proprio")
+    regle(m, "administrateur", reel("light.couloir_plafond", "couleur", "rouge"), personne="proprio")
     regle(m, "habitant", reel("media_player.tele_salon", "volume", 10))
-    assert vus[0] == ("light", "turn_on", {"hs_color": [0, 100], "entity_id": "light.couloir"}, "proprio",
+    assert vus[0] == ("light", "turn_on", {"hs_color": [0, 100], "entity_id": "light.couloir_plafond"}, "proprio",
                       MW.SERVICES_WEB["light"])
     assert vus[1][3] is None and vus[1][4] == MW.SERVICES_WEB["media_player"]
     assert len(f.appels) == 2
@@ -523,7 +523,7 @@ def test_un_refus_de_securite_arrete_l_appel_et_n_en_dit_pas_la_raison(monkeypat
     f = Faux()
     m = f.maison()
     with pytest.raises(MW.RefusMaison) as e:
-        courir(m.regler("habitant", None, reel("light.couloir", "eteindre")))
+        courir(m.regler("habitant", None, reel("light.couloir_plafond", "eteindre")))
     assert e.value.cause == "securite" and "raison interne" not in str(e.value)
     assert f.appels == [] and m.attendus == {}
 
@@ -603,14 +603,14 @@ def test_un_reglage_applique_dans_le_delai_efface_l_attente():
 def test_un_reglage_de_teinte_est_juge_a_8_degres_pres_autour_de_zero():
     f = Faux()
     m = f.maison()
-    regle(m, "habitant", reel("light.couloir", "couleur", "rouge"))
-    f.etats["light.couloir"]["attributes"].update(hs_color=[355.0, 100.0], color_mode="hs")
+    regle(m, "habitant", reel("light.couloir_plafond", "couleur", "rouge"))
+    f.etats["light.couloir_plafond"]["attributes"].update(hs_color=[355.0, 100.0], color_mode="hs")
     f.t += MW.attente_s() + 1
-    assert reglage_de(courir(m.etats_pour("habitant")), "light.couloir") is None
-    regle(m, "habitant", reel("light.couloir", "couleur", "rouge"))
-    f.etats["light.couloir"]["attributes"].update(hs_color=[20.0, 100.0])
+    assert reglage_de(courir(m.etats_pour("habitant")), "light.couloir_plafond") is None
+    regle(m, "habitant", reel("light.couloir_plafond", "couleur", "rouge"))
+    f.etats["light.couloir_plafond"]["attributes"].update(hs_color=[20.0, 100.0])
     f.t += MW.attente_s() + 1
-    assert reglage_de(courir(m.etats_pour("habitant")), "light.couloir") == "non_applique"
+    assert reglage_de(courir(m.etats_pour("habitant")), "light.couloir_plafond") == "non_applique"
 
 
 def test_une_lampe_devenue_injoignable_apres_un_reglage_est_en_attente_puis_non_appliquee():
@@ -646,7 +646,7 @@ def test_le_suivi_n_existe_que_pour_la_lampe_reglee():
     m = f.maison()
     regle(m, "habitant", reel("light.salon_plafond", "intensite", 90))
     rep = courir(m.etats_pour("habitant"))
-    assert reglage_de(rep, "light.couloir") is None and reglage_de(rep, "light.salon_lampe") is None
+    assert reglage_de(rep, "light.couloir_plafond") is None and reglage_de(rep, "light.salon_lampe_tele") is None
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -725,7 +725,7 @@ def test_les_refus_par_websocket_sont_une_cause_fermee_sans_texte_interne(servic
     _, _, jeton = appairer_direct(service, "invite")
 
     async def corps(ws):
-        return [await echange(ws, reel("light.couloir", "allumer")),
+        return [await echange(ws, reel("light.couloir_plafond", "allumer")),
                 await echange(ws, reel("light.salon_plafond", "intensite", 500)),
                 await echange(ws, reel("light.salon_plafond", "allumer") | {"area_id": "x"}),
                 await echange(ws, reel("media_player.tele_salon", "allumer"))]
@@ -741,7 +741,7 @@ def test_sans_maison_branchee_le_serveur_dit_indisponible(service):
     _, _, jeton = appairer_direct(service, "habitant")
 
     async def corps(ws):
-        return [await echange(ws, {"type": "etats"}), await echange(ws, reel("light.couloir", "allumer"))]
+        return [await echange(ws, {"type": "etats"}), await echange(ws, reel("light.couloir_plafond", "allumer"))]
     reps = scenario_ws(service, jeton, corps)
     assert [r["cause"] for r in reps] == ["indisponible", "indisponible"]
 
