@@ -4,6 +4,14 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Documentation (2026-10-27), accès au client web par Tailscale Serve (S-W7), sans changement de version
+Session S-W7 du plan. Nouveau `docs/ACCES-TAILSCALE.md` : publication du port 8767 par Tailscale Serve sur le port
+443, réglage de `client_web.hote` et `administration.url_client`, ce que le serveur accepte comme `Host` et `Origin`,
+lecture des refus du journal, retour arrière, et liste à cocher de l'essai depuis un téléphone. Nouveau modèle
+`config-exemple/tailnet-acl.exemple.hujson` : ACL du tailnet en liste blanche, valeurs fictives, avec un bloc de
+tests. Renvois ajoutés dans `README.md`, `docs/INSTALLER.md` et `docs/CONFIGURER.md`, dont la section `client_web`
+décrit enfin `invite_jours` et l'appairage livré en S-W1b. Serveur, appli Home Assistant et appli inchangés.
+
 ## Serveur 0.47.0 (2026-10-27), appairage WebAuthn du client web
 Mineure. Session S-W1b du plan. Appli Home Assistant 0.47.0 (copie aussi `webauthn.py` et `appairage_web.py`),
 appli Android inchangée (0.46.2). Client web 0.3.0.
