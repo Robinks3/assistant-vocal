@@ -30,6 +30,8 @@
       // La barre du bas et les réglages ne servent qu'à un appareil appairé.
       $('onglets').hidden = !connecte;
       $('lien-reglages').hidden = !connecte;
+      // Client installable (S-W9) : la coquille n'est gardée hors ligne que pour un appareil appairé.
+      if (connecte && window.Client) { window.Client.installerHorsLigne(); }
       if (connecte) { statut('Connecté', 'ok'); }
       else { statut('Appareil non appairé', 'assistant'); }
     }).catch(function () {
