@@ -139,8 +139,20 @@ ainsi :
    cookie de session, valable 30 jours d'inactivité au plus.
 4. L'écran `/reglages` liste les appareils associés et permet de les révoquer.
 
-Le premier propriétaire ne peut être créé que depuis la page d'administration de Home Assistant. En cas de
-blocage, le repli en console est `python poc/appairage_web.py --reinitialiser`.
+La page d'administration n'existe que dans l'appli Home Assistant. Un serveur lancé ailleurs (le PC, par exemple)
+amorce son premier propriétaire au démarrage :
+
+```bash
+python poc/serveur_satellite.py --amorcer-proprietaire "Téléphone du propriétaire"
+```
+
+L'option n'agit que si aucun propriétaire n'existe. Le code vaut 15 minutes, trois essais, et se lit dans
+`amorcage_web.json` du dossier de données (`JARVIS_DONNEES`, sinon `poc/`), jamais dans le journal. Le code saisi
+tient lieu de confirmation : il n'y a pas d'étape 3 côté administration, seulement la clé d'accès du téléphone. Le
+fichier disparaît dès que l'appairage aboutit, se ferme ou expire. Il suffit de relancer le serveur avec l'option
+pour en obtenir un nouveau.
+
+En cas de blocage, le repli en console est `python poc/appairage_web.py --reinitialiser`.
 
 ## 7. Lire un refus
 

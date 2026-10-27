@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.54.1 (2026-10-27), amorçage local du premier propriétaire du client web
+Correctif. Appli Home Assistant 0.54.1 (même code), appli Android et client web inchangés.
+- Le serveur du PC n'a pas de page d'administration, donc rien pour confirmer un appairage. L'option
+  `--amorcer-proprietaire NOM` ouvre, au démarrage et seulement si aucun propriétaire n'existe, un appairage
+  propriétaire dont le code vaut 15 minutes (`VALIDITE_AMORCAGE_MAX_S`). Le code n'est écrit que dans
+  `amorcage_web.json` du dossier de données, jamais dans le journal.
+- Le code saisi sur le tailnet tient lieu de confirmation, comme la confirmation sans clé faite depuis Home
+  Assistant : seule l'ouverture d'amorçage se confirme seule, après la réponse « attente » au navigateur
+  (`AmorcageLocal`). Le fichier du code est effacé dès que l'appairage aboutit, se ferme ou expire.
+- `ouvrir()` accepte `duree_s`, réservé à l'acteur « ha » et borné entre 2 et 15 minutes.
+- `.gitignore` : `appareils_web.json`, `sessions_web.json` et `amorcage_web.json` n'entrent plus dans le dépôt.
+- Tests : `test_amorcage_web.py`.
+
 ## Serveur 0.54.0 (2026-10-27), écran Météo et mer et mode développeur dans le client web
 Mineure. Session S-W5 du plan. Appli Home Assistant 0.54.0 (le déploiement copie aussi `meteo_web.py`), appli Android
 inchangée. Client web 0.8.0.

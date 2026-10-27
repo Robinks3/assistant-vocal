@@ -4,6 +4,9 @@
 !.env.exemple
 poc/tls/
 poc/appareils.json
+poc/appareils_web.json
+poc/sessions_web.json
+poc/amorcage_web.json
 *.jks
 *.keystore
 keystore.properties

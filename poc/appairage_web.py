@@ -40,6 +40,7 @@ ROLE_PROPRIETAIRE = "administrateur"
 ACTIONS_PERSONNELLES = ("vie_privee", "journal_effacer")
 CHIFFRES_CODE = 6
 VALIDITE_CODE_S = 120      # le code vaut 2 minutes
+VALIDITE_AMORCAGE_MAX_S = 900  # amorçage local du premier propriétaire : 15 minutes au plus
 VALIDITE_SAISIE_S = 120    # une fois le bon code saisi : 2 minutes de plus pour créer la clé et confirmer
 ESSAIS = 3
 LIMITE_ECHECS = (10, 600)      # au plus 10 codes refusés par 10 minutes, tous appairages confondus
@@ -239,10 +240,16 @@ class AppairageWeb:
         self._emettre("ha", message)
 
     # Ouverture par le propriétaire ou par Home Assistant
-    def ouvrir(self, nom, role, acteur):
+    def ouvrir(self, nom, role, acteur, duree_s=None):
         """Ouvre un appairage. acteur : « ha » ou l'identité web:<id> d'un propriétaire. Renvoie le code, à montrer
-        une seule fois à l'acteur."""
+        une seule fois à l'acteur. duree_s allonge la validité du code (amorçage local), plafonnée à
+        VALIDITE_AMORCAGE_MAX_S et réservée à l'acteur « ha »."""
         nom = nettoyer_nom(nom)
+        validite = VALIDITE_CODE_S
+        if duree_s is not None:
+            if acteur != "ha":
+                raise ErreurAppairage("droit")
+            validite = max(VALIDITE_CODE_S, min(int(duree_s), VALIDITE_AMORCAGE_MAX_S))
         if role not in ROLES_WEB:
             raise ErreurAppairage("role")
         if acteur == "ha":
@@ -263,10 +270,10 @@ class AppairageWeb:
         maintenant = self.horloge()
         self._ouverture = {
             "id": secrets.token_hex(8), "nom": nom, "role": role, "acteur": acteur, "code": _empreinte(code),
-            "cree": maintenant, "expire": maintenant + VALIDITE_CODE_S, "essais": ESSAIS, "etat": "code", "conn": None,
+            "cree": maintenant, "expire": maintenant + validite, "essais": ESSAIS, "etat": "code", "conn": None,
             "challenge": None, "cle": None}
         self.journal(f"appairage : ouvert ({role})")
-        return {"code": code, "expire": maintenant + VALIDITE_CODE_S, "duree": VALIDITE_CODE_S, "nom": nom, "role": role,
+        return {"code": code, "expire": maintenant + validite, "duree": validite, "nom": nom, "role": role,
                 "id": self._ouverture["id"]}
 
     def etat_ouverture(self):
@@ -517,6 +524,66 @@ class AppairageWeb:
     def vue(self, identite_courante=None):
         return [{**self.vue_appareil(a), "courant": identite_de(a["id"]) == identite_courante}
                 for a in self.appareils.tous()]
+
+
+class AmorcageLocal:
+    """Amorçage du premier propriétaire sans page d'administration (serveur du PC, 0.54.1).
+
+    Ne s'ouvre que si aucun propriétaire n'existe. Le code ne passe jamais par le journal : il est écrit dans un
+    fichier 0600 du dossier de données, effacé dès que l'ouverture se termine. La confirmation est automatique, pour
+    l'ouverture d'amorçage seulement : la saisie du bon code depuis un appareil du tailnet en tient lieu, comme la
+    confirmation depuis Home Assistant. Une autre ouverture n'est jamais confirmée ici.
+    differer(fn) planifie fn après la réponse en cours (la réponse « attente » part avant le ticket)."""
+
+    def __init__(self, appairage, fichier, differer):
+        self.appairage = appairage
+        self.fichier = Path(fichier)
+        self.differer = differer
+        self.id = None
+
+    def ouvrir(self, nom, duree_s=VALIDITE_AMORCAGE_MAX_S):
+        """Renvoie la durée de validité en secondes, ou None si un propriétaire existe déjà."""
+        self.effacer()
+        if self.appairage.appareils.a_proprietaire():
+            return None
+        o = self.appairage.ouvrir(nom, ROLE_PROPRIETAIRE, "ha", duree_s=duree_s)
+        self.id = o["id"]
+        ecrire_atomique(self.fichier, (json.dumps({"code": o["code"], "expire": o["expire"]}) + "\n").encode("utf-8"))
+        return o["duree"]
+
+    def evenement(self, message):
+        """À brancher sur les événements destinés à Home Assistant."""
+        if self.id is None or not isinstance(message, dict):
+            return
+        if message.get("evenement") == "appairage_attente" and message.get("id") == self.id:
+            self.differer(self._confirmer)
+        elif message.get("evenement") in ("appairage_fait", "appairage_ferme"):
+            o = self.appairage._ouverture
+            if not o or o["id"] != self.id:
+                self.id = None
+                self.effacer()
+
+    def verifier(self):
+        """À appeler à l'échéance : ferme une ouverture expirée et efface le fichier du code."""
+        o = self.appairage._vivante()
+        if self.id is not None and (not o or o["id"] != self.id):
+            self.id = None
+            self.effacer()
+
+    def _confirmer(self):
+        o = self.appairage._vivante()
+        if not o or o["id"] != self.id or o["etat"] != "attente":
+            return
+        try:
+            self.appairage.finaliser()
+        except ErreurAppairage:
+            pass
+
+    def effacer(self):
+        try:
+            self.fichier.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def principal(argv=None):

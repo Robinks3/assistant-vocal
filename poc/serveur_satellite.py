@@ -119,6 +119,7 @@ import demande_web  # noqa: E402
 import maison  # noqa: E402
 import maison_web  # noqa: E402
 import meteo_web  # noqa: E402
+import appairage_web  # noqa: E402
 import serveur_web  # noqa: E402
 import journal_web as J  # noqa: E402
 import routines as R  # noqa: E402
@@ -2003,6 +2004,19 @@ async def servir(args):
                 except RuntimeError:  # pas de boucle active
                     pass
             service_web.sur_ha = vers_ha
+            nom_amorcage = getattr(args, "amorcer_proprietaire", None)
+            if nom_amorcage:  # serveur sans page d'administration : premier propriétaire confirmé par le code seul
+                amorcage = appairage_web.AmorcageLocal(
+                    service_web.appairage, A.DONNEES / "amorcage_web.json",
+                    differer=lambda fn: asyncio.get_running_loop().call_soon(fn))
+                duree = amorcage.ouvrir(nom_amorcage)
+                if duree is None:
+                    print("Amorçage du client web ignoré : un propriétaire existe déjà")
+                else:
+                    service_web.sur_ha = lambda message: (amorcage.evenement(message), vers_ha(message))
+                    asyncio.get_running_loop().call_later(duree + 1, amorcage.verifier)
+                    print(f"Amorçage du client web ouvert pour {duree // 60} min, code dans le dossier de données "
+                          "(amorcage_web.json)")
             service_web.brancher_journal(
                 A.JOURNAL.parent, A.NIVEAUX_WEB, lisibles=lambda t: actions_lisibles(t, moteur.noms),
                 nom_appareil_ha=lambda ident: nom_appareil_maison(moteur, ident))
@@ -2045,6 +2059,9 @@ def main():
     p.add_argument("--seuil", type=float, default=None,
                    help="score du mot de réveil (0 à 1), sinon SEUIL_REVEIL de poc/.env, sinon 0,5")
     p.add_argument("--calibrer", action="store_true", help="calibrage guidé du mot de réveil au démarrage")
+    p.add_argument("--amorcer-proprietaire", metavar="NOM", default=None,
+                   help="ouvre l'appairage du premier propriétaire du client web (15 min, sans page "
+                        "d'administration) si aucun n'existe, code écrit dans amorcage_web.json du dossier de données")
     a = p.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     if a.seuil is None:
