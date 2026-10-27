@@ -26,7 +26,7 @@ import serveur_web  # noqa: E402
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.9.1", "{{version_serveur}}": "0.55.1", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.9.1", "{{version_serveur}}": "0.55.2", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")

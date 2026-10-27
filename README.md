@@ -17,10 +17,10 @@ propre dépôt privé. Tous les écrans de cette page montrent la configuration 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/trajet-phrase-sombre.svg">
-  <img src="docs/images/trajet-phrase-clair.svg" width="900" alt="Trajet d'une phrase en huit étapes : réveil, écoute, reconnaissance, contexte (prévu), cerveau, contrôles de sécurité, appel de Home Assistant, réponse vocale">
+  <img src="docs/images/trajet-phrase-clair.svg" width="900" alt="Trajet d'une phrase en huit étapes : réveil, écoute, reconnaissance, contexte, cerveau, contrôles de sécurité, appel de Home Assistant, réponse vocale">
 </picture>
 
-<sub>Le trajet d'une phrase. Les contrôles de sécurité passent avant tout appel à Home Assistant, et l'étape du contexte de requête est prévue, pas encore codée.</sub>
+<sub>Le trajet d'une phrase. Les contrôles de sécurité passent avant tout appel à Home Assistant. Le contexte de requête porte la personne, le rôle et le canal, pris de la session.</sub>
 
 Une phrase fréquente passe par le dictionnaire : environ 0,1 s pour la comprendre, et la lampe réagit dans la
 foulée. Une phrase inconnue part au LLM avec ses outils, en 2 à 2,5 s avec Claude Haiku, puis elle est apprise et passe ensuite
@@ -36,7 +36,7 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture : satellites, serveur du PC, Home Assistant et services facultatifs">
 </picture>
 
-<sub>Les machines et leurs liens. Le client web (port 8767) est prévu, le port 8765 en clair est un ancien accès à fermer.</sub>
+<sub>Les machines et leurs liens. Le client web passe par le port 8767, le port 8765 en clair est un ancien accès à fermer.</sub>
 
 | Mode | Où tourne le serveur | Pour quoi |
 |---|---|---|
@@ -113,20 +113,20 @@ sinon `config/`, qui reste privé et ignoré par git. Les tests tournent sur `co
 
 <sub>Le moteur est public, la maison reste dans `config/`. Le garde-fou contrôle chaque commit et chaque envoi.</sub>
 
-## Rôles et routines (prévus)
+## Rôles et routines
 
 Les quatre rôles existent déjà dans `poc/acces.py` : administrateur (le propriétaire), habitant, partagé (la tablette
-commune) et invité. Seul l'administrateur gère les appareils et les rôles. Ce que chaque rôle a le droit de faire, le
-client web et les routines à la voix sont décrits dans `docs/plan/` et ne sont pas encore codés.
+commune) et invité. Seul l'administrateur gère les appareils et les rôles. Le serveur applique les droits de chaque rôle : liste
+blanche des messages, entités et météo filtrées. La conception complète est dans `docs/plan/`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/roles-droits-sombre.svg">
-  <img src="docs/images/roles-droits-clair.svg" width="900" alt="Quatre rôles, ce qui existe dans le code et la matrice de droits prévue">
+  <img src="docs/images/roles-droits-clair.svg" width="900" alt="Quatre rôles, ce qui existe dans le code et la matrice de droits">
 </picture>
 
-<sub>Les quatre rôles et la matrice de droits. Seule la gestion des appareils et des rôles est appliquée aujourd'hui, le reste est prévu.</sub>
+<sub>Les quatre rôles et la matrice de droits. Tout est appliqué par le serveur, sauf les routines automatiques.</sub>
 
-Une routine sera une phrase qui lance une liste d'étapes. Le LLM propose, le serveur vérifie chaque étape, le propriétaire
+Une routine est une phrase qui lance une liste d'étapes. Le LLM propose, le serveur vérifie chaque étape, le propriétaire
 confirme, puis le moteur exécute lui-même chaque étape avec la sécurité en dur.
 
 <picture>
@@ -134,7 +134,7 @@ confirme, puis le moteur exécute lui-même chaque étape avec la sécurité en 
   <img src="docs/images/routines-clair.svg" width="900" alt="Routines : création à la voix, exécution en déclencheur, conditions et actions, exemple fictif">
 </picture>
 
-<sub>Les routines, de la création à la voix jusqu'à l'exécution, sur un exemple fictif. Tout est prévu, la conception est validée.</sub>
+<sub>Les routines, de la création à la voix jusqu'à l'exécution, sur un exemple fictif. La création et la gestion à la voix sont en service. L'écran des routines du client web reste à faire, les routines automatiques (présence, heure) viendront plus tard.</sub>
 
 ## Essayer
 

@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.55.2 (2026-10-27), schémas et README remis à l'état du code
+Correctif de documentation. Appli Home Assistant 0.55.2 (même code), appli Android et client web inchangés.
+- Les quatre schémas de `docs/images/` (thèmes clair et sombre) ne marquent plus comme prévu ce qui est livré :
+  client web sur le port 8767 et appairage par clé d'accès (architecture), contexte de requête (trajet d'une
+  phrase), droits par rôle appliqués par le serveur (rôles et droits), moteur et gestion des routines à la voix
+  (routines). Restent en pointillé la flèche de refus et les pastilles « Plus tard » des routines.
+- README : mêmes corrections dans les légendes, les textes alternatifs et la section Rôles et routines. Restent
+  annoncés comme à faire l'écran des routines du client web et les routines automatiques.
+
 ## Serveur 0.55.1 (2026-10-27), logement de l'orbe coupé en deux dans la barre du client web
 Correctif. Appli Home Assistant 0.55.1 (même code), appli Android inchangée. Client web 0.9.1, page 3D inchangée.
 - Le propriétaire ne garde que la moitié basse du logement : plus de berceau soulevé au-dessus de la barre, dont le

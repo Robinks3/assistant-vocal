@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 668" width="100%" role="img" aria-label="Trajet d'une phrase, du mot de réveil à la réponse vocale" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Trajet d'une phrase, du mot de réveil à la réponse vocale</title><desc>Réveil, écoute, reconnaissance, contexte de requête (prévu), cerveau, contrôles de sécurité en dur, appel de Home Assistant, puis réponse vocale. Un refus de la sécurité répond sans rien exécuter.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" width="100%" role="img" aria-label="Trajet d'une phrase, du mot de réveil à la réponse vocale" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Trajet d'une phrase, du mot de réveil à la réponse vocale</title><desc>Réveil, écoute, reconnaissance, contexte de requête, cerveau, contrôles de sécurité en dur, appel de Home Assistant, puis réponse vocale. Un refus de la sécurité répond sans rien exécuter.</desc>
 <defs>
 <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#000000"/></linearGradient>
 <radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.13"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
@@ -16,7 +16,7 @@
 <radialGradient id="orbe-rouge" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FAC9C5"/><stop offset="0.38" stop-color="#EC7A73"/><stop offset="0.78" stop-color="#E5534B"/><stop offset="1" stop-color="#A3322B"/></radialGradient>
 <radialGradient id="halo-rouge"><stop offset="0.35" stop-color="#EC7A73" stop-opacity="0.40"/><stop offset="0.7" stop-color="#EC7A73" stop-opacity="0.10"/><stop offset="1" stop-color="#EC7A73" stop-opacity="0"/></radialGradient>
 </defs>
-<rect x="0.5" y="0.5" width="899" height="667" rx="22" fill="url(#fond)" stroke="#16191D"/><rect x="0.5" y="0.5" width="899" height="667" rx="22" fill="url(#lueurFond)"/>
+<rect x="0.5" y="0.5" width="899" height="639" rx="22" fill="url(#fond)" stroke="#16191D"/><rect x="0.5" y="0.5" width="899" height="639" rx="22" fill="url(#lueurFond)"/>
 <text x="24" y="44" font-size="22" font-weight="700" fill="#F2F5F9">Trajet d'une phrase</text>
 <text x="24" y="70" font-size="14.5" fill="#BAC3D0">Du mot de réveil à l'action, avec la sécurité en dur placée avant Home Assistant.</text>
 <rect x="24" y="100" width="189" height="112" rx="14" fill="url(#carte)"/>
@@ -48,21 +48,18 @@
 <text x="482" y="178" font-size="13" fill="#BAC3D0">ou API, puis dictionnaire</text>
 <rect x="687" y="100" width="189" height="112" rx="14" fill="url(#carte)"/>
 <rect x="687" y="100" width="189" height="112" rx="14" fill="#F0B46A" fill-opacity="0.13"/>
-<rect x="687" y="100" width="189" height="112" rx="14" fill="none" stroke="#F0B46A" stroke-width="1.5" stroke-dasharray="6 5"/>
+<rect x="687" y="100" width="189" height="112" rx="14" fill="none" stroke="#F0B46A" stroke-width="1.5"/>
 <circle cx="713" cy="126" r="20" fill="url(#halo-ambre)"/>
 <circle cx="713" cy="126" r="12" fill="url(#orbe-ambre)"/>
 <text x="713" y="131" font-size="13" font-weight="700" fill="#10151D" text-anchor="middle">4</text>
 <text x="735" y="131" font-size="16" font-weight="600" fill="#F2F5F9">Contexte</text>
-<rect x="813.5" y="112" width="50.5" height="20" rx="10" fill="#F0B46A" fill-opacity="0.2"/>
-<rect x="813.5" y="112" width="50.5" height="20" rx="10" fill="none" stroke="#F0B46A" stroke-width="1.2"/>
-<text x="838.8" y="126.5" font-size="12" font-weight="600" fill="#F0B46A" text-anchor="middle">prévu</text>
 <text x="703" y="158" font-size="13" fill="#BAC3D0">Personne, rôle et</text>
 <text x="703" y="178" font-size="13" fill="#BAC3D0">appareil en argument</text>
 <path d="M213 156 L245 156" fill="none" stroke="#7FB2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M245 156 L235 161.5 L235 150.5 Z" fill="#7FB2FF"/>
 <path d="M434 156 L466 156" fill="none" stroke="#7FB2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M466 156 L456 161.5 L456 150.5 Z" fill="#7FB2FF"/>
-<path d="M655 156 L687 156" fill="none" stroke="#F0B46A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M655 156 L687 156" fill="none" stroke="#F0B46A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M687 156 L677 161.5 L677 150.5 Z" fill="#F0B46A"/>
 <rect x="24" y="252" width="189" height="150" rx="14" fill="url(#carte)"/>
 <rect x="24" y="252" width="189" height="150" rx="14" fill="#A98BFF" fill-opacity="0.13"/>
@@ -75,7 +72,7 @@
 <text x="40" y="330" font-size="13" fill="#BAC3D0">sinon un LLM qui</text>
 <text x="40" y="350" font-size="13" fill="#BAC3D0">propose un appel :</text>
 <text x="40" y="370" font-size="13" fill="#BAC3D0">Claude ou Qwen local</text>
-<path d="M781.5 212 L781.5 232 L118.5 232 L118.5 252" fill="none" stroke="#F0B46A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M781.5 212 L781.5 232 L118.5 232 L118.5 252" fill="none" stroke="#F0B46A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M118.5 252 L113 242 L124 242 Z" fill="#F0B46A"/>
 <rect x="245" y="252" width="631" height="150" rx="14" fill="url(#carte)"/>
 <rect x="245" y="252" width="631" height="150" rx="14" fill="#EC7A73" fill-opacity="0.13"/>
@@ -134,11 +131,4 @@
 <text x="789.5" y="428" font-size="11.5" fill="#F08F89">refusé</text>
 <text x="24" y="598" font-size="13" fill="#BAC3D0">Un refus donne une réponse vocale, sans aucun appel à Home Assistant.</text>
 <text x="24" y="618" font-size="13" fill="#BAC3D0">Occupant protégé et heures calmes sont deux réglages de poc/securite.py, éteints pour l'instant.</text>
-<path d="M24 646 L52 646" stroke="#6D7787" stroke-width="2" stroke-linecap="round"/>
-<text x="62" y="650.5" font-size="12.5" fill="#8F9AAA">Existe dans le code</text>
-<path d="M214 646 L242 646" stroke="#6D7787" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 5"/>
-<rect x="252" y="636" width="50.5" height="20" rx="10" fill="#F0B46A" fill-opacity="0.2"/>
-<rect x="252" y="636" width="50.5" height="20" rx="10" fill="none" stroke="#F0B46A" stroke-width="1.2"/>
-<text x="277.2" y="650.5" font-size="12" font-weight="600" fill="#F0B46A" text-anchor="middle">prévu</text>
-<text x="310" y="650.5" font-size="12.5" fill="#8F9AAA">Pas encore codé, conception validée</text>
 </svg>
