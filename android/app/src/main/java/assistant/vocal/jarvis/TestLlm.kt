@@ -6,7 +6,7 @@ import android.util.Log
 
 /**
  * Banc du LLM sur l'appareil, sans micro ni action : charge un modèle de files/llm/, lit les
- * appareils dans HA (lecture seule, par la passerelle de l'app Jarvis sur HA) et note la décision
+ * appareils dans HA (lecture seule, par la passerelle de l'appli de l'assistant sur HA) et note la décision
  * pour chaque phrase. Rien n'est exécuté.
  *   adb shell am start -n assistant.vocal.jarvis/.MainActivity --es test_llm "phrase 1|phrase 2" [--es modele fichier.litertlm]
  * Résultats dans logcat, étiquette JarvisLlm.

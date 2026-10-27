@@ -27,7 +27,7 @@ import java.net.URLEncoder
 import java.util.Locale
 
 /**
- * Écran Appareils (0.15.0, serveur 0.17.0) : appairer cet appareil avec un serveur Jarvis, gérer
+ * Écran Appareils (0.15.0, serveur 0.17.0) : appairer cet appareil avec un serveur de l'assistant, gérer
  * les appareils connus et les demandes en attente, oublier la clé épinglée d'un serveur.
  *
  * L'appairage se fait sans jeton sur le port chiffré (/appairage?nom=...) : le serveur affiche un
@@ -70,7 +70,7 @@ class AppareilsActivity : Activity() {
         window.statusBarColor = Couleur.FOND_HAUT
         @Suppress("DEPRECATION")
         window.navigationBarColor = Couleur.FOND_BAS
-        // « Cet appareil » s'appuie sur l'app Jarvis sur HA (passerelle) : c'est elle qu'on gère alors.
+        // « Cet appareil » s'appuie sur l'appli de l'assistant sur HA (passerelle) : c'est elle qu'on gère alors.
         serveur = if (SatelliteService.serveurChoisi(this) == "pc") "pc" else "ha"
         setContentView(construire())
         majServeur()

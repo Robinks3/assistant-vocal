@@ -1,4 +1,4 @@
-"""Exporte le dictionnaire de Jarvis pour l'appli Android (mode « Cet appareil »).
+"""Exporte le dictionnaire de l'assistant pour l'appli Android (mode « Cet appareil »).
 
 Lit commandes.yaml du dossier de configuration de la maison (poc/maison.py) avec le même code que les
 serveurs (poc/dictionnaire.py), développe toutes les formes et écrit genere/android/dictionnaire.json dans
@@ -32,7 +32,7 @@ from pathlib import Path
 ICI = Path(__file__).resolve().parent
 RACINE = ICI.parent.parent
 POC = RACINE / "poc"
-_args = argparse.ArgumentParser(description="Exporte le dictionnaire de Jarvis pour l'appli Android.")
+_args = argparse.ArgumentParser(description="Exporte le dictionnaire de l'assistant pour l'appli Android.")
 _args.add_argument("--exemple", action="store_true")
 _args.add_argument("--sortie", type=Path)
 _args.add_argument("--donnees")
