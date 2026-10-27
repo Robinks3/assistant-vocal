@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Associer un navigateur</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/associer.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="lien-retour"><a href="/reglages">Réglages</a></p>
+<h1 class="titre-page">Associer un navigateur</h1>
+
+<section id="etape-1" class="carte" aria-labelledby="titre-1">
+<h2 class="surtitre" id="titre-1">Étape 1 sur 3</h2>
+<form id="formulaire-ouvrir" class="formulaire" novalidate>
+<fieldset class="groupe">
+<legend class="libelle">Rôle de ce navigateur</legend>
+<label class="choix"><input type="radio" name="role" value="invite" checked><span class="choix-texte"><span class="fort">Invité</span><span class="secondaire">Accès limité, 7 jours</span></span></label>
+<label class="choix"><input type="radio" name="role" value="habitant"><span class="choix-texte"><span class="fort">Habitant</span><span class="secondaire">Un membre de la maison</span></span></label>
+<label class="choix"><input type="radio" name="role" value="administrateur"><span class="choix-texte"><span class="fort">Propriétaire</span><span class="secondaire">Contrôle total</span></span></label>
+</fieldset>
+<p id="avertissement-proprietaire" class="avertissement" hidden>Gère les appareils, l'association des navigateurs et les routines de tous les habitants. Accès complet, santé comprise. Ce navigateur pourra tout faire, y compris associer ou révoquer d'autres appareils. À réserver à vos propres appareils.</p>
+<label class="libelle" for="champ-nom">Nom de l'appareil</label>
+<input id="champ-nom" class="champ" type="text" maxlength="40" autocomplete="off" required aria-describedby="aide-nom erreur-ouvrir">
+<p id="aide-nom" class="aide">Ce nom apparaît dans la liste des appareils. Vous pourrez le reconnaître au moment de révoquer.</p>
+<p id="erreur-ouvrir" class="alerte" role="alert" hidden></p>
+<button id="bouton-ouvrir" type="submit" class="bouton bouton--principal bouton--plein">Afficher le code</button>
+</form>
+</section>
+
+<section id="etape-2" class="carte" aria-labelledby="titre-2" hidden>
+<h2 class="surtitre" id="titre-2">Étape 2 sur 3</h2>
+<p class="fort carte-texte">Code pour <span id="nom-code"></span></p>
+<p id="code-affiche" class="code-gros" aria-label="Code à 6 chiffres"><span id="code-a"></span><span id="code-b"></span></p>
+<div class="reste">
+<p id="reste-code" class="secondaire" role="status">Valable encore 2 min 00 s</p>
+<progress id="barre-code" class="barre" max="120" value="120" aria-label="Temps restant avant l'expiration du code"></progress>
+</div>
+<p class="pastille pastille--assistant">Usage unique</p>
+<div id="zone-qr" class="zone-qr" hidden><img id="image-qr" class="qr" alt="QR code qui ouvre l'association avec le code déjà rempli" width="200" height="200"></div>
+<p class="carte-texte">Sur le nouveau navigateur, ouvrez l'adresse de l'assistant et saisissez ce code. Vous pouvez aussi scanner le QR code quand il est affiché.</p>
+<p class="aide">Ne montrez ce code qu'à la personne qui associe son appareil.</p>
+<p id="statut-code" class="aide" role="status" hidden></p>
+<button id="bouton-annuler" type="button" class="bouton bouton--plein">Annuler l'association</button>
+</section>
+
+<section id="etape-3" class="carte" aria-labelledby="titre-3" hidden>
+<h2 class="surtitre" id="titre-3">Confirmer l'association</h2>
+<p class="carte-texte">Quelqu'un a saisi le bon code. Confirmez qu'il s'agit bien de <span id="nom-confirmer" class="fort"></span> avec votre clé d'accès.</p>
+<dl class="resume">
+<div><dt>Nom</dt><dd id="resume-nom"></dd></div>
+<div><dt>Rôle</dt><dd id="resume-role"></dd></div>
+<div><dt>Heure</dt><dd id="resume-heure"></dd></div>
+</dl>
+<p id="erreur-confirmer" class="alerte" role="alert" hidden></p>
+<button id="bouton-confirmer" type="button" class="bouton bouton--principal bouton--plein">Utiliser ma clé d'accès</button>
+<button id="bouton-refuser" type="button" class="bouton bouton--plein">Refuser et annuler</button>
+<p class="aide">Votre téléphone demandera votre empreinte, votre visage ou votre code de verrouillage.</p>
+</section>
+
+<section id="etape-fait" class="carte" aria-labelledby="titre-fait" hidden>
+<h2 class="surtitre" id="titre-fait">Association terminée</h2>
+<p class="fort carte-texte" role="status"><span id="fait-nom"></span> est associé</p>
+<p id="fait-detail" class="secondaire"></p>
+<p class="aide">Fait. Le code est détruit. Vous pouvez révoquer cet appareil à tout moment dans les Réglages.</p>
+<a class="bouton bouton--principal bouton--plein" href="/reglages">Terminer</a>
+<button id="bouton-autre" type="button" class="bouton bouton--plein">Associer un autre navigateur</button>
+</section>
+
+<section id="etape-interrompu" class="carte" aria-labelledby="titre-interrompu" hidden>
+<h2 class="surtitre" id="titre-interrompu">Association interrompue</h2>
+<p id="texte-interrompu" class="carte-texte" role="alert">L'association a été interrompue.</p>
+<p id="heure-interrompu" class="fort" hidden></p>
+<p class="aide">Si vous attendiez cet appareil, recommencez. Sinon, quelqu'un a peut-être vu le code.</p>
+<button id="bouton-recommencer" type="button" class="bouton bouton--principal bouton--plein">Recommencer avec un nouveau code</button>
+<a class="bouton bouton--plein" href="/reglages">Fermer</a>
+</section>
+
+<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+</body>
+</html>

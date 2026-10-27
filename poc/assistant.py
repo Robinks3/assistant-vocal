@@ -60,8 +60,8 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.46.1"
-DATE_VERSION = "2026-10-26"
+VERSION = "0.47.0"
+DATE_VERSION = "2026-10-27"
 
 ICI = Path(__file__).resolve().parent
 # Données vivantes (dictionnaire, phrases apprises, journal) : à côté du code sur le PC, dans le

@@ -36,6 +36,11 @@ ul { list-style: none; padding: 0; margin: 10px 0; }
 label { font-weight: 600; margin-right: 6px; }
 [hidden] { display: none !important; }
 .ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 10px 0; }
+input[type="text"] {
+  min-height: 44px; padding: 8px 12px; font: inherit; color: var(--texte); background: var(--carte);
+  border: 1px solid var(--bord-champ); border-radius: 10px; max-width: 100%; min-width: 0;
+}
+.centre { justify-content: center; }
 button, select {
   min-height: 44px; min-width: 44px; padding: 8px 16px; font: inherit; color: var(--texte);
   background: var(--carte); border: 1px solid var(--bord-champ); border-radius: 10px;

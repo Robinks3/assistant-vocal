@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Associer ce navigateur</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/appairage.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="salut">{{nom_assistant}}</p>
+<h1 class="titre-page">Associer ce navigateur</h1>
+
+<section id="etape-code" class="carte" aria-labelledby="titre-code">
+<h2 class="surtitre" id="titre-code">Code d'association</h2>
+<p class="carte-texte">Le propriétaire de la maison ouvre d'abord l'association sur son appareil. Il vous donne alors un code à 6 chiffres. Saisissez-le ici.</p>
+<form id="formulaire-code" class="formulaire" novalidate>
+<label class="libelle" for="champ-code">Code à 6 chiffres</label>
+<input id="champ-code" class="champ champ--code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" aria-describedby="aide-code erreur-code">
+<p id="aide-code" class="aide">Le code vaut 2 minutes et ne sert qu'une fois. Trois essais.</p>
+<p id="erreur-code" class="alerte" role="alert" hidden></p>
+<button id="bouton-code" type="submit" class="bouton bouton--principal bouton--plein">Continuer</button>
+</form>
+<p class="aide">Pas de code ? Demandez au propriétaire de choisir Associer un navigateur dans les Réglages.</p>
+</section>
+
+<section id="etape-attente" class="carte" aria-labelledby="titre-attente" hidden>
+<h2 class="surtitre" id="titre-attente">En attente du propriétaire</h2>
+<p id="texte-attente" class="carte-texte" role="status">Le code est bon. Le propriétaire doit encore confirmer avec sa clé d'accès. Gardez cette page ouverte.</p>
+<p class="fort"><span id="etat-attente">Confirmation en cours</span> <span id="reste-attente" class="chiffres"></span></p>
+<p id="erreur-creation" class="alerte" role="alert" hidden></p>
+<button id="bouton-annuler" type="button" class="bouton bouton--plein">Annuler</button>
+<p class="aide">Sans confirmation dans les 2 minutes, l'association s'arrête.</p>
+</section>
+
+<section id="etape-interrompu" class="carte" aria-labelledby="titre-interrompu" hidden>
+<h2 class="surtitre" id="titre-interrompu">Association interrompue</h2>
+<p id="texte-interrompu" class="carte-texte" role="alert">L'association a été interrompue.</p>
+<button id="bouton-reprendre" type="button" class="bouton bouton--principal bouton--plein">Recommencer</button>
+</section>
+
+<section id="etape-fait" class="carte" aria-labelledby="titre-fait" hidden>
+<h2 class="surtitre" id="titre-fait">Ce navigateur est associé</h2>
+<p id="texte-fait" class="carte-texte" role="status">Ouverture de votre espace.</p>
+</section>
+
+<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+</body>
+</html>

@@ -53,6 +53,34 @@
     </div>
   </section>
 
+  <section aria-labelledby="h-web" id="bloc-web">
+    <h2 id="h-web">Navigateurs web</h2>
+    <p class="discret">Téléphones associés au client web, chacun par une clé propre à l'appareil. Cette page amorce le premier propriétaire et sert de secours.</p>
+    <p class="vide" id="web-indisponible" hidden>Le client web n'est pas démarré sur ce serveur.</p>
+    <div id="web-bloc" hidden>
+      <p class="vide" id="web-aucun" hidden>Aucun navigateur associé.</p>
+      <ul class="cartes" id="web-appareils"></ul>
+      <div id="web-ajout" class="ligne">
+        <label for="web-nom">Nom du navigateur</label>
+        <input type="text" id="web-nom" maxlength="40" autocomplete="off" placeholder="Téléphone de Camille">
+        <label for="web-role">Rôle</label>
+        <select id="web-role"></select>
+        <button type="button" id="web-ouvrir" class="principal">Ouvrir un appairage</button>
+      </div>
+      <div id="web-ouverture" class="invitation" hidden>
+        <p class="discret" id="web-consigne">Ouvre l'adresse d'appairage sur le téléphone, ou scanne le QR code, puis saisis ce code. Il sert une seule fois.</p>
+        <p class="code-grand" id="web-code" aria-live="off"></p>
+        <img id="web-qr" class="qr" alt="QR code d'appairage du navigateur" width="192" height="192" hidden>
+        <p class="compte" id="web-etat" role="status"></p>
+        <p id="web-compte" class="compte" role="timer"></p>
+        <div class="actions centre">
+          <button type="button" id="web-confirmer" class="principal" hidden>Confirmer l'association</button>
+          <button type="button" id="web-annuler" class="secondaire">Annuler l'appairage</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section aria-labelledby="h-fixes">
     <h2 id="h-fixes">Jetons fixes</h2>
     <p class="discret">Accès définis dans la configuration du serveur. Lecture seule.</p>
