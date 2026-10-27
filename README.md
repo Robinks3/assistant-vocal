@@ -134,7 +134,7 @@ confirme, puis le moteur exécute lui-même chaque étape avec la sécurité en 
   <img src="docs/images/routines-clair.svg" width="900" alt="Routines : création à la voix, exécution en déclencheur, conditions et actions, exemple fictif">
 </picture>
 
-<sub>Les routines, de la création à la voix jusqu'à l'exécution, sur un exemple fictif. La création et la gestion à la voix sont en service. L'écran des routines du client web reste à faire, les routines automatiques (présence, heure) viendront plus tard.</sub>
+<sub>Les routines, de la création à la voix jusqu'à l'exécution, sur un exemple fictif. La création et la gestion à la voix sont en service, comme l'écran Routines du client web (lancer, mettre en pause, supprimer, selon le rôle). Les routines automatiques (présence, heure) viendront plus tard.</sub>
 
 ## Essayer
 

@@ -13,7 +13,7 @@ RACINE = Path(__file__).resolve().parent.parent
 WEB = RACINE / "web"
 NODE = shutil.which("node")
 
-PAGES = ("index", "appairage", "associer", "demander", "journal", "maison", "meteo", "reglages")
+PAGES = ("index", "appairage", "associer", "demander", "journal", "maison", "meteo", "reglages", "routines")
 
 
 def lire(nom):
@@ -71,7 +71,8 @@ def test_ce_qui_est_technique_est_marque_et_rien_de_securite_ne_l_est():
                                                                   "journal.html")}
     assert all(n >= 1 for n in marques.values()), marques
     # jamais un message d'erreur, une alerte ou une information de sécurité derrière la classe
-    for nom in [p + ".html" for p in PAGES] + ["journal.js", "reglages.js", "meteo.js", "maison.js", "demander.js"]:
+    for nom in [p + ".html" for p in PAGES] + ["journal.js", "reglages.js", "meteo.js", "maison.js", "demander.js",
+                                                   "routines.js"]:
         chemin = WEB / nom
         if not chemin.exists():
             continue

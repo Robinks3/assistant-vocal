@@ -49,7 +49,7 @@ async def echange(ws, msg):
 
 def test_le_message_meteo_est_dans_la_liste_blanche_et_la_version_du_client_est_0_8_0():
     assert MW.GENRES == ("meteo",) and "meteo" in W.MESSAGES_TOUT_ROLE
-    assert W.VERSION_CLIENT == "0.9.1"
+    assert W.VERSION_CLIENT == "0.10.0"
 
 
 def test_la_page_et_le_script_exigent_une_session(service):

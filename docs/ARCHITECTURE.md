@@ -366,6 +366,8 @@ Port chiffré seulement : sur le port en clair, ces types reçoivent `{"etat":"r
 
 L'essai effectif est celui du serveur OU celui du message. Un refus a toujours la forme `{"etat":"refuse","type","message"}`.
 
+Depuis la 0.56.0, le client web (port 8767) accepte les mêmes six messages par `routines_web.py`, avec un schéma plus strict : clés exactes (`type` et les champs du tableau, sans `essai`), sinon un refus `format`. Les droits par rôle sont les mêmes, la personne vient de la session (le propriétaire pour l'administrateur, l'identité de l'appareil associé pour un habitant). Les réponses portent un champ `type` au lieu de `etat`, chaque routine est dite en mots avec un bloc `droits` (`lancer`, `couper`, `supprimer`) calculé par le moteur, un refus devient `{"type":"erreur","cause","genre"}` (`droit`, `format`, `indisponible` ou `inconnue`), et `routines_maj` est relayé aux clients web. Le détail est dans `docs/plan/conception/client-web.md`.
+
 ### Passerelle Home Assistant
 
 | Message | Champs | Réponse |

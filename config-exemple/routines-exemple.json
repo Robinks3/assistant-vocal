@@ -1,0 +1,73 @@
+{
+  "format": 1,
+  "routines": [
+    {
+      "id": "r-20261012-1842-a1",
+      "nom": "Arrivée",
+      "auteur": "sacha",
+      "pour": "tous",
+      "actif": true,
+      "a_revoir": null,
+      "declencheurs": [
+        {"genre": "phrase", "phrases": ["j'arrive"], "variantes": ["me voilà", "je suis là"]}
+      ],
+      "etapes": [
+        {"etape": "service", "domaine": "light", "service": "turn_on", "entity_id": ["light.couloir_plafond"], "donnees": {}},
+        {"etape": "service", "domaine": "light", "service": "turn_on", "entity_id": ["light.salon_plafond"], "donnees": {"brightness_pct": 60}},
+        {"etape": "annonce", "texte": "Bienvenue à la maison."}
+      ],
+      "reponse": null,
+      "phrase_de_creation": "crée une routine arrivée",
+      "creee_le": "2026-10-12T18:42:00",
+      "creee_par_appareil": "tablette-entree",
+      "modifiee_le": null,
+      "derniere_execution": {"le": "2026-10-26T18:42:10", "resultat": "ok", "echecs": []},
+      "executions": 12
+    },
+    {
+      "id": "r-20261014-2105-b2",
+      "nom": "Soirée",
+      "auteur": "camille",
+      "pour": "auteur",
+      "actif": true,
+      "a_revoir": null,
+      "declencheurs": [
+        {"genre": "phrase", "phrases": ["je rentre"], "variantes": ["bonsoir la maison"]}
+      ],
+      "etapes": [
+        {"etape": "service", "domaine": "light", "service": "turn_on", "entity_id": ["light.cuisine_suspensions"], "donnees": {"brightness_pct": 40}},
+        {"etape": "annonce", "texte": "Bonne soirée."}
+      ],
+      "reponse": null,
+      "phrase_de_creation": "crée une routine soirée",
+      "creee_le": "2026-10-14T21:05:00",
+      "creee_par_appareil": "tablette-salon",
+      "modifiee_le": null,
+      "derniere_execution": {"le": "2026-10-25T21:06:02", "resultat": "partiel", "echecs": ["allume cuisine suspensions"]},
+      "executions": 4
+    },
+    {
+      "id": "r-20261020-2030-c3",
+      "nom": "Film",
+      "auteur": "sacha",
+      "pour": "auteur",
+      "actif": false,
+      "a_revoir": null,
+      "declencheurs": [
+        {"genre": "phrase", "phrases": ["on regarde un film"], "variantes": []}
+      ],
+      "etapes": [
+        {"etape": "service", "domaine": "light", "service": "turn_off", "entity_id": ["light.salon_plafond"], "donnees": {}},
+        {"etape": "service", "domaine": "media_player", "service": "turn_on", "entity_id": ["media_player.tele_salon"], "donnees": {}},
+        {"etape": "pause", "secondes": 5}
+      ],
+      "reponse": null,
+      "phrase_de_creation": "crée une routine film",
+      "creee_le": "2026-10-20T20:30:00",
+      "creee_par_appareil": "tablette-salon",
+      "modifiee_le": null,
+      "derniere_execution": null,
+      "executions": 0
+    }
+  ]
+}

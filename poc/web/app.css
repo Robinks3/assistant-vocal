@@ -440,3 +440,47 @@ svg.i{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .iframe-3d{display:block;width:100%;height:100%;border:0;background:transparent}
 .volet-pied{margin-top:var(--e4)}
 .volet-pied .alerte{margin-top:0}
+
+/* Routines (S-W6) : liste, fiche d'une routine et feuille de suppression (maquettes routines-*.html) */
+.retour{display:inline-flex;align-items:center;justify-content:center;width:var(--cible);height:var(--cible);flex:none;margin-left:calc(-1*var(--e2));border:0;border-radius:var(--r-pilule);background:transparent;color:var(--texte-1)}
+.barre-haut--retour{justify-content:flex-start}
+.barre-haut .titre-page{flex:1;min-width:0;margin-bottom:0}
+.rangee .suite{flex:none;color:var(--texte-3)}
+.discret{color:var(--texte-3);font-size:.875rem}
+.intro-ecran{margin:0 0 var(--e4);color:var(--texte-2)}
+.alerte--ok{border:1px solid var(--ok);background:var(--ok-fond)}
+.alerte--ok svg,.alerte--ok b{color:var(--ok)}
+.routines-liste{display:grid;gap:var(--e3)}
+.routines-liste .carte+.carte{margin-top:0}
+.routine{display:flex;align-items:center}
+.routine .rangee{flex:1;width:auto;min-width:0}
+.routine .commutateur{margin-right:var(--e2)}
+.routine .texte small{display:block;margin-top:2px;font-size:.8125rem;color:var(--texte-2)}
+.routines-vide{padding:var(--e4)}
+.entete-routine{display:flex;flex-wrap:wrap;align-items:center;gap:var(--e2) var(--e3);margin:0 0 var(--e3)}
+.declencheurs{margin:0;padding:var(--e2) var(--e4) var(--e3);list-style:none}
+.declencheurs li{padding:var(--e1) 0;font-size:1.0625rem;font-weight:500;overflow-wrap:anywhere}
+.declencheurs .variantes{display:block;margin-top:var(--e1);font-size:.875rem;font-weight:400;color:var(--texte-2)}
+.etapes-routine{counter-reset:etape;margin:0;padding:0;list-style:none}
+.etapes-routine li{counter-increment:etape;display:flex;gap:var(--e3);align-items:flex-start;padding:var(--e3) var(--e4);border-top:1px solid var(--filet)}
+.etapes-routine li:first-child{border-top:0}
+.etapes-routine li::before{content:counter(etape);display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;border-radius:50%;
+  font:400 1rem/1 var(--police-chiffres);color:var(--assistant);background:var(--assistant-doux);border:1px solid var(--assistant)}
+.etapes-routine .texte{flex:1;min-width:0;padding-top:3px}
+.etapes-routine .texte b{display:block;font-weight:500;overflow-wrap:anywhere}
+.etapes-routine .technique{display:block;margin-top:2px;font:400 .8125rem/1.5 ui-monospace,Consolas,"Courier New",monospace;color:var(--texte-3);overflow-wrap:anywhere}
+.routine-fiche{padding:var(--e1) var(--e4) var(--e3)}
+.fiche{margin:0}
+.fiche>div{display:grid;grid-template-columns:104px 1fr;gap:var(--e3);align-items:baseline;padding:var(--e2) 0;border-top:1px solid var(--filet)}
+.fiche>div:first-child{border-top:0}
+.fiche dt{font-size:.875rem;color:var(--texte-2)}
+.fiche dd{margin:0;overflow-wrap:anywhere}
+.fiche dd small{display:block;font-size:.875rem;color:var(--texte-2)}
+.actions{display:grid;gap:var(--e2);margin-top:var(--e5)}
+.actions .bouton{margin-top:0}
+.actions--ligne{grid-template-columns:1fr 1fr;margin-top:0}
+.bouton--discret-danger{color:var(--danger);border-color:var(--danger);background:transparent;box-shadow:none}
+.bouton--discret-danger:hover{filter:none;background:var(--danger-fond)}
+.routine-retour{margin-top:var(--e3)}
+.feuille h2{font-size:1.25rem;font-weight:500;line-height:1.25;overflow-wrap:anywhere}
+.feuille h2+p{margin-top:var(--e2);color:var(--texte-2)}

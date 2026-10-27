@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Routines</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/routines.js" defer></script>
+</head>
+<body>
+<main id="contenu-routines" class="contenu contenu--onglets">
+<div class="barre-haut barre-haut--retour">
+<button type="button" id="retour" class="retour" aria-label="Retour"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="m15 5-7 7 7 7"/></svg></button>
+<h1 id="titre-routines" class="titre-page" tabindex="-1">Routines</h1>
+</div>
+<p id="sous-titre" class="secondaire" role="status">Lecture des routines en cours.</p>
+<p id="erreur-routines" class="alerte alerte--danger" role="alert" hidden></p>
+<div id="bandeau-routines" class="alerte alerte--icone alerte--ok" role="status" hidden></div>
+
+<section id="vue-liste" aria-labelledby="titre-routines">
+<p id="intro-routines" class="intro-ecran">Une routine enchaîne plusieurs actions sur une phrase. Pour en créer une, décris-la à {{nom_assistant}} à la voix.</p>
+<div id="vide-routines" class="carte routines-vide" hidden>
+<p class="fort">Aucune routine pour le moment.</p>
+<p class="secondaire">Dis par exemple à {{nom_assistant}} : "crée une routine arrivée". Elle te demandera la phrase et les actions.</p>
+</div>
+<div id="liste-routines" class="routines-liste"></div>
+</section>
+
+<section id="vue-detail" aria-labelledby="titre-routines" hidden>
+<div id="entete-routine" class="entete-routine"></div>
+<p id="lancement-routine" class="alerte alerte--info" role="status" hidden></p>
+<h2 class="titre-section">Déclencheurs</h2>
+<section class="carte carte--vide" aria-label="Déclencheurs"><ul id="declencheurs-routine" class="declencheurs"></ul></section>
+<h2 class="titre-section">Étapes</h2>
+<section class="carte carte--vide" aria-label="Étapes"><ol id="etapes-routine" class="etapes-routine"></ol></section>
+<h2 class="titre-section">Dernier déclenchement</h2>
+<section class="carte carte--vide" aria-label="Dernier déclenchement"><div class="routine-fiche"><dl id="fiche-routine" class="fiche"></dl></div></section>
+<div id="actions-routine" class="actions">
+<button type="button" id="bouton-lancer" class="bouton bouton--principal bouton--plein"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="M8 5l11 7-11 7V5Z"/></svg><span>Lancer maintenant</span></button>
+<button type="button" id="bouton-pause" class="bouton bouton--plein"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="M8 5v14M16 5v14"/></svg><span id="texte-pause">Mettre en pause</span></button>
+<div class="actions actions--ligne">
+<button type="button" id="bouton-modifier" class="bouton" aria-controls="aide-modifier" aria-expanded="false"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z"/><path d="M14 7l3 3"/></svg><span>Modifier</span></button>
+<button type="button" id="bouton-supprimer" class="bouton bouton--discret-danger" aria-haspopup="dialog"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg><span>Supprimer</span></button>
+</div>
+</div>
+<p id="aide-modifier" class="aide" hidden>Pour modifier, décris le changement à {{nom_assistant}} : le déclencheur, une étape ou l'ordre.</p>
+<p id="aide-droits" class="aide" hidden></p>
+</section>
+
+<p class="version dev-seulement" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+<div id="voile-supprimer" class="voile" data-superposition-voulue="voile de la feuille" hidden></div>
+<div id="feuille-supprimer" class="feuille" data-superposition-voulue="feuille modale" role="alertdialog" aria-modal="true" aria-labelledby="supp-titre" aria-describedby="supp-desc" hidden>
+<div class="poignee" aria-hidden="true"></div>
+<h2 id="supp-titre">Supprimer la routine ?</h2>
+<p id="supp-desc">Elle ne se déclenchera plus, ni par la voix ni depuis cet écran. Une copie reste dans le journal des routines, pour la retrouver si besoin.</p>
+<p id="erreur-supprimer" class="alerte alerte--danger" role="alert" hidden></p>
+<div class="actions">
+<button type="button" id="confirmer-supprimer" class="bouton bouton--danger-plein bouton--plein"><svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg><span>Supprimer la routine</span></button>
+<button type="button" id="garder-routine" class="bouton bouton--plein">Garder la routine</button>
+</div>
+</div>
+{{onglets:accueil}}
+</body>
+</html>

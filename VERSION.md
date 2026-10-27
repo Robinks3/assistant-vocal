@@ -4,6 +4,32 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.56.0 (2026-10-27), écran Routines dans le client web
+Mineure. Session S-W6 du plan. Appli Home Assistant 0.56.0 (le déploiement copie aussi `routines_web.py`), appli Android
+inchangée. Client web 0.10.0.
+- Écran Routines (`/routines`, `routines.html`, `routines.js`), d'après les maquettes routines-liste, routines-detail
+  et routines-suppression. Liste des routines visibles, puis détail : phrases qui la lancent, étapes en mots, qui la
+  lance et qui la gère, dernière exécution. Actions selon les droits : Lancer maintenant, Mettre en pause ou
+  Réactiver, Modifier (qui explique que la modification se fait à la voix) et Supprimer, en rouge et à l'écart.
+  Aucun bouton de création, une routine se crée à la voix. Textes posés par `textContent` seulement, états de
+  chargement, vide et erreur. Lien depuis l'accueil.
+- Suppression confirmée par une feuille `alertdialog`, le focus sur « Garder la routine ». Après suppression, un
+  bandeau `role="status"` sans bouton Annuler (la suppression est définitive).
+- Six messages sur le port 8767 (`routines`, `routine_lancer`, `routine_activer`, `routine_supprimer`,
+  `routine_texte`, `routines_export`), à schéma strict (`routines_web.py`) : une clé en trop, en moins ou du mauvais
+  type donne un refus `format`. Le rôle et la personne viennent de la session, jamais du message : le propriétaire
+  pour l'administrateur, l'identité de l'appareil associé pour un habitant, personne pour un invité. Lister, lancer
+  et dicter pour tout rôle, mettre en pause et supprimer pour l'administrateur et l'habitant, exporter pour
+  l'administrateur seulement. Chaque routine part avec un bloc `droits` calculé par le moteur, le navigateur n'en
+  invente aucun. Une routine invisible reste inconnue, son existence ne fuit pas. Le signal `routines_maj` est relayé
+  aux clients web. Le port 8765 refuse toujours ces messages.
+- Mode développeur : l'identifiant technique d'une étape (service et entités) ne part que vers le propriétaire, et ne
+  s'affiche qu'en mode développeur (classe `dev-seulement`).
+- `config-exemple/routines-exemple.json` : trois routines fictives pour les essais et les maquettes.
+- README et schémas des routines : l'écran du client web n'est plus annoncé comme à faire.
+- Tests : `test_serveur_web_routines.py`, treize variantes de l'écran Routines dans le contrôle de mise en page (zéro
+  défaut à 360, 390 et 430 px, thèmes clair et sombre), page ajoutée à `test_mode_developpeur.py`.
+
 ## Serveur 0.55.2 (2026-10-27), schémas et README remis à l'état du code
 Correctif de documentation. Appli Home Assistant 0.55.2 (même code), appli Android et client web inchangés.
 - Les quatre schémas de `docs/images/` (thèmes clair et sombre) ne marquent plus comme prévu ce qui est livré :

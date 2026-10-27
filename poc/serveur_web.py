@@ -59,12 +59,13 @@ import journal_web
 import maison
 import maison_web
 import meteo_web
+import routines_web
 
 DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.9.1"
+VERSION_CLIENT = "0.10.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -101,6 +102,7 @@ PAGES_PROTEGEES = {
     "/demander": ("demander.html", False),
     "/maison": ("maison.html", False),
     "/meteo": ("meteo.html", False),
+    "/routines": ("routines.html", False),
     # L'orbe de la barre du bas : la page Demander qui ouvre le micro dès son chargement.
     "/ecouter": ("demander.html", False),
 }
@@ -112,6 +114,7 @@ SCRIPTS_PROTEGES = {
     "/demander.js": ("demander.js", False),
     "/maison.js": ("maison.js", False),
     "/meteo.js": ("meteo.js", False),
+    "/routines.js": ("routines.js", False),
 }
 MAX_APPAIRAGES_WS = 8        # navigateurs en train de saisir un code, en même temps
 INACTIF_APPAIRAGE_S = 130    # un navigateur qui ne dit rien est lâché après un peu plus de 2 minutes
@@ -126,9 +129,12 @@ FERMETURE_REVOQUE = 4001     # code de fermeture d'un WebSocket dont l'appareil 
 # contrôle que les demandes des autres appareils. L'écran Maison (S-W4a) l'est aussi : la liste des pièces et des
 # entités de chaque rôle est filtrée par maison_web.py, jamais par ce tableau. Il en va de même de l'historique de l'air
 # (S-W4b), que maison_web.py réserve aux rôles qui ont les mesures. L'écran Météo et mer (S-W5) aussi : meteo_web.py
-# ne répond qu'aux rôles qui ont le droit (client_web.meteo.roles) et ne laisse partir aucune coordonnée.
+# ne répond qu'aux rôles qui ont le droit (client_web.meteo.roles) et ne laisse partir aucune coordonnée. Les routines
+# (S-W6) aussi : routines_web.py applique acces.TYPES_PAR_ROLE (couper et supprimer pour l'administrateur et l'habitant,
+# exporter pour l'administrateur seulement) et le moteur filtre la liste par la personne tirée de la session.
 MESSAGES_TOUT_ROLE = frozenset({"moi", "abonner_journal", "desabonner_journal", "journal_page", "vie_privee",
-                                "defi", "preuve", "demande_texte", "demande_voix", "etats", "regler", "air_historique", "meteo"})
+                                "defi", "preuve", "demande_texte", "demande_voix", "etats", "regler", "air_historique", "meteo"}
+                               | routines_web.GENRES)
 
 # Politique de contenu de la note 4.7, avec frame-ancestors 'none' (aucune page ne s'encadre dans un autre site).
 CSP = ("default-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
@@ -442,6 +448,9 @@ class ServiceWeb:
         self.quotas = demande_web.Quotas()
         self.maison = None            # maison_web.Maison posée par le serveur, None : écran Maison indisponible
         self.meteo = None             # meteo_web.Meteo posée par le serveur, None : écran Météo et mer indisponible
+        # async f(genre, msg, personne, role, identite) posée par le serveur (moteur des routines), None : écran Routines
+        # indisponible
+        self.routines = None
         self.fichier_3d = None        # chemin de vue3d.html, None : celui du dossier de configuration (réglé par les tests)
         self._taches = set()          # les demandes en cours : gardées en vie jusqu'à leur réponse
         self._ids = itertools.count(1)
@@ -929,6 +938,8 @@ class ServiceWeb:
             return self._maison(conn, a, genre, msg)
         if genre in meteo_web.GENRES:
             return self._meteo(conn, a, genre, msg)
+        if genre in routines_web.GENRES:
+            return self._routines(conn, a, genre, msg)
         raise AW.ErreurAppairage("action")
 
     # Écran Maison (S-W4a)
@@ -982,6 +993,40 @@ class ServiceWeb:
             print(f"Client web : météo en échec ({type(e).__name__})")
             rep = {"type": "erreur", "cause": "indisponible", "genre": genre}
         conn.envoyer(rep)
+
+    # Écran Routines (S-W6)
+    def _routines(self, conn, a, genre, msg):
+        """Messages des routines. Schéma strict et droits du rôle vérifiés ici, avant le moteur. Le rôle est celui de
+        l'appareil associé et la personne est tirée de la session (routines_web.personne_de) : rien de cela n'est lu
+        dans le message. Rendu : une coroutine que boucle_client lance à part (un lancement peut durer)."""
+        role = a["role"]
+        if role not in AW.ROLES_WEB:
+            raise AW.ErreurAppairage("droit")
+        try:
+            routines_web.valider(genre, msg, role)
+        except routines_web.RefusRoutines as e:
+            return {"type": "erreur", "cause": e.cause, "genre": genre}
+        return self._traiter_routines(conn, role, genre, msg)
+
+    async def _traiter_routines(self, conn, role, genre, msg):
+        personne = routines_web.personne_de(role, conn.identite)
+        try:
+            if self.routines is None:
+                raise routines_web.RefusRoutines("indisponible")
+            rep = await self.routines(genre, msg, personne, role, conn.identite)
+        except routines_web.RefusRoutines as e:
+            rep = {"type": "erreur", "cause": e.cause, "genre": genre}
+        except Exception as e:  # jamais le texte d'une exception vers le navigateur : seulement sa classe, en console
+            print(f"Client web : routines en échec ({type(e).__name__})")
+            rep = {"type": "erreur", "cause": "indisponible", "genre": genre}
+        conn.envoyer(rep)
+
+    def publier_routines_maj(self, version):
+        """Le registre des routines a changé : chaque navigateur associé reçoit la version seulement, jamais le contenu,
+        et redemande sa propre liste filtrée."""
+        for c in list(self.connexions.values()):
+            if c.genre == "client" and self._appareil(c.identite) is not None:
+                c.envoyer({"type": "routines_maj", "version": version})
 
     # Demandes (S-W3)
     @staticmethod

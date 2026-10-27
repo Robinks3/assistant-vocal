@@ -26,7 +26,7 @@ import serveur_web  # noqa: E402
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.9.1", "{{version_serveur}}": "0.55.2", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.10.0", "{{version_serveur}}": "0.56.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -921,6 +921,109 @@ def variantes_meteo_s_w5():
     return out
 
 
+def _icone_routines(*chemins):
+    return ('<svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false">'
+            + "".join(f'<path d="{d}"/>' for d in chemins) + "</svg>")
+
+
+ICONE_ROUTINE = _icone_routines("M4 7h10M4 12h16M4 17h8", "M15 7a2 2 0 1 0 4 0 2 2 0 1 0-4 0",
+                                "M13 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0")
+ICONE_CHEVRON = _icone_routines("m9 5 7 7-7 7")
+
+
+def carte_routine(nom, phrase, etat, actif=True, couper=True):
+    """Une carte de la liste, telle que `carteRoutine` de routines.js la construit."""
+    texte = f"<b>{nom}</b>" + (f'<span>Déclencheur : "{phrase}"</span>' if phrase else "") \
+        + f'<small class="etat-routine">{etat}</small>'
+    rangee = (f'<button type="button" class="rangee"><span class="puce puce--assistant">{ICONE_ROUTINE}</span>'
+              f'<span class="texte">{texte}</span><span class="suite">{ICONE_CHEVRON}</span></button>')
+    bascule = ""
+    if couper:
+        bascule = (f'<button type="button" class="commutateur" role="switch" aria-checked="{"true" if actif else "false"}" '
+                   f'aria-label="{nom}, {"active" if actif else "en pause"}"><span class="interrupteur"></span></button>')
+    return f'<div class="carte carte--vide routine">{rangee}{bascule}</div>'
+
+
+def detail_routine(brut, nom, technique=True, droits=True, nom_long=False):
+    """La vue détail remplie comme `rendreDetail` de routines.js."""
+    html = remplir(brut, "titre-routines", nom)
+    html = montrer(html, "vue-detail")
+    html = re.sub(r'(<section id="vue-liste"[^>]*?)>', r"\1 hidden>", html, count=1)
+    html = remplir(html, "sous-titre", "")
+    html = re.sub(r'(<p id="sous-titre"[^>]*?)>', r"\1 hidden>", html, count=1)
+    entete = '<span class="pastille pastille--ok">Active</span><span class="discret">3 étapes</span>'
+    if nom_long:
+        entete += '<span class="pastille pastille--lumiere">À revoir</span>'
+    html = remplir(html, "entete-routine", entete)
+    phrase = LONG_NOM if nom_long else "je suis rentré"
+    html = remplir(html, "declencheurs-routine",
+                   f'<li><b>"{phrase}"</b></li><li class="variantes">Aussi : "me voilà", "coucou la maison"</li>')
+    etapes = [("Allumer la lumière du couloir", "light.turn_on sur light.couloir_plafond"),
+              ("Allumer la lampe de la télé du salon à 40 %", "light.turn_on sur light.salon_lampe_tele"),
+              ('Dire "bienvenue"', None)]
+    lignes = ""
+    for texte, tech in etapes:
+        t = f"<b>{texte}</b>"
+        if technique and tech:
+            t += f'<span class="technique dev-seulement">{tech}</span>'
+        lignes += f'<li><span class="texte">{t}</span></li>'
+    html = remplir(html, "etapes-routine", lignes)
+    html = remplir(html, "fiche-routine",
+                   "<dt>Dernière fois</dt><dd>Hier à 18:42</dd>"
+                   "<dt>Résultat</dt><dd>2 étapes sur 3<small>En échec : Allumer la lampe de la télé du salon à 40 %</small></dd>"
+                   "<dt>Lancée</dt><dd>12 fois</dd>"
+                   "<dt>Créée</dt><dd>Le 12 octobre, par le propriétaire</dd>"
+                   "<dt>Peut la lancer</dt><dd>Tout le monde</dd>"
+                   "<dt>Peut la gérer</dt><dd>Le propriétaire et les habitants</dd>")
+    if not droits:
+        html = re.sub(r'(<button type="button" id="bouton-pause"[^>]*?)>', r"\1 hidden>", html, count=1)
+        html = re.sub(r'(<div class="actions actions--ligne")>', r"\1 hidden>", html, count=1)
+        html = remplir(montrer(html, "aide-droits"), "aide-droits",
+                       "Pour la mettre en pause, la modifier ou la supprimer, demande au propriétaire et aux habitants.")
+    return html
+
+
+def variantes_routines():
+    """Lot S-W6 : l'écran Routines, liste, détail, feuille de suppression et cas limites."""
+    brut = gabarits(retirer_scripts(lien_relatif((WEB / "routines.html").read_text(encoding="utf-8"))))
+    cartes = (carte_routine("Arrivée", "je suis rentré", "Active, 3 étapes")
+              + carte_routine("Soirée", "bonne soirée", "Active, 2 étapes", couper=False)
+              + carte_routine("Film", "on regarde un film", "En pause, 4 étapes", actif=False))
+    liste = remplir(remplir(brut, "sous-titre", "3 routines"), "liste-routines", cartes)
+    out = {"routines-liste": liste}
+    out["routines-chargement"] = brut
+    out["routines-vide"] = montrer(remplir(re.sub(r'(<p id="sous-titre"[^>]*?)>', r"\1 hidden>", brut, count=1),
+                                           "sous-titre", ""), "vide-routines")
+    out["routines-erreur"] = remplir(montrer(remplir(brut, "sous-titre", ""), "erreur-routines"), "erreur-routines",
+                                     "Les routines ne sont pas disponibles pour le moment. Réessaie dans un instant.")
+    out["routines-nom-long"] = remplir(remplir(brut, "sous-titre", "2 routines"), "liste-routines",
+                                       carte_routine(LONG_NOM, LONG_NOM, "En pause, 12 étapes", actif=False)
+                                       + carte_routine("Sans phrase", "", "Active, 1 étape", couper=False))
+    out["routines-detail-proprietaire"] = detail_routine(brut, "Arrivée")
+    out["routines-detail-lancee"] = remplir(montrer(detail_routine(brut, "Arrivée"), "lancement-routine"),
+                                            "lancement-routine", "Routine Arrivée lancée : 3 étapes sur 3.")
+    out["routines-detail-modifier"] = remplir(montrer(detail_routine(brut, "Arrivée"), "aide-modifier"),
+                                              "aide-modifier", "Pour modifier, décris le changement à Iris : "
+                                              "le déclencheur, une étape ou l'ordre.")
+    out["routines-detail-invite"] = detail_routine(brut, "Arrivée", technique=False, droits=False)
+    out["routines-detail-nom-long"] = detail_routine(brut, LONG_NOM, nom_long=True)
+    feuille = montrer(detail_routine(brut, "Arrivée"), "voile-supprimer", "feuille-supprimer")
+    feuille = remplir(feuille, "supp-titre", "Supprimer la routine Arrivée ?")
+    feuille = feuille.replace('<main id="contenu-routines" ', '<main id="contenu-routines" inert aria-hidden="true" ')
+    feuille = feuille.replace('<nav id="onglets" ', '<nav id="onglets" inert aria-hidden="true" ')
+    out["routines-feuille"] = feuille
+    out["routines-feuille-erreur"] = remplir(montrer(feuille, "erreur-supprimer"), "erreur-supprimer",
+                                             "La connexion avec l'assistant est coupée. Réessaie dans un instant.")
+    bandeau = ('<svg viewBox="0 0 24 24" class="i" aria-hidden="true" focusable="false">'
+               '<path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0"/><path d="m8 12.5 3 3 5-6"/></svg>'
+               "<div><b>Routine Soirée supprimée.</b>Une copie reste dans le journal des routines.</div>")
+    apres = remplir(remplir(brut, "sous-titre", "2 routines"), "liste-routines",
+                    carte_routine("Arrivée", "je suis rentré", "Active, 3 étapes")
+                    + carte_routine("Film", "on regarde un film", "En pause, 4 étapes", actif=False))
+    out["routines-apres-suppression"] = remplir(montrer(apres, "bandeau-routines"), "bandeau-routines", bandeau)
+    return out
+
+
 def variante_accueil():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "index.html").read_text(encoding="utf-8"))))
     connecte = montrer(garder(brut, {"carte-connecte"}, ["carte-appairage", "carte-connecte"]), "lien-reglages")
@@ -953,9 +1056,11 @@ def test_les_variantes_sont_bien_fabriquees(tmp_path):
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
               **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin(),
               **variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b(),
-              **variantes_meteo_s_w5()}
-    assert len(toutes) >= 80
-    assert {"maison-tele-complete", "maison-air-courbe", "maison-3d", "meteo-complet", "meteo-erreur"} <= set(toutes)
+              **variantes_meteo_s_w5(), **variantes_routines()}
+    assert len(toutes) >= 90
+    assert {"maison-tele-complete", "maison-air-courbe", "maison-3d", "meteo-complet", "meteo-erreur",
+            "routines-liste", "routines-vide", "routines-chargement", "routines-feuille",
+            "routines-apres-suppression", "routines-detail-invite"} <= set(toutes)
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -1023,6 +1128,24 @@ def test_ecran_meteo_sans_defaut_de_mise_en_page(tmp_path):
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
     ecrire(pages, variantes_meteo_s_w5())
+    res = subprocess.run(
+        [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    assert res.returncode == 0, f"défauts de mise en page (code {res.returncode}) :\n{res.stdout}\n{res.stderr}"
+
+
+def test_ecran_routines_sans_defaut_de_mise_en_page(tmp_path):
+    """L'écran Routines (S-W6) : liste, détail, feuille de suppression, cibles de 44 px sur toute la page, deux thèmes."""
+    if outil.trouver_chrome() is None:
+        pytest.skip("Chrome est absent : contrôle de mise en page impossible")
+    pages = tmp_path / "routines"
+    pages.mkdir()
+    shutil.copytree(WEB / "polices", pages / "polices")
+    css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
+    (pages / "app.css").write_text(css, encoding="utf-8")
+    ecrire(pages, variantes_routines())
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", ""],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,

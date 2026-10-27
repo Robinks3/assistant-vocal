@@ -119,6 +119,7 @@ import demande_web  # noqa: E402
 import maison  # noqa: E402
 import maison_web  # noqa: E402
 import meteo_web  # noqa: E402
+import routines_web  # noqa: E402
 import appairage_web  # noqa: E402
 import serveur_web  # noqa: E402
 import journal_web as J  # noqa: E402
@@ -338,6 +339,12 @@ class Moteur:
                     await page.envoyer(**message)
                 except Exception:
                     pass
+        service_web = getattr(self, "service_web", None)
+        if message.get("etat") == "routines_maj" and service_web is not None:  # navigateurs associés (S-W6)
+            try:
+                service_web.publier_routines_maj(message.get("version"))
+            except Exception as e:
+                print(f"Routines web : signal impossible ({type(e).__name__})")
 
     async def diffuser_historique(self, ligne):
         """Diffuse la ligne d'historique qui vient d'être écrite, destinataire par destinataire (0.39.0) : chacun ne
@@ -576,12 +583,13 @@ class Moteur:
               f"pour {len(signal) / TAUX:.1f} s")
         return demande_web.texte_transcrit(texte)
 
-    def messages_routines(self, genre, msg, essai, personne, appareil, role):
-        """Messages réseau des routines (note 7.4), dans un fil : le contexte de la requête porte la personne, le rôle
-        et l'essai (celui du serveur ou celui du message). Renvoie le dict de la réponse."""
+    def messages_routines(self, genre, msg, essai, personne, appareil, role, canal="appli"):
+        """Messages réseau des routines (note 7.4), dans un fil : le contexte de la requête porte la personne, le rôle,
+        le canal (« appli » pour une tablette, « web » pour un navigateur associé) et l'essai (celui du serveur ou celui
+        du message). Renvoie le dict de la réponse."""
         a = self.assistant
         with a.requete(essai=self.essai or bool(essai), personne=personne, appareil=appareil, role=role,
-                       canal="appli"):
+                       canal=canal):
             return a.routines_reseau(genre, msg, serveur=self.profil)
 
     def transcrire(self, signal_f32, moteur=None):
@@ -1062,6 +1070,32 @@ def meteo_pour_web(moteur):
 
     return meteo_web.Meteo(mer if getattr(moteur, "meteo_mer", None) is not None else None,
                            vent if getattr(moteur, "vent_mesure", None) is not None else None)
+
+
+def routines_pour_web(moteur):
+    """Écran Routines du client web (S-W6) : le même moteur que pour une tablette (messages_routines, donc
+    Assistant.routines_reseau), avec le contexte de requête tiré de la session (personne, rôle, canal « web ») et
+    l'essai du serveur seulement (le navigateur ne peut pas le demander). Un lancement ou un texte passe sous le verrou
+    du moteur, écrit l'historique et le diffuse. Un registre modifié envoie le signal « routines_maj » à tous."""
+    async def f(genre, msg, personne, role, identite):
+        avant = R.registre().version
+        if genre in routines_web.SOUS_VERROU:
+            async with moteur.verrou:
+                rep = await asyncio.to_thread(moteur.messages_routines, genre, msg, False, personne, identite, role,
+                                              canal="web")
+        else:
+            rep = await asyncio.to_thread(moteur.messages_routines, genre, msg, False, personne, identite, role,
+                                          canal="web")
+        if genre in routines_web.SOUS_VERROU:
+            derniere = lire_journal(1)
+            if derniere:
+                await moteur.diffuser_historique(derniere[0])
+        version = R.registre().version
+        if version != avant:
+            await moteur.diffuser({"etat": "routines_maj", "version": version})
+        return await asyncio.to_thread(routines_web.reponse_web, genre, rep, role, personne,
+                                       getattr(moteur, "noms", None), msg.get("id"))
+    return f
 
 
 class Calibration:
@@ -2024,6 +2058,7 @@ async def servir(args):
             service_web.demandeur = moteur.repondre_web  # demandes écrites (S-W3) : même chaîne que les autres
             service_web.maison = maison_pour_web(moteur)  # écran Maison (S-W4a) : états et réglages filtrés par rôle
             service_web.meteo = meteo_pour_web(moteur)  # écran Météo et mer (S-W5) : prévisions et balises en cache
+            service_web.routines = routines_pour_web(moteur)  # écran Routines (S-W6) : même moteur que les tablettes
             serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
         except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir
