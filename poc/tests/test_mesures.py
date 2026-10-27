@@ -285,13 +285,26 @@ def test_message_mesures_servi(capsys):
     assert set(envoi) == {"etat", "id", "donnees"} and envoi["etat"] == "mesures" and envoi["id"] == 4
     pieces = envoi["donnees"]["pieces"]
     assert pieces["sejour_cuisine"]["texte"].startswith("21°, air ")
-    assert pieces["chambre_camille"]["statut"] == "protegee"
-    assert pieces["chambre_camille"]["temperature"] is None
+    # Règle 1 levée (27/10/2026) : la chambre n'est plus cachée, elle n'a simplement pas de capteur ici.
+    assert pieces["chambre_camille"]["statut"] == "aucun"
     url, corps = client.appels[0]
     assert url == "http://ha.test:8123/api/template"
+    assert "chambre_camille" not in corps["template"]
+    assert "[essai] mesures : " in capsys.readouterr().out
+
+
+def test_message_mesures_regle_active_cache_la_zone(monkeypatch):
+    import securite
+    monkeypatch.setattr(securite, "PROTEGER_OCCUPANT", True)
+    client = FauxClient(FausseReponse(200, _releve_json()))
+    sat = _satellite(FauxHa(client))
+    asyncio.run(sat.repondre_mesures({"id": 4}))
+    pieces = sat.ws.envois[0]["donnees"]["pieces"]
+    assert pieces["chambre_camille"]["statut"] == "protegee"
+    assert pieces["chambre_camille"]["temperature"] is None
+    _, corps = client.appels[0]
     # Les zones protégées de l'exemple sont écartées dès Home Assistant.
     assert "chambre_camille" in corps["template"] and "not in protegees" in corps["template"]
-    assert "[essai] mesures : " in capsys.readouterr().out
 
 
 def test_message_mesures_erreurs(capsys):

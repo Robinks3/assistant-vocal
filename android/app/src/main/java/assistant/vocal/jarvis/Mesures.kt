@@ -17,9 +17,9 @@ import java.time.ZoneId
  * (CO2 correct de 800 à 1000 compris, médiocre au-dessus de 1000 jusqu'à 1500 compris, mauvais au-dessus). Même règle
  * pour les particules PM2.5 (9, 35,4, 55,4 µg/m3). Température : frais sous 19, agréable de 19 à 24 compris, chaud au-dessus.
  *
- * Sécurité : une pièce dont une zone, l'identifiant ou le nom figure dans securite.zones_protegees ne montre aucune
- * valeur, que PROTEGER_OCCUPANT soit coupé ou non (une zone protégée ne laisse rien fuiter de ses mesures). Le gabarit
- * écarte aussi ces zones dès Home Assistant.
+ * Sécurité : tant que PROTEGER_OCCUPANT est vrai, une pièce dont une zone, l'identifiant ou le nom figure dans
+ * securite.zones_protegees ne montre aucune valeur, et le gabarit écarte ces zones dès Home Assistant. Drapeau coupé
+ * (levée complète du 27/10/2026), [zonesProtegees] est vide et toutes les pièces montrent leurs mesures.
  */
 object Mesures {
 
@@ -138,8 +138,9 @@ object Mesures {
         return sortie
     }
 
-    /** Zones protégées de la configuration (securite.zones_protegees), en minuscules, indépendamment de PROTEGER_OCCUPANT. */
-    fun zonesProtegees(): Set<String> = zonesProtegees(ConfigMaison.section("securite"))
+    /** Zones protégées de la configuration (securite.zones_protegees), en minuscules, vides quand PROTEGER_OCCUPANT est coupé. */
+    fun zonesProtegees(): Set<String> =
+        if (Securite.PROTEGER_OCCUPANT) zonesProtegees(ConfigMaison.section("securite")) else emptySet()
 
     fun zonesProtegees(securite: JSONObject): Set<String> {
         val a = securite.optJSONArray("zones_protegees") ?: return emptySet()

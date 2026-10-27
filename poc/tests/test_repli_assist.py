@@ -180,9 +180,17 @@ def test_repli_ouvert_phrase_dangereuse_jamais_assist(monkeypatch, phrase):
     assert securite.SECURITE_ACTIVE is True
 
 
+def test_repli_ouvert_phrase_de_l_occupant_permise_regle_levee():
+    """Levée complète du 27/10/2026 : règle 1 coupée, un mot de l'occupant ne ferme plus le repli."""
+    assert securite.PROTEGER_OCCUPANT is False
+    mot = securite.MOTS_PROTEGES[0]
+    assert securite.refus_phrase_assist(f"allume la lumière de {mot}", "inconnu") is None
+
+
 def test_repli_ouvert_phrase_de_l_occupant_jamais_assist(monkeypatch):
-    """Un mot de l'occupant protégé ferme le repli même quand la règle 1 est levée."""
+    """Règle 1 active : un mot de l'occupant protégé ferme le repli."""
     regler(monkeypatch, True)
+    monkeypatch.setattr(securite, "PROTEGER_OCCUPANT", True)
     mot = securite.MOTS_PROTEGES[0]
     ha = ha_simule()
     a = assistant_simule(monkeypatch, ha)

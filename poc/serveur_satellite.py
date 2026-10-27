@@ -1255,7 +1255,9 @@ class Satellite:
         if not corresp:
             await self.envoyer(etat="mesures", id=ident, erreur="aucune pièce reliée aux zones (correspondance_pieces)")
             return
-        protegees = maison.liste("zones_protegees")
+        import securite
+        # Zones cachées seulement tant que la règle 1 est active (levée complète le 27/10/2026).
+        protegees = maison.liste("zones_protegees") if securite.PROTEGER_OCCUPANT else []
         try:
             r = await asyncio.to_thread(
                 lambda: ha.client.post(f"{ha.url}/api/template", json={"template": ME.gabarit(protegees)}, timeout=15))

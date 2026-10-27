@@ -6,6 +6,12 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.46.2 (2026-10-27), levée complète de la règle 1
+Correctif (versionCode 86), serveur 0.46.1.
+- `Mesures.zonesProtegees()` ne renvoie plus rien quand `Securite.PROTEGER_OCCUPANT` est faux : la chambre de
+  l'occupant montre ses mesures et ses appareils, plus de « pièce protégée » sur le plan ni en grand.
+- Tests : avec les zones passées explicitement, une zone protégée ne laisse toujours rien fuiter.
+
 ## 0.46.1 (2026-10-27), garde de la page 3D
 Correctif (versionCode 85), serveur inchangé (0.46.0).
 - Le build refuse une page `genere/android/maison3d/vue3d.html` produite avant la 0.46.0 : sans la fonction

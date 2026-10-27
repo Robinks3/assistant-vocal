@@ -18,7 +18,8 @@ L'air d'une pièce prend le pire des deux mots (CO2, PM2.5). « À aérer » dè
 
 Sécurité : une pièce dont une zone figure dans securite.zones_protegees (ou dont l'identifiant ou le nom est
 protégé) ne montre aucune valeur, même si un capteur existe. Le gabarit écarte aussi ces zones dès Home Assistant,
-pour que leurs valeurs ne sortent jamais de la maison. Cette protection ne dépend pas du drapeau PROTEGER_OCCUPANT.
+pour que leurs valeurs ne sortent jamais de la maison. Le serveur ne passe ces zones que tant que le drapeau
+PROTEGER_OCCUPANT est vrai (levée complète le 27/10/2026) : coupé, toutes les pièces montrent leurs mesures.
 """
 import json
 import math

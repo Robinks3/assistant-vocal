@@ -4,6 +4,16 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.46.1 (2026-10-27), levée complète de la règle 1
+Correctif, demandé par le propriétaire : l'occupant se sert aussi de l'assistant. Appli Home Assistant 0.46.1,
+appli Android 0.46.2.
+- `PROTEGER_OCCUPANT` gouverne désormais tout ce qui le concerne. À False, le serveur ne passe plus les
+  `zones_protegees` au relevé des mesures : sa chambre montre ses valeurs au lieu de « pièce protégée ».
+- Le filtre de phrases du repli Assist ne garde plus ses mots (`MOTS_PROTEGES`, `MOTS_PIECES`, son nom) quand
+  la règle est levée. Les autres refus du repli (identifiants bruts, étage, étiquette, serrures, alarmes,
+  plafond de volume) sont inchangés.
+- Tests : la règle active garde son comportement d'avant (drapeau forcé à True), la règle levée ne cache rien.
+
 ## Documentation (2026-10-27), superpositions des maquettes du client web (S-W0d), sans changement de version
 Session S-W0d du plan. Les superpositions relevées dans les maquettes du client web sont corrigées (maquettes
 1.0.1). Nouvel outil `poc/outils/verifier_mise_en_page.py`, qui mesure les chevauchements et débordements d'une

@@ -148,17 +148,31 @@ class MesuresTest {
     fun laConfigurationDExempleRelieLesPieces() {
         val c = Mesures.correspondance()
         assertTrue("config-exemple sans correspondance_pieces", c.isNotEmpty())
-        assertTrue(Mesures.zonesProtegees().contains("chambre_camille"))
+        assertTrue(Mesures.zonesProtegees(ConfigMaison.section("securite")).contains("chambre_camille"))
     }
 
     @Test
-    fun uneZoneProtegeeNeLaisseRienFuiterMemeSansLeDrapeau() {
-        // PROTEGER_OCCUPANT est coupé : la protection des mesures ne dépend pas de lui.
+    fun drapeauCoupeAucuneZoneCachee() {
+        // Levée complète du 27/10/2026 : PROTEGER_OCCUPANT coupé, toutes les pièces montrent leurs mesures.
+        assertFalse(Securite.PROTEGER_OCCUPANT)
+        assertTrue(Mesures.zonesProtegees().isEmpty())
         val releve = Mesures.Releve(
             1790000000.0,
             listOf(Mesures.Capteur("sensor.t", "temperature", "21", "chambre_camille", "", "", 1789999940.0)),
         )
         val r = Mesures.parPiece(releve, mapOf("chambre_camille" to listOf("chambre_camille")), Mesures.zonesProtegees())
+        assertEquals(21.0, r.getValue("chambre_camille").temperature!!.valeur!!, 0.01)
+    }
+
+    @Test
+    fun uneZoneProtegeeNeLaisseRienFuiter() {
+        // Zones passées telles que la configuration les donne quand la règle 1 est active.
+        val releve = Mesures.Releve(
+            1790000000.0,
+            listOf(Mesures.Capteur("sensor.t", "temperature", "21", "chambre_camille", "", "", 1789999940.0)),
+        )
+        val r = Mesures.parPiece(releve, mapOf("chambre_camille" to listOf("chambre_camille")),
+            Mesures.zonesProtegees(ConfigMaison.section("securite")))
         val p = r.getValue("chambre_camille")
         assertEquals(Mesures.Statut.PROTEGEE, p.statut)
         assertEquals("pièce protégée", p.texte)

@@ -20,6 +20,9 @@ Levée le 22/10/2026 à la demande explicite du propriétaire : les règles 1 et
 mettre du son à toute heure. Restent actifs : le refus de viser un appareil par son identifiant brut,
 le plafond de volume quand la configuration en règle un (securite.plafond_volume, verifier() l'applique sur
 place, comme Securite.kt) et, dans assistant.py, la liste blanche des services du LLM.
+Levée complète le 27/10/2026, à la demande explicite du propriétaire (l'occupant se sert aussi de l'assistant) :
+PROTEGER_OCCUPANT gouverne désormais tout ce qui le concerne, y compris les mesures de ses pièces (zones_protegees) et
+les mots qui fermaient le repli Assist. À False, rien n'est caché ni refusé à cause de lui.
 Remettre une règle : repasser son drapeau à True ici ET dans Securite.kt (les tests communs suivent).
 
 Même règles, mêmes listes, dans l'appli Android (android/app/src/main/java/assistant/vocal/jarvis/Securite.kt).
@@ -284,14 +287,15 @@ REPLI_MOTS_VOLUME = frozenset({"son", "sonore", "fort", "forte", "monte", "monte
 def refus_phrase_assist(texte, personne=None):
     """Raison du refus en français, ou None si la phrase peut aller jusqu'à Assist. Écarte tout ce que la sécurité en
     dur refuse ou ne sait pas contrôler d'avance : serrures, alarmes, cuisson, chauffage, visée en bloc, volume
-    quand un plafond est réglé, et tout mot de l'occupant protégé, que la règle 1 soit levée ou non."""
+    quand un plafond est réglé, et tout mot de l'occupant protégé tant que la règle 1 est active."""
     refus = phrase_protegee(texte, personne)
     if refus:
         return refus
     mots = _mots_de(texte)
     if not mots:
         return "phrase vide (sécurité)"
-    gardes = {m for p in (*MOTS_PROTEGES, *MOTS_PIECES, NOM_OCCUPANT) for m in _mots_de(p)}
+    # Mots de l'occupant gardés tant que la règle 1 est active (levée complète le 27/10/2026, il se sert aussi de l'assistant).
+    gardes = {m for p in (*MOTS_PROTEGES, *MOTS_PIECES, NOM_OCCUPANT) for m in _mots_de(p)} if PROTEGER_OCCUPANT else set()
     for m in mots:
         if m in REPLI_MOTS_INTERDITS or any(r in m for r in REPLI_RADICAUX_INTERDITS):
             return f"le mot « {m} » vise une cible que je ne peux pas contrôler d'avance (sécurité)"
