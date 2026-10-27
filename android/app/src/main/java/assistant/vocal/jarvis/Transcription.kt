@@ -125,6 +125,11 @@ class TranscriptionPc(
     /** Capacité `vent_mesure` du PC (0.29.0, serveur 0.24.0) : page du vent mesuré. */
     @Volatile var ventMesureDispo = false
         private set
+
+    /** Capacité `air_historique` du PC (serveur 0.48.0, appli 0.47.0) : courbes de l'air d'une pièce. */
+    @Volatile var airHistoriqueDispo = false
+        private set
+
     /** Le PC annonce l'historique de santé (capacité `sante_historique`, serveur 0.20, onglets de la santé). */
     @Volatile var historiqueDispo = false
         private set
@@ -215,6 +220,19 @@ class TranscriptionPc(
     }
 
     /**
+     * Historique de l'air d'une pièce (serveur 0.48.0) : `{"type": "air_historique", "piece", "heures"}`.
+     * [heures] entre 1 et 168, le serveur plafonne. Réponse entière (`donnees` ou `erreur`), ou null sans
+     * capacité, sans connexion ou sans réponse dans le délai. Appel bloquant, comme [meteoMer].
+     */
+    fun airHistorique(piece: String, heures: Int, delaiMs: Long): JSONObject? {
+        if (!airHistoriqueDispo) return null
+        return demanderHistorique(
+            JSONObject().put("type", "air_historique").put("piece", piece).put("heures", heures),
+            delaiMs, verifier = false,
+        )
+    }
+
+    /**
      * Demande d'historique de santé (0.22.0) : [corps] porte son `type` (`sante_periode`, `sante_seances`,
      * `sante_seance`, `sante_records`, `sante_jour`) et ses paramètres, l'identifiant est ajouté ici. Réponse
      * entière du serveur, ou null sans capacité, sans connexion ou sans réponse dans le délai. Appel bloquant.
@@ -247,6 +265,7 @@ class TranscriptionPc(
         historiqueDispo = false
         meteoMerDispo = false
         ventMesureDispo = false
+        airHistoriqueDispo = false
         etat = raison
         for (p in attentes.values) p.complete(null)
         attentes.clear()
@@ -280,12 +299,13 @@ class TranscriptionPc(
                     historiqueDispo = annonceCapacite(j, "sante_historique")
                     meteoMerDispo = annonceCapacite(j, "meteo_mer")
                     ventMesureDispo = annonceCapacite(j, "vent_mesure")
+                    airHistoriqueDispo = annonceCapacite(j, "air_historique")
                     // Seulement la capacité, jamais une valeur de santé (0.19.1).
                     android.util.Log.i("JarvisSante", "capacité santé du PC : " + (if (santeDispo) "oui" else "non"))
                     etat = "prêt (serveur v${j.optString("version")}" + (if (santeDispo) ", santé" else "") + ")"
                     changement()
                 }
-                "transcrit", "sante", "meteo_mer", "vent_mesure", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour" ->
+                "transcrit", "sante", "meteo_mer", "vent_mesure", "air_historique", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour" ->
                     attentes.remove(j.optInt("id", -1))?.complete(j)
             }
         }

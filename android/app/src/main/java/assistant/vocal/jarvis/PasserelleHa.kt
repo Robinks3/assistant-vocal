@@ -158,6 +158,10 @@ class PasserelleHa(
     @Volatile var ventMesureDispo = false
         private set
 
+    /** Capacité `air_historique` (serveur 0.48.0, appli 0.47.0) : courbes de l'air d'une pièce sur 6 h, 24 h ou 7 jours. */
+    @Volatile var airHistoriqueDispo = false
+        private set
+
     /** Capacité `routines` (serveur 0.43.x, appli 0.40.0) : liste, lancement et gestion des routines par le serveur. */
     @Volatile var routinesDispo = false
         private set
@@ -266,6 +270,7 @@ class PasserelleHa(
         }
         meteoMerDispo = false
         ventMesureDispo = false
+        airHistoriqueDispo = false
         routinesDispo = false
         Log.w(TAG, "Connexion perdue : $raison" + (if (reessayerVite) " (nouvel essai immédiat)" else " (nouvel essai dans 5 s)") +
             (if (surRepli) ", sur le repli en clair" else ""))
@@ -322,6 +327,7 @@ class PasserelleHa(
                     disponible = j.optBoolean("passerelle_ha", false)
                     meteoMerDispo = annonceCapacite(j, "meteo_mer")
                     ventMesureDispo = annonceCapacite(j, "vent_mesure")
+                    airHistoriqueDispo = annonceCapacite(j, "air_historique")
                     // Pas de routines sur le repli en clair : le serveur les refuse hors du port chiffré.
                     routinesDispo = !repli && annonceCapacite(j, "routines")
                     transcriptions = j.optJSONArray("transcription")?.let { a ->
@@ -336,7 +342,7 @@ class PasserelleHa(
                     }
                     capacitesRecues = true
                     Log.i(TAG, "Capacités reçues : version ${j.optString("version")}, disponible=$disponible, " +
-                        "meteo_mer=$meteoMerDispo, vent_mesure=$ventMesureDispo, routines=$routinesDispo, repli=$repli")
+                        "meteo_mer=$meteoMerDispo, vent_mesure=$ventMesureDispo, air_historique=$airHistoriqueDispo, routines=$routinesDispo, repli=$repli")
                     pret.complete(true)
                     // Toujours signalé : l'écran affiche l'état lisible, même sans changement de disponibilité.
                     prevenir()

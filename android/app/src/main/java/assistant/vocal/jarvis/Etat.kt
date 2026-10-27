@@ -392,6 +392,18 @@ object Etat {
     var actionVentMesure: (((org.json.JSONObject?) -> Unit) -> Unit)? = null
 
     /**
+     * Historique de l'air d'une pièce (0.47.0, message `air_historique`, serveur 0.48.0) : la pièce et la durée en
+     * heures, puis la réponse du serveur ou null, sur le fil principal. Au PC, sinon à l'appli de l'assistant sur HA.
+     * Jamais gardée ici. Posé par le service.
+     */
+    @Volatile
+    var actionAirHistorique: ((String, Int, (org.json.JSONObject?) -> Unit) -> Unit)? = null
+
+    /** Le serveur joint annonce l'historique de l'air (capacité `air_historique`). Posé par le service. */
+    @Volatile
+    var airHistoriqueDispo: () -> Boolean = { false }
+
+    /**
      * Historique de santé (0.22.0, onglets Tendances, Séances, Records et vue d'un jour) : la demande (avec son
      * `type`), puis la réponse du serveur ou null, sur le fil principal. Jamais gardée ici. Posé par le service.
      */

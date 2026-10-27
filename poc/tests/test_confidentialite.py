@@ -66,6 +66,12 @@ IDS_GENERIQUES = frozenset({
     "sensor.chambre_t", "sensor.chambre_h", "sensor.couloir_t", "sensor.protegee_t", "sensor.sans_aire",
     # S-L7 : "sensor.t_$zone" et "sensor.c_$zone" (MesuresTest) sont lus jusqu'au "$".
     "sensor.h", "sensor.p", "sensor.t_", "sensor.c_", "sensor.t_cam",
+    # S-L8 : capteurs fictifs de test_historique_air.py (historique de l'air d'une pièce).
+    "sensor.a", "sensor.b", "sensor.x", "sensor.ok", "sensor.absent", "sensor.pirate", "sensor.ailleurs",
+    "sensor.co2_", "sensor.co2_salon", "sensor.pm_salon", "sensor.t_salon", "sensor.h_salon", "sensor.co2_couloir",
+    "sensor.lux_salon", "sensor.aqi_salon", "sensor.t_combine", "sensor.co2_combine", "sensor.t_dedie",
+    "sensor.h_dedie", "sensor.t_chambre", "sensor.salon_pm", "sensor.camille_t", "sensor.autre_co2",
+    "light.salon", "light.pirate",
 })
 # Services de Home Assistant (domaine.service) : ce ne sont pas des entités.
 SERVICES = frozenset({
