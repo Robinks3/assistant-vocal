@@ -117,7 +117,7 @@ sinon `config/`, qui reste privé et ignoré par git. Les tests tournent sur `co
 
 Les quatre rôles existent déjà dans `poc/acces.py` : administrateur (le propriétaire), habitant, partagé (la tablette
 commune) et invité. Seul l'administrateur gère les appareils et les rôles. Le serveur applique les droits de chaque rôle : liste
-blanche des messages, entités et météo filtrées. La conception complète est dans `docs/plan/`.
+blanche des messages, entités et météo filtrées. Le détail est dans `docs/ARCHITECTURE.md`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/roles-droits-sombre.svg">

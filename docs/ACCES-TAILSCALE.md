@@ -7,7 +7,7 @@ procédure, les réglages du serveur, le modèle d'ACL et la liste à cocher de 
 
 Rien ici ne s'applique tout seul : ni le dépôt ni le serveur ne lancent de commande `tailscale` ni ne touchent à
 une ACL. Tous les noms de ce document (`assistant.exemple.ts.net`, `camille@exemple.org`, `tag:assistant-pc`) sont
-fictifs. La conception et les menaces sont dans `docs/plan/conception/client-web.md` (sections 4 et 5).
+fictifs. Le fonctionnement du client web est décrit dans `docs/ARCHITECTURE.md`.
 
 ## 1. Le principe
 
@@ -124,8 +124,8 @@ marche aujourd'hui (synchronisations, SSH, tableau de bord). La procédure, dans
 
 Les habitants qui n'ont pas Tailscale n'atteignent pas le client web. Pour eux, deux voies à décider avec le
 propriétaire : le partage de nœud Tailscale avec leur propre compte (à tester dans la prévisualisation, car les
-règles de la politique pèsent aussi sur les comptes invités), ou le secours local de la conception (section 5.3,
-non fourni dans ce lot).
+règles de la politique pèsent aussi sur les comptes invités), ou un secours local sur le réseau de la maison,
+non fourni à ce jour.
 
 ## 6. Premier appairage d'un téléphone
 

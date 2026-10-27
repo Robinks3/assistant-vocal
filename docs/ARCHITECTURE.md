@@ -101,7 +101,7 @@ la tâche `copierReveil` copie `reveil/<mot>.onnx` et sa licence, et `SATELLITE_
 | Fichier | Rôle |
 |---|---|
 | `jarvis/config.yaml` | Manifeste de l'appli `local_jarvis` : version, `arch: amd64` et `aarch64`, ports 8765 et 8766, options (`anthropic_api_key`, `satellite_jeton`, `essai`, `ancien_acces`, `stt_api_*`) |
-| `jarvis/Dockerfile`, `jarvis/requirements.txt` | Image `python:5.12-slim`, sans OpenCV ni modèle de transcription |
+| `jarvis/Dockerfile`, `jarvis/requirements.txt` | Image `python:3.12-slim`, sans OpenCV ni modèle de transcription |
 | `jarvis/app/demarrage.py` | Options vers variables : `JARVIS_PROFIL=ha`, `JARVIS_DONNEES=/data`, `ASSISTANT_VOCAL_CONFIG=/app/config`, `HA_URL=http://supervisor/core`, jeton du superviseur, `LLM_FOURNISSEUR=claude`, puis lance `serveur_satellite.py` |
 | `deployer.sh` | Copie les modules de `poc/`, `maison.json`, `commandes.yaml`, Silero et les phrases apprises, puis les pousse par SSH (`reseau.ssh_ha`) dans `/local_apps/jarvis` |
 | `configurer-options.py` | Envoie les options depuis `poc/.env` par l'API du superviseur, sans afficher les secrets |
@@ -366,7 +366,7 @@ Port chiffré seulement : sur le port en clair, ces types reçoivent `{"etat":"r
 
 L'essai effectif est celui du serveur OU celui du message. Un refus a toujours la forme `{"etat":"refuse","type","message"}`.
 
-Depuis la 0.56.0, le client web (port 8767) accepte les mêmes six messages par `routines_web.py`, avec un schéma plus strict : clés exactes (`type` et les champs du tableau, sans `essai`), sinon un refus `format`. Les droits par rôle sont les mêmes, la personne vient de la session (le propriétaire pour l'administrateur, l'identité de l'appareil associé pour un habitant). Les réponses portent un champ `type` au lieu de `etat`, chaque routine est dite en mots avec un bloc `droits` (`lancer`, `couper`, `supprimer`) calculé par le moteur, un refus devient `{"type":"erreur","cause","genre"}` (`droit`, `format`, `indisponible` ou `inconnue`), et `routines_maj` est relayé aux clients web. Le détail est dans `docs/plan/conception/client-web.md`.
+Depuis la 0.56.0, le client web (port 8767) accepte les mêmes six messages par `routines_web.py`, avec un schéma plus strict : clés exactes (`type` et les champs du tableau, sans `essai`), sinon un refus `format`. Les droits par rôle sont les mêmes, la personne vient de la session (le propriétaire pour l'administrateur, l'identité de l'appareil associé pour un habitant). Les réponses portent un champ `type` au lieu de `etat`, chaque routine est dite en mots avec un bloc `droits` (`lancer`, `couper`, `supprimer`) calculé par le moteur, un refus devient `{"type":"erreur","cause","genre"}` (`droit`, `format`, `indisponible` ou `inconnue`), et `routines_maj` est relayé aux clients web.
 
 ### Passerelle Home Assistant
 
