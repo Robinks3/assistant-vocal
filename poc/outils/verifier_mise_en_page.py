@@ -20,7 +20,9 @@ Usage : python poc/outils/verifier_mise_en_page.py [pages ou dossiers] [--largeu
         [--themes clair,sombre] [--captures [DOSSIER]] [--json] [--cibles SELECTEUR]
 Sans argument, contrôle docs/maquettes/client-web/*.html.
 Code de sortie : 0 aucun défaut, 1 au moins un défaut, 2 Chrome introuvable ou erreur d'exécution.
-Copies temporaires et captures : dans un dossier temporaire du système, jamais dans le dépôt."""
+Copies temporaires et captures : dans un dossier temporaire du système, jamais dans le dépôt. Profils Chrome :
+quelques profils fixes réutilisés dans %LOCALAPPDATA%\\verifier-mise-en-page, jamais un profil neuf par lancement
+(voir prendre_profil)."""
 import argparse
 import base64
 import json
@@ -44,6 +46,7 @@ HAUTEUR = 844
 LARGEURS = (360, 390, 430)
 THEMES = ("clair", "sombre")
 CIBLES_PAR_DEFAUT = ".telephone"
+NB_PROFILS = 4
 
 # Mesure exécutée dans la page. ARGS est injecté par l'appelant (portée des cibles tactiles).
 SCRIPT_MESURE = r"""
@@ -595,15 +598,60 @@ def lister_pages(entrees):
     return pages
 
 
+def dossier_profils():
+    """Profils Chrome gardés d'une exécution à l'autre, hors du dépôt et hors du dossier temporaire."""
+    base = os.environ.get("LOCALAPPDATA") or os.path.join(Path.home(), ".cache")
+    return Path(base) / "verifier-mise-en-page"
+
+
+def prendre_profil():
+    """Réserve l'un des NB_PROFILS profils fixes et rend (dossier, fichier de verrou ouvert).
+
+    Au premier démarrage d'un profil, Chrome teste sous Windows si le compte a un mot de passe vide, ce qui
+    compte un échec de connexion. Un profil neuf par lancement finissait par verrouiller le compte Windows
+    (seuil de 10 échecs). Les profils sont donc fixes et réutilisés, un verrou par profil pour les exécutions
+    en parallèle (Chrome refuse deux instances sur le même profil). Le verrou tombe avec le processus."""
+    base = dossier_profils()
+    base.mkdir(parents=True, exist_ok=True)
+    fin = time.time() + 300
+    while True:
+        for n in range(NB_PROFILS):
+            fichier = open(base / f"profil-{n}.verrou", "a+b")
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(fichier.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fichier.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                fichier.close()
+                continue
+            profil = base / f"profil-{n}"
+            profil.mkdir(exist_ok=True)
+            try:
+                (profil / "DevToolsActivePort").unlink()  # port d'un lancement précédent
+            except FileNotFoundError:
+                pass
+            return profil, fichier
+        if time.time() > fin:
+            raise RuntimeError(f"aucun des {NB_PROFILS} profils Chrome n'est libre")
+        time.sleep(1)
+
+
 def verifier(pages, largeurs=LARGEURS, themes=THEMES, chrome=None, captures=None, cibles=CIBLES_PAR_DEFAUT):
     """Retourne la liste des défauts (dictionnaires). Lève RuntimeError si Chrome est introuvable."""
     exe = trouver_chrome(chrome)
     if not exe:
         raise RuntimeError("Chrome introuvable (option --chrome ou variable CHROME)")
     expression = SCRIPT_MESURE.replace("ARGS.cibles", json.dumps(cibles))
-    profil = tempfile.mkdtemp(prefix="verifier-mise-en-page-profil-")
+    profil, verrou = prendre_profil()
     defauts = []
-    navigateur = Chrome(exe, profil)
+    try:
+        navigateur = Chrome(exe, profil)
+    except BaseException:
+        verrou.close()
+        raise
     try:
         for page in pages:
             url = Path(page).resolve().as_uri()
@@ -620,7 +668,7 @@ def verifier(pages, largeurs=LARGEURS, themes=THEMES, chrome=None, captures=None
                         defauts.append(d)
     finally:
         navigateur.fermer()
-        shutil.rmtree(profil, ignore_errors=True)
+        verrou.close()
     return defauts
 
 

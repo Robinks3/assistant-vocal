@@ -4,6 +4,13 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Outil (2026-10-27), profils Chrome fixes pour le contrôle de mise en page, sans changement de version
+- `poc/outils/verifier_mise_en_page.py` ne crée plus un profil Chrome neuf à chaque lancement. Au premier
+  démarrage d'un profil, Chrome teste sous Windows un mot de passe vide, compté comme un échec de connexion : à
+  force, le compte Windows se verrouillait (seuil de 10). Quatre profils fixes réutilisés dans
+  `%LOCALAPPDATA%\verifier-mise-en-page\profil-N`, un verrou par profil pour les exécutions en parallèle,
+  `DevToolsActivePort` d'un lancement précédent effacé avant le démarrage.
+
 ## Serveur 0.47.0 (2026-10-27), appairage WebAuthn du client web
 Mineure. Session S-W1b du plan. Appli Home Assistant 0.47.0 (copie aussi `webauthn.py` et `appairage_web.py`),
 appli Android inchangée (0.46.2). Client web 0.3.0.
