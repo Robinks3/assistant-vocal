@@ -105,7 +105,7 @@ def test_les_six_messages_sont_dans_la_liste_blanche_et_la_version_du_client_est
     assert RW.GENRES == {"routines", "routine_lancer", "routine_activer", "routine_supprimer", "routine_texte",
                          "routines_export"}
     assert RW.GENRES <= W.MESSAGES_TOUT_ROLE
-    assert W.VERSION_CLIENT == "0.10.0"
+    assert W.VERSION_CLIENT == "0.11.0"
 
 
 def test_la_page_et_le_script_exigent_une_session(service):

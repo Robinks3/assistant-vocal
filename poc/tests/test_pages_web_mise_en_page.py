@@ -26,7 +26,7 @@ import serveur_web  # noqa: E402
 sys.path.insert(0, str(OUTIL.parent))
 import verifier_mise_en_page as outil  # noqa: E402
 
-GABARITS = {"{{version_client}}": "0.10.0", "{{version_serveur}}": "0.56.0", "{{date}}": "27/10/2026",
+GABARITS = {"{{version_client}}": "0.11.0", "{{version_serveur}}": "0.57.0", "{{date}}": "27/10/2026",
             "{{nom_assistant}}": "Iris"}
 QR = ("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>"
       "<rect width='200' height='200' fill='white'/><rect x='20' y='20' width='160' height='160' fill='black'/></svg>")
@@ -147,7 +147,7 @@ def variantes_associer():
 def variantes_reglages():
     brut = gabarits(retirer_scripts(lien_relatif((WEB / "reglages.html").read_text(encoding="utf-8"))))
     out = {}
-    cartes = ["carte-appareils", "carte-navigateur", "carte-serveur"]
+    cartes = ["carte-appareils", "carte-navigateur", "carte-installer", "carte-serveur"]
 
     def liste(html, revoquer):
         html = remplir(html, "liste-appareils", lignes_appareils(revoquer))
@@ -175,6 +175,25 @@ def variantes_reglages():
         if extra == "erreur-revoquer":
             seul = remplir(seul, extra, "La clé d'accès n'a pas été reconnue. Réessayez.")
         out[dialogue] = seul
+    return out
+
+
+def cacher(html, *ids):
+    for i in ids:
+        html, n = re.subn(r'(<[a-z0-9]+ [^>]*?id="%s")' % re.escape(i), r"\1 hidden", html)
+        assert n == 1, f"élément {i} introuvable"
+    return html
+
+
+def variantes_installable():
+    """Ligne Installer sur ce téléphone (S-W9) dans ses trois états, et la page hors ligne du service worker."""
+    reglages = sans_dialogues(gabarits(retirer_scripts(lien_relatif((WEB / "reglages.html").read_text(encoding="utf-8")))))
+    out = {}
+    samsung = "Dans Samsung Internet, ouvrez le menu puis choisissez « Ajouter la page à », puis « Écran d'accueil »."
+    out["reglages-installer-aide"] = remplir(reglages, "aide-installer", samsung)
+    out["reglages-installer-bouton"] = cacher(montrer(reglages, "bouton-installer"), "aide-installer")
+    out["reglages-installer-deja"] = cacher(montrer(reglages, "etat-installer"), "texte-installer", "aide-installer")
+    out["hors-ligne"] = gabarits(retirer_scripts(lien_relatif((WEB / "hors-ligne.html").read_text(encoding="utf-8"))))
     return out
 
 
@@ -1056,11 +1075,12 @@ def test_les_variantes_sont_bien_fabriquees(tmp_path):
     toutes = {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
               **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_admin(),
               **variantes_maison(), **variantes_maison_volet(), **variantes_maison_s_w4b(),
-              **variantes_meteo_s_w5(), **variantes_routines()}
-    assert len(toutes) >= 90
+              **variantes_meteo_s_w5(), **variantes_routines(), **variantes_installable()}
+    assert len(toutes) >= 94
     assert {"maison-tele-complete", "maison-air-courbe", "maison-3d", "meteo-complet", "meteo-erreur",
             "routines-liste", "routines-vide", "routines-chargement", "routines-feuille",
-            "routines-apres-suppression", "routines-detail-invite"} <= set(toutes)
+            "routines-apres-suppression", "routines-detail-invite", "reglages-installer-aide",
+            "reglages-installer-bouton", "reglages-installer-deja", "hors-ligne"} <= set(toutes)
     for nom, html in toutes.items():
         assert "{{" not in html, nom
         assert "<script" not in html, nom
@@ -1076,7 +1096,7 @@ def test_ecrans_web_sans_defaut_de_mise_en_page(tmp_path):
     css = (WEB / "app.css").read_text(encoding="utf-8").replace('url("/polices/', 'url("polices/')
     (pages / "app.css").write_text(css, encoding="utf-8")
     ecrire(pages, {**variantes_appairage(), **variantes_associer(), **variantes_reglages(), **variantes_journal(),
-                   **variantes_demander(), **variantes_vie_privee(), **variante_accueil()})
+                   **variantes_demander(), **variantes_vie_privee(), **variante_accueil(), **variantes_installable()})
     res = subprocess.run(
         [sys.executable, "-X", "utf8", str(OUTIL), str(pages), "--cibles", "main"],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,

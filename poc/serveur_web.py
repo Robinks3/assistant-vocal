@@ -65,7 +65,7 @@ DOSSIER = Path(__file__).parent / "web"
 ADRESSE_DEFAUT = "127.0.0.1"
 PORT_DEFAUT = 8767
 NOM_COOKIE = "__Host-session"
-VERSION_CLIENT = "0.10.0"
+VERSION_CLIENT = "0.11.0"
 SESSION_JOURS_DEFAUT = 30
 SESSION_PLAFOND_JOURS = 90
 INVITE_JOURS_DEFAUT = 7
@@ -83,6 +83,8 @@ FICHIERS = {
     "/client.js": ("client.js", _JS, _NO_CACHE),
     "/appairage": ("appairage.html", _HTML, _NO_CACHE),
     "/appairage.js": ("appairage.js", _JS, _NO_CACHE),
+    # Page de repli du service worker (S-W9) quand le serveur ne répond pas : aucune donnée, aucune session.
+    "/hors-ligne": ("hors-ligne.html", _HTML, _NO_CACHE),
     "/icones/icone-192.png": ("icones/icone-192.png", "image/png", _LONG),
     "/icones/icone-512.png": ("icones/icone-512.png", "image/png", _LONG),
     "/icones/icone-masquable-512.png": ("icones/icone-masquable-512.png", "image/png", _LONG),
@@ -236,6 +238,16 @@ CAUSES = frozenset({"hôte refusé", "origine refusée", "origine absente", "coo
 
 _JETON = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _EMPREINTE = re.compile(r"^[0-9a-f]{64}$")
+_VERSION_SEMVER = re.compile(r"\d+\.\d+\.\d+")
+
+# Causes qui disent qu'une session a été retirée (S-W9) : la réponse demande en plus au navigateur de vider le cache et
+# le stockage de l'origine, ce qui désinscrit aussi le service worker. Les cookies n'y sont pas : effacer les cookies
+# par Clear-Site-Data touche tout le domaine enregistrable, au-delà de cette origine.
+CAUSES_REVOCATION = frozenset({"cookie révoqué", "appareil inconnu"})
+
+
+def purge_si_revoque(cause):
+    return {"Clear-Site-Data": '"cache", "storage"'} if cause in CAUSES_REVOCATION else {}
 
 
 def journaliser(texte):
@@ -674,6 +686,17 @@ class ServiceWeb:
                  "icons": icones}
         return json.dumps(corps, ensure_ascii=False).encode("utf-8")
 
+    def _service_worker(self):
+        """Le service worker de la coquille (S-W9). Seul le gabarit de version est rempli : le nom du cache suit ainsi
+        VERSION_CLIENT. Servi sans cache pour que le navigateur voie chaque nouvelle version."""
+        if not _VERSION_SEMVER.fullmatch(VERSION_CLIENT):
+            raise ValueError("VERSION_CLIENT doit être de la forme 1.2.3")
+        try:
+            texte = (DOSSIER / "sw.js").read_text(encoding="utf-8")
+        except OSError:
+            return self.reponse(HTTPStatus.NOT_FOUND, "Introuvable.\n")
+        return self.reponse(HTTPStatus.OK, texte.replace("{{version_client}}", VERSION_CLIENT), _JS, _NO_CACHE)
+
     def page(self, nom_fichier):
         """Une page HTML dont les modèles {{...}} sont remplis (valeurs échappées)."""
         modele = (DOSSIER / nom_fichier).read_text(encoding="utf-8")
@@ -767,6 +790,8 @@ class ServiceWeb:
         if chemin == "/manifest.webmanifest":
             return self.reponse(HTTPStatus.OK, self.manifeste(), "application/manifest+json; charset=utf-8",
                                 _NO_CACHE)
+        if chemin == "/sw.js":
+            return self._service_worker()
         if chemin == "/appairage/fin":
             return self._fin_appairage(ip, entetes)
         # Tout le reste exige une session valide, y compris les chemins qui n'existent pas.
@@ -775,14 +800,15 @@ class ServiceWeb:
             nom, proprietaire = PAGES_PROTEGEES[chemin]
             if not session:
                 refus_journal(ip, "chemin protégé sans session")
-                return self.reponse(HTTPStatus.SEE_OTHER, "", en_plus={"Location": "/appairage"})
+                return self.reponse(HTTPStatus.SEE_OTHER, "",
+                                    en_plus={"Location": "/appairage", **purge_si_revoque(cause)})
             if proprietaire and not self._est_proprietaire(session["identite"]):
                 refus_journal(ip, "droit insuffisant")
                 return self.reponse(HTTPStatus.SEE_OTHER, "", en_plus={"Location": "/reglages"})
             return self._fichier_protege(nom, _HTML)
         if not session:
             refus_journal(ip, cause)
-            return self.reponse(HTTPStatus.UNAUTHORIZED, "Connexion requise.\n")
+            return self.reponse(HTTPStatus.UNAUTHORIZED, "Connexion requise.\n", en_plus=purge_si_revoque(cause))
         if chemin in SCRIPTS_PROTEGES:
             nom, proprietaire = SCRIPTS_PROTEGES[chemin]
             if proprietaire and not self._est_proprietaire(session["identite"]):

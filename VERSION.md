@@ -4,6 +4,29 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.57.0 (2026-10-27), client web installable
+Mineure. Session S-W9 du plan. Appli Home Assistant 0.57.0 (le déploiement copie déjà tout `web/`), appli Android
+inchangée. Client web 0.11.0.
+- Service worker `/sw.js` (`poc/web/sw.js`), servi en JavaScript sans cache, portée `/`. Le serveur y injecte la
+  version du client, qui donne le nom du cache (`coquille-<version>`). L'activation supprime tout autre cache.
+- Listes blanches explicites : la coquille publique (styles, `app.js`, `client.js`, page hors ligne, icônes,
+  polices) est précachée et servie réseau d'abord, les pages navigables sont toujours demandées au réseau et
+  remplacées par la page « Serveur injoignable » (`/hors-ligne`, `hors-ligne.html`) quand il manque. Rien d'autre
+  n'est intercepté : WebSocket, requêtes autres que GET, `/api`, `/appairage`, scripts des pages protégées, vue 3D.
+  Aucune page protégée ni aucune donnée en cache. Une copie ne va que dans un cache encore présent.
+- Inscription par `client.js` sur les pages d'une session et par l'accueil une fois la session vérifiée, jamais sur
+  l'écran d'association. L'adresse passe par une politique Trusted Types `service-worker` qui n'accepte que
+  `/sw.js` : la politique de contenu reste inchangée.
+- Purge (caches vidés, service worker désinscrit) à « Oublier ce navigateur » et à l'arrivée sur l'écran
+  d'association. Les réponses de révocation (cookie révoqué, appareil inconnu) portent
+  `Clear-Site-Data: "cache", "storage"`.
+- Réglages : ligne « Installer sur ce téléphone ». Bouton quand le navigateur propose l'installation, sinon la
+  marche à suivre en mots pour Chrome, Samsung Internet et Safari sur iPhone, « Déjà installée » en mode autonome.
+- Manifeste vérifié contre les critères d'installation de Chrome, déjà conforme.
+- Tests : `test_serveur_web_installable.py` (en-têtes et version du service worker, listes blanches, inscription et
+  purge rejouées sous Node, ligne Installer, révocation, manifeste), quatre variantes Réglages et hors ligne dans le
+  contrôle de mise en page (zéro défaut à 360, 390 et 430 px, thèmes clair et sombre).
+
 ## Serveur 0.56.0 (2026-10-27), écran Routines dans le client web
 Mineure. Session S-W6 du plan. Appli Home Assistant 0.56.0 (le déploiement copie aussi `routines_web.py`), appli Android
 inchangée. Client web 0.10.0.

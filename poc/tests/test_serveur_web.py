@@ -309,8 +309,8 @@ def test_fichiers_statiques_servis_avec_le_bon_type(sessions):
     assert W.FICHIERS["/app.js"][1].startswith("text/javascript")
 
 
-PAGES = ("index.html", "appairage.html", "associer.html", "reglages.html")
-SCRIPTS = ("app.js", "client.js", "appairage.js", "associer.js", "reglages.js")
+PAGES = ("index.html", "appairage.html", "associer.html", "reglages.html", "hors-ligne.html")
+SCRIPTS = ("app.js", "client.js", "appairage.js", "associer.js", "reglages.js", "sw.js")
 
 
 def test_page_sans_script_ni_style_en_ligne_ni_ressource_externe():

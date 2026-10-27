@@ -155,9 +155,115 @@
   appliquerDev();
   window.addEventListener("storage", function (ev) { if (ev.key === CLE_DEV || ev.key === null) { appliquerDev(); } });
 
+  // Client installable (S-W9, client web 0.11.0). Le service worker /sw.js ne garde que la coquille publique (styles,
+  // scripts partagés, icônes, polices, page hors ligne) : aucune page protégée, aucune donnée. Il est inscrit depuis les
+  // pages d'une session, et retiré avec tout le cache de l'origine quand le navigateur est oublié ou retiré.
+  function serviceWorkerPossible() {
+    return !!(window.isSecureContext && navigator.serviceWorker);
+  }
+
+  // La politique de contenu exige des Trusted Types pour toute URL de script, celle du service worker comprise. Cette
+  // politique n'accepte qu'une seule adresse, /sw.js, et refuse tout le reste.
+  var URL_SW = "/sw.js";
+  var politiqueSw = null;
+
+  function adresseSw() {
+    if (!window.trustedTypes || !window.trustedTypes.createPolicy) { return URL_SW; }
+    if (!politiqueSw) {
+      politiqueSw = window.trustedTypes.createPolicy("service-worker", {
+        createScriptURL: function (u) {
+          if (u !== URL_SW) { throw new TypeError("adresse de service worker refusée"); }
+          return u;
+        }
+      });
+    }
+    return politiqueSw.createScriptURL(URL_SW);
+  }
+
+  function installerHorsLigne() {
+    if (!serviceWorkerPossible()) { return; }
+    try {
+      navigator.serviceWorker.register(adresseSw(), { scope: "/" }).catch(function () { /* le client marche sans */ });
+    } catch (e) { /* idem */ }
+  }
+
+  // Vide le cache et désinscrit le service worker. Ne bloque jamais plus de 1,5 s la suite (changement de page).
+  function purgerHorsLigne() {
+    var travail = Promise.resolve().then(function () {
+      var attente = [];
+      var magasin = window.caches;
+      if (magasin) {
+        attente.push(magasin.keys().then(function (noms) {
+          return Promise.all(noms.map(function (nom) { return magasin.delete(nom); }));
+        }));
+      }
+      if (serviceWorkerPossible() && navigator.serviceWorker.getRegistrations) {
+        attente.push(navigator.serviceWorker.getRegistrations().then(function (inscriptions) {
+          return Promise.all(inscriptions.map(function (i) { return i.unregister(); }));
+        }));
+      }
+      return Promise.all(attente);
+    });
+    var delai = new Promise(function (fin) { setTimeout(fin, 1500); });
+    return Promise.race([travail, delai]).catch(function () { /* rien à purger ou purge refusée */ });
+  }
+
+  // Proposition d'installation du navigateur (Chrome, Samsung Internet) : elle peut arriver avant les scripts des
+  // pages, elle est donc gardée ici. iPhone n'en envoie jamais.
+  var propositionInstallation = null;
+  var ecouteursInstallation = [];
+
+  function prevenirInstallation() {
+    ecouteursInstallation.forEach(function (f) { try { f(); } catch (e) { /* les autres écouteurs passent */ } });
+  }
+
+  window.addEventListener("beforeinstallprompt", function (ev) {
+    ev.preventDefault();
+    propositionInstallation = ev;
+    prevenirInstallation();
+  });
+  window.addEventListener("appinstalled", function () {
+    propositionInstallation = null;
+    prevenirInstallation();
+  });
+
+  function dejaInstallee() {
+    if (navigator.standalone === true) { return true; }
+    try { return window.matchMedia("(display-mode: standalone)").matches; } catch (e) { return false; }
+  }
+
+  function propositionDisponible() { return propositionInstallation !== null; }
+
+  // Ouvre la proposition du navigateur. Résout vrai si l'installation est acceptée.
+  function proposerInstallation() {
+    var p = propositionInstallation;
+    if (!p) { return Promise.resolve(false); }
+    propositionInstallation = null;
+    return Promise.resolve(p.prompt()).then(function () { return p.userChoice; }).then(function (choix) {
+      return !!(choix && choix.outcome === "accepted");
+    }).catch(function () { return false; }).then(function (accepte) {
+      prevenirInstallation();
+      return accepte;
+    });
+  }
+
+  // [f] est appelée à chaque changement de la proposition (reçue, utilisée, application installée).
+  function surInstallation(f) { ecouteursInstallation.push(f); }
+
+  // L'écran d'association n'est ouvert que par un navigateur sans accès : rien ne doit y rester. L'accueil inscrit le
+  // service worker lui-même, une fois la session vérifiée (app.js).
+  var chemin = (window.location && window.location.pathname) || "";
+  if (chemin === "/appairage") {
+    purgerHorsLigne();
+  } else if (chemin && chemin !== "/" && chemin !== "/hors-ligne") {
+    installerHorsLigne();
+  }
+
   window.Client = {
     deB64u: deB64u, versB64u: versB64u, heure: heure, duree: duree, ouvrirWs: ouvrirWs, disponible: disponible,
     creerCle: creerCle, signer: signer, texteErreur: texteErreur, erreurNavigateur: erreurNavigateur,
-    modeDeveloppeur: modeDeveloppeur, reglerDeveloppeur: reglerDeveloppeur, surModeDeveloppeur: surModeDeveloppeur
+    modeDeveloppeur: modeDeveloppeur, reglerDeveloppeur: reglerDeveloppeur, surModeDeveloppeur: surModeDeveloppeur,
+    installerHorsLigne: installerHorsLigne, purgerHorsLigne: purgerHorsLigne, dejaInstallee: dejaInstallee,
+    propositionDisponible: propositionDisponible, proposerInstallation: proposerInstallation, surInstallation: surInstallation
   };
 })();

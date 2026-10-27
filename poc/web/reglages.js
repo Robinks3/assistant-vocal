@@ -169,11 +169,16 @@
     s.onclose = function (ev) {
       if (ws !== s) { return; }
       ws = null;
-      if (ev.code === 4001 || ev.code === 1008) { window.location.replace("/appairage"); return; }
+      if (ev.code === 4001 || ev.code === 1008) { quitter(); return; }
       message("erreur-liste", "La connexion avec l'assistant est coupée. Nouvelle tentative.");
       reconnexion = Math.min(reconnexion + 1, 6);
       setTimeout(connecter, 1000 * reconnexion);
     };
+  }
+
+  // Accès retiré ou navigateur oublié : la coquille gardée hors ligne part avec lui (S-W9), puis retour à l'association.
+  function quitter() {
+    C.purgerHorsLigne().then(function () { window.location.replace("/appairage"); });
   }
 
   function oublier() {
@@ -183,13 +188,49 @@
       .then(function (r) {
         if (!r.ok) { throw new Error("oubli"); }
         if (ws) { var s = ws; ws = null; s.onclose = null; try { s.close(); } catch (e) { /* déjà fermé */ } }
-        window.location.replace("/appairage");
+        quitter();
       })
       .catch(function () {
         message("erreur-oublier", "L'oubli a échoué. Rechargez la page et recommencez.");
         $("bouton-oublier-confirmer").disabled = false;
       });
   }
+
+  // Ligne Installer sur ce téléphone (S-W9). Le bouton n'apparaît que si le navigateur propose lui-même
+  // l'installation, sinon le chemin à suivre est dit en mots, selon le navigateur.
+  function aideInstallation() {
+    var ua = navigator.userAgent || "";
+    if (/SamsungBrowser/.test(ua)) {
+      return "Dans Samsung Internet, ouvrez le menu puis choisissez « Ajouter la page à », puis « Écran d'accueil ».";
+    }
+    if (/iPhone|iPad|iPod/.test(ua)) {
+      return "Dans Safari, touchez Partager puis « Sur l'écran d'accueil ».";
+    }
+    return "Dans Chrome, ouvrez le menu puis choisissez « Installer l'application ».";
+  }
+
+  function afficherInstallation() {
+    var installee = C.dejaInstallee();
+    var proposition = !installee && C.propositionDisponible();
+    $("etat-installer").hidden = !installee;
+    $("texte-installer").hidden = installee;
+    $("bouton-installer").hidden = !proposition;
+    $("aide-installer").hidden = installee || proposition;
+    if (!installee && !proposition) { $("aide-installer").textContent = aideInstallation(); }
+  }
+
+  $("bouton-installer").addEventListener("click", function () {
+    $("bouton-installer").disabled = true;
+    C.proposerInstallation().then(function () {
+      $("bouton-installer").disabled = false;
+      afficherInstallation();
+    });
+  });
+  C.surInstallation(afficherInstallation);
+  try {
+    window.matchMedia("(display-mode: standalone)").addEventListener("change", afficherInstallation);
+  } catch (e) { /* navigateur sans écoute du mode d'affichage */ }
+  afficherInstallation();
 
   function afficherDev(actif) {
     $("bascule-dev").setAttribute("aria-checked", actif ? "true" : "false");
