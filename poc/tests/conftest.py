@@ -24,6 +24,16 @@ def routines_temporaires(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def niveaux_web_temporaires(tmp_path, monkeypatch):
+    """Les niveaux de vie privée du journal web sont dans le dossier du test, jamais dans les données du poste."""
+    import assistant
+    import journal_web
+    niveaux = journal_web.Niveaux(tmp_path / "vie_privee_web.json")
+    monkeypatch.setattr(assistant, "NIVEAUX_WEB", niveaux)
+    return niveaux
+
+
+@pytest.fixture(autouse=True)
 def journal_musique_temporaire(tmp_path, monkeypatch):
     """Les essais de musique écrivent leur ligne de journal ailleurs que dans poc/journal."""
     import assistant
