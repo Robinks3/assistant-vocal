@@ -6,6 +6,17 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.49.0 (2026-10-27), nom public « Assistant vocal local »
+Mineure (versionCode 90). Session S-C6 du plan, décision D1 du 26/10/2026. `applicationId` `assistant.vocal.jarvis` inchangé :
+aucun réappairage, la mise à jour s'installe par-dessus l'ancienne.
+- Sous-titre de l'en-tête de l'accueil de la tablette : « Assistant vocal local » (il disait « Assistant vocal de la
+  maison »), avec la version et la date de compilation derrière en mode développeur. Le nom affiché de l'assistant,
+  au-dessus, vient toujours de la section `assistant` de la configuration.
+- Commentaires de code qui parlaient de « l'app Jarvis » ou des « serveurs Jarvis » : reformulés avec « l'assistant ».
+- Inchangés volontairement : paquets, balises de journal `Jarvis*`, noms de fichiers, texte « Hey Jarvis » du segment
+  du mot de réveil de repli (nom du modèle, mot réellement dit), nettoyage `replace("Jarvis", NOM_ASSISTANT)` des
+  messages de vision venus d'un serveur ancien.
+
 ## 0.48.0 (2026-10-27), mode développeur
 Nouveauté (versionCode 89).
 - Nouveau réglage « Mode développeur », dans Réglages, section Général (et dans le tiroir du téléphone), avec deux

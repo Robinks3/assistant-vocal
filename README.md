@@ -53,7 +53,7 @@ configuration, sans nouvel appairage. Tailscale ne sert qu'au relais facultatif 
 
 | Composant | Machine | Matériel | Alternative en ligne | Licence |
 |---|---|---|---|---|
-| Mot de réveil openWakeWord ("Hey Jarvis" ou le sien) | Appareil, PC, Home Assistant | Léger : 2,4 Mo de prétraitement, 25 ms par bloc sur un cœur de tablette | Inutile | Apache 2.0, modèles selon leur fichier |
+| Mot de réveil openWakeWord (modèle de repli ou celui de la configuration) | Appareil, PC, Home Assistant | Léger : 2,4 Mo de prétraitement, 25 ms par bloc sur un cœur de tablette | Inutile | Apache 2.0, modèles selon leur fichier |
 | Détection de parole Silero VAD | Appareil, serveur | Léger : 2,3 Mo, tourne partout | Inutile | MIT |
 | Transcription Canary 1B | Appareil ou PC | 1 Go, 2,1 Go de mémoire sur l'appareil, 0,5 à 1,1 s par phrase | API compatible OpenAI (Voxtral de Mistral par défaut) | CC BY 4.0 |
 | Transcription Speech-to-Phrase | Home Assistant | Petite machine : 0,7 à 1,4 s sur un petit serveur | Repli en ligne si rien n'est reconnu | Celle de l'appli Home Assistant |

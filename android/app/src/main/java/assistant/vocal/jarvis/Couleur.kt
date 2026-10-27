@@ -37,7 +37,7 @@ internal object Couleur {
     val ROUGE: Int get() = Palette.rouge
     val GRIS: Int get() = Palette.gris
     val ESSAI: Int get() = Palette.essai
-    /** Écran ambiant de la tablette (0.16.0) : fond bleu nuit de la charte Jarvis. */
+    /** Écran ambiant de la tablette (0.16.0) : fond bleu nuit de la charte de l'assistant. */
     val NUIT_HAUT: Int get() = Palette.bleuNuitHaut
     val NUIT: Int get() = Palette.bleuNuit
     val NUIT_BAS: Int get() = Palette.bleuNuitBas

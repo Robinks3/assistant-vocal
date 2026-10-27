@@ -70,7 +70,7 @@ class CerveauAppareil(contexte: Context, private val passerelle: PasserelleHa, p
     private fun majInventaire() {
         if (System.currentTimeMillis() - inventaireLe < 5 * 60_000 && inventaire.isNotEmpty()) return
         val modeleHa = "{% for s in states %}{{ s.entity_id }}\t{{ s.name }}\t{{ s.state }}\t{{ area_name(s.entity_id) or '' }}\n{% endfor %}"
-        // Lecture par la passerelle de l'app Jarvis sur HA (0.15.0) : plus de jeton HA dans l'APK.
+        // Lecture par la passerelle de l'appli de l'assistant sur HA (0.15.0) : plus de jeton HA dans l'APK.
         val r = passerelle.requete("POST", "/api/template", JSONObject().put("template", modeleHa))
         if (!r.ok) error("Home Assistant a répondu HTTP ${r.code} (${r.corps.take(120)})")
         val texte = r.corps

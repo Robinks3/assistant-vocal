@@ -9,7 +9,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.48.0"
+val versionApplication = "0.49.0"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -127,7 +127,7 @@ fun ressourceChaine(s: String): String =
     s.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").let { if (it.startsWith("@") || it.startsWith("?")) "\\$it" else it }
 fun reseauMaison(cle: String): String = ((maison["reseau"] as? Map<*, *>)?.get(cle) as? String)?.trim().orEmpty()
 // Plus de jeton Home Assistant dans l'APK depuis la 0.15.0 : le mode « Cet appareil » passe par
-// la passerelle de l'app Jarvis sur HA, qui garde son propre jeton (voir PasserelleHa.kt).
+// la passerelle de l'appli de l'assistant sur HA, qui garde son propre jeton (voir PasserelleHa.kt).
 
 // Signature de publication facultative : android/keystore.properties (ignoré par git, voir docs/INSTALLER.md).
 // Le fichier n'est lu que s'il existe, et seules ses quatre clés sont retenues. Si une clé manque, la
@@ -158,7 +158,7 @@ android {
         applicationId = "assistant.vocal.jarvis"
         minSdk = 26
         targetSdk = 36
-        versionCode = 89
+        versionCode = 90
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))

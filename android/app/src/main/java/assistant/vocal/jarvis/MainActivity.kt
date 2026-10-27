@@ -1567,7 +1567,7 @@ class MainActivity : Activity() {
             letterSpacing = 0.01f
         })
         titres.addView(texte(14.5f, Couleur.TEXTE_2).apply {
-            text = if (largeEcran && modeDev()) "Assistant vocal de la maison, version ${BuildConfig.VERSION_BASE} du ${BuildConfig.HORODATAGE_COMPILATION}" else "Assistant vocal de la maison"
+            text = if (largeEcran && modeDev()) "Assistant vocal local, version ${BuildConfig.VERSION_BASE} du ${BuildConfig.HORODATAGE_COMPILATION}" else "Assistant vocal local"
         })
         ligne.addView(titres, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 

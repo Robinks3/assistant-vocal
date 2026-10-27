@@ -17,7 +17,7 @@ import javax.net.ssl.SSLSession
 import javax.net.ssl.X509TrustManager
 
 /**
- * Liaison sécurisée avec les serveurs Jarvis (0.15.0, serveur 0.17.0).
+ * Liaison sécurisée avec les serveurs de l'assistant (0.15.0, serveur 0.17.0).
  *
  * Le port chiffré (wss, 8766) présente un certificat auto-signé : aucune autorité ne peut le
  * garantir, on épingle donc sa clé publique à la première connexion (TOFU). L'empreinte SHA-256

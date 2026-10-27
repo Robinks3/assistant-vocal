@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.text.Normalizer
 
 /**
- * Dictionnaire de Jarvis embarqué (assets/dictionnaire.json, produit par
+ * Dictionnaire de l'assistant embarqué (assets/dictionnaire.json, produit par
  * android/outils/exporter_dictionnaire.py depuis commandes.yaml du dossier de configuration), complété par les phrases
  * apprises de assets/dictionnaire_appris.json quand l'APK en porte (0.32.2, export à part du dossier de données).
  * Une phrase apprise ne remplace jamais une phrase de commandes.yaml.

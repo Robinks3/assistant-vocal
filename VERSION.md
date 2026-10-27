@@ -4,6 +4,21 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.58.0 (2026-10-27), nom public « Assistant vocal local »
+Mineure. Session S-C6 du plan, décision D1 du 26/10/2026. Appli Home Assistant 0.58.0, appli Android 0.49.0. Client
+web inchangé (0.11.0), aucune page web touchée.
+- Nom visible de l'appli Home Assistant : `name` de `ha-app/jarvis/config.yaml` passe à « Assistant vocal local »
+  (le déploiement le remplace toujours par le nom réglé dans la section `assistant` de `maison.json`). Le titre du
+  panneau latéral reste « Assistant vocal », forme courte. Commentaire de tête du `Dockerfile` aligné.
+- README : la ligne du mot de réveil ne cite plus de nom de marque, elle parle du modèle de repli et de celui de la
+  configuration. Même retouche dans l'en-tête de `Calibrer le mot de réveil.bat`.
+- Outil `exporter_dictionnaire.py` : docstring et description de l'aide de la ligne de commande disent « l'assistant ».
+- Inchangés volontairement : `applicationId` `assistant.vocal.jarvis`, paquets Kotlin, dossier `ha-app/jarvis`, identifiant
+  `local_jarvis`, variables `JARVIS_*`, balises de journal, noms de fichiers et clés JSON. Le nom du modèle de réveil
+  de repli « Hey Jarvis » (fichier `hey_jarvis_v0.1.onnx`, nom amont d'openWakeWord) reste cité là où il désigne le
+  mot réellement prononcé, dans `LICENCES-TIERS.md`, les docs de configuration et les réglages de l'appli. Le nom de
+  l'assistant, lui, n'est écrit nulle part en dur : il vient de `maison.json` (`{{nom_assistant}}` côté web).
+
 ## Serveur 0.57.0 (2026-10-27), client web installable
 Mineure. Session S-W9 du plan. Appli Home Assistant 0.57.0 (le déploiement copie déjà tout `web/`), appli Android
 inchangée. Client web 0.11.0.
