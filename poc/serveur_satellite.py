@@ -105,6 +105,7 @@ import assistant as A  # noqa: E402
 import acces  # noqa: E402
 import administration  # noqa: E402
 import maison  # noqa: E402
+import serveur_web  # noqa: E402
 import routines as R  # noqa: E402
 import vad as V  # noqa: E402
 import vision as VI  # noqa: E402
@@ -1691,6 +1692,14 @@ async def servir(args):
     if port_admin.isdigit() and int(port_admin) > 0:  # appli HA : administration par Ingress, port non publié
         serveurs.append(await administration.demarrer(moteur, int(port_admin), A.VERSION))
         print(f"Administration (Ingress) sur le port {port_admin}, réservée à administration.utilisateurs_ha")
+    port_web = getattr(args, "port_web", 0)
+    if port_web:  # client web pour téléphone (S-W1a) : boucle locale seule par défaut, Tailscale Serve le publie
+        adresse_web = getattr(args, "adresse_web", "") or serveur_web.ADRESSE_DEFAUT
+        try:
+            serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION))
+            print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")
+        except OSError as e:  # un port web pris ne doit pas empêcher les satellites de servir
+            print(f"Client web non démarré sur {adresse_web}:{port_web} : {e}")
     print(f"Serveur satellite v{A.VERSION}, port {args.port}"
           + (" (ancien accès ?jeton= permis)" if ancien_acces else " (jeton en en-tête seulement)")
           + (f" et port chiffré {args.port_tls}" if contexte_tls else "")
@@ -1715,6 +1724,10 @@ def main():
     p.add_argument("--port", type=int, default=8765, help="port en clair (0 pour le couper)")
     p.add_argument("--port-tls", type=int, default=int(os.getenv("JARVIS_PORT_TLS") or "8766"),
                    help="port chiffré wss (0 pour le couper)")
+    p.add_argument("--port-web", type=int, default=int(os.getenv("JARVIS_PORT_WEB") or "8767"),
+                   help="port HTTP du client web, boucle locale seule par défaut (0 pour le couper)")
+    p.add_argument("--adresse-web", default=(os.getenv("JARVIS_ADRESSE_WEB") or "127.0.0.1").strip(),
+                   help="adresse d'écoute du client web (127.0.0.1 par défaut, Tailscale Serve le publie)")
     p.add_argument("--seuil", type=float, default=None,
                    help="score du mot de réveil (0 à 1), sinon SEUIL_REVEIL de poc/.env, sinon 0,5")
     p.add_argument("--calibrer", action="store_true", help="calibrage guidé du mot de réveil au démarrage")

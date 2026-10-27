@@ -112,6 +112,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `acces` | `poc/acces.py`, `poc/maison.py`, `poc/serveur_satellite.py` | Écoute sur `0.0.0.0`, réseaux privés et tailnet autorisés, ancien accès permis, propriétaire seul administrateur. |
 | `routines` | `poc/routines.py`, `poc/assistant.py`, `poc/serveur_satellite.py` | Routines actives avec les limites par défaut décrites plus bas. |
 | `journal` | `poc/assistant.py` | Historique gardé 30 jours, journal des durées limité à 512 Ko sur 5 fichiers, phrases absentes de la console. |
+| `client_web` | `poc/maison.py`, `poc/serveur_web.py` | Le serveur du client web n'accepte que la boucle locale, sessions de 30 jours. |
 | `fuseau` | `poc/securite.py`, `poc/assistant.py`, `Securite.kt` | `UTC`. |
 | `securite` | `poc/securite.py`, `Securite.kt` | Listes vides. |
 | `appareils` | `poc/assistant.py`, `SortieSon.kt`, `Appareils.kt`, `MaisonEnGrand.kt`, outils de banc | Musique refusée proprement, écran Musique sans enceinte. |
@@ -253,6 +254,27 @@ Partout ailleurs, `X-Forwarded-Host` est ignoré.
 Aucune règle de pare-feu n'est posée ni modifiée par le serveur, et aucun port n'est fermé. La fermeture de 8765
 attend sept jours de tablette sur 8766 et un mot du propriétaire (décision D7 du plan). Tant que ce n'est pas
 fait, `acces.ancien_acces` et `reseaux_autorises` sont les seuls leviers.
+
+### `client_web` (lot S-W1a)
+
+Le client web pour téléphone est servi en HTTP par `poc/serveur_web.py`, dans le même processus que les serveurs
+WebSocket. Il écoute sur `127.0.0.1:8767` : seule la machine l'atteint, et Tailscale Serve (lot S-W7) le publie
+en HTTPS sur le tailnet. Port et adresse se règlent par `--port-web` (0 pour le couper) et `--adresse-web`, ou par
+les variables d'environnement `JARVIS_PORT_WEB` et `JARVIS_ADRESSE_WEB`. Les ports 8765 et 8766 ne changent pas.
+
+| Clé | Rôle | Défaut |
+|---|---|---|
+| `hote` | Nom de domaine de Tailscale Serve (par exemple `assistant.exemple.ts.net`), seul nom accepté en plus de la boucle locale. | Vide : seules les adresses `127.0.0.1`, `localhost` et `[::1]` passent. |
+| `session_jours` | Jours sans usage au bout desquels un cookie de session expire (entier, 1 ou plus). Chaque usage prolonge la session, dans la limite de 90 jours depuis l'ouverture. | 30 |
+
+Le serveur contrôle `Host` et `Origin` sur chaque requête : un nom ou une origine inconnus reçoivent un 403 sans
+explication. Hors la page d'accueil et ses fichiers (feuille de style, script, manifeste, icônes, polices),
+rien ne répond sans cookie de session valide. Le cookie `__Host-session` est `Secure`, `HttpOnly` et
+`SameSite=Strict`. Le serveur n'en garde que l'empreinte SHA-256. L'appairage d'un navigateur (lot S-W1b) n'est pas
+encore livré : la route `/appairage` répond que la fonction n'est pas disponible.
+
+Le journal du serveur consigne chaque refus avec l'adresse et une cause courte (hôte refusé, origine refusée,
+cookie absent, cookie expiré, cookie révoqué...), jamais un cookie, un jeton ni un en-tête.
 
 ### `routines`
 

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="referrer" content="no-referrer">
+<title>{{nom_assistant}}</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="apple-touch-icon" href="/icones/apple-touch-icon.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<div class="barre-haut">
+<span id="statut" class="pastille" role="status">Vérification en cours</span>
+</div>
+<p class="salut">{{nom_assistant}}</p>
+<h1 class="cache-visuel">Accueil de {{nom_assistant}}</h1>
+<p class="heure"><time id="heure" datetime="">--:--</time></p>
+<p id="date-jour" class="date-jour"></p>
+
+<section id="carte-appairage" class="carte" aria-labelledby="titre-appairage">
+<h2 class="surtitre" id="titre-appairage">Cet appareil</h2>
+<p class="fort carte-texte">Pas encore appairé</p>
+<p class="secondaire">Pour utiliser {{nom_assistant}} depuis ce téléphone, il faudra l'associer à la maison.</p>
+<button id="bouton-appairage" type="button" class="bouton bouton--principal bouton--plein">Appairer cet appareil</button>
+<p id="message-appairage" class="aide" role="status" hidden></p>
+</section>
+
+<section id="carte-connecte" class="carte" aria-labelledby="titre-connecte" hidden>
+<h2 class="surtitre" id="titre-connecte">Session</h2>
+<p class="fort carte-texte">Cet appareil est connecté</p>
+<p class="secondaire">Les fonctions du client web arrivent dans les prochaines versions.</p>
+</section>
+
+<p class="version" aria-label="Versions"><span>Client web {{version_client}}</span><span>Serveur {{version_serveur}}</span><span>{{date}}</span></p>
+</main>
+</body>
+</html>
