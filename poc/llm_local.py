@@ -136,7 +136,7 @@ class CerveauAvecRepli:
     NOM_SECOURS = "Claude Haiku (repli)"
 
     def __init__(self, local, secours, sonde):
-        self.local, self.secours, self.sonde = local, secours, sonde
+        self.principal, self.secours, self.sonde = local, secours, sonde
         self.historiques = local.historiques
         secours.historiques = local.historiques  # une conversation, deux cerveaux : « éteins-la » survit au repli
         self._dernier = local
@@ -145,19 +145,19 @@ class CerveauAvecRepli:
     # ---- ce que l'Assistant pose ou lit sur un cerveau
     @property
     def rappel_routine(self):
-        return self.local.rappel_routine
+        return self.principal.rappel_routine
 
     @rappel_routine.setter
     def rappel_routine(self, f):
-        self.local.rappel_routine = self.secours.rappel_routine = f
+        self.principal.rappel_routine = self.secours.rappel_routine = f
 
     @property
     def rappel_liste(self):
-        return self.local.rappel_liste
+        return self.principal.rappel_liste
 
     @rappel_liste.setter
     def rappel_liste(self, f):
-        self.local.rappel_liste = self.secours.rappel_liste = f
+        self.principal.rappel_liste = self.secours.rappel_liste = f
 
     @property
     def dernieres_actions(self):
@@ -166,7 +166,7 @@ class CerveauAvecRepli:
     @property
     def dernier_nom(self):
         """Nom du cerveau qui a répondu en dernier, pour le journal et la réponse du serveur."""
-        return self.NOM_LOCAL if self._dernier is self.local else self.NOM_SECOURS
+        return self.NOM_LOCAL if self._dernier is self.principal else self.NOM_SECOURS
 
     # ---- la demande
     def _noter(self, joignable, cause=None):
@@ -179,17 +179,17 @@ class CerveauAvecRepli:
         cause = None
         if self.sonde.verifier():
             if self.sonde.modele:
-                self.local.cfg["llm_modele"] = self.sonde.modele
+                self.principal.cfg["llm_modele"] = self.sonde.modele
             try:
-                reponse = self.local.repondre(texte, mode)
+                reponse = self.principal.repondre(texte, mode)
             except Exception as e:
                 # Un outil déjà exécuté, ou pas de clé Claude pour reprendre : l'erreur remonte telle quelle.
-                if self.local.outils_appeles or getattr(self.secours, "sans_cle", False):
+                if self.principal.outils_appeles or getattr(self.secours, "sans_cle", False):
                     raise
                 self.sonde.signaler_panne()
                 cause = e
             else:
-                self._dernier = self.local
+                self._dernier = self.principal
                 self._noter(True)
                 return reponse
         self._noter(False, cause)
