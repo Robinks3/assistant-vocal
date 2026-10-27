@@ -153,3 +153,25 @@ legend.libelle{padding:0}
 .dialogue{width:calc(100% - 2 * var(--e4));max-width:440px;padding:var(--e5);border-radius:var(--r-l);border:1px solid var(--filet);background:var(--surface-haut);color:var(--texte-1);box-shadow:0 20px 40px -12px rgba(var(--ombre-rgb),.5)}
 .dialogue::backdrop{background:rgba(0,0,0,.55)}
 .titre-dialogue{margin-bottom:var(--e3);font-size:1.25rem;font-weight:500;line-height:1.2;overflow-wrap:anywhere}
+
+/* Journal et Vie privée (S-W2) */
+.bouton[hidden],.apercu[hidden]{display:none}
+.lien{display:inline-flex;align-items:center;min-height:var(--cible);color:var(--assistant);font-weight:500;text-decoration:underline;text-underline-offset:3px}
+.filtres{display:flex;flex-wrap:wrap;gap:var(--e2);margin:var(--e3) 0}
+.filtre{min-height:var(--cible);padding:0 var(--e4);border-radius:var(--r-pilule);border:1px solid var(--bord-controle);background:transparent;font-size:.9375rem}
+.filtre[aria-pressed="true"]{border-color:var(--assistant);background:var(--assistant-doux);color:var(--assistant);font-weight:500}
+.journal{margin:var(--e2) 0 var(--e3)}
+.jour{margin:var(--e4) 0 var(--e1);font-size:.8125rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--texte-2)}
+.entree{display:flex;align-items:flex-start;gap:var(--e3);width:100%;min-height:56px;padding:var(--e3) 0;border:0;border-top:1px solid var(--filet);background:transparent;text-align:left}
+.entree-heure{flex:none;min-width:3.2rem;font-size:1.5rem;line-height:1.1;color:var(--texte-2)}
+.entree-corps{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.entree-titre,.entree-sous{overflow-wrap:anywhere}
+.entree-marques{display:flex;flex-wrap:wrap;gap:var(--e2);margin-top:var(--e1)}
+.etapes{margin:var(--e3) 0 0;padding:0;list-style:none}
+.etapes[hidden]{display:none}
+.etape{display:flex;justify-content:space-between;gap:var(--e4);padding:var(--e2) 0;border-top:1px solid var(--filet)}
+.carte--encours{border-color:var(--assistant)}
+.detail-ligne{display:flex;flex-wrap:wrap;gap:var(--e2);margin-bottom:var(--e2)}
+.detail-ligne:empty{display:none}
+.apercu{margin:var(--e4) 0;padding:var(--e4);border-radius:var(--r-m);border:1px dashed var(--bord-controle)}
+.apercu .surtitre{margin-bottom:var(--e1)}

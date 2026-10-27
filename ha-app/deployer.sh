@@ -41,7 +41,7 @@ texte, n = re.subn(r"(?m)^name:.*$", lambda _: "name: " + json.dumps(nom, ensure
 assert n == 1, "ligne name: absente de config.yaml"
 open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(texte)
 PY
-cp "$POC/assistant.py" "$POC/dictionnaire.py" "$POC/serveur_satellite.py" "$POC/securite.py" "$POC/acces.py" "$POC/administration.py" "$POC/vad.py" "$POC/vision.py" "$POC/sante.py" "$POC/sante_hist.py" "$POC/meteo_mer.py" "$POC/vent_mesure.py" "$POC/maison.py" "$POC/routines.py" "$POC/liste_blanche.py" "$POC/commandes_dynamiques.py" "$POC/mesures.py" "$POC/historique_air.py" "$POC/serveur_web.py" "$POC/webauthn.py" "$POC/appairage_web.py" "$ETAPE/app/"
+cp "$POC/assistant.py" "$POC/dictionnaire.py" "$POC/serveur_satellite.py" "$POC/securite.py" "$POC/acces.py" "$POC/administration.py" "$POC/vad.py" "$POC/vision.py" "$POC/sante.py" "$POC/sante_hist.py" "$POC/meteo_mer.py" "$POC/vent_mesure.py" "$POC/maison.py" "$POC/routines.py" "$POC/liste_blanche.py" "$POC/commandes_dynamiques.py" "$POC/mesures.py" "$POC/historique_air.py" "$POC/serveur_web.py" "$POC/webauthn.py" "$POC/appairage_web.py" "$POC/journal_web.py" "$ETAPE/app/"
 mkdir -p "$ETAPE/app/web" && cp -r "$POC"/web/. "$ETAPE/app/web/"
 mkdir -p "$ETAPE/app/admin" && cp "$POC"/admin/index.html "$POC"/admin/admin.js "$POC"/admin/admin.css "$ETAPE/app/admin/"
 mkdir -p "$ETAPE/app/config" && cp "$MAISON/maison.json" "$MAISON/commandes.yaml" "$ETAPE/app/config/"

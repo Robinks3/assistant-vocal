@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Vie privée</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/vie-privee.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="lien-retour"><a href="/journal">Journal</a></p>
+<h1 class="titre-page">Vie privée</h1>
+
+<section id="carte-niveau" class="carte" aria-labelledby="titre-niveau">
+<h2 class="surtitre" id="titre-niveau">Ce que les autres voient de vos demandes</h2>
+<p class="secondaire carte-texte">Le choix vaut pour les demandes à venir. Les entrées déjà écrites gardent le niveau d'alors.</p>
+<fieldset class="groupe" id="groupe-niveau">
+<legend class="cache-visuel">Niveau de partage de vos demandes</legend>
+<label class="choix"><input type="radio" name="niveau" value="tout"><span class="choix-texte"><span class="fort">Tout</span><span class="secondaire">Phrase, réponse et actions</span></span></label>
+<label class="choix"><input type="radio" name="niveau" value="action"><span class="choix-texte"><span class="fort">Action seulement</span><span class="secondaire">Ce qui a été fait, sans la phrase</span></span></label>
+<label class="choix"><input type="radio" name="niveau" value="discret"><span class="choix-texte"><span class="fort">Discret</span><span class="secondaire">Qu'une demande a eu lieu, rien de plus</span></span></label>
+</fieldset>
+
+<div class="apercu" id="apercu" aria-live="polite">
+<p class="surtitre" id="titre-apercu">Aperçu pour les autres</p>
+<p class="fort" id="apercu-titre"></p>
+<p class="secondaire" id="apercu-sous"></p>
+</div>
+
+<p id="alerte-niveau" class="avertissement" hidden></p>
+<p id="actuel" class="aide" role="status"></p>
+<p id="erreur-niveau" class="alerte" role="alert" hidden></p>
+<p id="succes-niveau" class="secondaire" role="status" hidden></p>
+<button id="bouton-enregistrer" type="button" class="bouton bouton--principal bouton--plein" disabled>Enregistrer ce niveau</button>
+<p class="aide">Chaque changement se confirme avec votre clé d'accès. Les demandes de santé restent toujours discrètes pour les autres. Vous voyez toujours vos propres demandes en entier.</p>
+</section>
+
+<section id="carte-effacer" class="carte" aria-labelledby="titre-effacer">
+<h2 class="surtitre" id="titre-effacer">Conservation</h2>
+<p class="fort carte-texte">Le journal garde vos demandes <span id="conserve-jours">30</span> jours. Le son n'est jamais conservé.</p>
+<p class="secondaire">Passé ce délai, les entrées disparaissent seules. Vous pouvez aussi effacer les vôtres tout de suite, sans toucher à celles des autres.</p>
+<p id="erreur-effacer" class="alerte" role="alert" hidden></p>
+<p id="succes-effacer" class="secondaire" role="status" hidden></p>
+<button id="bouton-effacer" type="button" class="bouton bouton--danger bouton--plein">Effacer mes entrées du journal</button>
+</section>
+
+<dialog id="dialogue-effacer" class="dialogue" aria-labelledby="titre-dialogue-effacer">
+<h2 id="titre-dialogue-effacer" class="titre-dialogue">Effacer vos entrées ?</h2>
+<p class="carte-texte">Toutes vos demandes disparaissent du journal, pour vous comme pour les autres. Cela ne se défait pas.</p>
+<p id="erreur-dialogue-effacer" class="alerte" role="alert" hidden></p>
+<button id="bouton-effacer-confirmer" type="button" class="bouton bouton--danger-plein bouton--plein">Effacer avec ma clé d'accès</button>
+<button id="bouton-effacer-annuler" type="button" class="bouton bouton--plein">Annuler</button>
+</dialog>
+
+</main>
+</body>
+</html>

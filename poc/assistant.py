@@ -16,6 +16,7 @@ import argparse, contextlib, contextvars, difflib, csv, json, os, re, sys, threa
 
 import acces
 import commandes_dynamiques
+import journal_web
 import maison
 import routines
 import securite
@@ -45,6 +46,9 @@ class Requete:
 
 
 REQUETE = contextvars.ContextVar("requete", default=None)
+# Identifiant de la demande en cours, posé par le serveur quand il l'annonce au journal du client web (étape
+# « entendu »). journaliser le reprend pour que l'entrée finale remplace la carte « En cours ». Vide : un neuf.
+ID_DEMANDE = contextvars.ContextVar("id_demande", default=None)
 
 
 def requete_en_cours():
@@ -60,7 +64,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.48.0"
+VERSION = "0.49.0"
 DATE_VERSION = "2026-10-27"
 
 ICI = Path(__file__).resolve().parent
@@ -2177,6 +2181,9 @@ COLONNES_LATENCES = ["horodatage", "version", "voie", "stt_s", "cerveau_s", "tts
 # Fonction identité -> rôle, posée par servir() (serveur_satellite). Sans elle, le rôle journalisé reste vide.
 ROLE_DE = None
 _PURGE = {"jour": None}
+# Niveaux de vie privée du journal du client web (S-W2), un par auteur. Le niveau est lu à l'écriture et figé dans
+# l'entrée : le changer n'agit pas sur les demandes déjà faites.
+NIVEAUX_WEB = journal_web.Niveaux(DONNEES / "vie_privee_web.json")
 
 
 def phrases_dans_la_console():
@@ -2264,6 +2271,21 @@ def appliquer_retention(dossier=None):
             f.unlink(missing_ok=True)
 
 
+def etapes_de(fin, t_stt, t_cerveau, t_tts, voie, actions, parole):
+    """Les étapes d'une demande reconstituées à l'écriture, avec leur heure : entendu, compris, fait, répondu.
+    Les durées mesurées donnent les heures, la fin de la commande est l'instant de l'écriture. Une étape qui n'a
+    pas eu lieu (pas d'action, pas de réponse) manque."""
+    debut = fin - timedelta(seconds=t_stt + t_cerveau + t_tts)
+    jalons = [("entendu", debut + timedelta(seconds=t_stt))]
+    if not str(voie or "").startswith("rien compris"):
+        jalons.append(("compris", debut + timedelta(seconds=t_stt + t_cerveau)))
+    if actions:
+        jalons.append(("fait", debut + timedelta(seconds=t_stt + t_cerveau)))
+    if parole:
+        jalons.append(("repondu", fin))
+    return [{"nom": n, "t": t.strftime("%H:%M:%S")} for n, t in jalons]
+
+
 def journaliser(texte, voie, t_stt, t_cerveau, t_tts, parole, actions):
     """Une commande dans les deux fichiers du journal (voir plus haut). Appareil et personne viennent de la requête
     en cours (Assistant.requete) : appeler dans le contexte d'une requête, sinon l'entrée n'a pas d'appareil.
@@ -2273,6 +2295,17 @@ def journaliser(texte, voie, t_stt, t_cerveau, t_tts, parole, actions):
     role = role_du_contexte(appareil)
     maintenant = maison.maintenant()
     total = t_stt + t_cerveau + t_tts
+    ligne = {"horodatage": maintenant.strftime(maison.FORMAT_HORODATAGE), "texte": texte,
+             "voie": voie, "total_s": f"{total:.2f}", "reponse": parole,
+             "actions": " | ".join(actions), "appareil": appareil, "personne": personne,
+             "role": role}
+    try:
+        niveau = NIVEAUX_WEB.niveau_de(journal_web.cle_auteur(personne, appareil))
+    except Exception:  # un fichier de niveaux illisible ne doit pas casser la commande : le plus discret
+        niveau = journal_web.NIVEAU_DEFAUT
+    ligne.update({"id": ID_DEMANDE.get() or journal_web.nouvel_id(), "niveau": niveau, "statut": issue_de(voie),
+                  "canal": (r.canal if r else "") or "", "etapes": etapes_de(maintenant, t_stt, t_cerveau, t_tts,
+                                                                              voie, actions, parole)})
     try:
         dossier = JOURNAL.parent
         dossier.mkdir(parents=True, exist_ok=True)
@@ -2288,11 +2321,9 @@ def journaliser(texte, voie, t_stt, t_cerveau, t_tts, parole, actions):
             w.writerow([maintenant.strftime(maison.FORMAT_HORODATAGE), VERSION, voie_courte(voie),
                         f"{t_stt:.2f}", f"{t_cerveau:.2f}", f"{t_tts:.2f}", f"{total:.2f}", role, issue_de(voie),
                         len(actions), 1 if "[essai]" in str(voie) else 0])
-        with open(dossier / f"assistant-{maintenant.strftime('%Y-%m-%d')}.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"horodatage": maintenant.strftime(maison.FORMAT_HORODATAGE), "texte": texte,
-                                "voie": voie, "total_s": f"{total:.2f}", "reponse": parole,
-                                "actions": " | ".join(actions), "appareil": appareil, "personne": personne,
-                                "role": role}, ensure_ascii=False) + "\n")
+        with journal_web.VERROU_FICHIERS:
+            with open(dossier / f"assistant-{maintenant.strftime('%Y-%m-%d')}.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(ligne, ensure_ascii=False) + "\n")
     except OSError as e:
         print(f"  journal impossible : {e.__class__.__name__}")
 

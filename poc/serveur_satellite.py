@@ -116,6 +116,7 @@ import acces  # noqa: E402
 import administration  # noqa: E402
 import maison  # noqa: E402
 import serveur_web  # noqa: E402
+import journal_web as J  # noqa: E402
 import routines as R  # noqa: E402
 import vad as V  # noqa: E402
 import vision as VI  # noqa: E402
@@ -326,6 +327,12 @@ class Moteur:
     async def diffuser_historique(self, ligne):
         """Diffuse la ligne d'historique qui vient d'être écrite, destinataire par destinataire (0.39.0) : chacun ne
         reçoit que ce que entrees_visibles lui laisse voir. Les pages d'administration sont administratrices."""
+        service_web = getattr(self, "service_web", None)
+        if service_web is not None:  # navigateurs associés : leur propre projection, jamais historique_ajout
+            try:
+                service_web.publier_ajout(ligne)
+            except Exception as e:
+                print(f"Journal web : diffusion impossible ({type(e).__name__})")
         appareils = getattr(self, "appareils", None)
         for sat in list(self.satellites):
             role = acces.role_effectif(sat.identite, appareils)
@@ -832,6 +839,20 @@ def entree_historique(ligne, noms):
             "erreur": "erreur" in voie, "reponse": ligne.get("reponse", ""), "duree": ligne.get("total_s", "")}
 
 
+def nom_appareil_maison(moteur, ident):
+    """Nom lisible de l'appareil d'une entrée du journal (clé « appareil:<id> » d'un téléphone appairé, ou
+    « identité/nom » d'un jeton fixe), pour l'écran du journal du client web. Jamais une clé brute."""
+    ident = str(ident or "")
+    appareils = getattr(moteur, "appareils", None)
+    if ident.startswith("appareil:") and appareils is not None:
+        for a in appareils.liste:
+            if f"appareil:{a.get('id')}" == ident:
+                return str(a.get("nom") or "Appareil de la maison")
+        return "Appareil retiré"
+    nom = ident.partition("/")[2].strip()
+    return nom or "Appareil de la maison"
+
+
 class Calibration:
     """Calibrage guidé du mot de réveil (option --calibrer), aucune commande n'est exécutée.
 
@@ -1051,6 +1072,22 @@ class Satellite:
             return self.identite
         return f"{self.identite or ''}/{self.nom}"
 
+    def annoncer_demande(self):
+        """Une demande commence (journal du client web) : son identifiant va dans le contexte, que journaliser lit,
+        et son auteur seul reçoit l'étape « entendu » en direct, avant la réponse."""
+        ident = J.nouvel_id()
+        A.ID_DEMANDE.set(ident)
+        service = getattr(self.moteur, "service_web", None)
+        if service is None:
+            return
+        appareils = getattr(self.moteur, "appareils", None)
+        auteur = {"appareil": self.cle_appareil(),
+                  "personne": acces.personne_effective(self.identite, self.qui_parle, appareils)}
+        try:
+            service.publier_etape(ident, auteur, "entendu", maison.maintenant().strftime("%H:%M:%S"))
+        except Exception as e:
+            print(f"Journal web : étape impossible ({type(e).__name__})")
+
     def reinitialiser_reveil(self):
         if self.reveil:
             self.reveil.reset()
@@ -1146,9 +1183,13 @@ class Satellite:
         signal = np.concatenate(self.capture).astype(np.float32) / 32768.0
         await self.envoyer(etat="reflexion", texte="")
         avant = R.registre().version
-        async with self.moteur.verrou:
-            texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
-                                                                 self.cle_appareil())
+        self.annoncer_demande()
+        try:
+            async with self.moteur.verrou:
+                texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
+                                                                     self.cle_appareil())
+        finally:
+            A.ID_DEMANDE.set(None)  # l'identifiant ne vaut que pour cette demande
         self.qui_parle = None
         await self.envoyer(etat="reponse", texte=texte, reponse=reponse, voie=voie)
         derniere = lire_journal(1)
@@ -1773,6 +1814,9 @@ async def servir(args):
                 except RuntimeError:  # pas de boucle active
                     pass
             service_web.sur_ha = vers_ha
+            service_web.brancher_journal(
+                A.JOURNAL.parent, A.NIVEAUX_WEB, lisibles=lambda t: actions_lisibles(t, moteur.noms),
+                nom_appareil_ha=lambda ident: nom_appareil_maison(moteur, ident))
             moteur.service_web = service_web
             serveurs.append(await serveur_web.demarrer(adresse_web, port_web, A.VERSION, service=service_web))
             print(f"Client web (HTTP) sur {adresse_web}:{port_web}, cookie de session obligatoire hors page d'accueil")

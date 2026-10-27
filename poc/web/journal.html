@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8E2D6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C0E11" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<title>Journal</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icones/icone-192.png">
+<link rel="stylesheet" href="/app.css">
+<script src="/client.js" defer></script>
+<script src="/journal.js" defer></script>
+</head>
+<body>
+<main class="contenu">
+<p class="lien-retour"><a href="/">Accueil</a></p>
+<h1 class="titre-page">Journal</h1>
+
+<section id="carte-encours" class="carte carte--encours" aria-labelledby="titre-encours" hidden>
+<h2 class="surtitre" id="titre-encours">En cours</h2>
+<p class="fort carte-texte">Une de vos demandes est en train d'être traitée.</p>
+<ol id="etapes-encours" class="etapes"></ol>
+</section>
+
+<section id="carte-journal" class="carte" aria-labelledby="titre-journal">
+<h2 class="surtitre" id="titre-journal">Les demandes</h2>
+<p class="secondaire">Vie privée de vos demandes : <span id="niveau-courant" class="fort">Chargement</span></p>
+<p><a class="lien" href="/vie-privee">Modifier la vie privée</a></p>
+<div id="filtres" class="filtres" role="group" aria-label="Filtrer le journal">
+<button type="button" class="filtre" data-filtre="tout" aria-pressed="true">Tout</button>
+<button type="button" class="filtre" data-filtre="miennes" aria-pressed="false">Les miennes</button>
+<button type="button" class="filtre" data-filtre="autres" aria-pressed="false">Autres</button>
+<button type="button" class="filtre" data-filtre="refus" aria-pressed="false">Refus</button>
+</div>
+<p id="vide-journal" class="secondaire carte-texte" role="status" hidden>Aucune demande à afficher.</p>
+<div id="liste-journal" class="journal"></div>
+<p id="erreur-journal" class="alerte" role="alert" hidden></p>
+<button id="bouton-plus" type="button" class="bouton bouton--plein" hidden>Voir les jours plus anciens</button>
+<p class="aide">Le journal garde les demandes <span id="conserve-jours">30</span> jours. Le son n'est jamais conservé.</p>
+</section>
+
+<dialog id="dialogue-detail" class="dialogue" aria-labelledby="titre-detail">
+<h2 id="titre-detail" class="titre-dialogue">Détail</h2>
+<p id="detail-pastille" class="detail-ligne"></p>
+<dl id="detail-liste" class="resume"></dl>
+<ol id="detail-etapes" class="etapes" hidden></ol>
+<p id="detail-note" class="aide" hidden></p>
+<button id="bouton-detail-fermer" type="button" class="bouton bouton--plein">Fermer</button>
+</dialog>
+
+</main>
+</body>
+</html>
