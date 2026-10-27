@@ -64,7 +64,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.58.1"
+VERSION = "0.58.2"
 DATE_VERSION = "2026-10-27"
 
 ICI = Path(__file__).resolve().parent
@@ -1079,8 +1079,7 @@ OUTIL_PROPOSER = {"type": "function", "function": {
         "required": ["phrases", "etapes"]}}}
 
 # Outils proposés au LLM selon le mode du tour (0.28.0). Un appel à un outil absent de la liste du tour
-# n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, Cerveau.executer_outil, voir la section 3.1
-# de docs/plan/conception/routines.md).
+# n'est jamais exécuté : il reçoit « outil indisponible » (aiguillage fermé, Cerveau.executer_outil).
 # « proposer » (0.42.0) crée une routine, « question » (0.42.0) répond à une étape question d'une routine : ces
 # deux modes partent sans historique et n'en laissent aucun (MODES_ISOLES).
 MODES_OUTILS = {"commande": ("appeler_service", "jouer_musique", "lire_etat"),

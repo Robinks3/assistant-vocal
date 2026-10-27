@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.58.2 (2026-10-27), renvois au dossier du plan retirés
+Correctif (documentation). Lot S-P1 du plan. Appli Home Assistant 0.58.2, appli Android 0.49.0 et client web
+0.11.0 inchangés. Aucun changement de comportement.
+- Le dossier du plan ne fait pas partie de l'instantané public. Les fichiers publiés n'y renvoient plus : README
+  (rôles, renvoi vers `docs/ARCHITECTURE.md`), `docs/ACCES-TAILSCALE.md` (conception du client web, secours local),
+  `docs/ARCHITECTURE.md` (messages des routines du client web), commentaires de `poc/assistant.py`,
+  `poc/routines.py` et `config-exemple/commandes.yaml`.
+- Les entrées plus anciennes de ce journal gardent leur texte d'origine.
+
 ## Serveur 0.58.1 (2026-10-27), animations du README rejouées
 Correctif (documentation). Session S-V2 du plan. Appli Home Assistant 0.58.1, appli Android 0.49.0 et client web
 0.11.0 inchangés. Aucun changement de comportement.

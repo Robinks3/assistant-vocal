@@ -1,6 +1,6 @@
 """Moteur de routines (0.42.0, S-R1) : une phrase dite, une suite d'actions faites.
 
-Conception : docs/plan/conception/routines.md. Ce module ne sait rien de l'assistant ni du réseau. Il porte :
+Ce module ne sait rien de l'assistant ni du réseau. Il porte :
 - le fichier routines.json (format, chargement, écriture atomique, fichier illisible mis de côté) ;
 - la validation d'une routine proposée par le LLM (phrases, étapes, limites) et sa reformulation ;
 - le brouillon en attente de confirmation et l'absorption du « oui » qui suit ;
