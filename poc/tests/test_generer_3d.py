@@ -63,6 +63,18 @@ def test_s_l5_la_page_porte_le_retour_d_etat(copie):
     assert "kelvinVersCouleur(a.color_temp_kelvin)" in html and "a.rgb_color" in html
 
 
+def test_s_l8_toucher_la_carte_des_mesures_est_designe_a_l_appli(copie):
+    """La carte des mesures de la pièce choisie est touchable : la page désigne le genre `mesures` avec l'id de la pièce,
+    sauf pièce protégée ou sans capteur (aucune ligne), pour que l'appli ouvre le graphique de l'air."""
+    assert lancer(copie).returncode == 0
+    html = sorties(copie)[1].read_text(encoding="utf-8")
+    assert 'genre: "mesures", id: grandEtat.piece' in html
+    assert 'mc.statut !== "protegee" && mc.statut !== "aucun"' in html
+    # le hit-test passe avant la désignation d'une pièce par le sol
+    debut = html.index("function designer(x, y)")
+    assert debut < html.index('genre: "mesures"') < html.index("lanceur.setFromCamera(new T.Vector2(x / innerWidth", debut)
+
+
 def test_s_l7_la_page_porte_les_mesures_par_piece(copie):
     """Mesures dans la vue 3D : pastille sous le nom de chaque pièce, carton de la pièce choisie, message du pont
     `mesures`, tout échappé, couleur validée, et aucune requête réseau dans la page."""
