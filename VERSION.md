@@ -4,6 +4,22 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.46.0 (2026-10-27), socle HTTP du client web
+Mineure. Session S-W1a du plan. Appli Home Assistant 0.46.0 (copie aussi `serveur_web.py` et `web/`), appli
+Android inchangée (0.46.0).
+- Nouveau serveur HTTP du client web pour téléphone, `poc/serveur_web.py`, sur 127.0.0.1:8767 par défaut
+  (`--port-web`, `JARVIS_PORT_WEB`, 0 pour le couper, `--adresse-web`, `JARVIS_ADRESSE_WEB`). Port pris : le
+  serveur le dit et les satellites continuent de servir.
+- `Host` et `Origin` exacts : boucle locale, ou le nom de Tailscale Serve lu dans la nouvelle clé
+  `client_web.hote`. Tout le reste reçoit un 403 sans détail.
+- Cookie de session `__Host-session` (Secure, HttpOnly, SameSite=Strict), jeton de 256 bits gardé en empreinte
+  seulement, durée glissante (`client_web.session_jours`, 30 jours) avec un plafond, révocation.
+- En-têtes de sécurité sur toutes les réponses (CSP stricte sans rien en ligne, HSTS, nosniff, no-referrer,
+  Permissions-Policy fermée). Page d'accueil installable (manifeste, icônes, polices locales) avec la version en
+  pied de page. `/appairage` répond « pas encore disponible » (S-W1b).
+- Journal : une ligne par refus, adresse et cause courte d'une liste fermée, jamais un cookie, un jeton ni un
+  chemin.
+
 ## Serveur 0.45.1 (2026-10-26), connexions en clair restreintes
 Correctif. Session S-D5 du plan (décision D7). Appli Home Assistant 0.45.1, pendant de l'appli 0.45.0.
 - Nouvelle clé `acces.clair_restreint`. Quand elle vaut true, une connexion qui n'arrive pas en wss est fermée

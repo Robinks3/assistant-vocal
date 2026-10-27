@@ -71,6 +71,10 @@ SECURITE = CONFIG.get("securite") or {}
 # autorisées à gérer les appareils et les réglages, en plus du propriétaire). Voir acces.py.
 ACCES = CONFIG.get("acces") if isinstance(CONFIG.get("acces"), dict) else {}
 ADMINISTRATION = CONFIG.get("administration") if isinstance(CONFIG.get("administration"), dict) else {}
+# Section client_web (lot S-W1a) : hote (nom de domaine de Tailscale Serve, seul nom accepté en plus de la boucle
+# locale par le serveur HTTP du client web), session_jours (durée de vie d'un cookie de session sans usage). Voir
+# serveur_web.py.
+CLIENT_WEB = CONFIG.get("client_web") if isinstance(CONFIG.get("client_web"), dict) else {}
 # Section journal (0.39.0) : conserver_jours (durée de garde de l'historique qui contient les phrases), taille_max_ko
 # et fichiers_max (rotation du journal des durées, qui ne contient aucune phrase), phrases_dans_la_console
 # (diagnostic : remet les phrases dans la sortie du serveur). Voir assistant.py.
