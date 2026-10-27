@@ -4,6 +4,31 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.51.0 (2026-10-27), écran Maison du client web
+Mineure. Session S-W4a du plan. Appli Home Assistant 0.51.0 (copie aussi `maison_web.py`), appli Android inchangée.
+Client web 0.6.0.
+- Nouveau `poc/maison_web.py` : la liste des pièces, lampes et télévisions vient de `client_web.maison` dans
+  `maison.json`, jamais du code. Message `etats` filtré par rôle : un navigateur ne reçoit que les entités de la liste de
+  son rôle, une pièce protégée n'est qu'une ligne sans entité ni mesure, une mesure absente ou un capteur manquant est
+  dit tel quel (aucune valeur inventée).
+- Message `regler` à schéma strict (entité, action nommée, valeur bornée, aucune clé en trop). Le service Home
+  Assistant est reconstruit par le serveur, jamais recopié du navigateur, puis passé par `acces.controler_service` et
+  donc par `securite.verifier`. Réponses `regle` et `erreur` à cause fermée (droit, format, entité, action, valeur,
+  protégée, sécurité, injoignable, indisponible).
+- Suivi du réglage : « en attente » puis « non appliqué » si la lampe ne rejoint pas la consigne dans le délai fixé par
+  `client_web.maison.reglage_attente_s` (5 s par défaut, 60 s au plus). Tolérances de comparaison : 100 K, 8 degrés de
+  teinte, 6 points d'intensité. Un échec n'est plus signalé au bout de 5 minutes.
+- `serveur_web.py` : pages `/maison` et `/maison.js`, messages `etats` et `regler` ajoutés à la liste blanche, état lu
+  au plus une fois par seconde pour tous les navigateurs, mesures au plus une fois par minute.
+- Client web 0.6.0 : écran Maison (une carte par pièce dans l'ordre de la configuration, interrupteur et chevron par
+  lampe, ligne de la télé avec allumer, éteindre et volume seulement, alerte d'air en haut avec la consigne en mots,
+  mesures en lecture seule toujours accompagnées d'un mot). Volet lampe en feuille basse à deux onglets, Blanc
+  (intensité, quatre blancs nommés, piste de chaleur bornée) et Couleur (huit couleurs nommées, bande de teintes).
+  Réglages envoyés pendant le glissement, un par famille et par entité toutes les 500 ms, 24 messages par 10 secondes
+  au plus. États d'échec de la planche 18 : lampe injoignable, réglage en attente, réglage non appliqué, pièce protégée.
+- Hors de ce lot (S-W4b) : vue 3D en iframe isolée, volet de la télé complet (sources, lecture), graphique
+  d'historique de l'air.
+
 ## Serveur 0.50.0 (2026-10-27), demander depuis le client web
 Mineure. Session S-W3 du plan. Appli Home Assistant 0.50.0 (copie aussi `demande_web.py`), appli Android inchangée.
 Client web 0.5.0.
