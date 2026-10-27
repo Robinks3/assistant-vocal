@@ -1164,16 +1164,23 @@ class MainActivity : Activity() {
         val carteStation = construireStation()
         val carteVision = construireVision()
         val carteConnexion = construireReglages()
+        val carteDev = construireModeDeveloppeur()
         val reglages = listOf(
             carteServeur, carteMode, carteReveil, carteSons, carteTranscription, carteCerveau, carteStation, carteVision, carteConnexion,
+            carteDev,
         )
         // Pied d'écran hors du défilement : la version se voit toujours (règle du propriétaire). Sur l'écran
         // ambiant (OLED), en gris sombre, au toucher et 10 s après une commande (cahier de l'écran).
-        val libelleVersion = "Version ${BuildConfig.VERSION_BASE}, ${BuildConfig.UTILISATEUR}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}"
+        // Mode développeur coupé (0.48.0) : ni version ni date de compilation à l'écran.
+        val dev = modeDev()
+        val libelleVersion = ModeDeveloppeur.libelleVersion(
+            dev, "Version ${BuildConfig.VERSION_BASE}, ${BuildConfig.UTILISATEUR}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}",
+        )
         val version = texte(12.5f, Couleur.GRIS).apply {
             text = libelleVersion
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(0, dp(6), 0, 0)
+            if (!dev) visibility = View.GONE
         }
 
         val corps: View = if (largeEcran) {
@@ -1217,7 +1224,7 @@ class MainActivity : Activity() {
             val vueReglages = construireSections(
                 entete,
                 listOf(
-                    Section("general", "Général", listOf(carteServeur, carteMode, carteConnexion)),
+                    Section("general", "Général", listOf(carteServeur, carteMode, carteConnexion, carteDev)),
                     Section("apparence", "Apparence", listOf(construireApparence())),
                     Section("voix", "Voix et réveil", listOf(carteReveil, carteSons, carteTranscription)),
                     Section("comprehension", "Compréhension", listOf(carteCerveau)),
@@ -1225,8 +1232,7 @@ class MainActivity : Activity() {
                     Section("station", "Station", listOf(carteStation)),
                     Section("acces", "Appareils et accès", listOf(construireAcces())),
                     Section("historique", "Historique", listOf(historique)),
-                    Section("diagnostic", "Diagnostic", listOf(deroule)),
-                ),
+                ) + if (dev) listOf(Section("diagnostic", "Diagnostic", listOf(deroule))) else emptyList(),
             )
             val pile = FrameLayout(this).apply { clipChildren = false }
             pile.addView(ecran)
@@ -1253,7 +1259,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false
             }
-            for (v in listOf(deroule, historique) + reglages) tiroir.addView(v, marge(bas = 16))
+            for (v in (if (dev) listOf(deroule) else emptyList()) + historique + reglages) tiroir.addView(v, marge(bas = 16))
             colonne.addView(tiroir, marge())
             panneauReglages = tiroir
             ScrollView(this).apply {
@@ -1561,7 +1567,7 @@ class MainActivity : Activity() {
             letterSpacing = 0.01f
         })
         titres.addView(texte(14.5f, Couleur.TEXTE_2).apply {
-            text = if (largeEcran) "Assistant vocal de la maison, version ${BuildConfig.VERSION_BASE} du ${BuildConfig.HORODATAGE_COMPILATION}" else "Assistant vocal de la maison"
+            text = if (largeEcran && modeDev()) "Assistant vocal de la maison, version ${BuildConfig.VERSION_BASE} du ${BuildConfig.HORODATAGE_COMPILATION}" else "Assistant vocal de la maison"
         })
         ligne.addView(titres, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
@@ -1736,6 +1742,31 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
+    /** Mode développeur (0.48.0) : lu à chaque appel, une seule source (ModeDeveloppeur). */
+    private fun modeDev(): Boolean = ModeDeveloppeur.actif(this)
+
+    /**
+     * Carte Mode développeur : actif, tout le débogage reste à l'écran. Coupé, il disparaît (version, durées en ms,
+     * compteurs, états détaillés, identifiants, déroulé). L'interface est reconstruite sur place, sans redémarrage.
+     */
+    private fun construireModeDeveloppeur(): LinearLayout {
+        val c = carte("Mode développeur", "version, durées, compteurs et états détaillés")
+        val non = segment("Désactivé") { choisirModeDev(false) }
+        val oui = segment("Activé") { choisirModeDev(true) }
+        selecteur(c, non, oui)
+        peindreSegments(listOf(Triple(non, "non", Couleur.ACCENT), Triple(oui, "oui", Couleur.ACCENT)), if (modeDev()) "oui" else "non", "")
+        c.addView(texte(13.5f, Couleur.TEXTE_2).apply {
+            text = "Désactivé, l'appli ne montre plus que l'utile : météo, maison, réponses et un simple état connecté ou non."
+        }, marge(haut = 8))
+        return c
+    }
+
+    private fun choisirModeDev(actif: Boolean) {
+        if (actif == modeDev()) return
+        ModeDeveloppeur.enregistrer(this, actif)
+        reconstruire()
+    }
+
     private fun construireMode(): LinearLayout {
         val c = carte("Mode")
         segmentEssai = segment("Essai") { choisirMode("essai") }
@@ -1803,12 +1834,15 @@ class MainActivity : Activity() {
             progressDrawable = couches
         }
         c.addView(vumetre, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(12)).apply { topMargin = dp(16) })
+        if (!modeDev()) vumetre.visibility = View.GONE
         val mesures = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         texteNiveau = texte(14f, Couleur.TEXTE_2)
         texteScore = texte(14f, Couleur.TEXTE_2).apply { gravity = Gravity.END }
         mesures.addView(texteNiveau, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         mesures.addView(texteScore, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         c.addView(mesures, marge(haut = 8))
+        // Niveau du micro en dB et score du réveil : du réglage fin, cachés hors mode développeur.
+        if (!modeDev()) mesures.visibility = View.GONE
 
         // Couper la parole (0.16.0), mode « Cet appareil » : micro ouvert pendant la réponse.
         c.addView(texte(14f, Couleur.TEXTE_2).apply { text = "Couper la parole à ${ConfigMaison.NOM_ASSISTANT} pendant sa réponse" }, marge(haut = 18, bas = 6))
@@ -1941,7 +1975,8 @@ class MainActivity : Activity() {
         val mode = SatelliteService.visionChoisie(this)
         val regard = SatelliteService.preferences(this).getBoolean(SatelliteService.CLE_PARLER_REGARD, false)
         val profils = ProfilsVisages.lire(this).size
-        val cle = "$mode|$regard|${e.visionEtat}|${e.visionNiveau}|${e.enMarche}|$profils"
+        val dev = modeDev()
+        val cle = "$mode|$regard|${e.visionEtat}|${e.visionNiveau}|${e.enMarche}|$profils|$dev"
         if (cle == cleVision) return
         cleVision = cle
         peindreSegments(
@@ -1957,7 +1992,8 @@ class MainActivity : Activity() {
             if (regard) "oui" else "non", "",
         )
         // Un message de vision peut encore porter l'ancien nom Jarvis : remplacé par le nom de l'assistant.
-        val etat = e.visionEtat.replace("Jarvis", ConfigMaison.NOM_ASSISTANT)
+        // Hors mode développeur : ni ms par image ni cadence, « Caméra active ».
+        val etat = ModeDeveloppeur.visionEtat(dev, e.visionEtat, e.visionNiveau).replace("Jarvis", ConfigMaison.NOM_ASSISTANT)
         val (couleur, message) = when {
             mode == "off" -> Couleur.GRIS to "Caméra éteinte"
             checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ->
@@ -2665,8 +2701,9 @@ class MainActivity : Activity() {
             for (ligne in fait) conteneurFait.addView(texte(taille(15f, 17f), Couleur.TEXTE).apply { text = ligne }, marge(bas = 2))
         }
         val duree = entree?.duree?.let { d -> d.replace(',', '.').toDoubleOrNull()?.let { String.format(Locale.FRANCE, "%.2f s", it) } ?: d } ?: ""
-        texteDuree.text = if (duree.isNotBlank()) "Répondu en $duree" else ""
-        texteDuree.visibility = if (duree.isBlank()) View.GONE else View.VISIBLE
+        val dureeTexte = ModeDeveloppeur.dureeReponse(modeDev(), if (duree.isNotBlank()) "Répondu en $duree" else "")
+        texteDuree.text = dureeTexte
+        texteDuree.visibility = if (dureeTexte.isBlank()) View.GONE else View.VISIBLE
     }
 
     /** Apparition en 0,9 s : fondu, montée de 8 dp, légère échelle. */
@@ -2729,7 +2766,8 @@ class MainActivity : Activity() {
         }
         pointPastille.setColor(couleurLien)
         pastille.text = libelleLien
-        texteDetailConnexion.text = e.connexion
+        texteDetailConnexion.text = ModeDeveloppeur.detailConnexion(modeDev(), e.connexion)
+        texteDetailConnexion.visibility = if (modeDev()) View.VISIBLE else View.GONE
         garderEcran(e.enMarche)
 
         val (etatAssistant, couleurAssistant, aide) = when {
@@ -2926,7 +2964,8 @@ class MainActivity : Activity() {
 
     private fun afficherServeur(e: Etat.Instantane) {
         val choisi = SatelliteService.serveurChoisi(this)
-        val cle = "$choisi|${e.lien}|${e.connexion}|${e.capServeur}|${e.capVersion}|${e.passerelle}|${e.passerelleDispo}"
+        val dev = modeDev()
+        val cle = "$choisi|${e.lien}|${e.connexion}|${e.capServeur}|${e.capVersion}|${e.passerelle}|${e.passerelleDispo}|$dev"
         if (cle == cleServeur) return
         cleServeur = cle
 
@@ -2956,7 +2995,8 @@ class MainActivity : Activity() {
             else -> Couleur.ORANGE to e.connexion
         }
         pointServeur.setColor(couleurPoint)
-        texteServeurEtat.text = message
+        // Hors mode développeur : connecté ou non, sans version, passerelle ni détail de la liaison.
+        texteServeurEtat.text = ModeDeveloppeur.serveurEtat(dev, e.lien == Etat.Lien.CONNECTE, message)
     }
 
     private fun afficherMode(e: Etat.Instantane) {
@@ -3176,7 +3216,8 @@ class MainActivity : Activity() {
         val choisi = SatelliteService.reveilChoisi(this)
         val seuil = SatelliteService.seuilReveil(this)
         val mot = SatelliteService.motReveilChoisi(this)
-        val cle = "$choisi|$seuil|$mot|${e.reveilEffectif}|${e.capReveilAppareil}|${e.capMotReveil}|${e.lien}|${e.enMarche}"
+        val dev = modeDev()
+        val cle = "$choisi|$seuil|$mot|${e.reveilEffectif}|${e.capReveilAppareil}|${e.capMotReveil}|${e.lien}|${e.enMarche}|$dev"
         if (cle == cleReveil) return
         cleReveil = cle
         peindreSegments(
@@ -3211,7 +3252,7 @@ class MainActivity : Activity() {
         pointReveil.setColor(couleur)
         texteReveil.text = message
         texteSeuil.text = if (choisi == "appareil") {
-            "Seuil de réveil : " + String.format(Locale.FRANCE, "%.2f", seuil)
+            ModeDeveloppeur.seuilReveil(dev, String.format(Locale.FRANCE, "%.2f", seuil))
         } else {
             "Seuil réglé sur le serveur"
         }

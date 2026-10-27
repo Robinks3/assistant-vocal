@@ -961,7 +961,8 @@ internal class EcranAmbiant(private val ctx: Context) {
         }
         val c = "Touche l'heure ou dis $motReveil."
         if (consigne.texte.toString() != c) consigne.texte = c
-        val v = libelleVersion + (plan.versionPage.takeIf { it.isNotEmpty() }?.let { ", plan 3D $it" } ?: "")
+        // Libellé vide = mode développeur coupé : ni version de l'appli ni version du plan 3D.
+        val v = if (libelleVersion.isEmpty()) "" else libelleVersion + (plan.versionPage.takeIf { it.isNotEmpty() }?.let { ", plan 3D $it" } ?: "")
         if (version.texte.toString() != v) version.texte = v
         fondre(service, maintenant < serviceJusqua && !maisonGrand.ouverte)
     }

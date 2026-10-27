@@ -192,10 +192,12 @@ class VisagesActivity : Activity(), LifecycleOwner {
         colonne.addView(carteAjout, marge(bas = 16))
 
         colonne.addView(bouton("Retour", Couleur.CHAMP) { finish() }, marge(haut = 4))
-        colonne.addView(texte(12.5f, Couleur.GRIS).apply {
-            text = "Version ${BuildConfig.VERSION_BASE}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}"
-            gravity = Gravity.CENTER_HORIZONTAL
-        }, marge(haut = 14))
+        if (ModeDeveloppeur.actif(this)) {
+            colonne.addView(texte(12.5f, Couleur.GRIS).apply {
+                text = "Version ${BuildConfig.VERSION_BASE}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}"
+                gravity = Gravity.CENTER_HORIZONTAL
+            }, marge(haut = 14))
+        }
 
         return ScrollView(this).apply {
             background = Decor.fondNuit(this@VisagesActivity)

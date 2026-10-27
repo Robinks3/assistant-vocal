@@ -25,6 +25,22 @@ class Maison3dPontTest {
     }
 
     @Test
+    fun modeDeveloppeurPasseParLePontSansCasserUnePageAncienne() {
+        val vrai = Maison3dPont.scriptModeDeveloppeur(true)
+        val faux = Maison3dPont.scriptModeDeveloppeur(false)
+        assertTrue(vrai.endsWith("maison3d.modeDeveloppeur(true)"))
+        assertTrue(faux.endsWith("maison3d.modeDeveloppeur(false)"))
+        // Gardé : une page qui ne connaît pas la fonction ne lève rien.
+        assertTrue(vrai.startsWith("if (typeof maison3d.modeDeveloppeur === "))
+        val faits = mutableListOf<String>()
+        val pont = Maison3dPont { faits += it }
+        pont.appeler(faux)
+        assertTrue(faits.isEmpty())
+        pont.surPret()
+        assertEquals(listOf(faux), faits)
+    }
+
+    @Test
     fun fileBorneeEtOublieeAuRechargement() {
         val faits = mutableListOf<String>()
         val pont = Maison3dPont { faits += it }

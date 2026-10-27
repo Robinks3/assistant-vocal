@@ -1746,7 +1746,10 @@ class SatelliteService : Service() {
 
     private fun construireNotif(): Notification {
         val e = Etat.courant
-        val version = "v${BuildConfig.VERSION_BASE} (${BuildConfig.UTILISATEUR}) du ${BuildConfig.HORODATAGE_COMPILATION}"
+        val version = ModeDeveloppeur.libelleVersion(
+            ModeDeveloppeur.actif(this),
+            "v${BuildConfig.VERSION_BASE} (${BuildConfig.UTILISATEUR}) du ${BuildConfig.HORODATAGE_COMPILATION}",
+        )
         val ouvrir = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
@@ -1762,8 +1765,8 @@ class SatelliteService : Service() {
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("${ConfigMaison.NOM_ASSISTANT}, ${nomServeur(e.serveurCible)} : ${e.connexion}")
             .setContentText(texte)
-            .setSubText(version)
-            .setStyle(Notification.BigTextStyle().bigText("$texte\n$version"))
+            .setSubText(version.ifEmpty { null })
+            .setStyle(Notification.BigTextStyle().bigText(if (version.isEmpty()) texte else "$texte\n$version"))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)

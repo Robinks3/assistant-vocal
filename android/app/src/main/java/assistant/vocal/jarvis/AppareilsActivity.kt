@@ -208,6 +208,8 @@ class AppareilsActivity : Activity() {
     // ---------------------------------------------------------------- construction
 
     private fun construire(): View {
+        // Mode développeur coupé (0.48.0) : ni diagnostic, ni version, ni adresse, jeton ou clé techniques.
+        val dev = ModeDeveloppeur.actif(this)
         val colonne = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
@@ -240,7 +242,7 @@ class AppareilsActivity : Activity() {
         rail.addView(segmentHa, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4) })
         cServeur.addView(rail, marge())
         texteAdresse = texte(14f, Couleur.TEXTE_2)
-        cServeur.addView(texteAdresse, marge(haut = 10))
+        if (dev) cServeur.addView(texteAdresse, marge(haut = 10))
         texteEtat = texte(14.5f, Couleur.TEXTE)
         cServeur.addView(texteEtat, marge(haut = 6))
         colonne.addView(cServeur, marge(bas = 16))
@@ -248,9 +250,9 @@ class AppareilsActivity : Activity() {
         // Cet appareil : jeton, clé retenue, appairage.
         val cAppareil = carte("Cet appareil (${Build.MODEL})")
         texteJeton = texte(15f)
-        cAppareil.addView(texteJeton, marge(bas = 8))
+        if (dev) cAppareil.addView(texteJeton, marge(bas = 8))
         texteCle = texte(14f, Couleur.TEXTE_2).apply { setTextIsSelectable(true) }
-        cAppareil.addView(texteCle, marge(bas = 14))
+        if (dev) cAppareil.addView(texteCle, marge(bas = 14))
         cAppareil.addView(bouton("Appairer cet appareil", Couleur.ACCENT) { appairer() }, marge(bas = 10))
         boutonOublierJeton = bouton("Oublier le jeton d'appairage", Couleur.CHAMP) { oublierJeton() }
         cAppareil.addView(rangee(bouton("Oublier la clé du serveur", Couleur.CHAMP) { oublierCle() }, boutonOublierJeton), marge())
@@ -292,7 +294,7 @@ class AppareilsActivity : Activity() {
         val cDiag = carte("Diagnostic de connexion")
         texteDiagnostic = texte(14f, Couleur.TEXTE_2)
         cDiag.addView(texteDiagnostic, marge())
-        colonne.addView(cDiag, marge(bas = 16))
+        if (dev) colonne.addView(cDiag, marge(bas = 16))
 
         val cAttente = carte("Demandes en attente")
         listeAttente = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -306,10 +308,12 @@ class AppareilsActivity : Activity() {
         cConnus.addView(texteFixes, marge(haut = 10))
         colonne.addView(cConnus, marge(bas = 16))
 
-        colonne.addView(texte(12.5f, Couleur.GRIS).apply {
-            text = "Version ${BuildConfig.VERSION_BASE}, ${BuildConfig.UTILISATEUR}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}"
-            gravity = Gravity.CENTER_HORIZONTAL
-        }, marge(haut = 4))
+        if (dev) {
+            colonne.addView(texte(12.5f, Couleur.GRIS).apply {
+                text = "Version ${BuildConfig.VERSION_BASE}, ${BuildConfig.UTILISATEUR}, compilée le ${BuildConfig.HORODATAGE_COMPILATION}"
+                gravity = Gravity.CENTER_HORIZONTAL
+            }, marge(haut = 4))
+        }
 
         val racine = ScrollView(this).apply {
             background = Decor.fondEcran(this@AppareilsActivity)
