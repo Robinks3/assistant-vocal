@@ -1,33 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 812" width="100%" role="img" aria-label="Architecture par machine : satellites, serveur de la maison, services en ligne et PC de développement facultatif" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Architecture par machine : satellites, serveur de la maison, services en ligne et PC de développement facultatif</title><desc>Les satellites parlent en wss sur le port 8766 à l'appli de l'assistant, installée dans Home Assistant sur le serveur de la maison, toujours allumé. Elle transcrit par Speech-to-Phrase, avec un repli Voxtral par API, décide par dictionnaire puis Claude par API, et pilote Home Assistant. La page d'administration passe par Ingress. Le PC fixe n'est qu'un poste de développement facultatif : il fait tourner le même moteur en profil pc, Canary et un LLM local, et sert pour l'instant le client web par Tailscale Serve.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 872" width="100%" role="img" aria-label="Architecture par machine : satellites, serveur de la maison, services en ligne et PC de développement facultatif" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Architecture par machine : satellites, serveur de la maison, services en ligne et PC de développement facultatif</title><desc>L'appli Android guette le mot de réveil sur la tablette et n'envoie le son qu'après lui. En mode autonome, elle découpe la phrase, la transcrit, la cherche dans le dictionnaire, applique la sécurité en dur et répond avec la voix d'Android, un petit LLM et la vision restant en option. Les satellites parlent en wss sur le port 8766 à l'appli de l'assistant, installée dans Home Assistant sur le serveur de la maison, toujours allumé. Elle transcrit par Speech-to-Phrase, avec un repli Voxtral par API, décide par dictionnaire puis Claude par API, et pilote Home Assistant. La page d'administration passe par Ingress. Le PC fixe n'est qu'un poste de développement facultatif : il fait tourner le même moteur en profil pc, Canary et un LLM local, et sert pour l'instant le client web par Tailscale Serve.</desc>
 <defs>
 <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F2F5F9"/></linearGradient>
 <radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.07"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
 <linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F6F8FB"/></linearGradient>
 <filter id="ombre" x="-10%" y="-12%" width="120%" height="135%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#1B2B45" flood-opacity="0.11"/></filter>
 </defs>
-<rect x="0.5" y="0.5" width="899" height="811" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="899" height="811" rx="22" fill="url(#lueurFond)"/>
+<rect x="0.5" y="0.5" width="899" height="871" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="899" height="871" rx="22" fill="url(#lueurFond)"/>
 <text x="24" y="44" font-size="22" font-weight="700" fill="#1A2130">Architecture</text>
 <text x="24" y="68" font-size="14.5" fill="#434E5E">Une colonne par machine, sur la maison d'exemple. Le serveur de la maison suffit, le PC fixe ne sert qu'au développement.</text>
 <text x="24" y="120" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SATELLITES</text>
 <text x="280" y="120" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SERVEUR DE LA MAISON</text>
 <text x="664" y="120" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">SERVICES EN LIGNE</text>
-<rect x="24" y="132" width="212" height="172" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
-<rect x="24" y="132" width="212" height="172" rx="14" fill="#22C3D8" fill-opacity="0.08"/>
-<rect x="24" y="132" width="212" height="172" rx="14" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<rect x="24" y="132" width="212" height="472" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="132" width="212" height="472" rx="14" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="24" y="132" width="212" height="472" rx="14" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
 <text x="40" y="161" font-size="16" font-weight="600" fill="#1A2130">Appli Android</text>
-<text x="40" y="186" font-size="13" fill="#434E5E">Tablette ou téléphone</text>
-<text x="40" y="206" font-size="13" fill="#434E5E">Réveil ici : openWakeWord,</text>
-<text x="40" y="226" font-size="13" fill="#434E5E">le son part après le mot</text>
-<text x="40" y="246" font-size="13" fill="#434E5E">Appairage : code à 4 chiffres</text>
-<text x="40" y="266" font-size="13" fill="#434E5E">Mode autonome : Silero VAD</text>
-<text x="40" y="286" font-size="13" fill="#434E5E">et Canary sur l'appareil</text>
-<rect x="24" y="324" width="212" height="132" rx="14" fill="url(#carte)"/>
-<rect x="24" y="324" width="212" height="132" rx="14" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="7 5"/>
-<text x="40" y="353" font-size="16" font-weight="600" fill="#1A2130">Navigateur</text>
-<text x="40" y="378" font-size="13" fill="#434E5E">Client web du propriétaire</text>
-<text x="40" y="398" font-size="13" fill="#434E5E">HTTPS 443 par Tailscale</text>
-<text x="40" y="418" font-size="13" fill="#434E5E">Servi par le PC fixe,</text>
-<text x="40" y="438" font-size="13" fill="#434E5E">pour l'instant</text>
+<text x="40" y="180" font-size="12.5" fill="#5F6977">Ce qui tourne sur la tablette</text>
+<rect x="40" y="192" width="10" height="10" rx="10" fill="#EEF2F7"/>
+<rect x="40" y="192" width="10" height="10" rx="10" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="40" y="192" width="10" height="10" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="54" y="201" font-size="11" fill="#5F6977">toujours</text>
+<rect x="104" y="192" width="10" height="10" rx="10" fill="#EEF2F7"/>
+<rect x="104" y="192" width="10" height="10" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="104" y="192" width="10" height="10" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="118" y="201" font-size="11" fill="#5F6977">autonome</text>
+<rect x="172" y="192" width="10" height="10" rx="10" fill="#EEF2F7"/>
+<rect x="172" y="192" width="10" height="10" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="186" y="201" font-size="11" fill="#5F6977">option</text>
+<rect x="36" y="214" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="214" width="188" height="38" rx="10" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="36" y="214" width="188" height="38" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="48" y="230" font-size="13" font-weight="600" fill="#1A2130">Réveil</text>
+<text x="48" y="245" font-size="11.5" fill="#434E5E">openWakeWord, sur place</text>
+<rect x="36" y="257" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="257" width="188" height="38" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="36" y="257" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="48" y="273" font-size="13" font-weight="600" fill="#1A2130">Fin de phrase</text>
+<text x="48" y="288" font-size="11.5" fill="#434E5E">Silero VAD</text>
+<rect x="36" y="300" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="300" width="188" height="38" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="36" y="300" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="48" y="316" font-size="13" font-weight="600" fill="#1A2130">Transcription</text>
+<text x="48" y="331" font-size="11.5" fill="#434E5E">Canary</text>
+<rect x="36" y="343" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="343" width="188" height="38" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="36" y="343" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="48" y="359" font-size="13" font-weight="600" fill="#1A2130">Dictionnaire</text>
+<text x="48" y="374" font-size="11.5" fill="#434E5E">commandes de la maison</text>
+<rect x="36" y="386" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="386" width="188" height="38" rx="10" fill="#E5534B" fill-opacity="0.08"/>
+<rect x="36" y="386" width="188" height="38" rx="10" fill="none" stroke="#E5534B" stroke-width="1.5"/>
+<text x="48" y="402" font-size="13" font-weight="600" fill="#B3362F">Sécurité en dur</text>
+<text x="48" y="417" font-size="11.5" fill="#434E5E">Securite.kt</text>
+<rect x="36" y="429" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="429" width="188" height="38" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="36" y="429" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="48" y="445" font-size="13" font-weight="600" fill="#1A2130">Voix</text>
+<text x="48" y="460" font-size="11.5" fill="#434E5E">synthèse d'Android</text>
+<rect x="36" y="472" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="472" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="48" y="488" font-size="13" font-weight="600" fill="#1A2130">Petit LLM</text>
+<text x="48" y="503" font-size="11.5" fill="#434E5E">LiteRT : Gemma ou Qwen</text>
+<rect x="36" y="515" width="188" height="38" rx="10" fill="#EEF2F7"/>
+<rect x="36" y="515" width="188" height="38" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="48" y="531" font-size="13" font-weight="600" fill="#1A2130">Vision</text>
+<text x="48" y="546" font-size="11.5" fill="#434E5E">visages, désactivée</text>
+<text x="40" y="576" font-size="11.5" fill="#5F6977">Le son ne part qu'après le mot.</text>
+<text x="40" y="592" font-size="11.5" fill="#5F6977">Les actions passent par HA.</text>
+<rect x="24" y="624" width="212" height="100" rx="14" fill="url(#carte)"/>
+<rect x="24" y="624" width="212" height="100" rx="14" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="40" y="652" font-size="16" font-weight="600" fill="#1A2130">Navigateur</text>
+<text x="40" y="674" font-size="13" fill="#434E5E">Client web, HTTPS 443</text>
+<text x="40" y="692" font-size="13" fill="#434E5E">Servi par le PC fixe,</text>
+<text x="40" y="710" font-size="13" fill="#434E5E">pour l'instant</text>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="url(#carte)" filter="url(#ombre)"/>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="#3CCB7F" fill-opacity="0.08"/>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
@@ -109,30 +154,29 @@
 <text x="680" y="630" font-size="13" fill="#434E5E">Télé, chauffage, capteurs</text>
 <path d="M604 607 L664 607" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M664 607 L654 612.5 L654 601.5 Z" fill="#3CCB7F"/>
-<path d="M236 198 L258 198 L258 226 L296 226" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M236 226 L296 226" fill="none" stroke="#3CCB7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M296 226 L286 231.5 L286 220.5 Z" fill="#3CCB7F"/>
-<path d="M236 198 L246 203.5 L246 192.5 Z" fill="#3CCB7F"/>
-<text x="258" y="248" font-size="11.5" fill="#5F6977" text-anchor="middle">wss</text>
-<rect x="24" y="690" width="852" height="98" rx="16" fill="url(#carte)"/>
-<rect x="24" y="690" width="852" height="98" rx="16" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="7 5"/>
-<text x="160" y="716" font-size="16" font-weight="600" fill="#1A2130">PC fixe, poste de développement</text>
-<text x="860" y="716" font-size="12.5" fill="#5F6977" text-anchor="end">Facultatif : la maison tourne sans lui</text>
-<rect x="40" y="728" width="264" height="46" rx="10" fill="#EEF2F7"/>
-<rect x="40" y="728" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
-<text x="52" y="747" font-size="13.5" font-weight="600" fill="#1A2130">Client web, port 8767</text>
-<text x="52" y="765" font-size="12.5" fill="#434E5E">Par Tailscale Serve, PC seul</text>
-<rect x="318" y="728" width="264" height="46" rx="10" fill="#EEF2F7"/>
-<rect x="318" y="728" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
-<text x="330" y="747" font-size="13.5" font-weight="600" fill="#1A2130">Canary et LLM local</text>
-<text x="330" y="765" font-size="12.5" fill="#434E5E">LM Studio ou llama-server, Qwen</text>
-<rect x="596" y="728" width="264" height="46" rx="10" fill="#EEF2F7"/>
-<rect x="596" y="728" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
-<text x="608" y="747" font-size="13.5" font-weight="600" fill="#1A2130">Même moteur, profil pc</text>
-<text x="608" y="765" font-size="12.5" fill="#434E5E">Essais, satellites de test</text>
-<path d="M130 456 L130 728" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
-<path d="M130 728 L124.5 718 L135.5 718 Z" fill="#4C8DFF"/>
-<text x="140" y="580" font-size="11.5" fill="#5F6977">HTTPS 443</text>
-<path d="M450 642 L450 728" fill="none" stroke="#8A66F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
-<path d="M450 728 L444.5 718 L455.5 718 Z" fill="#8A66F0"/>
-<text x="460" y="670" font-size="11.5" fill="#5F6977">llm_local_url, facultatif</text>
+<path d="M236 226 L246 231.5 L246 220.5 Z" fill="#3CCB7F"/>
+<text x="258" y="218" font-size="11.5" fill="#5F6977" text-anchor="middle">wss</text>
+<rect x="24" y="750" width="852" height="98" rx="16" fill="url(#carte)"/>
+<rect x="24" y="750" width="852" height="98" rx="16" fill="none" stroke="#4C8DFF" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="160" y="776" font-size="16" font-weight="600" fill="#1A2130">PC fixe, poste de développement</text>
+<text x="860" y="776" font-size="12.5" fill="#5F6977" text-anchor="end">Facultatif : la maison tourne sans lui</text>
+<rect x="40" y="788" width="264" height="46" rx="10" fill="#EEF2F7"/>
+<rect x="40" y="788" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="52" y="807" font-size="13.5" font-weight="600" fill="#1A2130">Client web, port 8767</text>
+<text x="52" y="825" font-size="12.5" fill="#434E5E">Par Tailscale Serve, PC seul</text>
+<rect x="318" y="788" width="264" height="46" rx="10" fill="#EEF2F7"/>
+<rect x="318" y="788" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="330" y="807" font-size="13.5" font-weight="600" fill="#1A2130">Canary et LLM local</text>
+<text x="330" y="825" font-size="12.5" fill="#434E5E">LM Studio ou llama-server, Qwen</text>
+<rect x="596" y="788" width="264" height="46" rx="10" fill="#EEF2F7"/>
+<rect x="596" y="788" width="264" height="46" rx="10" fill="none" stroke="#D5DCE6" stroke-width="1.2"/>
+<text x="608" y="807" font-size="13.5" font-weight="600" fill="#1A2130">Même moteur, profil pc</text>
+<text x="608" y="825" font-size="12.5" fill="#434E5E">Essais, satellites de test</text>
+<path d="M130 724 L130 788" fill="none" stroke="#4C8DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M130 788 L124.5 778 L135.5 778 Z" fill="#4C8DFF"/>
+<path d="M450 642 L450 788" fill="none" stroke="#8A66F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M450 788 L444.5 778 L455.5 778 Z" fill="#8A66F0"/>
+<text x="460" y="700" font-size="11.5" fill="#5F6977">llm_local_url, facultatif</text>
 </svg>

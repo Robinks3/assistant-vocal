@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1084 676" width="100%" role="img" aria-label="Scénario 3 : le PC fait tout, sauf le réveil" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Scénario 3 : le PC fait tout, sauf le réveil</title><desc>Rien ne quitte la maison. Le son ne part vers le PC qu'après le mot de réveil, entendu sur la tablette. Le PC doit rester allumé avec sa carte graphique : Qwen 3.5 9B, 6,5 Go de mémoire vidéo, 2,7 à 3,8 s par réponse. Réglage : mode "Serveur du PC", cerveau "PC (carte graphique)", réveil sur l'appareil. C'est le mode de développement.</desc>
+<defs>
+<linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#000000"/></linearGradient>
+<radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.13"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22272E"/><stop offset="1" stop-color="#15181D"/></linearGradient>
+</defs>
+<rect x="0.5" y="0.5" width="1083" height="675" rx="22" fill="url(#fond)" stroke="#16191D"/><rect x="0.5" y="0.5" width="1083" height="675" rx="22" fill="url(#lueurFond)"/>
+<text x="24" y="44" font-size="22" font-weight="700" fill="#F2F5F9">Scénario 3 : le PC fait tout, sauf le réveil</text>
+<text x="24" y="68" font-size="14.5" fill="#BAC3D0">Une ligne par machine, une colonne par étape, sur la maison d'exemple. Changer de ligne, c'est passer par le réseau.</text>
+<text x="245.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">1 Réveil</text>
+<text x="353.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">2 Fin de phrase</text>
+<text x="461.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">3 Transcription</text>
+<text x="569.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">4 Dictionnaire</text>
+<text x="677.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">5 Si inconnu</text>
+<text x="785.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">6 Sécurité</text>
+<text x="893.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">7 Action</text>
+<text x="1001.0" y="128" font-size="11" font-weight="700" fill="#8F9AAA" letter-spacing="0.02em" text-anchor="middle">8 Voix</text>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="url(#carte)"/>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="#4FE3F4" fill-opacity="0.13"/>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="none" stroke="#4FE3F4" stroke-width="1.5"/>
+<text x="40" y="186" font-size="14" font-weight="600" fill="#F2F5F9">Tablette</text>
+<text x="40" y="204" font-size="11.5" fill="#8F9AAA">appli Android</text>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="url(#carte)"/>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="#5BD898" fill-opacity="0.13"/>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="none" stroke="#5BD898" stroke-width="1.5"/>
+<text x="40" y="292" font-size="14" font-weight="600" fill="#F2F5F9">Serveur de la maison</text>
+<text x="40" y="310" font-size="11.5" fill="#8F9AAA">Home Assistant</text>
+<rect x="24" y="354" width="1036" height="96" rx="14" fill="url(#carte)"/>
+<rect x="24" y="354" width="1036" height="96" rx="14" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="24" y="354" width="1036" height="96" rx="14" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<text x="40" y="398" font-size="14" font-weight="600" fill="#F2F5F9">PC fixe</text>
+<text x="40" y="416" font-size="11.5" fill="#8F9AAA">développement</text>
+<rect x="24" y="460" width="1036" height="96" rx="14" fill="#1B2027" fill-opacity="0.6" stroke="#313843" stroke-width="1.2" stroke-dasharray="6 5"/>
+<text x="40" y="504" font-size="14" font-weight="600" fill="#8F9AAA">En ligne</text>
+<text x="40" y="522" font-size="11.5" fill="#8F9AAA">API Claude</text>
+<text x="204" y="513" font-size="13" fill="#8F9AAA">non utilisé dans ce scénario</text>
+<path d="M290 190.0 L299.0 190.0 L299.0 402.0 L307 402.0" fill="none" stroke="#7FB2FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M308 402.0 L301 397.5 L301 406.5 Z" fill="#7FB2FF"/>
+<path d="M398 402.0 L415 402.0" fill="none" stroke="#8F9AAA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M416 402.0 L409 397.5 L409 406.5 Z" fill="#8F9AAA"/>
+<path d="M506 402.0 L523 402.0" fill="none" stroke="#8F9AAA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M524 402.0 L517 397.5 L517 406.5 Z" fill="#8F9AAA"/>
+<path d="M614 402.0 L631 402.0" fill="none" stroke="#8F9AAA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M632 402.0 L625 397.5 L625 406.5 Z" fill="#8F9AAA"/>
+<path d="M722 402.0 L739 402.0" fill="none" stroke="#8F9AAA" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M740 402.0 L733 397.5 L733 406.5 Z" fill="#8F9AAA"/>
+<path d="M830 402.0 L839.0 402.0 L839.0 296.0 L847 296.0" fill="none" stroke="#5BD898" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M848 296.0 L841 291.5 L841 300.5 Z" fill="#5BD898"/>
+<path d="M938 296.0 L947.0 296.0 L947.0 402.0 L955 402.0" fill="none" stroke="#7FB2FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M956 402.0 L949 397.5 L949 406.5 Z" fill="#7FB2FF"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="#5BD898" fill-opacity="0.13"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#5BD898" stroke-width="1.5"/>
+<text x="245.0" y="181.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">openWakeWord</text>
+<text x="245.0" y="198.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">sur la tablette</text>
+<rect x="308" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="308" y="370.0" width="90" height="64" rx="10" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="308" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<text x="353.0" y="393.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">Silero VAD</text>
+<text x="353.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">coupe la phrase</text>
+<rect x="416" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="416" y="370.0" width="90" height="64" rx="10" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="416" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<text x="461.0" y="393.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">Canary</text>
+<text x="461.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">carte graphique</text>
+<rect x="524" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="524" y="370.0" width="90" height="64" rx="10" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="524" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<text x="569.0" y="393.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">Dictionnaire</text>
+<text x="569.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">commandes</text>
+<text x="569.0" y="424.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">connues</text>
+<rect x="632" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="632" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#7FB2FF" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="677.0" y="393.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">Qwen 3.5 9B</text>
+<text x="677.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">llama-server</text>
+<rect x="740" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="740" y="370.0" width="90" height="64" rx="10" fill="#EC7A73" fill-opacity="0.13"/>
+<rect x="740" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#EC7A73" stroke-width="1.5"/>
+<text x="785.0" y="393.0" font-size="11.5" font-weight="600" fill="#F08F89" text-anchor="middle">securite.py</text>
+<text x="785.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">règles en dur</text>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="#5BD898" fill-opacity="0.13"/>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="none" stroke="#5BD898" stroke-width="1.5"/>
+<text x="893.0" y="287.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">API de HA</text>
+<text x="893.0" y="304.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">jeton du PC</text>
+<rect x="956" y="370.0" width="90" height="64" rx="10" fill="#1B2027"/>
+<rect x="956" y="370.0" width="90" height="64" rx="10" fill="#7FB2FF" fill-opacity="0.13"/>
+<rect x="956" y="370.0" width="90" height="64" rx="10" fill="none" stroke="#7FB2FF" stroke-width="1.5"/>
+<text x="1001.0" y="393.0" font-size="11.5" font-weight="600" fill="#F2F5F9" text-anchor="middle">Piper</text>
+<text x="1001.0" y="410.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">jouée par</text>
+<text x="1001.0" y="424.0" font-size="10.5" fill="#BAC3D0" text-anchor="middle">la tablette</text>
+<text x="24" y="584" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">CE QUI QUITTE LA MAISON, ET LE RÉGLAGE</text>
+<text x="24" y="610" font-size="13.5" fill="#BAC3D0">Rien ne quitte la maison. Le son ne part vers le PC qu'après le mot de réveil, entendu sur la tablette.</text>
+<text x="24" y="632" font-size="13.5" fill="#BAC3D0">Le PC doit rester allumé avec sa carte graphique : Qwen 3.5 9B, 6,5 Go de mémoire vidéo, 2,7 à 3,8 s par réponse.</text>
+<text x="24" y="654" font-size="13.5" fill="#BAC3D0">Réglage : mode "Serveur du PC", cerveau "PC (carte graphique)", réveil sur l'appareil. C'est le mode de développement.</text>
+<text x="1060" y="584" font-size="11.5" fill="#8F9AAA" text-anchor="end">En pointillé : seulement si besoin</text>
+</svg>

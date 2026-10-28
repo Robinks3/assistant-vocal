@@ -44,6 +44,29 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Cet appareil | Nulle part, l'appli Android fait tout | Une tablette ou un téléphone seul, Home Assistant joint par sa passerelle. |
 | Serveur du PC | Le même serveur en profil pc, sur un PC | Pour le développement et les essais : Canary, LLM local. La maison n'en dépend pas. |
 
+### Trois façons de répartir le travail
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tablette-sombre.svg">
+  <img src="docs/images/scenario-tablette-clair.svg" width="900" alt="Scénario 1 : tout sur la tablette, Home Assistant n'exécute que l'action">
+</picture>
+
+<sub>Mode "Cet appareil" avec le LLM de secours sur l'appareil. Le son ne quitte jamais la tablette, Home Assistant reçoit seulement la commande validée par sa passerelle, qui la revérifie avant d'agir.</sub>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-haiku-sombre.svg">
+  <img src="docs/images/scenario-haiku-clair.svg" width="900" alt="Scénario 2 : la tablette, avec Claude Haiku en renfort pour les phrases inconnues">
+</picture>
+
+<sub>Même chaîne, mais une phrase que le dictionnaire ne comprend pas part en texte vers Claude Haiku, par l'appli de l'assistant sur Home Assistant. La tablette ne porte aucune clé d'API.</sub>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-pc-sombre.svg">
+  <img src="docs/images/scenario-pc-clair.svg" width="900" alt="Scénario 3 : le PC fait tout sauf le réveil, qui reste sur la tablette">
+</picture>
+
+<sub>Mode "Serveur du PC", réservé au développement. La tablette entend le mot de réveil puis envoie le son au PC, qui transcrit, décide, appelle Home Assistant avec son propre jeton et renvoie la voix de Piper.</sub>
+
 Les appareils parlent au serveur en WebSocket chiffré, après un appairage qui épingle la clé du serveur. Le serveur
 ne répond qu'aux réseaux listés dans la section `acces` de la configuration (réseaux privés et tailnet par défaut), et
 seuls les administrateurs gèrent les appareils. Une appli qui perd le serveur le retrouve par les noms d'hôte de la
