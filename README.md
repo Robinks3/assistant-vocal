@@ -33,10 +33,10 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/architecture-sombre.svg">
-  <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture : satellites, serveur du PC, Home Assistant et services facultatifs">
+  <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture par machine : satellites, PC fixe, serveur Home Assistant et services en ligne facultatifs">
 </picture>
 
-<sub>Les machines et leurs liens. Le client web passe par le port 8767, le port 8765 en clair est un ancien accès à fermer.</sub>
+<sub>Une colonne par machine. Le PC fixe porte le serveur des satellites et le client web (Tailscale Serve vers le port 8767). Le serveur de la maison porte Home Assistant, la page d'administration et l'appli de l'assistant, qui relève le PC quand il est éteint. Le port 8765 en clair est un ancien accès à fermer.</sub>
 
 | Mode | Où tourne le serveur | Pour quoi |
 |---|---|---|
