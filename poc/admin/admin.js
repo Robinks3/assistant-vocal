@@ -182,16 +182,6 @@
       codeInv.tabIndex = -1;
       codeInv.focus();
     }
-    var qr = $("qr");
-    if (m.qr && m.qr.indexOf("data:image/") === 0) {
-      qr.src = m.qr;
-      qr.hidden = false;
-      $("explication-qr").hidden = true;
-    } else {
-      qr.removeAttribute("src");
-      qr.hidden = true;
-      $("explication-qr").hidden = false;
-    }
     clearInterval(minuteur);
     minuteur = setInterval(tic, 1000);
     tic();
@@ -207,7 +197,6 @@
     $("invitation").hidden = true;
     $("formulaire-ajout").hidden = false;
     $("code-invitation").textContent = "";
-    $("qr").removeAttribute("src");
   }
 
   // Navigateurs web (client web, S-W1b). Le code n'arrive que dans la réponse à « web_ouvrir », jamais dans la vue.

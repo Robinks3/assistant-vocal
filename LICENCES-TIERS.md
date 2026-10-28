@@ -65,7 +65,7 @@ Licences lues dans les métadonnées des paquets installés dans l'environnement
 | pytest | 9.1.1 | MIT | Tests seulement. |
 | pillow | non installé ici | non vérifiée | Plan 2D (`carte/generer_plan.py`) seulement. À contrôler sur une machine qui l'installe. |
 | tzdata | 2026.5 | Apache 2.0 | |
-| segno | 1.6.6 | BSD (classifieur du paquet) | Génération locale du QR code d'invitation. |
+| segno | 1.6.6 | BSD (classifieur du paquet) | Génération locale du QR code d'appairage du client web. |
 
 Les dépendances indirectes de ces paquets ne sont pas listées.
 

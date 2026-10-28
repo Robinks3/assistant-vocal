@@ -129,7 +129,7 @@ def test_websocket_origine_et_identite(reglage):
     resultats, session = avec_service(reglage, scenario)
     assert resultats["sans_origine"] == 4003 and resultats["origine_etrangere"] == 4003
     assert resultats["inconnu"] == 403
-    assert session["version"] == "9.9.9" and session["utilisateur"] == "Alice" and session["client_web"] is False
+    assert session["version"] == "9.9.9" and session["utilisateur"] == "Alice" and "client_web" not in session
 
 
 def test_liste_blanche_du_canal(reglage):
@@ -151,9 +151,7 @@ def test_liste_blanche_du_canal(reglage):
                                    "inviter", "annuler_invitation"}
 
 
-def test_invitation_de_bout_en_bout(reglage, monkeypatch, capsys):
-    monkeypatch.setattr(maison, "ADMINISTRATION", {"utilisateurs_ha": ["abc123"], "url_client": "https://client.example/"})
-
+def test_invitation_de_bout_en_bout(reglage, capsys):
     async def scenario(port):
         ws = await ouvrir_ws(port)
         await lire(ws, "session")
@@ -164,13 +162,16 @@ def test_invitation_de_bout_en_bout(reglage, monkeypatch, capsys):
         return inv, vue
     inv, vue = avec_service(reglage, scenario)
     assert re.fullmatch(r"\d{6}", inv["code"]) and inv["role"] == "invite" and 0 < inv["expire"] <= 120
-    assert inv["qr"].startswith("data:image/svg") and inv["client_web"] is True
     assert vue["invitation"]["role"] == "invite" and inv["code"] not in json.dumps(vue)
     assert inv["code"] not in capsys.readouterr().out
     assert reglage.appareils.invitation.verifier(inv["code"])[0] == "invite"
 
 
-def test_invitation_sans_client_web_pas_de_qr(reglage):
+def test_invitation_sans_qr_meme_avec_l_ancienne_cle_url_client(reglage, monkeypatch):
+    # Le code d'invitation n'est vérifié que par l'appairage des appareils : un QR vers le client web ne pouvait
+    # pas marcher. L'ancienne clé administration.url_client est désormais ignorée.
+    monkeypatch.setattr(maison, "ADMINISTRATION", {"utilisateurs_ha": ["abc123"], "url_client": "https://client.example/"})
+
     async def scenario(port):
         ws = await ouvrir_ws(port)
         await lire(ws, "session")
@@ -179,7 +180,13 @@ def test_invitation_sans_client_web_pas_de_qr(reglage):
         await ws.close()
         return inv
     inv = avec_service(reglage, scenario)
-    assert inv["qr"] is None and inv["client_web"] is False and inv["role"] == "habitant"
+    assert inv["role"] == "habitant" and "qr" not in inv and "client_web" not in inv
+    assert "client.example" not in json.dumps(inv)
+
+
+def test_message_invitation_ne_porte_que_le_code():
+    assert adm.message_invitation("123456", "invite", 90) == {"etat": "invitation", "code": "123456", "role": "invite",
+                                                              "expire": 90}
 
 
 def test_invitation_administrateur_refusee_et_annulation(reglage):

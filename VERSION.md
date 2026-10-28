@@ -4,6 +4,19 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.58.3 (2026-10-28), plus de QR code sur l'invitation d'appareil
+Correctif. Appli Home Assistant 0.58.3 (sa page d'administration change). Appli Android 0.49.0 et client web 0.11.0
+inchangés.
+- Le bouton « Créer un code » de la page d'administration n'affiche plus de QR code. Ce QR visait le client web
+  (`<url_client>#code=...`), alors que ce code à six chiffres n'est vérifié que par l'appairage des appareils
+  (appli Android) : le client web ne le connaît pas, et un navigateur qui le scannait ne pouvait pas s'appairer.
+  Le code reste affiché en grand, à saisir dans l'appli Android. Un navigateur s'appaire par la section
+  Navigateurs web, dont le QR code ne change pas.
+- La réponse `invitation` ne porte plus `qr` ni `client_web`, et le message `session` ne porte plus `client_web`.
+- La clé `administration.url_client` disparaît de `config-exemple/maison.json` et de la documentation. Une
+  configuration qui la garde n'est pas refusée : la clé est ignorée.
+- Nouveau texte d'aide sous le code. Tests adaptés dans `poc/tests/test_administration.py`.
+
 ## Serveur 0.58.2 (2026-10-27), renvois au dossier du plan retirés
 Correctif (documentation). Lot S-P1 du plan. Appli Home Assistant 0.58.2, appli Android 0.49.0 et client web
 0.11.0 inchangés. Aucun changement de comportement.
@@ -627,7 +640,7 @@ cibles par `device_id`, `floor_id` et `label_id`, les domaines interdits et ce q
 Session S-D4 du plan 1.2.0. Le numéro 0.36.2 est réservé à S-D1 (fuseau et heures calmes), menée en parallèle.
 Aucun changement de comportement du serveur, seuls l'outillage, la documentation et deux outils de test bougent.
 - Appli Home Assistant (`ha-app/jarvis/config.yaml`) : l'architecture `aarch64` s'ajoute à `amd64`. L'image
-  `python:5.12-slim` et les dépendances de `requirements.txt` existent pour les deux. Un Raspberry Pi 4 ou 5 et
+  `python:3.12-slim` et les dépendances de `requirements.txt` existent pour les deux. Un Raspberry Pi 4 ou 5 et
   un Home Assistant Green peuvent donc installer l'appli. Le profil `ha` ne change pas.
 - `poc/tests/test_demarrage.py` (avec le harnais `demarrage_a_vide.py`) : le serveur des satellites démarre sans
   `poc/.env`, sans micro, sans réseau et sans Home Assistant, écoute quelques secondes puis s'arrête seul. Toute

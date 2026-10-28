@@ -64,7 +64,7 @@ MUSIQUE_MAISON = APPAREILS.get("musique") or {}
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.58.2"
+VERSION = "0.58.3"
 DATE_VERSION = "2026-10-27"
 
 ICI = Path(__file__).resolve().parent
@@ -503,7 +503,7 @@ class HomeAssistant:
                   "in ['temperature','humidity','door','window'] %}"
                   "{{ s.entity_id }}\t{{ s.name }}\t{{ area_name(s.entity_id) or '' }}\t{{ s.state }}"
                   "{% if s.attributes.unit_of_measurement %} {{ s.attributes.unit_of_measurement }}{% endif %}"
-                  "{% if s.domain == 'light' and s.attributes.brightness %} {{ (s.attributes.brightness / 5.55) | round }} %{% endif %}"
+                  "{% if s.domain == 'light' and s.attributes.brightness %} {{ (s.attributes.brightness / 2.55) | round }} %{% endif %}"
                   "\n{% endif %}{% endfor %}")
         r = self.client.post(f"{self.url}/api/template", json={"template": modele})
         r.raise_for_status()

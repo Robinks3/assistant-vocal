@@ -277,8 +277,7 @@ ouvert depuis la page d'administration de l'appli Home Assistant, puis par une c
 
 `hote` fixe aussi le `rpId` de WebAuthn : le changer après un premier appairage invalide les clés d'accès déjà
 créées. Le serveur n'a pas de clé pour accepter d'autres noms d'hôte ou d'autres origines. La publication par
-Tailscale Serve, le réglage de `administration.url_client` à la même adresse, le modèle d'ACL du tailnet et l'essai
-depuis un téléphone sont dans [ACCES-TAILSCALE.md](ACCES-TAILSCALE.md).
+Tailscale Serve, le modèle d'ACL du tailnet et l'essai depuis un téléphone sont dans [ACCES-TAILSCALE.md](ACCES-TAILSCALE.md).
 
 Le journal du serveur consigne chaque refus avec l'adresse et une cause courte (hôte refusé, origine refusée,
 cookie absent, cookie expiré, cookie révoqué...), jamais un cookie, un jeton ni un en-tête.

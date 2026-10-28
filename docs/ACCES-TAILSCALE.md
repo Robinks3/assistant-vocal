@@ -66,13 +66,14 @@ Le nom à utiliser est celui que `tailscale serve status` affiche. C'est lui qu'
 
 ## 4. Régler le serveur
 
-Le serveur n'accepte qu'un nom de domaine en plus de la boucle locale. Deux clés de `config/maison.json` portent
-ce nom, et elles doivent dire la même chose.
+Le serveur n'accepte qu'un nom de domaine en plus de la boucle locale. La clé `client_web.hote` de
+`config/maison.json` porte ce nom. Le QR code d'appairage d'un navigateur (section Navigateurs web de la page
+d'administration) est construit à partir d'elle. Le code du bouton « Créer un code » ne sert qu'à l'appli Android
+et n'a pas de QR code. L'ancienne clé `administration.url_client` est ignorée depuis la version 0.58.3.
 
 | Clé | Rôle | Valeur |
 |---|---|---|
 | `client_web.hote` | Nom de domaine de Serve, sans schéma ni port. Il fixe la valeur exacte de `Host` acceptée, l'origine exacte `https://<hote>` acceptée et le `rpId` de WebAuthn. | `assistant.exemple.ts.net` |
-| `administration.url_client` | Adresse du client que la page d'administration (appli Home Assistant) encode dans le QR code d'invitation sous la forme `<url_client>#code=<6 chiffres>`. | `https://assistant.exemple.ts.net/` |
 | `administration.utilisateurs_ha` | Identifiants des comptes Home Assistant autorisés à ouvrir la page d'administration. Liste vide ou absente : la page refuse tout le monde. | `["0123456789abcdef0123456789abcdef"]` |
 
 Pour connaître l'identifiant de son compte, le propriétaire ouvre la page une première fois : dans Home Assistant,
@@ -224,8 +225,8 @@ route, tant que `client_web.hote` n'a pas changé.
 
 - [ ] `tailscale serve --bg --https=443 http://127.0.0.1:8767` est lancé, `tailscale serve status` ne montre que
       cette publication, `tailscale funnel status` ne montre rien.
-- [ ] `client_web.hote` et `administration.url_client` de `config/maison.json` portent le nom affiché par
-      `serve status`, et le serveur est relancé.
+- [ ] `client_web.hote` de `config/maison.json` porte le nom affiché par `serve status`, et le serveur est
+      relancé.
 - [ ] Le démarrage du serveur affiche `Client web (HTTP) sur 127.0.0.1:8767`.
 - [ ] La règle de pare-feu Windows de 8765 et 8766 est limitée au profil réseau privé, et il n'existe aucune règle
       pour 8767 ni 443.

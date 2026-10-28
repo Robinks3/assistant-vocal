@@ -73,11 +73,9 @@ def _qr(url):
 
 
 def message_invitation(code, role, restant):
-    """Réponse à « inviter » : code en grand, et QR code de <url_client>#code=<code> si le client web existe."""
-    url = acces.url_client()
-    qr = _qr(f"{url.rstrip('#')}#code={code}") if url else None
-    return {"etat": "invitation", "code": code, "role": role, "expire": restant, "qr": qr,
-            "client_web": bool(url)}
+    """Réponse à « inviter » : code en grand, à saisir dans l'appli Android. Pas de QR code : ce code n'est vérifié
+    que par l'appairage des appareils, le client web ne le connaît pas (son QR vient de « web_ouvrir »)."""
+    return {"etat": "invitation", "code": code, "role": role, "expire": restant}
 
 
 async def gerer_appareils(moteur, msg, acteur, courant=None, page=False):
@@ -277,7 +275,7 @@ async def session_page(moteur, ws, version):
     print(f"[{page.nom}] page d'administration ouverte")
     try:
         await page.envoyer(etat="session", assistant=maison.NOM_ASSISTANT, version=version,
-                           utilisateur=utilisateur[1], client_web=bool(acces.url_client()))
+                           utilisateur=utilisateur[1])
         await page.envoyer(**moteur.appareils.vue(avec_code=True))
         await page.envoyer(**vue_web(moteur))
         async for brut in ws:

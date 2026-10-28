@@ -316,12 +316,6 @@ def utilisateurs_ha():
     return {str(x).strip().lower() for x in v if str(x).strip()} if isinstance(v, list) else set()
 
 
-def url_client():
-    """Adresse du client web, pour le QR code d'invitation. Vide tant que le client web n'existe pas."""
-    v = maison.ADMINISTRATION.get("url_client")
-    return v.strip() if isinstance(v, str) else ""
-
-
 def controle_ingress(ip, entetes):
     """((identifiant, nom affiché), None) si la requête vient du superviseur et d'un compte de la liste blanche,
     sinon (None, raison du refus). Barrières : adresse du superviseur, identifiant présent, identifiant dans
