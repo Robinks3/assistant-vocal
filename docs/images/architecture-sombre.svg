@@ -10,21 +10,23 @@
 <text x="24" y="120" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">SATELLITES</text>
 <text x="280" y="120" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">SERVEUR DE LA MAISON</text>
 <text x="664" y="120" font-size="13" font-weight="700" fill="#8F9AAA" letter-spacing="0.06em">SERVICES EN LIGNE</text>
-<rect x="24" y="132" width="212" height="132" rx="14" fill="url(#carte)"/>
-<rect x="24" y="132" width="212" height="132" rx="14" fill="#4FE3F4" fill-opacity="0.13"/>
-<rect x="24" y="132" width="212" height="132" rx="14" fill="none" stroke="#4FE3F4" stroke-width="1.5"/>
+<rect x="24" y="132" width="212" height="172" rx="14" fill="url(#carte)"/>
+<rect x="24" y="132" width="212" height="172" rx="14" fill="#4FE3F4" fill-opacity="0.13"/>
+<rect x="24" y="132" width="212" height="172" rx="14" fill="none" stroke="#4FE3F4" stroke-width="1.5"/>
 <text x="40" y="161" font-size="16" font-weight="600" fill="#F2F5F9">Appli Android</text>
 <text x="40" y="186" font-size="13" fill="#BAC3D0">Tablette ou téléphone</text>
-<text x="40" y="206" font-size="13" fill="#BAC3D0">Micro, haut-parleur, réveil</text>
-<text x="40" y="226" font-size="13" fill="#BAC3D0">Appairage : code à 4 chiffres</text>
-<text x="40" y="246" font-size="13" fill="#BAC3D0">Mode autonome possible</text>
-<rect x="24" y="284" width="212" height="132" rx="14" fill="url(#carte)"/>
-<rect x="24" y="284" width="212" height="132" rx="14" fill="none" stroke="#7FB2FF" stroke-width="1.5" stroke-dasharray="7 5"/>
-<text x="40" y="313" font-size="16" font-weight="600" fill="#F2F5F9">Navigateur</text>
-<text x="40" y="338" font-size="13" fill="#BAC3D0">Client web du propriétaire</text>
-<text x="40" y="358" font-size="13" fill="#BAC3D0">HTTPS 443 par Tailscale</text>
-<text x="40" y="378" font-size="13" fill="#BAC3D0">Servi par le PC fixe,</text>
-<text x="40" y="398" font-size="13" fill="#BAC3D0">pour l'instant</text>
+<text x="40" y="206" font-size="13" fill="#BAC3D0">Réveil ici : openWakeWord,</text>
+<text x="40" y="226" font-size="13" fill="#BAC3D0">le son part après le mot</text>
+<text x="40" y="246" font-size="13" fill="#BAC3D0">Appairage : code à 4 chiffres</text>
+<text x="40" y="266" font-size="13" fill="#BAC3D0">Mode autonome : Silero VAD</text>
+<text x="40" y="286" font-size="13" fill="#BAC3D0">et Canary sur l'appareil</text>
+<rect x="24" y="324" width="212" height="132" rx="14" fill="url(#carte)"/>
+<rect x="24" y="324" width="212" height="132" rx="14" fill="none" stroke="#7FB2FF" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="40" y="353" font-size="16" font-weight="600" fill="#F2F5F9">Navigateur</text>
+<text x="40" y="378" font-size="13" fill="#BAC3D0">Client web du propriétaire</text>
+<text x="40" y="398" font-size="13" fill="#BAC3D0">HTTPS 443 par Tailscale</text>
+<text x="40" y="418" font-size="13" fill="#BAC3D0">Servi par le PC fixe,</text>
+<text x="40" y="438" font-size="13" fill="#BAC3D0">pour l'instant</text>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="url(#carte)"/>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="#5BD898" fill-opacity="0.13"/>
 <rect x="280" y="132" width="340" height="510" rx="16" fill="none" stroke="#5BD898" stroke-width="1.5"/>
@@ -41,8 +43,8 @@
 <text x="308" y="260.4" font-size="12.5" fill="#BAC3D0">8765  clair, ancien accès à fermer</text>
 <rect x="296" y="276" width="308" height="44" rx="10" fill="#1B2027"/>
 <rect x="296" y="276" width="308" height="44" rx="10" fill="none" stroke="#313843" stroke-width="1.2"/>
-<text x="308" y="294" font-size="13.5" font-weight="600" fill="#F2F5F9">Réveil et écoute</text>
-<text x="308" y="312" font-size="12.5" fill="#BAC3D0">openWakeWord, Silero VAD</text>
+<text x="308" y="294" font-size="13.5" font-weight="600" fill="#F2F5F9">Fin de phrase</text>
+<text x="308" y="312" font-size="12.5" fill="#BAC3D0">Silero VAD, réveil ici seulement en option</text>
 <rect x="296" y="326" width="308" height="44" rx="10" fill="#1B2027"/>
 <rect x="296" y="326" width="308" height="44" rx="10" fill="none" stroke="#313843" stroke-width="1.2"/>
 <text x="308" y="344" font-size="13.5" font-weight="600" fill="#F2F5F9">Reconnaissance</text>
@@ -126,9 +128,9 @@
 <rect x="596" y="728" width="264" height="46" rx="10" fill="none" stroke="#313843" stroke-width="1.2"/>
 <text x="608" y="747" font-size="13.5" font-weight="600" fill="#F2F5F9">Même moteur, profil pc</text>
 <text x="608" y="765" font-size="12.5" fill="#BAC3D0">Essais, satellites de test</text>
-<path d="M130 416 L130 728" fill="none" stroke="#7FB2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<path d="M130 456 L130 728" fill="none" stroke="#7FB2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
 <path d="M130 728 L124.5 718 L135.5 718 Z" fill="#7FB2FF"/>
-<text x="140" y="560" font-size="11.5" fill="#8F9AAA">HTTPS 443</text>
+<text x="140" y="580" font-size="11.5" fill="#8F9AAA">HTTPS 443</text>
 <path d="M450 642 L450 728" fill="none" stroke="#A98BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5"/>
 <path d="M450 728 L444.5 718 L455.5 718 Z" fill="#A98BFF"/>
 <text x="460" y="670" font-size="11.5" fill="#8F9AAA">llm_local_url, facultatif</text>
