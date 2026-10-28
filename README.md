@@ -2,7 +2,7 @@
 
 Un assistant vocal en français qui remplace Google Assistant dans un logement piloté par Home Assistant.
 La voix reste à la maison : mot de réveil, détection de parole, transcription et dictionnaire de commandes
-tournent sur la tablette, le téléphone ou le PC, et un LLM n'est appelé qu'en dernier recours, avec le texte
+tournent sur la tablette, le téléphone ou le serveur de la maison, et un LLM n'est appelé qu'en dernier recours, avec le texte
 de la demande seulement.
 
 <p align="center">
@@ -33,16 +33,16 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/architecture-sombre.svg">
-  <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture par machine : satellites, PC fixe, serveur Home Assistant et services en ligne facultatifs">
+  <img src="docs/images/architecture-clair.svg" width="900" alt="Architecture par machine : satellites, serveur de la maison, services en ligne et PC de développement facultatif">
 </picture>
 
-<sub>Une colonne par machine. Le PC fixe porte le serveur des satellites et le client web (Tailscale Serve vers le port 8767). Le serveur de la maison porte Home Assistant, la page d'administration et l'appli de l'assistant, qui relève le PC quand il est éteint. Le port 8765 en clair est un ancien accès à fermer.</sub>
+<sub>Une colonne par machine. Le serveur de la maison, toujours allumé, porte tout le système : Home Assistant, l'appli de l'assistant (même moteur, profil ha) et la page d'administration. Le PC fixe, en pointillé, n'est qu'un poste de développement dont la maison se passe. Seul le client web du navigateur y est encore servi (Tailscale Serve vers le port 8767). Le port 8765 en clair est un ancien accès à fermer.</sub>
 
 | Mode | Où tourne le serveur | Pour quoi |
 |---|---|---|
+| Appli Home Assistant | `poc/serveur_satellite.py` en profil ha, dans Home Assistant | Le mode normal : le serveur de la maison transcrit et décide, les appareils servent de micros. |
 | Cet appareil | Nulle part, l'appli Android fait tout | Une tablette ou un téléphone seul, Home Assistant joint par sa passerelle. |
-| Serveur du PC | `poc/serveur_satellite.py` en profil pc | Les appareils servent de micros, le PC transcrit et décide. LLM local possible. |
-| Appli Home Assistant | Le même serveur en profil ha, dans Home Assistant | Quand le PC est éteint, ou sans PC du tout. |
+| Serveur du PC | Le même serveur en profil pc, sur un PC | Pour le développement et les essais : Canary, LLM local. La maison n'en dépend pas. |
 
 Les appareils parlent au serveur en WebSocket chiffré, après un appairage qui épingle la clé du serveur. Le serveur
 ne répond qu'aux réseaux listés dans la section `acces` de la configuration (réseaux privés et tailnet par défaut), et
