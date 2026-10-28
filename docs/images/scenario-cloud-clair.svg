@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1084 676" width="100%" role="img" aria-label="Scénario 4 : tout ce qui peut passer par une API en ligne" font-family="system-ui, -apple-system, Segoe UI, sans-serif"><title>Scénario 4 : tout ce qui peut passer par une API en ligne</title><desc>Le son de chaque phrase part chez Voxtral, mais seulement après le mot de réveil. Le texte inconnu part chez Claude. Les clés restent dans l'appli de l'assistant sur HA. Réveil, fin de phrase, sécurité et voix n'ont pas de version en ligne. Réglage de l'appli : mode "Cet appareil", transcription "En ligne", LLM de secours "Haiku par l'appli sur HA".</desc>
+<defs>
+<linearGradient id="fond" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F2F5F9"/></linearGradient>
+<radialGradient id="lueurFond" cx="0.5" cy="0" r="0.75"><stop offset="0" stop-color="#4C8DFF" stop-opacity="0.07"/><stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="carte" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F6F8FB"/></linearGradient>
+<filter id="ombre" x="-10%" y="-12%" width="120%" height="135%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#1B2B45" flood-opacity="0.11"/></filter>
+</defs>
+<rect x="0.5" y="0.5" width="1083" height="675" rx="22" fill="url(#fond)" stroke="#E1E6ED"/><rect x="0.5" y="0.5" width="1083" height="675" rx="22" fill="url(#lueurFond)"/>
+<text x="24" y="44" font-size="22" font-weight="700" fill="#1A2130">Scénario 4 : tout ce qui peut passer par une API en ligne</text>
+<text x="24" y="68" font-size="14.5" fill="#434E5E">Une ligne par machine, une colonne par étape, sur la maison d'exemple. Changer de ligne, c'est passer par le réseau.</text>
+<text x="245.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">1 Réveil</text>
+<text x="353.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">2 Fin de phrase</text>
+<text x="461.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">3 Transcription</text>
+<text x="569.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">4 Dictionnaire</text>
+<text x="677.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">5 Si inconnu</text>
+<text x="785.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">6 Sécurité</text>
+<text x="893.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">7 Action</text>
+<text x="1001.0" y="128" font-size="11" font-weight="700" fill="#5F6977" letter-spacing="0.02em" text-anchor="middle">8 Voix</text>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="24" y="142" width="1036" height="96" rx="14" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="40" y="186" font-size="14" font-weight="600" fill="#1A2130">Tablette</text>
+<text x="40" y="204" font-size="11.5" fill="#5F6977">appli Android</text>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="24" y="248" width="1036" height="96" rx="14" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="40" y="292" font-size="14" font-weight="600" fill="#1A2130">Serveur de la maison</text>
+<text x="40" y="310" font-size="11.5" fill="#5F6977">Home Assistant</text>
+<rect x="24" y="354" width="1036" height="96" rx="14" fill="#EEF2F7" fill-opacity="0.6" stroke="#D5DCE6" stroke-width="1.2" stroke-dasharray="6 5"/>
+<text x="40" y="398" font-size="14" font-weight="600" fill="#5F6977">PC fixe</text>
+<text x="40" y="416" font-size="11.5" fill="#5F6977">développement</text>
+<text x="204" y="407" font-size="13" fill="#5F6977">non utilisé dans ce scénario</text>
+<rect x="24" y="460" width="1036" height="96" rx="14" fill="url(#carte)" filter="url(#ombre)"/>
+<rect x="24" y="460" width="1036" height="96" rx="14" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="24" y="460" width="1036" height="96" rx="14" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="40" y="504" font-size="14" font-weight="600" fill="#1A2130">En ligne</text>
+<text x="40" y="522" font-size="11.5" fill="#5F6977">Voxtral et Claude</text>
+<path d="M290 190.0 L307 190.0" fill="none" stroke="#5F6977" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M308 190.0 L301 185.5 L301 194.5 Z" fill="#5F6977"/>
+<path d="M398 190.0 L407.0 190.0 L407.0 508.0 L415 508.0" fill="none" stroke="#8A66F0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M416 508.0 L409 503.5 L409 512.5 Z" fill="#8A66F0"/>
+<path d="M506 508.0 L515.0 508.0 L515.0 190.0 L523 190.0" fill="none" stroke="#22C3D8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M524 190.0 L517 185.5 L517 194.5 Z" fill="#22C3D8"/>
+<path d="M614 190.0 L623.0 190.0 L623.0 508.0 L631 508.0" fill="none" stroke="#8A66F0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M632 508.0 L625 503.5 L625 512.5 Z" fill="#8A66F0"/>
+<path d="M722 508.0 L731.0 508.0 L731.0 190.0 L739 190.0" fill="none" stroke="#22C3D8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M740 190.0 L733 185.5 L733 194.5 Z" fill="#22C3D8"/>
+<path d="M830 190.0 L839.0 190.0 L839.0 296.0 L847 296.0" fill="none" stroke="#3CCB7F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M848 296.0 L841 291.5 L841 300.5 Z" fill="#3CCB7F"/>
+<path d="M938 296.0 L947.0 296.0 L947.0 190.0 L955 190.0" fill="none" stroke="#22C3D8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M956 190.0 L949 185.5 L949 194.5 Z" fill="#22C3D8"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="200" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="245.0" y="181.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">openWakeWord</text>
+<text x="245.0" y="198.0" font-size="10.5" fill="#434E5E" text-anchor="middle">écoute locale</text>
+<rect x="308" y="158.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="308" y="158.0" width="90" height="64" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="308" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="353.0" y="181.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Silero VAD</text>
+<text x="353.0" y="198.0" font-size="10.5" fill="#434E5E" text-anchor="middle">coupe la phrase</text>
+<rect x="416" y="476.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="416" y="476.0" width="90" height="64" rx="10" fill="#8A66F0" fill-opacity="0.08"/>
+<rect x="416" y="476.0" width="90" height="64" rx="10" fill="none" stroke="#8A66F0" stroke-width="1.5"/>
+<text x="461.0" y="499.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Voxtral</text>
+<text x="461.0" y="516.0" font-size="10.5" fill="#434E5E" text-anchor="middle">le son de la</text>
+<text x="461.0" y="530.0" font-size="10.5" fill="#434E5E" text-anchor="middle">phrase, via HA</text>
+<rect x="524" y="158.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="524" y="158.0" width="90" height="64" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="524" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="569.0" y="181.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Dictionnaire</text>
+<text x="569.0" y="198.0" font-size="10.5" fill="#434E5E" text-anchor="middle">commandes</text>
+<text x="569.0" y="212.0" font-size="10.5" fill="#434E5E" text-anchor="middle">connues</text>
+<rect x="632" y="476.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="632" y="476.0" width="90" height="64" rx="10" fill="none" stroke="#8A66F0" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="677.0" y="499.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Claude Haiku</text>
+<text x="677.0" y="516.0" font-size="10.5" fill="#434E5E" text-anchor="middle">texte seul,</text>
+<text x="677.0" y="530.0" font-size="10.5" fill="#434E5E" text-anchor="middle">via l'appli HA</text>
+<rect x="740" y="158.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="740" y="158.0" width="90" height="64" rx="10" fill="#E5534B" fill-opacity="0.08"/>
+<rect x="740" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#E5534B" stroke-width="1.5"/>
+<text x="785.0" y="181.0" font-size="11.5" font-weight="600" fill="#B3362F" text-anchor="middle">Securite.kt</text>
+<text x="785.0" y="198.0" font-size="10.5" fill="#434E5E" text-anchor="middle">règles en dur</text>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="#3CCB7F" fill-opacity="0.08"/>
+<rect x="848" y="264.0" width="90" height="64" rx="10" fill="none" stroke="#3CCB7F" stroke-width="1.5"/>
+<text x="893.0" y="287.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Passerelle</text>
+<text x="893.0" y="304.0" font-size="10.5" fill="#434E5E" text-anchor="middle">appli sur HA,</text>
+<text x="893.0" y="318.0" font-size="10.5" fill="#434E5E" text-anchor="middle">revérifie, agit</text>
+<rect x="956" y="158.0" width="90" height="64" rx="10" fill="#EEF2F7"/>
+<rect x="956" y="158.0" width="90" height="64" rx="10" fill="#22C3D8" fill-opacity="0.08"/>
+<rect x="956" y="158.0" width="90" height="64" rx="10" fill="none" stroke="#22C3D8" stroke-width="1.5"/>
+<text x="1001.0" y="181.0" font-size="11.5" font-weight="600" fill="#1A2130" text-anchor="middle">Voix Android</text>
+<text x="1001.0" y="198.0" font-size="10.5" fill="#434E5E" text-anchor="middle">synthèse locale</text>
+<text x="24" y="584" font-size="13" font-weight="700" fill="#5F6977" letter-spacing="0.06em">CE QUI QUITTE LA MAISON, ET LE RÉGLAGE</text>
+<text x="24" y="610" font-size="13.5" fill="#434E5E">Le son de chaque phrase part chez Voxtral, mais seulement après le mot de réveil. Le texte inconnu part chez Claude.</text>
+<text x="24" y="632" font-size="13.5" fill="#434E5E">Les clés restent dans l'appli de l'assistant sur HA. Réveil, fin de phrase, sécurité et voix n'ont pas de version en ligne.</text>
+<text x="24" y="654" font-size="13.5" fill="#434E5E">Réglage de l'appli : mode "Cet appareil", transcription "En ligne", LLM de secours "Haiku par l'appli sur HA".</text>
+<text x="1060" y="584" font-size="11.5" fill="#5F6977" text-anchor="end">En pointillé : seulement si besoin</text>
+</svg>

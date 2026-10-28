@@ -44,7 +44,7 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Cet appareil | Nulle part, l'appli Android fait tout | Une tablette ou un téléphone seul, Home Assistant joint par sa passerelle. |
 | Serveur du PC | Le même serveur en profil pc, sur un PC | Pour le développement et les essais : Canary, LLM local. La maison n'en dépend pas. |
 
-### Trois façons de répartir le travail
+### Quatre façons de répartir le travail
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tablette-sombre.svg">
@@ -65,7 +65,14 @@ détaillées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   <img src="docs/images/scenario-pc-clair.svg" width="900" alt="Scénario 3 : le PC fait tout sauf le réveil, qui reste sur la tablette">
 </picture>
 
-<sub>Mode "Serveur du PC", réservé au développement. La tablette entend le mot de réveil puis envoie le son au PC, qui transcrit, décide, appelle Home Assistant avec son propre jeton et renvoie la voix de Piper.</sub>
+<sub>Mode "Serveur du PC", réservé au développement. La tablette entend le mot de réveil puis envoie le son au PC, qui transcrit, décide, appelle Home Assistant avec son propre jeton et renvoie la voix de Piper. Pour une phrase inconnue, le cerveau est au choix Qwen sur la carte graphique ou Claude en ligne, qui ne reçoit que le texte.</sub>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-cloud-sombre.svg">
+  <img src="docs/images/scenario-cloud-clair.svg" width="900" alt="Scénario 4 : transcription par Voxtral et phrases inconnues par Claude Haiku, le reste sur la tablette">
+</picture>
+
+<sub>Mode "Cet appareil" avec la transcription "En ligne" et Haiku en secours. Seules la transcription et la compréhension des phrases inconnues ont une version en ligne. Le mot de réveil, la fin de phrase et la sécurité restent sur la tablette, et aucune voix en ligne n'est branchée. Le son de chaque phrase quitte alors la maison, après le mot de réveil.</sub>
 
 Les appareils parlent au serveur en WebSocket chiffré, après un appairage qui épingle la clé du serveur. Le serveur
 ne répond qu'aux réseaux listés dans la section `acces` de la configuration (réseaux privés et tailnet par défaut), et
