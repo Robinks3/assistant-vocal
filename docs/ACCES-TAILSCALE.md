@@ -73,6 +73,13 @@ ce nom, et elles doivent dire la même chose.
 |---|---|---|
 | `client_web.hote` | Nom de domaine de Serve, sans schéma ni port. Il fixe la valeur exacte de `Host` acceptée, l'origine exacte `https://<hote>` acceptée et le `rpId` de WebAuthn. | `assistant.exemple.ts.net` |
 | `administration.url_client` | Adresse du client que la page d'administration (appli Home Assistant) encode dans le QR code d'invitation sous la forme `<url_client>#code=<6 chiffres>`. | `https://assistant.exemple.ts.net/` |
+| `administration.utilisateurs_ha` | Identifiants des comptes Home Assistant autorisés à ouvrir la page d'administration. Liste vide ou absente : la page refuse tout le monde. | `["0123456789abcdef0123456789abcdef"]` |
+
+Pour connaître l'identifiant de son compte, le propriétaire ouvre la page une première fois : dans Home Assistant,
+entrée « Assistant vocal » de la barre latérale, ou Paramètres, Applications, l'appli, « Ouvrir l'interface web ».
+Le refus écrit l'identifiant dans le journal de l'appli (`ha apps logs local_jarvis`, ligne
+`utilisateur <id> hors de administration.utilisateurs_ha`). Il suffit de le recopier dans la liste, puis de
+reconstruire l'appli.
 
 Ce qui est accepté, et rien de plus :
 
@@ -126,6 +133,13 @@ Les habitants qui n'ont pas Tailscale n'atteignent pas le client web. Pour eux, 
 propriétaire : le partage de nœud Tailscale avec leur propre compte (à tester dans la prévisualisation, car les
 règles de la politique pèsent aussi sur les comptes invités), ou un secours local sur le réseau de la maison,
 non fourni à ce jour.
+
+Joindre Home Assistant par le réseau ne suffit pas. Le client web n'est pas servi par l'appli Home Assistant mais par
+le PC, derrière Serve : un habitant qui atteint seulement Home Assistant (par son propre tailnet, par exemple) ne
+peut pas suivre le QR code tant que le PC ne lui est pas partagé. La page d'administration, elle, reste réservée
+aux comptes de `administration.utilisateurs_ha`, même pour un habitant qui a un compte Home Assistant. Quant aux
+ports 8765 et 8766 de l'appli, ils exigent un jeton d'appareil appairé, et seul un administrateur accepte un
+nouvel appareil.
 
 ## 6. Premier appairage d'un téléphone
 
