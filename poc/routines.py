@@ -742,7 +742,7 @@ def valider_proposition(args, ctx, reg=None):
     reponse = str(args.get("reponse") or "").strip()[:120] or None
     maintenant = maison.maintenant()
     routine = {
-        "id": f"r-{maintenant:%Y%m%d-%H%M}-{secrets.token_hex(1)}", "nom": nom, "auteur": ctx.personne,
+        "id": f"r-{maintenant:%Y%m%d-%H%M}-{secrets.token_hex(4)}", "nom": nom, "auteur": ctx.personne,
         "pour": "auteur", "actif": True, "a_revoir": None,
         "declencheurs": [{"genre": "phrase", "phrases": retenues, "variantes": variantes,
                           "formes": [forme(p) for p in retenues + variantes]}],

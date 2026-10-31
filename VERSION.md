@@ -4,6 +4,10 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.59.1 (2026-10-31), identifiants de routine sans collision
+
+- Un identifiant de routine ne portait qu'un octet aléatoire : deux routines créées la même minute partageaient leur identifiant une fois sur 256, et couper l'une pouvait viser l'autre. Il en porte quatre. Trouvé par la CI, sur un test instable. Les routines existantes gardent leur identifiant.
+
 ## Serveur 0.59.0 (2026-10-31), neutralisation avant publication
 
 - Intégration continue sur GitHub (`.github/workflows/ci.yml`) : tests du serveur, tests de l'appli, garde-fou et gitleaks sur tout l'historique. Dependabot chaque semaine. Aucun déploiement depuis GitHub.

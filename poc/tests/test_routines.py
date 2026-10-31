@@ -1363,6 +1363,12 @@ def test_deux_routines_ambigues_et_preference_pour_les_siennes():
     assert dodos == {"sacha": True, "camille": False}
 
 
+def test_identifiants_de_routine_sans_collision_a_la_minute():
+    # Avec un seul octet aléatoire, deux routines créées la même minute partageaient un identifiant une fois sur 256.
+    enregistrer(proposition(nom="Une", phrases=["premiere phrase"]), pour="tous")
+    assert len(R.registre().routines[-1]["id"].rsplit("-", 1)[1]) == 8
+
+
 def test_toutes_mes_routines_est_refuse():
     deux_routines()
     for phrase in ("supprime toutes mes routines", "coupe toutes les routines", "efface mes routines"):
