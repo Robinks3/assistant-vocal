@@ -44,7 +44,7 @@
       <button type="button" id="creer-code" class="principal">Créer un code</button>
     </div>
     <div id="invitation" class="invitation" hidden>
-      <p class="discret">Saisis ce code dans l'appli Android. Il sert une seule fois. Pour un navigateur, passe par la section Navigateurs web plus bas.</p>
+      <p class="discret">Saisis ce code dans l'appli Android. Il sert une seule fois. Il ne sert pas pour un navigateur : voir la section Navigateurs web plus bas.</p>
       <p class="code-grand" id="code-invitation" aria-live="off"></p>
       <p id="compte-a-rebours" class="compte" role="timer"></p>
       <button type="button" id="annuler-code" class="secondaire">Annuler le code</button>
@@ -53,8 +53,8 @@
 
   <section aria-labelledby="h-web" id="bloc-web">
     <h2 id="h-web">Navigateurs web</h2>
-    <p class="discret">Téléphones associés au client web, chacun par une clé propre à l'appareil. Cette page amorce le premier propriétaire et sert de secours.</p>
-    <p class="vide" id="web-indisponible" hidden>Le client web n'est pas démarré sur ce serveur.</p>
+    <p class="discret">Téléphones associés au client web, chacun par une clé propre à l'appareil.</p>
+    <p class="vide" id="web-indisponible" hidden>Le client web n'est pas servi par ce serveur. Pour associer un navigateur, ouvre la page Associer du client web depuis un navigateur propriétaire.</p>
     <div id="web-bloc" hidden>
       <p class="vide" id="web-aucun" hidden>Aucun navigateur associé.</p>
       <ul class="cartes" id="web-appareils"></ul>

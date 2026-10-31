@@ -4,6 +4,20 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.58.4 (2026-10-30), plus de client web dans l'appli Home Assistant
+Correctif. Appli Home Assistant 0.58.4 (son démarrage et sa page d'administration changent). Serveur du PC sans
+changement de comportement, appli Android 0.49.0 et client web 0.11.0 inchangés.
+- L'appli Home Assistant ne lance plus de client web (`JARVIS_PORT_WEB=0` dans `demarrage.py`). Il n'était joignable
+  par personne, son port n'étant pas publié, mais il faisait apparaître la section Navigateurs web de la page
+  d'administration. Le code qu'elle affichait naissait dans le processus de Home Assistant, alors que son QR code
+  menait au client web du PC, qui le refusait.
+- La section Navigateurs web de l'appli Home Assistant renvoie vers la page `/associer` du client web, et l'aide
+  sous le code d'invitation ne présente plus cette section comme un chemin pour un navigateur.
+- `docs/ACCES-TAILSCALE.md` : section 6 réécrite (premier téléphone, navigateurs suivants, téléphone d'une autre
+  personne par le partage de nœud, ACL obligatoire avant tout partage). Règle d'exemple commentée dans
+  `config-exemple/tailnet-acl.exemple.hujson`.
+- Test ajouté dans `poc/tests/test_administration_web.py`.
+
 ## Serveur 0.58.3 (2026-10-28), plus de QR code sur l'invitation d'appareil
 Correctif. Appli Home Assistant 0.58.3 (sa page d'administration change). Appli Android 0.49.0 et client web 0.11.0
 inchangés.

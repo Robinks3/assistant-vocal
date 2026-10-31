@@ -197,3 +197,10 @@ def test_canal_de_la_page_de_bout_en_bout(moteur, tmp_path, monkeypatch):
     assert vue0["disponible"] and vue0["proprietaire"] is False
     assert conf["role"] == "administrateur" and vue1["proprietaire"] is True
     assert refus["message"] == "message non permis"
+
+
+def test_l_appli_ha_ne_lance_pas_de_client_web():
+    """Son code d'appairage serait refusé par le client web publié par Serve, qui tourne dans un autre processus."""
+    from pathlib import Path
+    demarrage = Path(__file__).resolve().parents[2] / "ha-app" / "jarvis" / "app" / "demarrage.py"
+    assert '"JARVIS_PORT_WEB": "0"' in demarrage.read_text(encoding="utf-8")

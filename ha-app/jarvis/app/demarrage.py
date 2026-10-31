@@ -12,6 +12,9 @@ os.environ.update({
     "JARVIS_DONNEES": "/data",
     # Page d'administration (Ingress) : port interne égal à ingress_port de config.yaml, non publié.
     "JARVIS_ADMIN_PORT": "8099",
+    # 0.58.4 : pas de client web ici. Aucun chemin n'y mène (port non publié) et client_web.hote vise le serveur que
+    # Tailscale Serve publie : un code ouvert dans ce processus y serait refusé.
+    "JARVIS_PORT_WEB": "0",
     # Configuration de la maison (maison.json, commandes.yaml), copiée par deployer.sh à chaque déploiement.
     "ASSISTANT_VOCAL_CONFIG": "/app/config",
     "HA_URL": "http://supervisor/core",

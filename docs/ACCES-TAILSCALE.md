@@ -67,9 +67,9 @@ Le nom à utiliser est celui que `tailscale serve status` affiche. C'est lui qu'
 ## 4. Régler le serveur
 
 Le serveur n'accepte qu'un nom de domaine en plus de la boucle locale. La clé `client_web.hote` de
-`config/maison.json` porte ce nom. Le QR code d'appairage d'un navigateur (section Navigateurs web de la page
-d'administration) est construit à partir d'elle. Le code du bouton « Créer un code » ne sert qu'à l'appli Android
-et n'a pas de QR code. L'ancienne clé `administration.url_client` est ignorée depuis la version 0.58.3.
+`config/maison.json` porte ce nom. Le QR code d'appairage d'un navigateur (page `/associer` du client web) est
+construit à partir d'elle. Le code du bouton « Créer un code » de la page d'administration ne sert qu'à l'appli
+Android et n'a pas de QR code. L'ancienne clé `administration.url_client` est ignorée depuis la version 0.58.3.
 
 | Clé | Rôle | Valeur |
 |---|---|---|
@@ -130,10 +130,8 @@ marche aujourd'hui (synchronisations, SSH, tableau de bord). La procédure, dans
 6. Après l'enregistrement, vérifiez à la main un flux ancien de chaque sorte (SSH, synchronisation, tableau de
    bord) avant de passer à la suite.
 
-Les habitants qui n'ont pas Tailscale n'atteignent pas le client web. Pour eux, deux voies à décider avec le
-propriétaire : le partage de nœud Tailscale avec leur propre compte (à tester dans la prévisualisation, car les
-règles de la politique pèsent aussi sur les comptes invités), ou un secours local sur le réseau de la maison,
-non fourni à ce jour.
+Un habitant qui n'a pas Tailscale n'atteint pas le client web. La voie prévue est le partage du nœud du PC avec son
+propre compte Tailscale, décrite en section 6. Le secours local sur le réseau de la maison n'est pas fourni à ce jour.
 
 Joindre Home Assistant par le réseau ne suffit pas. Le client web n'est pas servi par l'appli Home Assistant mais par
 le PC, derrière Serve : un habitant qui atteint seulement Home Assistant (par son propre tailnet, par exemple) ne
@@ -142,20 +140,17 @@ aux comptes de `administration.utilisateurs_ha`, même pour un habitant qui a un
 ports 8765 et 8766 de l'appli, ils exigent un jeton d'appareil appairé, et seul un administrateur accepte un
 nouvel appareil.
 
-## 6. Premier appairage d'un téléphone
+## 6. Appairer un téléphone
 
-Le tailnet décide qui peut frapper à la porte, l'appairage décide qui entre. Le téléphone du propriétaire s'appaire
-ainsi :
+Le tailnet décide qui peut frapper à la porte, l'appairage décide qui entre.
 
-1. Dans l'appli Home Assistant, page d'administration, section « Navigateurs web », le propriétaire ouvre un
-   appairage. Le code à 6 chiffres vaut 2 minutes, trois essais, et n'est affiché que là.
-2. Sur le téléphone, ouvrir `https://assistant.exemple.ts.net/appairage` (ou scanner le QR code) et saisir le code.
-3. Confirmer avec la clé d'accès du téléphone (empreinte, visage ou verrouillage d'écran). Le serveur pose alors le
-   cookie de session, valable 30 jours d'inactivité au plus.
-4. L'écran `/reglages` liste les appareils associés et permet de les révoquer.
+La page d'administration de l'appli Home Assistant n'ouvre aucun appairage de navigateur : elle tourne dans un autre
+processus que le client web publié par Serve, qui refuserait son code. Depuis la version 0.58.4, l'appli Home
+Assistant ne lance donc plus de client web, et sa section « Navigateurs web » renvoie ici.
 
-La page d'administration n'existe que dans l'appli Home Assistant. Un serveur lancé ailleurs (le PC, par exemple)
-amorce son premier propriétaire au démarrage :
+### Le premier téléphone du propriétaire
+
+Le serveur publié par Serve amorce son premier propriétaire au démarrage :
 
 ```bash
 python poc/serveur_satellite.py --amorcer-proprietaire "Téléphone du propriétaire"
@@ -167,7 +162,35 @@ tient lieu de confirmation : il n'y a pas d'étape 3 côté administration, seul
 fichier disparaît dès que l'appairage aboutit, se ferme ou expire. Il suffit de relancer le serveur avec l'option
 pour en obtenir un nouveau.
 
-En cas de blocage, le repli en console est `python poc/appairage_web.py --reinitialiser`.
+Sur le téléphone, ouvrir `https://assistant.exemple.ts.net/appairage`, saisir le code, puis confirmer avec la clé
+d'accès du téléphone (empreinte, visage ou verrouillage d'écran). Le serveur pose alors le cookie de session, valable
+30 jours d'inactivité au plus. En cas de blocage, le repli en console est `python poc/appairage_web.py --reinitialiser`.
+
+### Les navigateurs suivants
+
+1. Depuis un navigateur propriétaire déjà appairé, ouvrir `/associer`, donner un nom et un rôle (Habitant, ou Invité
+   pour une durée limitée). Le code à 6 chiffres vaut 2 minutes, trois essais.
+2. Sur le nouveau téléphone, scanner le QR code ou ouvrir `/appairage` et saisir le code, puis créer sa clé d'accès.
+3. Le propriétaire confirme sur `/associer` avec sa propre clé d'accès.
+4. L'écran `/reglages` liste les appareils associés et permet de les révoquer.
+
+### Le téléphone d'une autre personne
+
+Son téléphone doit d'abord atteindre le PC, par le partage de nœud Tailscale.
+
+**Avant tout partage, vérifiez que l'ACL de la section 5 est enregistrée.** Une règle dont la source est `*`
+s'applique aussi aux comptes invités : sans ACL, la personne atteint tous les ports du PC (8765, 8766, bureau à
+distance, partage de fichiers), pas seulement le client web.
+
+1. Ajouter à l'ACL une règle qui donne à son compte le port 443 du PC et rien d'autre (exemple commenté dans le
+   modèle), et regarder la prévisualisation pour ce compte.
+2. Dans la console, onglet Machines, menu du PC, Share : créer un lien d'invitation et le lui transmettre.
+3. La personne installe Tailscale sur son téléphone, se connecte avec son propre compte et accepte le lien.
+4. Elle ne joint le PC que par son nom complet, `https://assistant.exemple.ts.net/`. L'appairage se fait ensuite comme
+   pour les navigateurs suivants.
+
+Pour lui retirer l'accès : révoquer son navigateur depuis `/reglages`, puis retirer le partage dans la console. Le
+client web reste inaccessible quand le PC est éteint.
 
 ## 7. Lire un refus
 
