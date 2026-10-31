@@ -93,7 +93,7 @@ TAUX = 16000
 # s'élargit, pas la vue du LLM. Les entités des domaines ajoutés grossiraient le prompt de Qwen 9B sans mesure
 # sur la vraie maison, et il ne peut viser que ce qu'il voit (HomeAssistant.service refuse le reste). Pour
 # l'élargir : ajouter le domaine ici, après mesure de la latence (banc llm_maison) sur la vraie maison.
-# Les boutons (36 chez aspirateur) gonflent le prompt sans servir à la voix.
+# Les boutons (36 sur un aspirateur robot) gonflent le prompt sans servir à la voix.
 # Ni boutons ni interrupteurs : dans la maison d'origine, ce sont des réglages (enceintes, aspirateur) qui embrouillent
 # Qwen 9B (« Lecture automatique TV » pris pour la télé, banc du 12/10). Le dictionnaire les couvre.
 DOMAINES_LLM = {"climate", "cover", "fan", "input_boolean", "light", "media_player", "music_assistant", "scene",

@@ -796,7 +796,7 @@ Session S-C3 du plan 1.2.0. Aucun changement de comportement pour une configurat
   dessiné à la main, sans donnée importée. `LISEZMOI.txt` le dit.
 - `poc/meteo_mer.py` et `poc/vent_mesure.py` ne nomment plus aucun lieu. Le nom, le fuseau, les modèles (ARPEGE et
   AROME dans l'exemple), les points, les lieux de vagues et la station à terre sont lus dans la configuration. Les
-  noms de variables `FUSEAU` et `paris()` deviennent `LOCAL` et `heure_locale()`.
+  noms de variables propres à un fuseau deviennent `LOCAL` et `heure_locale()`.
 - `poc/.env.exemple` : les noms de stations et de balises sont remplacés par des clés génériques commentées.
 - `config-exemple/genere/android/dictionnaire.json` est régénéré (17 099 formes, 1,7 Mo). Il reste suivi, car
   `test_export_exemple_a_jour` le compare à l'export neuf et `android/app/build.gradle.kts` le lit.
@@ -917,7 +917,7 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
 - Nouvelle section `acces` de `maison.json` (clé fictive dans `config-exemple/`) : `ecoute` (adresses d'écoute des ports
   8765 et 8766, `0.0.0.0` par défaut), `reseaux_autorises` (connexion refusée hors maison, tailnet et machine locale par
   défaut, `"*"` pour tout ouvrir), `ancien_acces` (jeton dans l'adresse sur 8765, permis par défaut,
-  `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Ports 8765 et ancien accès non coupés : décision du propriétaire.
+  `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Le port 8765 et l'ancien accès restent réglables.
 
 ## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
 - Services ouverts au serveur (`SERVICES_PERMIS`) : `<domaine_tele>.launch_app`, `<domaine_tele>.send_text_input`,
