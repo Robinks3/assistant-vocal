@@ -6,6 +6,8 @@ satellites.
 
 ## Serveur 0.59.0 (2026-10-31), neutralisation avant publication
 
+- Intégration continue sur GitHub (`.github/workflows/ci.yml`) : tests du serveur, tests de l'appli, garde-fou et gitleaks sur tout l'historique. Dependabot chaque semaine. Aucun déploiement depuis GitHub.
+
 - Neutralisation du dépôt avant publication : tout ce qui situait ou identifiait une installation passe en configuration.
 - Sections `mer` et `vent` : clés génériques `mer.vagues_regional`, `vent.balises` (`nom`, `url` avec `{requete}`, `requete`, `fiches`) et `vent.stations_officielles` (`nom`, `panne`). Le code garde des adaptateurs de format. Valeurs `source` du message : `balises`, `officielles`, `station_terre`, `vagues_source` : `regional`. Sans ancien nom accepté.
 - Sports de la santé dans `sante.sports` (familles, libellés du tableau de bord, hors charge, titres).

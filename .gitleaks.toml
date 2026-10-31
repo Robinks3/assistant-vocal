@@ -1,0 +1,7 @@
+# Règles par défaut de gitleaks, plus les faux positifs connus du dépôt.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Modèle de poc/.env : les clés y sont vides, la règle générique prend la ligne suivante pour une valeur"
+paths = ['''^poc/\.env\.exemple$''']

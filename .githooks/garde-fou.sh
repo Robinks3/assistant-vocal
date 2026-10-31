@@ -32,7 +32,7 @@ MOTIFS_SECRETS+="|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0
 MOTIFS_SECRETS+="|-----BEGIN [A-Z ]*PRIVATE KEY-----"
 MOTIFS_SECRETS+="|(HA_TOKEN|ANTHROPIC_API_KEY|OPENAI_API_KEY|MISTRAL_API_KEY|STT_API_CLE|SANTE_JETON|SATELLITE_JETON[A-Z_]*)[[:space:]]*[=:][[:space:]]*$Q?[A-Za-z0-9._~+/=-]{8,}$Q?[[:space:]]*(\$|#)"
 # Forme générique : mot-clé de secret suivi d'une longue valeur entre guillemets, hors valeurs de test.
-MOTIF_GENERIQUE="(api[_-]?key|secret|token|password|passwd|mot_de_passe|jeton)$Q?[[:space:]]*[=:][[:space:]]*$Q[A-Za-z0-9._~+/=-]{20,}$Q"
+MOTIF_GENERIQUE="(api[_-]?key|secret|token|password|passwd|mot_de_passe|jeton)${Q}?[[:space:]]*[=:][[:space:]]*${Q}[A-Za-z0-9._~+/=-]{20,}${Q}"
 MOTS_FACTICES='test|exemple|example|invent|faux|fake|dummy|xxx|changeme|placeholder'
 
 TMP=$(mktemp -d)
