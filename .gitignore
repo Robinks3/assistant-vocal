@@ -108,3 +108,8 @@ config-exemple/genere/android/maison3d/
 
 # Consignes personnelles des agents de codage
 CLAUDE.local.md
+
+# Modèles openWakeWord sous CC BY-NC-SA, retéléchargés par poc/outils/telecharger_modeles.py
+android/app/src/main/assets/reveil/embedding_model.onnx
+android/app/src/main/assets/reveil/hey_jarvis_v0.1.onnx
+android/app/src/main/assets/reveil/melspectrogram.onnx
