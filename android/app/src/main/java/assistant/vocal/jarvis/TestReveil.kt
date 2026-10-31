@@ -11,8 +11,8 @@ import java.nio.ByteOrder
  * Banc du mot de réveil local, sans micro : passe des WAV (16 kHz, mono, 16 bits) dans
  * ReveilLocal et écrit dans logcat (étiquette JarvisReveil) le score maximal, le bloc où il
  * tombe et le temps de calcul par bloc. Les WAV sont déposés par adb dans
- * /sdcard/Android/data/assistant.vocal.jarvis/files/, puis :
- *   adb shell am start -n assistant.vocal.jarvis/.MainActivity --es test_reveil positif.wav,negatif.wav
+ * /sdcard/Android/data/<application_id>/files/, puis :
+ *   adb shell am start -n <application_id>/assistant.vocal.jarvis.MainActivity --es test_reveil positif.wav,negatif.wav
  */
 object TestReveil {
     private const val TAG = "JarvisReveil"

@@ -365,7 +365,7 @@ internal class EcranMusique(
             l.caseACocher.text = if (seule) "${SortieSon.nomCourt(e.id)}\nne se regroupe pas" else SortieSon.nomCourt(e.id)
             if (!l.glisse && t - l.volumeLe > ATTENTE_CONFIRMATION_MS) {
                 val p = Math.round(e.volume * 100).toInt().coerceIn(0, 100)
-                // Enceinte déjà plus haut (réglée depuis l'appli Enceintes) : piste pleine, valeur lue affichée telle quelle.
+                // Enceinte déjà plus haut (réglée depuis l'appli des enceintes) : piste pleine, valeur lue affichée telle quelle.
                 l.volume.progress = p.coerceAtMost(l.volume.max)
                 l.pourcent.text = "$p %"
             }

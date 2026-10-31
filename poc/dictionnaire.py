@@ -58,7 +58,7 @@ def mots_compatibles(a, b):
     """Vrai si les deux phrases ne diffèrent que par des mots proches (fautes) ou des petits mots.
 
     Chaque mot présent d'un seul côté doit ressembler à un mot de l'autre côté : ratio de 0,75 au
-    moins, ou de 0,5 avec la même première lettre (« sonneau » et « enceintes » passent, « rouge » et
+    moins, ou de 0,5 avec la même première lettre (« enceint » et « enceinte » passent, « rouge » et
     « orange » ou « bleu » non), ou faire au plus 3 lettres (« la », « du », « les »)."""
     def proche(m, o):
         r = difflib.SequenceMatcher(None, m, o).ratio()
@@ -256,7 +256,7 @@ class Dictionnaire:
         cle = normaliser(phrase)
         trouve = self.formes.get(cle)
         if not trouve:
-            # Tolérance aux fautes de transcription (« sonneau » pour « enceintes »), mais jamais à un mot
+            # Tolérance aux fautes de transcription (« enceint » pour « enceinte »), mais jamais à un mot
             # remplacé par un autre (« rouge » pris pour « bleu » le 12/10, la lampe est repassée en
             # bleu), et jamais pour les phrases apprises, qui ne valent que mot pour mot.
             proches = [c for c in difflib.get_close_matches(cle, self.formes, n=5, cutoff=SEUIL_FLOU)

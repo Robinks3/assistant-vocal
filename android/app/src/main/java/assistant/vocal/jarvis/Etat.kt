@@ -385,7 +385,7 @@ object Etat {
     var actionMeteoMer: (((org.json.JSONObject?) -> Unit) -> Unit)? = null
 
     /**
-     * Vent mesuré dans le golfe (0.29.0, message `vent_mesure`, serveur 0.24.0) : au PC, sinon à l'appli de l'assistant sur
+     * Vent mesuré sur le plan d'eau (0.29.0, message `vent_mesure`, serveur 0.24.0) : au PC, sinon à l'appli de l'assistant sur
      * HA. La réponse du serveur, ou null, sur le fil principal. Posé par le service.
      */
     @Volatile

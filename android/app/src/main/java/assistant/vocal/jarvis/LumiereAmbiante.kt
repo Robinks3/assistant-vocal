@@ -16,7 +16,7 @@ import kotlin.math.min
  * lumière ? », puis « Utilise le capteur de lumière pour adapter les choses ». Jusqu'à la 0.27.0, le plafond du
  * régime vivant suivait l'heure : 40 %, 10 % de minuit à 7 h, même dans un séjour éclairé.
  *
- * Le capteur de la tablette (veml3328, android.sensor.light) ne parle que quand la lumière change. Trois filtres
+ * Le capteur de la tablette (android.sensor.light) ne parle que quand la lumière change. Trois filtres
  * avant la courbe :
  * - médiane des mesures des [FENETRE_MS] dernières secondes (la dernière reste valable tant qu'aucune ne la
  *   remplace) : une lampe de téléphone passée devant, une main, un reflet ne comptent pas ;
@@ -168,7 +168,7 @@ class LumiereAmbiante {
 
         /**
          * Courbe lux vers consigne de la fenêtre (0 à 1), linéaire en log10(lux + 1) entre ces points. Mesures sur la
-         * tablette à sa place dans le séjour (24/10/2026, 0 h 48) : 0 lux tout éteint, 1 avec la suspension seule à 100 %,
+         * Tablette à sa place dans le séjour (24/10/2026, 0 h 48) : 0 lux tout éteint, 1 avec la suspension seule à 100 %,
          * 3 avec la lampe de la télé en plus, 14 avec les trois lampes du séjour, et de 80 à 215 lux un après-midi
          * (22/10, capteur de couleur). Noir 6 %, séjour tout allumé le soir 35 % (10 % avant), jour 55 % (40 % avant).
          */

@@ -82,7 +82,7 @@
     {"nom": "service hors liste blanche", "direct_refuse": true, "etape": {"etape": "service", "domaine": "light", "service": "reload", "entity_id": "light.salon_plafond"}},
     {"nom": "domaine hors liste blanche", "direct_refuse": true, "etape": {"etape": "service", "domaine": "recorder", "service": "purge", "entity_id": "light.salon_plafond"}},
     {"nom": "scène appliquée", "direct_refuse": true, "etape": {"etape": "service", "domaine": "scene", "service": "apply", "entity_id": "light.salon_plafond"}},
-    {"nom": "domaine réservé à l'appli", "direct_refuse": false, "etape": {"etape": "service", "domaine": "domaine_tele", "service": "launch_app", "entity_id": "media_player.tele_salon", "donnees": {"source": "Inconnue"}}},
+    {"nom": "domaine réservé à l'appli", "direct_refuse": false, "etape": {"etape": "service", "domaine": "tele_connectee", "service": "launch_app", "entity_id": "media_player.tele_salon", "donnees": {"source": "Inconnue"}}},
     {"nom": "cible par pièce", "direct_refuse": false, "etape": {"etape": "service", "domaine": "light", "service": "turn_off", "area_id": "salon"}},
     {"nom": "cible par pièce en plus de l'entité", "direct_refuse": false, "etape": {"etape": "service", "domaine": "light", "service": "turn_off", "entity_id": "light.salon_plafond", "area_id": "chambre_camille"}},
     {"nom": "cible par pièce dans les données", "direct_refuse": false, "etape": {"etape": "service", "domaine": "light", "service": "turn_off", "entity_id": "light.salon_plafond", "donnees": {"area_id": "chambre_camille"}}},

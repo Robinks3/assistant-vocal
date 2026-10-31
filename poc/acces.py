@@ -753,9 +753,9 @@ SCHEMA_URL = re.compile(r"\s*[A-Za-z][^\s:/]*:")
 
 
 def refus_launch_app(service, corps):
-    """Raison du refus pour domaine_tele.launch_app (0.30.0), ou None : une URL doit être en https://,
+    """Raison du refus pour launch_app du domaine de la télé (0.30.0), ou None : une URL doit être en https://,
     et aucune autre valeur ne doit commencer par un autre schéma (http:, javascript:, data:...)."""
-    if service != "domaine_tele.launch_app":
+    if service != f"{liste_blanche.DOMAINE_TELE}.launch_app":
         return None
     if not isinstance(corps, dict):
         return "launch_app : corps attendu sous forme d'objet (sécurité)"
@@ -846,7 +846,7 @@ def verifier_requete_ha(methode, chemin, corps, personne=None):
     if not m:
         return "chemin non permis"
     domaine, service = m.groups()
-    # Les domaines réservés à l'appli et au dictionnaire (domaine_tele, remote, select) ont leur liste de
+    # Les domaines réservés à l'appli et au dictionnaire (télé connectée, remote, select) ont leur liste de
     # services dans liste_blanche, la même que celle du serveur. Les autres domaines gardent leur liberté de
     # services côté appli (media_player.join pour grouper les enceintes), le LLM seul a la liste.
     permis = liste_blanche.SERVICES_PERMIS.get(domaine) if domaine in liste_blanche.DOMAINES_HORS_LLM else None

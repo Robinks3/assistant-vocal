@@ -213,7 +213,7 @@ class TranscriptionPc(
         return demanderHistorique(JSONObject().put("type", "meteo_mer"), delaiMs, verifier = false)
     }
 
-    /** Vent mesuré dans le golfe (0.29.0, `{"type": "vent_mesure", "id": n}`), comme [meteoMer]. */
+    /** Vent mesuré sur le plan d'eau (0.29.0, `{"type": "vent_mesure", "id": n}`), comme [meteoMer]. */
     fun ventMesure(delaiMs: Long): JSONObject? {
         if (!ventMesureDispo) return null
         return demanderHistorique(JSONObject().put("type", "vent_mesure"), delaiMs, verifier = false)

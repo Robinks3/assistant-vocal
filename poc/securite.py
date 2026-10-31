@@ -76,7 +76,7 @@ def en_heure_calme(heure, debut, fin):
 PLAGE_CALME = "entre {} et {}".format(*("minuit" if h % 24 == 0 else f"{h} h" for h in (HEURE_CALME_DEBUT, HEURE_CALME_FIN)))
 
 # Plafond du volume, réglé dans la configuration : securite.plafond_volume, en pourcentage, 100 par défaut
-# (aucun plafond). Le 12/10, « Mets le salon à fond » avait mis la Enceintes au maximum (en essai, rien n'est
+# (aucun plafond). Le 12/10, « Mets le salon à fond » avait mis l'enceinte au maximum (en essai, rien n'est
 # parti), d'où un plafond fixe le 22/10/2026, rendu réglable le 25/10/2026 à la demande du propriétaire.
 # Une valeur illisible garde un plafond prudent (PLAFOND_SI_ILLISIBLE), pour qu'une faute de frappe ne lève
 # pas un plafond voulu. Même lecture dans Securite.kt (cas communs « plafonds_configures »).

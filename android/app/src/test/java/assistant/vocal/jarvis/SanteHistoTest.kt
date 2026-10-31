@@ -36,7 +36,7 @@ class SanteHistoTest {
           "profond_minutes": 87, "pas": 9582, "distance_m": 7100, "fc_repos": 48.4, "fc_moyenne": 71.1, "spo2_min": 89,
           "sport": {"minutes": 150, "seances": 2, "trimp": 231.5, "sans_fc": 0, "minutes_par_semaine": 150,
             "seances_par_semaine": 2.0, "trimp_par_semaine": 232,
-            "par_sport": {"course": {"nom": "course", "minutes": 150, "seances": 2, "trimp": 231.5, "sans_fc": 0}}}},
+            "par_sport": {"natation": {"nom": "Natation", "minutes": 150, "seances": 2, "trimp": 231.5, "sans_fc": 0}}}},
         "avant": null,
         "sport": {"granularite": "jour", "groupes": [{"debut": "2026-10-16", "jours": 1, "en_cours": false, "minutes": 80,
           "seances": 1, "trimp": 120, "sans_fc": 0, "par_sport": {}}], "par_mois": null},
@@ -59,7 +59,7 @@ class SanteHistoTest {
         assertEquals(48, p.bilan!!.fcRepos)
         assertEquals(2.0, p.bilan!!.sport!!.seancesParSemaine!!, 0.0)
         assertEquals(232, p.bilan!!.sport!!.trimpParSemaine)
-        assertEquals("course", p.bilan!!.sport!!.parSport.getValue("course").nom)
+        assertEquals("Natation", p.bilan!!.sport!!.parSport.getValue("natation").nom)
         assertNull(p.avant)
         assertEquals("jour", p.sportGranularite)
         assertEquals(listOf("ski", "snowboard"), p.horsCharge)
@@ -115,7 +115,7 @@ class SanteHistoTest {
 
     private fun ligne(id: String, date: String, sport: String, minutes: Int, trimp: Any?, avecFc: Boolean = true) = JSONObject()
         .put("seance_id", id).put("date", date).put("debut_local", date + "T20:30:00").put("minutes", minutes).put("sport", sport)
-        .put("nom", if (sport == "course") "Course à pied" else if (sport == "ski") "Ski" else "course")
+        .put("nom", if (sport == "course") "Course à pied" else if (sport == "ski") "Ski" else "Natation")
         .put("distance_m", if (sport == "course") 8400 else JSONObject.NULL).put("allure_s_par_km", if (sport == "course") 302 else JSONObject.NULL)
         .put("fc_moyenne", if (avecFc) 148 else JSONObject.NULL).put("fc_max", if (avecFc) 182 else JSONObject.NULL)
         .put("trimp", trimp ?: JSONObject.NULL).put("avec_fc", avecFc)
@@ -126,14 +126,14 @@ class SanteHistoTest {
         .put("par_sport", JSONObject()).put("tronque", tronque).put("seances", JSONArray(l.toList())))
 
     private val seancesInventees = arrayOf(
-        ligne("a", "2026-10-20", "course", 80, 140),
+        ligne("a", "2026-10-20", "natation", 80, 140),
         ligne("b", "2026-10-18", "course", 45, 90.4),
         ligne("c", "2026-10-17", "ski", 120, 200),
-        ligne("d", "2026-10-16", "course", 70, null, avecFc = false),
-        ligne("e", "2026-10-14", "course", 75, 100),
-        ligne("f", "2026-10-01", "course", 80, 120),
-        ligne("g", "2026-09-20", "course", 85, 180),
-        ligne("h", "2026-09-17", "course", 90, 500),
+        ligne("d", "2026-10-16", "natation", 70, null, avecFc = false),
+        ligne("e", "2026-10-14", "natation", 75, 100),
+        ligne("f", "2026-10-01", "natation", 80, 120),
+        ligne("g", "2026-09-20", "natation", 85, 180),
+        ligne("h", "2026-09-17", "natation", 90, 500),
     )
 
     @Test
@@ -198,7 +198,7 @@ class SanteHistoTest {
 
     @Test
     fun pas_de_charge_quand_seul_le_ski_a_du_coeur() {
-        val l = SanteHisto.seances(liste("2026-07-25", false, ligne("c", "2026-10-17", "ski", 120, 200), ligne("d", "2026-10-16", "course", 70, null, avecFc = false)))!!
+        val l = SanteHisto.seances(liste("2026-07-25", false, ligne("c", "2026-10-17", "ski", 120, 200), ligne("d", "2026-10-16", "natation", 70, null, avecFc = false)))!!
         val w = SanteHisto.semaine(l, jour)!!
         assertEquals(2, w.seances)
         assertEquals(0, w.avecCharge)
@@ -238,7 +238,7 @@ class SanteHistoTest {
 
     @Test
     fun seance_complete_avec_et_sans_bornes() {
-        val o = ligne("a", "2026-10-20", "course", 80, 140).put("fin_local", "2026-10-20T21:50:00").put("kcal", 820)
+        val o = ligne("a", "2026-10-20", "natation", 80, 140).put("fin_local", "2026-10-20T21:50:00").put("kcal", 820)
             .put("fc_min", 92).put("dans_la_charge", true)
             .put("zones_minutes", JSONObject().put("z1", 6).put("z2", 33).put("z3", 18).put("z4", 13).put("z5", 4))
             .put("fc_max_reference", 190)
@@ -280,7 +280,7 @@ class SanteHistoTest {
               "serie_pas": {"valeur": 12, "unite": "jours", "du": "2026-09-12", "au": "2026-09-23", "battu_le": null},
               "journee_la_plus_active": {"valeur": 24310, "unite": "pas", "date": "2026-08-17", "battu_le": null},
               "meilleure_semaine_pas": {"valeur": 102400, "unite": "pas", "lundi": "2026-08-10", "battu_le": null},
-              "seance_la_plus_chargee": {"valeur": 156.5, "unite": "trimp", "date": "2026-10-20", "seance_id": "a", "sport": "course", "battu_le": "2026-10-20"},
+              "seance_la_plus_chargee": {"valeur": 156.5, "unite": "trimp", "date": "2026-10-20", "seance_id": "a", "sport": "natation", "battu_le": "2026-10-20"},
               "meilleure_allure_5km": {"valeur": 302, "unite": "s/km", "date": "2026-06-29", "seance_id": "b", "sport": "course", "distance_m": 6100, "battu_le": null},
               "fc_la_plus_basse": null}}"""))
         val rec = SanteHisto.records(r)!!
@@ -439,7 +439,7 @@ class SanteHistoTest {
     }
 
     @Test
-    fun demonstrationSansCourse() {
+    fun demonstrationSansSportPropreALaMaison() {
         val r = SanteDemo.reponse(JSONObject().put("type", "sante_seances").put("jours", 365).put("sport", "tous"), LocalDate.of(2026, 10, 24))
         val sports = r.getJSONObject("donnees").getJSONObject("par_sport").keys().asSequence().toSet()
         assertEquals(setOf("natation", "velo", "course"), sports)

@@ -64,9 +64,9 @@ class SatelliteService : Service() {
     companion object {
         /** Réponse du PC au résumé de santé attendue 15 s au plus (0.21.1 : le serveur attend jusqu'à 11 s). */
         const val DELAI_SANTE_MS = 15_000L
-        /** Météo marine (0.25.0) : la première lecture de VaguesRegional prend une vingtaine de secondes. */
+        /** Météo marine (0.25.0) : la première lecture de la source régionale prend une vingtaine de secondes. */
         const val DELAI_METEO_MER_MS = 25_000L
-        /** Vent mesuré (0.29.0) : le serveur lit ses sources en parallèle, 20 s au plus pour StationsOfficielles. */
+        /** Vent mesuré (0.29.0) : le serveur lit ses sources en parallèle, 20 s au plus pour les stations officielles. */
         const val DELAI_VENT_MESURE_MS = 25_000L
         /** Historique de l'air (0.47.0) : une requête d'historique à HA, 7 jours réduits à 288 points. */
         const val DELAI_AIR_HISTORIQUE_MS = 20_000L
@@ -475,7 +475,7 @@ class SatelliteService : Service() {
                 principal.post { suite(r) }
             }, "meteo-mer").start()
         }
-        // Vent mesuré (0.29.0) : même chemin que la météo marine, 15 s au plus (Balises 10 s, StationsOfficielles 20 s en
+        // Vent mesuré (0.29.0) : même chemin que la météo marine, 15 s au plus (balises 10 s, stations officielles 20 s en
         // tâche de fond côté serveur, qui sert son cache).
         Etat.actionVentMesure = { suite ->
             val m = moteurLocal

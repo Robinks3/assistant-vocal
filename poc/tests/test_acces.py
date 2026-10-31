@@ -32,9 +32,9 @@ def test_appairage_puis_revocation(tmp_path):
     async def deroule():
         app = acces.Appareils(tmp_path, {})
         futur = asyncio.get_running_loop().create_future()
-        ident, code, nom = app.demande("tablette <script>", "192.168.0.20", futur)
+        ident, code, nom = app.demande("Tablette <script>", "192.168.0.20", futur)
         assert len(code) == 4 and code.isdigit()
-        assert nom == "tablette script"
+        assert nom == "Tablette script"
         assert app.vue(avec_code=True)["attente"][0]["code"] == code
         assert app.accepter(ident) == nom
         jeton = await futur

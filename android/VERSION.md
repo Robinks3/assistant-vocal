@@ -1,13 +1,19 @@
 # Assistant vocal, versions de l'appli Android
 
-Application Android `assistant.vocal.jarvis` : écran ambiant et assistant vocal de la maison sur une tablette posée
+Application Android de l'assistant : écran ambiant et assistant vocal de la maison sur une tablette posée
 en paysage (mode « Cet appareil » ou serveur `poc/serveur_satellite.py`), satellite vocal sur les
 téléphones. La version et la date de compilation s'affichent dans la couche de service de l'accueil de la
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.50.0 (2026-10-31), paquet neutre et identifiant en configuration
+
+Mineure (versionCode 91). Paquet Kotlin `assistant.vocal.jarvis` (`namespace`), `applicationId` lu dans
+`appareils.android.application_id` de la configuration : l'appli installée et son appairage ne bougent pas. Titres de
+séances propres à la maison dans `sante.sports.titres`. Commentaires et tests sans matériel ni source réels.
+
 ## 0.49.0 (2026-10-27), nom public « Assistant vocal local »
-Mineure (versionCode 90). Session S-C6 du plan, décision D1 du 26/10/2026. `applicationId` `assistant.vocal.jarvis` inchangé :
+Mineure (versionCode 90). Session S-C6 du plan, décision D1 du 26/10/2026. `applicationId` inchangé :
 aucun réappairage, la mise à jour s'installe par-dessus l'ancienne.
 - Sous-titre de l'en-tête de l'accueil de la tablette : « Assistant vocal local » (il disait « Assistant vocal de la
   maison »), avec la version et la date de compilation derrière en mode développeur. Le nom affiché de l'assistant,
@@ -232,7 +238,7 @@ périmètre LLM (`DOMAINES`) reste le même, le complément dynamique pris à Ho
 ## 0.37.5 (2026-10-26), dossier de compilation par système, signature facultative
 Session S-D4 du plan 1.2.0 (versionCode 71). Le numéro 0.37.4 est réservé à S-D1, menée en parallèle. Aucun
 changement de comportement de l'appli.
-- `build.gradle.kts` (racine) : le dossier de compilation `C:/Dev/assistant-vocal-build` n'est plus imposé qu'à Windows
+- `build.gradle.kts` (racine) : le dossier de compilation `../../assistant-vocal-build` n'est plus imposé qu'à Windows
   (Defender et Windows Search). Ailleurs, chaque module garde son dossier `build/` standard, ignoré par git.
   `-PdossierBuild=...` reste possible partout. Le paramètre n'est plus obligatoire hors de Windows.
 - `app/build.gradle.kts` : signature de publication facultative. Si `android/keystore.properties` existe (ignoré
@@ -258,7 +264,7 @@ Session S-D3 du plan 1.2.0.
 - C14 : recherche d'un prénom ou d'un « Hey Jarvis » en dur dans `java/assistant/vocal/jarvis/` et `res/` qui devrait suivre
   la configuration. Rien à faire : les seuls textes affichés sont le nom du modèle de repli (« Hey Jarvis », le nom
   réel de ce modèle) et le mot annoncé par le serveur, et les prénoms ne figurent que dans des commentaires.
-  `assistant.vocal.jarvis` et les noms de fichiers ne changent pas.
+  le paquet et les noms de fichiers ne changent pas.
 - `ReveilConfigTest` : `config-exemple/` décrit maintenant le mot « assistant » (nom « Assistant »), « Hey Jarvis »
   reste le modèle de repli.
 
@@ -325,7 +331,7 @@ Session S-C3 du plan 1.2.0. Aucun changement visible avec une configuration exis
   échouait et d'une case qui revenait seule après 5 s. La ligne redevient normale quand l'enceinte revient.
 - Carte « en cours » de l'accueil : elle suit d'abord une enceinte de la sortie du son qui joue (le meneur
   d'abord, reconnu en tête de `group_members`, `buffering` compris) au lieu du premier lecteur en lecture. Elle affichait 100 % (volume du compte Spotify) quand les
-  Enceintes étaient à 30 %.
+  enceintes étaient à 30 %.
 - Tests `SortieSonTest.enceinteHorsLigneNeSeCochePas` et `CarteEnCoursSuiviTest`. versionCode 61.
 
 ## 0.32.3 (2026-10-25)

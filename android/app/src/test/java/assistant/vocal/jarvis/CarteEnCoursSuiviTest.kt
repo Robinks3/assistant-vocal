@@ -3,7 +3,7 @@ package assistant.vocal.jarvis
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Lecteur suivi par la carte de l'accueil (25/10/2026 : volume du compte Spotify montré à la place des Enceintes). */
+/** Lecteur suivi par la carte de l'accueil (25/10/2026 : volume du compte Spotify montré à la place des enceinte). */
 class CarteEnCoursSuiviTest {
 
     private fun l(id: String, etat: String, volume: Double, membres: Set<String> = emptySet()) =

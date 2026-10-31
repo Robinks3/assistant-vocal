@@ -500,7 +500,7 @@ class MainActivity : Activity() {
         demanderPermissions()
         relancerSiStation()
         // Le dossier du modèle Canary doit appartenir à l'appli : créé par adb, Android 16 en
-        // refuse la lecture (errno 13 sur le téléphone le 13/10/2026). Les fichiers y sont ensuite poussés.
+        // refuse la lecture (errno 13 sur un téléphone le 13/10/2026). Les fichiers y sont ensuite poussés.
         CanaryLocal.dossierModele(this).mkdirs()
         ModeleLiteRt.dossier(this).mkdirs()
         // Extras de banc (S-D5, I11) : MainActivity est exportée, ils ne sont lus que dans un build de débogage.
@@ -720,7 +720,7 @@ class MainActivity : Activity() {
     /**
      * Démonstration de l'animation d'une action sur des lumières (0.17.5), sans rien envoyer à Home
      * Assistant, pour la voir ou la filmer sans toucher à l'appartement :
-     * `adb shell am start -n assistant.vocal.jarvis/.MainActivity --es demo_lumieres light.salon_plafond --es demo_effet allumer`
+     * `adb shell am start -n <application_id>/assistant.vocal.jarvis.MainActivity --es demo_lumieres light.salon_plafond --es demo_effet allumer`
      * (effet : allumer, eteindre ou regler). Une carte « démonstration » naît de l'orbe et l'aperçu 3D
      * joue l'effet, les lampes visées gardant l'état joué au lieu de celui de HA.
      */

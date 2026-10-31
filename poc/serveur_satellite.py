@@ -1,4 +1,4 @@
-"""Serveur des satellites vocaux (téléphone téléphone posé dans un coin).
+"""Serveur des satellites vocaux (téléphone posé dans un coin).
 
 Le téléphone envoie le son de son micro en continu (PCM 16 bits, 16 kHz, mono) par WebSocket.
 Le serveur guette le mot de réveil (openWakeWord, section reveil de maison.json, sinon le modèle de repli),
@@ -55,7 +55,7 @@ Depuis 0.19.0 :
                               Cache de 10 min en mémoire, rien sur disque.
 Depuis 0.20.0 (serveur du PC, ou appli HA avec sante_jeton, capacité "sante_historique", même contrôle d'accès que "sante") :
   {"type": "sante_periode", "id", "jours": 7|30|90|365}   onglet Tendances
-  {"type": "sante_seances", "id", "jours", "sport": "tous"|"course"|"course"|...}   onglet Séances
+  {"type": "sante_seances", "id", "jours", "sport": "tous"|"course"|"natation"|...}   onglet Séances
   {"type": "sante_seance", "id", "seance_id"}   détail d'une séance, avec l'analyse écrite du jour
   {"type": "sante_records", "id"}               onglet Records
   {"type": "sante_jour", "id", "date": "AAAA-MM-JJ"}   vue Jour, avec l'hypnogramme de la nuit
@@ -71,8 +71,8 @@ Depuis 0.22.0 (deux profils, capacité "meteo_mer", avec une section « mer » a
                               servi à toute connexion. Forme détaillée de donnees dans meteo_mer.py.
 Depuis 0.24.0 (deux profils, capacité "vent_mesure", avec les sections « mer » et « vent » actives,
 éteinte par VENT_MESURE=0) :
-  {"type": "vent_mesure", "id"}  page « Vent mesuré » : mesures réelles de vent (balises Balises,
-                              stations StationsOfficielles nommées et amateurs, station à terre de la configuration),
+  {"type": "vent_mesure", "id"}  page « Vent mesuré » : mesures réelles de vent (balises,
+                              stations officielles nommées et amateurs, station à terre de la configuration),
                               réponse {"etat":"vent_mesure","id","donnees":{lu_a, stations, erreurs}} ou
                               {"etat":"vent_mesure","id","erreur"} si aucune source n'a jamais rien
                               donné. Sources publiques, aucune donnée personnelle : servi à toute
@@ -640,7 +640,7 @@ def profil():
     return os.getenv("JARVIS_PROFIL", "pc").strip().lower()
 
 
-# Applis vocales de Home Assistant (petite machine, petit serveur à l'origine), par leur nom d'hôte sur le réseau interne de HA.
+# Applis vocales de Home Assistant (petite machine), par leur nom d'hôte sur le réseau interne de HA.
 # Depuis l'appli de l'assistant dans HA : connexion directe. Depuis le PC : elles ne sont pas ouvertes sur
 # le LAN et le SSH de HA interdit les tunnels, le protocole Wyoming passe donc par
 # `ssh <alias de HA> nc <hôte> <port>` (environ 0,5 s de plus par phrase). Mesures du 12/10/2026.

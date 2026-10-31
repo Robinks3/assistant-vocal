@@ -9,9 +9,9 @@ V = acces.verifier_requete_ha
 
 # (domaine, service, corps) de chaque service ouvert au lot 1
 NOUVEAUX = [
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "url": "https://www.netflix.com/title/80100172"}),
-    ("domaine_tele", "send_text_input", {"entity_id": TELE, "text": "docteur"}),
-    ("domaine_tele", "set_picture_setting", {"entity_id": TELE, "setting": "brightness", "value": 40}),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "url": "https://www.netflix.com/title/80100172"}),
+    ("tele_connectee", "send_text_input", {"entity_id": TELE, "text": "docteur"}),
+    ("tele_connectee", "set_picture_setting", {"entity_id": TELE, "setting": "brightness", "value": 40}),
     ("remote", "send_command", {"entity_id": "remote.salon", "command": "KEY_HOME"}),
     ("select", "select_option", {"entity_id": "select.salon_mode", "option": "Cinéma"}),
 ]
@@ -46,7 +46,7 @@ def test_device_id_toujours_refuse(domaine, service, corps):
 def test_service_voisin_non_ouvert():
     # Depuis la décision D6 (26/10/2026), remote.turn_off et select.select_first sont permis : restent fermés
     # ce qui écrit la mémoire de la télécommande ou n'existe pas.
-    for domaine, service in (("domaine_tele", "reboot"), ("remote", "learn_command"),
+    for domaine, service in (("tele_connectee", "reboot"), ("remote", "learn_command"),
                              ("remote", "delete_command"), ("select", "reload")):
         assert service not in A.SERVICES_PERMIS[domaine]
         assert "erreur" in _ha().service(domaine, service, "x.y")
@@ -58,7 +58,7 @@ def test_domaines_interdits_toujours_refuses():
 
 
 def test_nouveaux_domaines_hors_contexte_du_llm():
-    for domaine in ("domaine_tele", "remote", "select"):
+    for domaine in ("tele_connectee", "remote", "select"):
         assert domaine not in A.DOMAINES_CONTEXTE
 
 
@@ -67,24 +67,24 @@ def test_nouveaux_domaines_hors_contexte_du_llm():
                                  None, 5, ["https://x.fr"]])
 def test_launch_app_url_non_https_refusee(url):
     corps = {"entity_id": TELE, "url": url}
-    assert V("POST", "/api/services/domaine_tele/launch_app", corps)
+    assert V("POST", "/api/services/tele_connectee/launch_app", corps)
     donnees = {"url": url}
-    resultat = _ha().service("domaine_tele", "launch_app", TELE, donnees)
+    resultat = _ha().service("tele_connectee", "launch_app", TELE, donnees)
     assert "erreur" in resultat and "https://" in resultat["erreur"]
 
 
 def test_launch_app_autre_champ_avec_schema_refuse():
     corps = {"entity_id": TELE, "url": "https://x.fr/a", "app": "javascript:alert(1)"}
-    assert V("POST", "/api/services/domaine_tele/launch_app", corps)
-    assert V("POST", "/api/services/domaine_tele/launch_app", {"entity_id": TELE, "app": "Netflix"}) is None
+    assert V("POST", "/api/services/tele_connectee/launch_app", corps)
+    assert V("POST", "/api/services/tele_connectee/launch_app", {"entity_id": TELE, "app": "Netflix"}) is None
 
 
 def test_launch_app_https_passe():
-    assert V("POST", "/api/services/domaine_tele/launch_app", {"entity_id": TELE, "url": "https://x.fr/a?b=1"}) is None
+    assert V("POST", "/api/services/tele_connectee/launch_app", {"entity_id": TELE, "url": "https://x.fr/a?b=1"}) is None
 
 
 def test_controle_https_limite_a_launch_app():
-    assert V("POST", "/api/services/domaine_tele/send_text_input",
+    assert V("POST", "/api/services/tele_connectee/send_text_input",
              {"entity_id": TELE, "text": "http://exemple.org"}) is None
 
 
@@ -97,15 +97,15 @@ def test_light_turn_on_flash_et_effect_passent():
 
 def test_llm_ne_voit_pas_les_domaines_de_reglage():
     enum = A.OUTILS[0]["function"]["parameters"]["properties"]["domaine"]["enum"]
-    for domaine in ("domaine_tele", "remote", "select"):
+    for domaine in ("tele_connectee", "remote", "select"):
         assert domaine not in enum
     assert "light" in enum
 
 
 def test_launch_app_valeur_imbriquee_ou_invisible_refusee():
     base = {"entity_id": TELE, "url": "https://x.fr/a"}
-    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": {"u": "javascript:1"}})
-    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": ["x"]})
-    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": "\u200bNetflix"})
-    assert V("POST", "/api/services/domaine_tele/launch_app", {**base, "app": "//x.fr"})
-    assert V("POST", "/api/services/domaine_tele/launch_app", None)
+    assert V("POST", "/api/services/tele_connectee/launch_app", {**base, "app": {"u": "javascript:1"}})
+    assert V("POST", "/api/services/tele_connectee/launch_app", {**base, "app": ["x"]})
+    assert V("POST", "/api/services/tele_connectee/launch_app", {**base, "app": "\u200bNetflix"})
+    assert V("POST", "/api/services/tele_connectee/launch_app", {**base, "app": "//x.fr"})
+    assert V("POST", "/api/services/tele_connectee/launch_app", None)

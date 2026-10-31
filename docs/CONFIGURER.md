@@ -125,6 +125,7 @@ La configuration décrit la maison, elle ne contient ni secret ni donnée d'usag
 | `reveil` | `poc/assistant.py`, `ReveilLocal.kt`, `SatelliteService.kt`, `build.gradle.kts` | Sans section, le mot vaut "assistant" (ou `MOT_REVEIL`), avec repli sur "Hey Jarvis" si son modèle manque. |
 | `reglages` | `poc/liste_blanche.py`, `ReglageTele.kt`, `Maison3d.kt` | Aucune appli ni aucun interrupteur en plus, volet de la télé sans tuiles de sources, vue 3D sans correspondance d'entités. |
 | `correspondance_pieces` | `poc/mesures.py`, `poc/serveur_satellite.py`, `Mesures.kt` | Aucune mesure par pièce : l'appli ne lit aucun capteur et le serveur n'annonce pas la capacité `mesures`. |
+| `sante` | `poc/sante_hist.py`, `SanteDetail.kt` | `sports.familles` (type brut vers `[clé, libellé]`), `sports.libelles_tableau`, `sports.hors_charge`, `sports.titres`. Absente : aucun regroupement de sports. |
 
 Aucune autre section n'est lue par le code.
 
@@ -409,6 +410,7 @@ Appareils propres à la maison, vus par le serveur et par l'appli.
 | `noms_courts` | objet entité vers nom | Noms affichés dans le panneau de la maison en grand. Sans nom court : le nom de la vue 3D, puis celui de Home Assistant. |
 | `lumieres_banc` | liste de deux entités | Lumière du salon puis lampe de la télé, pour les outils de banc `poc/outils/banc_actions.py` et `poc/outils/test_voix.py`. |
 | `ordre_pieces` | liste de textes | Ordre des filtres par pièce de l'écran des appareils de l'appli. Ce sont les noms des pièces dans Home Assistant, comparés en minuscules. Une pièce absente de la liste passe à la fin. |
+| `android` | objet | `application_id` : identifiant installé de l'appli. Le changer installe une autre appli (appairage et données perdus). Défaut : `assistant.vocal.jarvis`. Lu par `build.gradle.kts` et `android/outils/paquet.py`. |
 
 Champs de `musique` :
 
@@ -421,6 +423,7 @@ Champs de `musique` :
 | `source_connect` | texte | Source que prend le groupe pendant une session Spotify Connect. |
 | `scripts` | liste d'entités | Scripts qui lancent la musique : après leur appel, le serveur attend jusqu'à 12 s que le groupe `toutes` joue, et le note dans le journal de la musique. |
 | `script_lancer` | entité | Script proposé au LLM pour "mets de la musique" sans précision. |
+| `textes` | objet | `groupe` (nom du groupe dit à la voix, « les enceintes » par défaut), `outil` (les enceintes dans la description de l'outil), `exemple_titre`, `exemple_artiste`, `exemple_artiste_2`, `exemple_artiste_3` (exemples donnés au LLM). |
 
 Un titre Spotify demandé sur le groupe `toutes` part par Spotify Connect quand `spotify` existe et que
 `spotify_appareil` figure dans ses sources. Sinon, il part par Music Assistant.
@@ -537,7 +540,7 @@ n'existe que si `"actif": true` (un vrai booléen JSON). Le détail de l'activat
 | `points` | liste d'objets | Points de prévision, tous en mer, dans l'ordre du message. Sans point, le module reste éteint. |
 | `modele_principal` | `{modele, nom}` | Modèle Open-Meteo du vent, de l'air, de la pluie, de l'orage et du soleil. `nom` est affiché (par défaut : `prévision`). |
 | `modele_second` | `{modele, nom}` | Second modèle Open-Meteo pour le vent et la visibilité (par défaut : `second modèle`). |
-| `vagues_regional` | `{url, lieux}` | Vagues WaveWatch III de la source régionale. `url` contient `{lieu}`. Chaque lieu : `point` servi, `lieu` (code de la source), `nom`, `panne` (libellé affiché en cas d'échec). Facultatif : sans lieu, les vagues viennent d'Open-Meteo Marine. |
+| `vagues_regional` | `{source, url, lieux}` | Vagues WaveWatch III d'une source régionale. `source` : nom court au démarrage. `url` contient `{lieu}`. Chaque lieu : `point` servi, `lieu` (code de la source), `nom`, `panne` (libellé affiché en cas d'échec). Facultatif : sans lieu, les vagues viennent d'Open-Meteo Marine. |
 | `station` | `{url, nom, point}` | Station à terre : vent mesuré affiché dans le bloc du moment du `point` indiqué. |
 | `alias` | liste de paires `[mot, point]` | Mots qui désignent un point dans une question, cherchés dans l'ordre. |
 | `mots_lieu` | liste de textes | Autres noms du plan d'eau acceptés après "à" dans une question. |
@@ -575,14 +578,14 @@ Champs d'un point :
 ```
 
 Les sources possibles sont fixées par le code : les deux modèles d'Open-Meteo, Open-Meteo Marine, les
-lieux VaguesRegional et la station. Chacune est interrogée par défaut. Une source dont l'adresse manque ou ne
+lieux régionaux et la station. Chacune est interrogée par défaut. Une source dont l'adresse manque ou ne
 répond pas reste en panne, son libellé s'affiche dans les erreurs et les autres continuent. Le module ne
 renvoie une erreur que si le modèle principal n'a jamais pu être lu.
 
 Pour retirer une source sans effacer sa fiche, ajouter `"actif": false` dans sa fiche. Absent, `actif` vaut
 vrai (contrairement à celui de la section, qui doit être écrit). Une source retirée n'est pas interrogée,
 n'est pas comptée en panne et n'apparaît pas dans les erreurs ni dans les crédits. Cela marche sur
-`modele_principal`, `modele_second`, `vagues_regional` (entier), chacun des `lieux` de VaguesRegional, le bloc
+`modele_principal`, `modele_second`, `vagues_regional` (entier), chacun de ses `lieux`, le bloc
 `mfwam` (vagues Open-Meteo Marine) et `station` :
 
 ```json
@@ -604,8 +607,8 @@ section `mer` active, ses `points` servant de rattachement.
 |---|---|---|
 | `actif` | booléen | Allume le module. Absent ou faux : éteint. |
 | `cadre` | `[lat_min, lat_max, lon_min, lon_max]` | Emprise de la carte. Les stations hors cadre ne sont pas dessinées. L'appli exige quatre nombres. |
-| `balises` | objet | Balises Balises : `doc_type`, `fenetre`, `latitude`, `longitude` de la requête, `user_agent` (en ASCII seulement), `panne` (libellé d'échec), `balises` (objet id Balises vers fiche). |
-| `stations_officielles` | objet | Stations StationsOfficielles : `url` (contient `{q}`), `nommees` (stations reconnues par `nom_brut`, avec leur fiche), `reseau_amateur` (code du réseau des stations amateurs), `quartiers` (code de station amateur vers nom affiché). |
+| `balises` | objet | Balises à l'API de forme tRPC : `nom` (nom court de la source), `url` (contient `{requete}`), `requete` (objet recopié encodé dans l'adresse), `user_agent` (en ASCII seulement), `panne` (libellé d'échec), `fiches` (objet id balises vers fiche). |
+| `stations_officielles` | objet | Réseau d'observations : `nom`, `panne`, `url` (contient `{q}`), `nommees` (stations reconnues par `nom_brut`, avec leur fiche), `reseau_amateur` (code du réseau des stations amateurs), `quartiers` (code de station amateur vers nom affiché). |
 | `station` | fiche avec `url` | Station à terre. |
 | `points_proches` | objet point vers `[lat, lon]` | Rattache une station sans `point` au point de prévision le plus proche. |
 | `titre` | texte | Titre de la page (par défaut : `Vent mesuré`). |
@@ -633,12 +636,12 @@ Champs de `carte` :
   "station": {"url": "https://exemple.invalid/station", "id": "port", "nom": "Vieux-Port",
               "genre": "station à terre", "type": "terre", "lat": 43.3, "lon": 5.37, "point": "prado"},
   "points_proches": {"prado": [43.25, 5.36]},
-  "carte": {"largeur": 640, "hauteur": 423, "cote": "carte/golfe_cote.txt", "terre": "carte/golfe_terre.txt"}
+  "carte": {"largeur": 640, "hauteur": 423, "cote": "carte/cote.txt", "terre": "carte/terre.txt"}
 }
 ```
 
-Le serveur interroge par défaut ses trois sources (Balises, StationsOfficielles et la station). Pour en retirer
-une, y ajouter `"actif": false` (absent vaut vrai), sur `balises`, sur une seule balise de `balises`,
+Le serveur interroge par défaut ses trois sources (balises, stations officielles et station). Pour en retirer
+une, y ajouter `"actif": false` (absent vaut vrai), sur `balises`, sur une seule balise de ses `fiches`,
 sur `stations_officielles` ou sur `station`. Une source retirée n'est pas interrogée et n'apparaît pas dans les erreurs,
 et quand toutes les sources sont retirées le vent mesuré reste éteint. Une source en échec est réessayée
 après 1, 2, 4, 8 puis 15 minutes au plus, et son libellé apparaît dans les erreurs.
@@ -1338,7 +1341,7 @@ Ces protections sont actives dans cette version et aucune configuration ne les c
 | Protection | Où |
 |---|---|
 | Un appareil visé par son identifiant brut (`device_id`), un étage (`floor_id`) ou une étiquette (`label_id`) est refusé. | `securite.py`, `Securite.kt` |
-| Le LLM ne peut appeler que les services d'une liste blanche, large depuis la version 0.37.0 (tout ce que Home Assistant expose pour les équipements, dont `domaine_tele.launch_app` avec une adresse `https://` seulement, `domaine_tele.send_text_input`, `domaine_tele.set_picture_setting`, `remote.send_command`, `select.select_option`), mais jamais par `device_id`, `floor_id` ou `label_id`, et rien qui ouvre une porte ou désarme une alarme. Il ne voit et n'appelle toutefois que ses domaines habituels (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons). Les trois domaines (`domaine_tele`, `remote`, `select`) sont réservés au dictionnaire : le LLM ne les voit pas et ne peut pas les appeler (`DOMAINES_HORS_LLM`). | `SERVICES_PERMIS` de `poc/liste_blanche.py` (réexportée par `poc/assistant.py`), exportée dans `dictionnaire.json` pour l'appli. Section facultative `reglages` de `maison.json` : `applis`, `interrupteurs`, `attributs_refuses` (voir ARCHITECTURE.md) |
+| Le LLM ne peut appeler que les services d'une liste blanche, large depuis la version 0.37.0 (tout ce que Home Assistant expose pour les équipements, dont `<domaine_tele>.launch_app` avec une adresse `https://` seulement, `<domaine_tele>.send_text_input`, `<domaine_tele>.set_picture_setting`, `remote.send_command`, `select.select_option`), mais jamais par `device_id`, `floor_id` ou `label_id`, et rien qui ouvre une porte ou désarme une alarme. Il ne voit et n'appelle toutefois que ses domaines habituels (lumières, interrupteurs, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts, booléens, boutons). Les trois domaines (`<domaine_tele>`, `remote`, `select`) sont réservés au dictionnaire : le LLM ne les voit pas et ne peut pas les appeler (`DOMAINES_HORS_LLM`). | `SERVICES_PERMIS` de `poc/liste_blanche.py` (réexportée par `poc/assistant.py`), exportée dans `dictionnaire.json` pour l'appli. Section facultative `reglages` de `maison.json` : `applis`, `interrupteurs`, `attributs_refuses` (voir ARCHITECTURE.md) |
 | Assist de Home Assistant est sauté (il agit sans qu'on voie sa cible avant) : une phrase hors dictionnaire va directement au LLM. Seul `securite.assist_repli` le rouvre, en repli après un échec du LLM et pour une phrase que le filtre accepte ([le repli Assist](#le-repli-assist)). | `SECURITE_ACTIVE` et `repli_assist` de `securite.py` |
 
 Les actions du dictionnaire échappent à la liste blanche, mais pas à ces vérifications : chacune passe par

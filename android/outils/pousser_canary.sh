@@ -4,7 +4,7 @@
 #
 # L'appareil est celui de `adb devices` (numéro de série, ou adresse:port en adb sans fil).
 # Sans chemin, l'APK de débogage de la dernière compilation est prise : dossier de compilation de
-# Windows (C:/Dev/assistant-vocal-build, ou celui de -PdossierBuild passé par la variable DOSSIER_BUILD), sinon
+# Windows (ASSISTANT_VOCAL_BUILD ou ../../assistant-vocal-build, ou celui de -PdossierBuild passé par la variable DOSSIER_BUILD), sinon
 # android/app/build/outputs/apk/debug/app-debug.apk.
 #
 # Aucun secret ici : l'adresse du serveur et le jeton du satellite sont déjà dans l'APK, copiés par
@@ -23,7 +23,7 @@ APPAREIL="$1"
 ICI="$(cd "$(dirname "$0")" && pwd)"
 # adb du SDK Android : variable ADB, sinon celui du PATH.
 ADB="${ADB:-adb}"
-PAQUET="assistant.vocal.jarvis"
+PAQUET="${PAQUET:-$(python android/outils/paquet.py)}"
 
 command -v "$ADB" >/dev/null 2>&1 || { echo "adb introuvable : installer les platform-tools Android ou régler la variable ADB." >&2; exit 1; }
 
@@ -31,7 +31,7 @@ if [ "$#" -eq 2 ]; then
     APK="$2"
 else
     case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) DOSSIER_BUILD="${DOSSIER_BUILD:-C:/Dev/assistant-vocal-build}" ;;
+        MINGW*|MSYS*|CYGWIN*) DOSSIER_BUILD="${DOSSIER_BUILD:-${ASSISTANT_VOCAL_BUILD:-../../assistant-vocal-build}}" ;;
         *) DOSSIER_BUILD="${DOSSIER_BUILD:-}" ;;
     esac
     if [ -n "$DOSSIER_BUILD" ]; then

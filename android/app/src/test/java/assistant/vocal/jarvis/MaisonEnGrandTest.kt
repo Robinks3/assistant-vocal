@@ -13,7 +13,7 @@ class MaisonEnGrandTest {
     /** Ce que rend maison3d.contenu() pour la page 0.8.0 (pièces de l'appartement d'origine). */
     private val contenu = """
         [{"id":"sejour_cuisine","nom":"Séjour et cuisine","lampes":[{"entite":"light.cuisine_suspensions","nom":""},{"entite":"light.salon_plafond","nom":"Salon"},{"entite":"light.salon_lampe_tele","nom":"Lampe TV"}],
-          "medias":[{"entite":"media_player.tele_salon","nom":"Télévision","type":"tele","alias":[]},{"entite":"media_player.barre_son_salon","nom":"Barre de son du salon","type":"enceinte","alias":["media_player.barre_son_salon_enceintes"]},{"entite":"media_player.enceinte_cuisine","nom":"Enceinte de la cuisine","type":"enceinte","alias":[]}]},
+          "medias":[{"entite":"media_player.tele_salon","nom":"Télévision","type":"tele","alias":[]},{"entite":"media_player.barre_son_salon","nom":"Barre de son du salon","type":"enceinte","alias":["media_player.barre_son_salon_enceinte"]},{"entite":"media_player.enceinte_cuisine","nom":"Enceinte de la cuisine","type":"enceinte","alias":[]}]},
          {"id":"entree_couloir","nom":"Entrée et couloir","lampes":[{"entite":"light.couloir_plafond","nom":"Entrée"}],"medias":[]},
          {"id":"salle_de_bain","nom":"Salle de bain","lampes":[],"medias":[]},
          {"id":"chambre_sacha","nom":"Chambre de Sacha","lampes":[{"entite":"light.chambre_sacha_chevets","nom":""},{"entite":"light.chambre_sacha_plafond","nom":"Plafond Sacha"}],"medias":[]},
@@ -44,7 +44,7 @@ class MaisonEnGrandTest {
         assertEquals(5, pieces.size)
         assertEquals(listOf("light.cuisine_suspensions", "light.salon_plafond", "light.salon_lampe_tele", "media_player.tele_salon", "media_player.barre_son_salon", "media_player.enceinte_cuisine"), sejour.objets.map { it.entite })
         assertEquals(MaisonEnGrand.Genre.TELE, sejour.tele?.genre)
-        assertEquals(listOf("media_player.barre_son_salon_enceintes"), sejour.enceintes.first().alias)
+        assertEquals(listOf("media_player.barre_son_salon_enceinte"), sejour.enceintes.first().alias)
         assertTrue(MaisonEnGrand.lireContenu("pas du json").isEmpty())
         assertTrue(MaisonEnGrand.lireContenu(null).isEmpty())
     }
@@ -193,9 +193,9 @@ class MaisonEnGrandTest {
         val o = sejour.enceintes.first()
         val l = mapOf(
             "media_player.barre_son_salon" to media("media_player.barre_son_salon", "unavailable"),
-            "media_player.barre_son_salon_enceintes" to media("media_player.barre_son_salon_enceintes", "playing", 0.2),
+            "media_player.barre_son_salon_enceinte" to media("media_player.barre_son_salon_enceinte", "playing", 0.2),
         )
-        assertEquals("media_player.barre_son_salon_enceintes", MaisonEnGrand.trouver(o, l)?.id)
+        assertEquals("media_player.barre_son_salon_enceinte", MaisonEnGrand.trouver(o, l)?.id)
     }
 
     @Test

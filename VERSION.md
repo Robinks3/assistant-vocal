@@ -4,6 +4,17 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.59.0 (2026-10-31), neutralisation avant publication
+
+- Neutralisation du dépôt avant publication : tout ce qui situait ou identifiait une installation passe en configuration.
+- Sections `mer` et `vent` : clés génériques `mer.vagues_regional`, `vent.balises` (`nom`, `url` avec `{requete}`, `requete`, `fiches`) et `vent.stations_officielles` (`nom`, `panne`). Le code garde des adaptateurs de format. Valeurs `source` du message : `balises`, `officielles`, `station_terre`, `vagues_source` : `regional`. Sans ancien nom accepté.
+- Sports de la santé dans `sante.sports` (familles, libellés du tableau de bord, hors charge, titres).
+- Domaine de la télé connectée dans `reglages.tele.domaine`, hors LLM, refusé s'il existe déjà dans la table des services.
+- Textes de la musique dans `appareils.musique.textes`. Le comportement vocal reste celui de la configuration.
+- Paquet Kotlin `assistant.vocal.jarvis`, `applicationId` dans `appareils.android.application_id`, script `android/outils/paquet.py`.
+- `poc/lancer-llm.ps1` lit `LLM_SERVEUR` et `LLM_MODELE`, dossier de compilation par `ASSISTANT_VOCAL_BUILD` ou `-PdossierBuild`, défaut relatif.
+- Matériel et marques retirés des commentaires, tests et documentation. Exemple sur la rade de Marseille, artistes fictifs.
+
 ## Serveur 0.58.4 (2026-10-30), plus de client web dans l'appli Home Assistant
 Correctif. Appli Home Assistant 0.58.4 (son démarrage et sa page d'administration changent). Serveur du PC sans
 changement de comportement, appli Android 0.49.0 et client web 0.11.0 inchangés.
@@ -61,7 +72,7 @@ web inchangé (0.11.0), aucune page web touchée.
 - README : la ligne du mot de réveil ne cite plus de nom de marque, elle parle du modèle de repli et de celui de la
   configuration. Même retouche dans l'en-tête de `Calibrer le mot de réveil.bat`.
 - Outil `exporter_dictionnaire.py` : docstring et description de l'aide de la ligne de commande disent « l'assistant ».
-- Inchangés volontairement : `applicationId` `assistant.vocal.jarvis`, paquets Kotlin, dossier `ha-app/jarvis`, identifiant
+- Inchangés volontairement : `applicationId`, paquets Kotlin, dossier `ha-app/jarvis`, identifiant
   `local_jarvis`, variables `JARVIS_*`, balises de journal, noms de fichiers et clés JSON. Le nom du modèle de réveil
   de repli « Hey Jarvis » (fichier `hey_jarvis_v0.1.onnx`, nom amont d'openWakeWord) reste cité là où il désigne le
   mot réellement prononcé, dans `LICENCES-TIERS.md`, les docs de configuration et les réglages de l'appli. Le nom de
@@ -534,8 +545,8 @@ Session S-F5 du plan 1.2.0. Appli Android inchangée (0.38.1), appli Home Assist
 - Nouvelle section facultative `reglages` de `maison.json` (clés `applis`, `interrupteurs`, `attributs_refuses`),
   lue par `liste_blanche.refus_reglage`, appelée par `acces.controler_service` : les deux voies (LLM et passerelle de
   l'appli) donnent donc la même réponse sur les mêmes cas. Clé absente, règle inactive. L'exemple ouvre cinq applis.
-- La passerelle applique aussi la table des services aux trois domaines réservés à l'appli (`domaine_tele`,
-  `remote`, `select`) : `domaine_tele.reboot` ou `remote.learn_command` y sont refusés comme par le LLM.
+- La passerelle applique aussi la table des services aux trois domaines réservés à l'appli (`<domaine_tele>`,
+  `remote`, `select`) : `<domaine_tele>.reboot` ou `remote.learn_command` y sont refusés comme par le LLM.
 - `securite.py`, `Securite.kt` et `cas_securite.json` sont inchangés : `device_id`, domaines interdits (serrure,
   alarme) et liste blanche sont intacts.
 - Tests : `test_historique_appareil.py` (historique par appareil, personne annoncée) et
@@ -631,7 +642,7 @@ cibles par `device_id`, `floor_id` et `label_id`, les domaines interdits et ce q
   `siren`, `media_player`, `music_assistant`, `vacuum`, `lawn_mower`, `camera` (marche, arrêt, détection de
   mouvement), `scene` (`turn_on`), `script`, `automation`, `input_boolean`, `input_number`, `input_select`,
   `input_text`, `input_datetime`, `input_button`, `button`, `number`, `text`, `timer`, `counter`, `remote`,
-  `select` et `domaine_tele`. Un commentaire renvoie à la page `home-assistant.io/integrations/<domaine>` de
+  `select` et `<domaine_tele>`. Un commentaire renvoie à la page `home-assistant.io/integrations/<domaine>` de
   chacun.
 - Complément pris à Home Assistant : au démarrage, `GET /api/services` ajoute les services d'entité que le socle ne
   connaît pas (`HomeAssistant.charger_services`, `services_depuis_ha`). Un service n'entre que si sa cible est une
@@ -744,7 +755,7 @@ facultatif ou n'écrit qu'un avertissement.
 - Nouveau `carte/vent/generer_cote.py` (C10) : trait de côte et terre de la carte du vent depuis un GeoJSON de données
   ouvertes passé en argument, jamais téléchargé. Jonction des lignes, fermeture de la terre le long du cadre, îles,
   marge hors cadre, simplification facultative, sortie déterministe. Cadre, taille et chemins lus dans `maison.json`.
-- `config-exemple/carte/cote_source.geojson` (fictif) et `golfe_cote.txt` et `golfe_terre.txt` régénérés par le
+- `config-exemple/carte/cote_source.geojson` (fictif) et `cote.txt` et `terre.txt` régénérés par le
   générateur, qui les reproduit octet pour octet. `LISEZMOI.txt` mis à jour.
 - `carte/3d/generer_3d.py` (C11) : exécution de bout en bout sur `config-exemple/` en dossier temporaire et sortie
   identique d'une exécution à l'autre, vérifiées par test.
@@ -909,8 +920,8 @@ se reconnecter, et l'appairage demande un administrateur connecté pour accepter
   `JARVIS_ANCIEN_ACCES` l'emporte), `administrateurs`. Ports 8765 et ancien accès non coupés : décision du propriétaire.
 
 ## Serveur 0.30.0 (2026-10-25), services des réglages fins de la télé et des lampes
-- Services ouverts au serveur (`SERVICES_PERMIS`) : `domaine_tele.launch_app`, `domaine_tele.send_text_input`,
-  `domaine_tele.set_picture_setting`, `remote.send_command` et `select.select_option`. Ces trois domaines restent
+- Services ouverts au serveur (`SERVICES_PERMIS`) : `<domaine_tele>.launch_app`, `<domaine_tele>.send_text_input`,
+  `<domaine_tele>.set_picture_setting`, `remote.send_command` et `select.select_option`. Ces trois domaines restent
   hors du contexte du LLM (`DOMAINES_CONTEXTE`) et hors de son outil `appeler_service` (`DOMAINES_HORS_LLM`, absents de
   l'enum et refusés à l'appel), ils servent aux routines, à la passerelle et aux volets de l'appli.
 - `launch_app` : toute URL qui ne commence pas par `https://` est refusée (http:, javascript:, data:, espaces ou

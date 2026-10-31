@@ -23,10 +23,10 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Page « Vent mesuré dans le golfe » du panneau Météo (0.29.0, maquettes `MeteoBalises`, `MeteoBalisesRegate` et
+ * Page « Vent mesuré sur le plan d'eau » du panneau Météo (0.29.0, maquettes `MeteoBalises`, `MeteoBalisesRegate` et
  * `MeteoBalisesSoir` validées le 24/10), entre la page Terre et les prévisions marines, placée en pixels de maquette :
  * - en haut, le titre et l'heure de lecture, le chevron vers « Météo à ... », « Fermer » ;
- * - à gauche, la carte du golfe ([CarteVent]) avec une flèche par station (plus longue quand le vent est plus fort,
+ * - à gauche, la carte du plan d'eau ([CarteVent]) avec une flèche par station (plus longue quand le vent est plus fort,
  *   rond creux quand la mesure est trop vieille), la station choisie cerclée dans la teinte météo ;
  * - à droite, la fiche de la station choisie (vent, âge, direction, rafale, moyenne et rafale max sur 15 min, prévision
  *   ARPEGE de l'heure), puis les autres stations ([ListeVent]), qu'on touche pour les choisir ;
@@ -334,7 +334,7 @@ internal class EcranVent(
     }
 }
 
-/** Carte du golfe de la page du vent mesuré : mer teintée, terre en relief, une flèche par station du cadre. */
+/** Carte du plan d'eau de la page du vent mesuré : mer teintée, terre en relief, une flèche par station du cadre. */
 internal class CarteVent(ctx: Context) : View(ctx) {
     var echelle = CadreMaquette.estimer(ctx)
         set(v) {
@@ -360,7 +360,7 @@ internal class CarteVent(ctx: Context) : View(ctx) {
 
     init {
         isClickable = true
-        contentDescription = "Carte du golfe avec le vent mesuré à chaque station"
+        contentDescription = "Carte du plan d'eau avec le vent mesuré à chaque station"
     }
 
     fun donnees(d: MeteoVent.Donnees?, station: String?, instantS: Long) {

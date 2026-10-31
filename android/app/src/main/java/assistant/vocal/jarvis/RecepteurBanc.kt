@@ -6,7 +6,7 @@ import android.content.Intent
 
 /**
  * Bancs lancés par adb sans ouvrir l'écran (on peut utiliser la tablette pendant ce temps) :
- *   adb shell am broadcast -n assistant.vocal.jarvis/.RecepteurBanc --es test_llm "phrase 1|phrase 2" [--es modele f.litertlm]
+ *   adb shell am broadcast -n <application_id>/assistant.vocal.jarvis.RecepteurBanc --es test_llm "phrase 1|phrase 2" [--es modele f.litertlm]
  * Mêmes extras que MainActivity (test_reveil, test_canary, fils). Protégé par la permission DUMP,
  * que seul le shell adb possède : aucune autre appli ne peut le déclencher.
  */

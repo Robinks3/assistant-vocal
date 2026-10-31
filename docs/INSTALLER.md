@@ -13,7 +13,7 @@ Versions décrites : serveur 0.36.3 (`poc/assistant.py`, `ha-app/jarvis/config.y
 Toutes les commandes se lancent depuis la racine du dépôt, sauf mention contraire. Les commandes Windows
 sont écrites pour PowerShell. Les variantes Linux et macOS sont données quand elles sont simples, mais
 le dépôt n'a été mené jusqu'au bout que sous Windows : les scripts `.bat` et `.ps1` et le lanceur du
-LLM local sont propres à Windows. Le dossier de compilation par défaut `C:/Dev/assistant-vocal-build` ne vaut que
+LLM local sont propres à Windows. Le dossier de compilation par défaut `../../assistant-vocal-build` ne vaut que
 sous Windows, ailleurs Gradle écrit dans `android/build/` comme d'habitude.
 
 ## Sommaire
@@ -81,7 +81,7 @@ SFace par OpenCV), et en option le relais santé, la météo marine, le vent mes
 | Version | Le dépôt ne fixe pas de version minimale. Il emploie le service `weather.get_forecasts` (Home Assistant 2023.9 et plus, selon `Previsions.kt`), la syntaxe d'automatisation à `triggers` et `actions` au pluriel (`ha-app/configurer-ha.py`), et le nom « applis » donné aux modules complémentaires (`ha-app/deployer.sh`). Prenez une version récente. |
 | Jeton d'accès longue durée | Obligatoire pour piloter la maison depuis le PC, voir l'étape 5. |
 | Entité `weather.*` | Pour le panneau Météo de la tablette. |
-| Musique | Facultative. Le code appelle `music_assistant.play_media` et `music_assistant.search` (intégration Music Assistant), et décrit les enceintes Enceintes natives derrière chaque lecteur. Sans enceinte « toutes » dans `appareils.musique`, les commandes de musique sont refusées proprement. |
+| Musique | Facultative. Le code appelle `music_assistant.play_media` et `music_assistant.search` (intégration Music Assistant), et décrit les enceintes enceintes natives derrière chaque lecteur. Sans enceinte « toutes » dans `appareils.musique`, les commandes de musique sont refusées proprement. |
 | Applis Wyoming | Facultatives : Speech-to-Phrase, Piper et openWakeWord (Whisper pour essai). Le serveur les joint sous les noms `core-speech-to-phrase:10300`, `core-piper:10200`, `core-openwakeword:10400` et `core-whisper:10300`. Elles sont nécessaires à l'appli Home Assistant de l'assistant (profil sans modèle local) et au choix de transcription « Sur Home Assistant ». |
 | Appli SSH | Pour `ha-app/deployer.sh` et `ha-app/configurer-options.py` : une session SSH sur Home Assistant qui dispose de `tar`, `curl`, `nc` et de la variable `SUPERVISOR_TOKEN`. |
 | Processeur | L'appli Home Assistant de l'assistant est déclarée pour `amd64` et `aarch64` (`ha-app/jarvis/config.yaml`), donc un Home Assistant sur Raspberry Pi peut l'installer. L'image de base `python:3.12-slim` existe pour les deux. Les dépendances Python du profil `ha` sont pures ou fournissent une roue `aarch64`, mais le démarrage n'a pas été essayé sur une carte ARM : vérifiez le journal de l'appli au premier lancement. |
@@ -523,7 +523,7 @@ cd android
 ./gradlew assembleDebug
 ```
 
-Sous Windows, le dossier de compilation est écrit hors du dépôt, par défaut dans `C:/Dev/assistant-vocal-build`
+Sous Windows, le dossier de compilation est écrit hors du dépôt, par défaut dans `../../assistant-vocal-build`
 (pour éviter les blocages de l'antivirus quand le dépôt est sous Documents). Ailleurs, sans option, Gradle
 utilise le dossier habituel `android/build/` et `app/build/`. L'option `-PdossierBuild` impose un dossier
 dans les deux cas, elle n'est obligatoire nulle part. L'APK de débogage est alors dans :
@@ -544,7 +544,7 @@ Autres propriétés utiles :
 |---|---|
 | `-Putilisateur=camille` | APK d'une autre personne : jeton `SATELLITE_JETON_CAMILLE` de `poc/.env`, version suffixée `-camille`. Lettres minuscules, chiffres et `_` seulement. |
 | `-PconfigDossier=<chemin>` | Dossier de configuration, prioritaire sur `ASSISTANT_VOCAL_CONFIG`. |
-| `-PdossierBuild=<chemin>` | Dossier de compilation. Sans lui : `C:/Dev/assistant-vocal-build` sous Windows, `build/` standard ailleurs. |
+| `-PdossierBuild=<chemin>` | Dossier de compilation. Sans lui : variable `ASSISTANT_VOCAL_BUILD`, puis `../../assistant-vocal-build` sous Windows, `build/` standard ailleurs. |
 | `-PmaisonTests=reel` | Tests unitaires sur la vraie configuration au lieu de `config-exemple/` (les cas écrits pour l'exemple y échouent, c'est attendu). |
 
 L'APK contient le jeton du satellite et la configuration de la maison : ne la faites pas circuler.
@@ -585,7 +585,7 @@ adb devices
 Installez ou remplacez l'appli :
 
 ```powershell
-adb install -r C:\Dev\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debug\app-debug.apk
+adb install -r ..\..\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debug\app-debug.apk
 ```
 
 ### Version d'essai par adb
@@ -608,7 +608,7 @@ de l'appli, puis affiche la version installée. La variable `ADB` désigne un `a
 Ouvrez l'appli (nom affiché : celui de la section `assistant` de la configuration), à la main ou par adb :
 
 ```powershell
-adb shell am start -n assistant.vocal.jarvis/.MainActivity
+adb shell am start -n <application_id>/assistant.vocal.jarvis.MainActivity
 ```
 
 Elle demande le micro, les notifications (Android 13 et plus), et la caméra si la vision est choisie.
@@ -618,7 +618,7 @@ appartenir à l'appli : Android 16 refuse de lire un dossier créé par adb.
 ### Modèles sur l'appareil (facultatif)
 
 Pour transcrire sur la tablette (choix « Sur la tablette (Canary) »), copiez les quatre fichiers attendus
-par `CanaryLocal.kt` dans `Android/data/assistant.vocal.jarvis/files/canary/`. Le dépôt n'a pas d'outil pour cette
+par `CanaryLocal.kt` dans `Android/data/<application_id>/files/canary/`. Le dépôt n'a pas d'outil pour cette
 étape. Trois fichiers viennent du dépôt Hugging Face de Canary, le quatrième (`nemo128.onnx`, le
 prétraitement) est livré avec le paquet onnx-asr.
 
@@ -637,25 +637,25 @@ Emplacement de `nemo128.onnx` sur le PC :
 Puis un envoi par fichier, l'appli ayant été lancée une fois :
 
 ```powershell
-adb push canary/encoder-model.int8.onnx /sdcard/Android/data/assistant.vocal.jarvis/files/canary/
+adb push canary/encoder-model.int8.onnx /sdcard/Android/data/<application_id>/files/canary/
 ```
 
 ```powershell
-adb push canary/decoder-model.int8.onnx /sdcard/Android/data/assistant.vocal.jarvis/files/canary/
+adb push canary/decoder-model.int8.onnx /sdcard/Android/data/<application_id>/files/canary/
 ```
 
 ```powershell
-adb push canary/vocab.txt /sdcard/Android/data/assistant.vocal.jarvis/files/canary/
+adb push canary/vocab.txt /sdcard/Android/data/<application_id>/files/canary/
 ```
 
 ```powershell
-adb push <chemin affiché plus haut>/nemo128.onnx /sdcard/Android/data/assistant.vocal.jarvis/files/canary/
+adb push <chemin affiché plus haut>/nemo128.onnx /sdcard/Android/data/<application_id>/files/canary/
 ```
 
 Ces noms de fichiers sont ceux de `CanaryLocal.kt` et d'onnx-asr 0.12. Une autre version d'onnx-asr peut
 les ranger autrement.
 
-Pour un LLM sur l'appareil, déposez un fichier `.litertlm` dans `Android/data/assistant.vocal.jarvis/files/llm/`.
+Pour un LLM sur l'appareil, déposez un fichier `.litertlm` dans `Android/data/<application_id>/files/llm/`.
 Noms reconnus par `ModeleLiteRt.kt`, du préféré au plus léger : `gemma-4-E2B-it-gpu.litertlm`,
 `gemma-4-E2B-it.litertlm`, `Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm`,
 `qwen3_0.6b_nothink_q4_block32_ekv1280.litertlm` (modèles de `litert-community` sur Hugging Face).
@@ -745,8 +745,8 @@ Les lignes sont dans cet ordre, les valeurs varient :
   vision : YuNet et SFace prêts pour les tablettes
   santé : relais éteint (SANTE_JETON absent)
   historique santé : éteint
-  météo marine : <modèle principal>, <second modèle>, MFWAM, VaguesRegional et station
-  vent mesuré : Balises, StationsOfficielles et station
+  météo marine : <modèle principal>, <second modèle>, MFWAM, vagues régionales et station
+  vent mesuré : <balises>, <stations officielles> et station
   appareils appairés : aucun
   port chiffré 8766, empreinte de la clé sha256/<empreinte>
 Serveur satellite v0.33.0, port 8765 (ancien accès ?jeton= permis, ou « jeton en en-tête seulement »), port chiffré 8766, écoute sur les adresses de `acces.ecoute`, réseaux autorisés listés, seuil du mot de réveil 0.50, cerveau claude (actions réelles). Ctrl+C pour arrêter.
@@ -904,7 +904,7 @@ cd android
 ./gradlew testDebugUnitTest
 ```
 
-Sans `-PdossierBuild`, la compilation se fait dans `C:/Dev/assistant-vocal-build` sous Windows et dans `build/`
+Sans `-PdossierBuild`, la compilation se fait dans `../../assistant-vocal-build` sous Windows et dans `build/`
 ailleurs. Ajoutez `-PdossierBuild=<chemin>` pour la placer ailleurs, par exemple à côté d'une autre copie
 du dépôt qui compile en même temps.
 
@@ -1004,7 +1004,7 @@ git -C config pull
 ```
 
 ```powershell
-adb install -r C:\Dev\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debug\app-debug.apk
+adb install -r ..\..\assistant-vocal-build\SatelliteJarvis-app\outputs\apk\debug\app-debug.apk
 ```
 
 7. Redéployez l'appli Home Assistant, puis, dans Home Assistant, installez la mise à jour proposée ou

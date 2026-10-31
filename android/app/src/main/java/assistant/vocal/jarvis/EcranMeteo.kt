@@ -317,7 +317,7 @@ internal class EcranMeteo(private val ctx: Context, private val surFermer: () ->
         if (a == null) suite(null) else a(suite)
     }
 
-    /** Mesures du vent dans le golfe (0.29.0) : page du vent mesuré, aperçu et bloc du moment des prévisions. */
+    /** Mesures du vent sur le plan d'eau (0.29.0) : page du vent mesuré, aperçu et bloc du moment des prévisions. */
     private fun chargerVent() {
         val t = ++tourVent
         ventLuLe = SystemClock.elapsedRealtime()

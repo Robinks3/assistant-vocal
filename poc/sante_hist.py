@@ -46,10 +46,10 @@ compris) : « sommeil_estime » est alors vrai, et ces jours-là sont écartés 
 null sans stades. Un jour sans donnée vaut null partout, jamais 0. La distance d'un jour renseigné
 sans distance vaut 0 dans les moyennes (le tableau de bord n'écrit dist que si elle est non nulle).
 
-Sports : clé et libellé selon la table SPORTS de ingest-auto.mjs, avec course (course
-et course) et course (course et course_tapis) séparés, et les libellés accentués des
-autres types de sante-api (TYPES_SEANCE de serveur/agregats.mjs). Ski et snowboard sont exclus de
-la charge (TRIMP), comme dans ingest-auto.mjs. Une séance entièrement contenue dans une plus longue
+Sports : clé et libellé lus dans la section sante.sports de la configuration (familles qui regroupent
+les types bruts, libellés du tableau de bord, sports hors charge), et les libellés accentués des autres
+types de sante-api (TYPES_SEANCE de serveur/agregats.mjs). Les sports de hors_charge sont exclus de la
+charge (TRIMP). Une séance entièrement contenue dans une plus longue
 du même jour est écartée partout (doublon d'enregistrement). Le contrôle des pics de FC se fait sur
 le sommet de la courbe reçue, avant sa réduction.
 
@@ -169,24 +169,10 @@ STADES = {0: "inconnu", 1: "eveille", 2: "endormi", 3: "hors_du_lit", 4: "leger"
 ZONES = (("z1", "récupération", 0, 60), ("z2", "endurance", 60, 70), ("z3", "tempo", 70, 80),
          ("z4", "seuil", 80, 90), ("z5", "anaérobie", 90, math.inf))
 CLES_ZONES = tuple(z[0] for z in ZONES)
-# Type brut de sante-api regroupé en (clé, libellé), d'après la table SPORTS de ingest-auto.mjs.
-FAMILLES = {
-    "course": ("course", "course"),
-    "course": ("course", "course"),
-    "patinage": ("course", "course"),
-    "course": ("course", "Course à pied"),
-    "course_tapis": ("course", "Course à pied"),
-    "marche": ("marche", "Marche"),
-    "randonnee": ("randonnee", "Randonnée"),
-    "velo": ("velo", "Vélo"),
-    "velo_appartement": ("velo", "Vélo"),
-    "natation_piscine": ("natation", "Natation"),
-    "natation_eau_libre": ("natation", "Natation"),
-    "renforcement": ("musculation", "Musculation"),
-    "halterophilie": ("musculation", "Musculation"),
-    "ski": ("ski", "Ski"),
-    "snowboard": ("snowboard", "Snowboard"),
-}
+# Sports de la maison : section sante.sports de maison.json.
+_SPORTS = (maison.CONFIG.get("sante") or {}).get("sports") or {}
+# Type brut de sante-api regroupé en (clé, libellé).
+FAMILLES = {str(brut): (str(f[0]), str(f[1])) for brut, f in (_SPORTS.get("familles") or {}).items()}
 # Libellés des autres types de TYPES_SEANCE (serveur/agregats.mjs), clé inchangée.
 LIBELLES_TYPES = {
     "autre": "Autre", "badminton": "Badminton", "baseball": "Baseball", "basket": "Basket",
@@ -203,10 +189,8 @@ LIBELLES_TYPES = {
     "volleyball": "Volley-ball", "water_polo": "Water-polo", "fauteuil_roulant": "Fauteuil roulant", "yoga": "Yoga",
 }
 # Libellé du tableau de bord (champ t), seulement quand typeBrut manque.
-LIBELLES_TABLEAU = {"course / course": "course", "course": "patinage", "Course à pied": "course",
-                    "Marche": "marche", "Randonnée": "randonnee", "Vélo": "velo", "Natation": "natation_piscine",
-                    "Musculation": "renforcement", "Ski": "ski"}
-HORS_CHARGE = ("ski", "snowboard")
+LIBELLES_TABLEAU = {str(k): str(v) for k, v in (_SPORTS.get("libelles_tableau") or {}).items() if v in FAMILLES}
+HORS_CHARGE = tuple(str(s) for s in _SPORTS.get("hors_charge") or ())
 SPORTS_CONNUS = frozenset(c for c, _ in FAMILLES.values()) | frozenset(LIBELLES_TYPES)
 
 JOURNAL = {"sante_periode": "période servie", "sante_seances": "séances servies",

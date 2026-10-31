@@ -32,7 +32,7 @@ def vide(date, **champs):
 
 
 def seance(debut, **champs):
-    base = {"id": "x", "type": "course", "type_code": 1, "debut": debut, "fin": debut, "decalage": "+01:00",
+    base = {"id": "x", "type": "natation", "type_code": 1, "debut": debut, "fin": debut, "decalage": "+01:00",
             "minutes": 61.23456, "titre": "Entraînement inventé", "origine": "com.exemple", "methode_saisie": 1,
             "fc_min": 80, "fc_max": 180, "fc_moyenne": 130.25, "fc_echantillons": 4000,
             "fc_courbe": [[i / 2, 100 + i % 50] for i in range(240)],
@@ -118,7 +118,7 @@ def test_seances_ordre_et_courbe():
     assert derniere["fc_courbe"][0] == [0, 100] and derniere["fc_courbe"][-1] == [119.5, 139]
     assert all(s["fc_courbe"] is None for s in d["seances"][1:])
     assert {k: v for k, v in derniere.items() if k != "fc_courbe"} == {
-        "date": "2031-03-14", "debut": "2031-03-14T20:00:00Z", "fin": "2031-03-14T20:00:00Z", "type": "course",
+        "date": "2031-03-14", "debut": "2031-03-14T20:00:00Z", "fin": "2031-03-14T20:00:00Z", "type": "natation",
         "titre": "veille", "type_code": 1, "minutes": 61.2, "kcal": 500, "distance_m": 3100, "fc_moyenne": 130.2,
         "fc_max": 180, "fc_min": 80, "trimp": 90, "vitesse_moyenne_kmh": 12.5, "vitesse_max_kmh": 25,
         "zones_minutes": {"z1": 5.2, "z2": 10, "z3": 20, "z4": 15, "z5": 1}}

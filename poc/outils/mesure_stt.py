@@ -5,7 +5,7 @@ from faster_whisper import WhisperModel
 
 voix = PiperVoice.load("poc/voix/fr_FR-siwis-medium.onnx")
 t = time.perf_counter()
-audio = b"".join(c.audio_int16_bytes for c in voix.synthesize("Éteins la lumière du salon et mets la musique sur le Enceintes."))
+audio = b"".join(c.audio_int16_bytes for c in voix.synthesize("Éteins la lumière du salon et mets la musique sur l'enceinte."))
 print(f"TTS {time.perf_counter()-t:.2f}s, sr={voix.config.sample_rate}")
 x = np.frombuffer(audio, np.int16).astype(np.float32) / 32768
 # rééchantillonnage simple 22050 -> 16000

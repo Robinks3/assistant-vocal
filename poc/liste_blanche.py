@@ -14,6 +14,8 @@ Il contient :
 
 La sécurité en dur (securite.py, Securite.kt) reste la dernière barrière et ne dépend pas de ce module.
 """
+import re
+
 import maison
 import securite
 
@@ -68,14 +70,23 @@ SERVICES_PERMIS = {
     "text": {"set_value"},
     "timer": {"start", "pause", "cancel", "finish", "change"},
     "counter": {"increment", "decrement", "reset", "set_value"},
-    # Réglages fins de la télé téléviseur et des lampes (0.30.0) : pour l'appli et la passerelle, jamais pour le LLM
+    # Réglages fins de la télé et des lampes (0.30.0) : pour l'appli et la passerelle, jamais pour le LLM
     # (DOMAINES_HORS_LLM : hors enum de l'outil, hors contexte, refusés à l'appel). Sans remote.learn_command ni
-    # delete_command, qui écrivent la mémoire de la télécommande.
-    "domaine_tele": {"launch_app", "send_text_input", "set_picture_setting"},
+    # delete_command, qui écrivent la mémoire de la télécommande. Le domaine de la télé est ajouté plus bas.
     "remote": {"send_command", "turn_on", "turn_off", "toggle"},
     "select": {"select_option", "select_first", "select_last", "select_next", "select_previous"},
 }
-DOMAINES_HORS_LLM = {"domaine_tele", "remote", "select"}
+DOMAINES_HORS_LLM = {"remote", "select"}
+# Domaine Home Assistant de l'intégration de la télé connectée : reglages.tele.domaine de la configuration. Il ne
+# gagne que ces trois services, hors LLM. Un domaine déjà connu de la table n'est pas accepté, pour qu'une
+# configuration ne puisse ni élargir un domaine existant ni le sortir de la vue du LLM.
+_TELE = (maison.CONFIG.get("reglages") or {}).get("tele") if isinstance(maison.CONFIG.get("reglages"), dict) else None
+_DOMAINE_TELE = _TELE.get("domaine") if isinstance(_TELE, dict) else None
+DOMAINE_TELE = _DOMAINE_TELE if (isinstance(_DOMAINE_TELE, str) and re.fullmatch(r"[a-z0-9_]+", _DOMAINE_TELE)
+                                 and _DOMAINE_TELE not in SERVICES_PERMIS) else ""
+if DOMAINE_TELE:
+    SERVICES_PERMIS[DOMAINE_TELE] = {"launch_app", "send_text_input", "set_picture_setting"}
+    DOMAINES_HORS_LLM.add(DOMAINE_TELE)
 # Monter le son par pas (volume_up) passerait au-dessus d'un plafond de volume : permis au LLM seulement
 # quand la configuration n'en règle aucun (securite.plafond_volume à 100, le défaut).
 if not securite.plafond_actif():
@@ -133,7 +144,7 @@ def _champ_vers_un_appareil(champs):
 
 # ------------------------------------------------------------ réglages de la maison (section reglages)
 # Toutes les clés sont facultatives. Une clé absente ne restreint rien (la table ci-dessus tient seule).
-#   applis            noms d'applis que domaine_tele.launch_app peut lancer par le champ « app » (une URL en
+#   applis            noms d'applis que launch_app du domaine de la télé peut lancer par le champ « app » (une URL en
 #                     https:// reste permise par acces.refus_launch_app)
 #   interrupteurs     entités switch.* que switch.turn_on, turn_off et toggle peuvent viser, et elles seules
 #   attributs_refuses {"domaine.service": ["clé", ...]} : clés de données refusées pour ce service
@@ -171,7 +182,7 @@ def refus_reglage(domaine, service, corps, reglages=None):
             if cle in corps:
                 return f"{nom} : l'attribut {cle} est refusé par les réglages de la maison"
     applis = _liste_de_textes(reglages.get("applis"))
-    if nom == "domaine_tele.launch_app" and applis is not None and "app" in corps:
+    if domaine == DOMAINE_TELE and service == "launch_app" and applis is not None and "app" in corps:
         app = corps["app"]
         if not isinstance(app, str) or app not in applis:
             return "launch_app : cette appli n'est pas dans les réglages de la maison"

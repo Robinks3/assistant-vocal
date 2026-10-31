@@ -62,9 +62,9 @@ def test_outil_musique():
     assert outils[2]["function"]["parameters"]["properties"]["entity_id"]["enum"] == ["light.a"]
     ha = A.HomeAssistant("http://exemple.invalid", "x")
     ha.essai = True
-    ha.chercher_musique = lambda r, t, a="", fin=None: ({"nom": "Titre Fictif de Artiste Fictif", "uri": "spotify://track/x",
-                                               "titre": "Titre Fictif", "type": t} if "titre" in r else None)
-    assert ha.musique("Titre Fictif", "track", "toutes", "Artiste Fictif") == {"ok": True, "lance": "Titre Fictif de Artiste Fictif"}
+    ha.chercher_musique = lambda r, t, a="", fin=None: ({"nom": "La Route du Sel de Lou Fictif", "uri": "spotify://track/x",
+                                               "titre": "La Route du Sel", "type": t} if "route" in r.lower() else None)
+    assert ha.musique("La Route du Sel", "track", "toutes", "Lou Fictif") == {"ok": True, "lance": "La Route du Sel de Lou Fictif"}
     assert "erreur" in ha.musique("inconnu", "track")
     assert "erreur" in ha.musique("", "track")
 

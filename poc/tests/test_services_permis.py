@@ -36,7 +36,7 @@ def test_service_du_serveur(cas):
 def test_chaque_domaine_a_un_cas_permis_et_un_refuse():
     permis = {c["domaine"] for c in SERVICES if c["permis"]}
     refuses = {c["domaine"] for c in SERVICES if not c["permis"]}
-    ajoutes = set(A.SERVICES_PERMIS) - {"light", "domaine_tele"}
+    ajoutes = set(A.SERVICES_PERMIS) - {"light", "tele_connectee"}
     assert ajoutes <= permis, ajoutes - permis
     assert ajoutes <= refuses, ajoutes - refuses
 

@@ -16,9 +16,9 @@ import java.io.File
 
 /**
  * Petit LLM sur l'appareil avec LiteRT-LM (Google), modèles .litertlm de Hugging Face
- * litert-community (Apache 2.0) copiés par adb dans Android/data/assistant.vocal.jarvis/files/llm/.
+ * litert-community (Apache 2.0) copiés par adb dans Android/data/<application_id>/files/llm/.
  * Recherche du 13/10/2026 : Gemini Nano (ML Kit Prompt API) n'est pas ouvert aux applis sur le
- * téléphone, et Samsung n'expose aucun LLM. Sortie contrainte au schéma JSON des actions.
+ * un téléphone haut de gamme, et Samsung n'expose aucun LLM. Sortie contrainte au schéma JSON des actions.
  */
 class ModeleLiteRt(private val fichier: File, private val gpu: Boolean, cache: File) : ModeleTexte {
 
@@ -66,7 +66,7 @@ class ModeleLiteRt(private val fichier: File, private val gpu: Boolean, cache: F
         private const val TAG = "JarvisLlm"
 
         /** Sortie contrainte au schéma JSON : réglable par le banc pour mesurer son coût. */
-        // Coupée par défaut : avec Gemma 4 sur le téléphone elle cassait le JSON (« {"{"actions"... », 13/10/2026).
+        // Coupée par défaut : avec Gemma 4 sur un téléphone elle cassait le JSON (« {"{"actions"... », 13/10/2026).
         @Volatile var contrainteParDefaut = false
 
         private const val SCHEMA = """{"type":"object","properties":{"actions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"service":{"type":"string"},"entity_id":{"type":"string"},"donnees":{"type":"object"}},"required":["service","entity_id"]}},"reponse":{"type":"string"}},"required":["actions","reponse"]}"""

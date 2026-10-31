@@ -55,7 +55,7 @@ internal object Disposition {
 
 /**
  * Arrêt de la musique sur l'accueil (revue du 22/10) : pendant [graceMs] après n'importe quel arrêt (pause à
- * la voix, depuis l'appli Enceintes, fin de liste, mise en mémoire tampon) rien ne change. Ensuite le bloc reste en
+ * la voix, depuis l'appli des enceintes, fin de liste, mise en mémoire tampon) rien ne change. Ensuite le bloc reste en
  * pause, atténué, pendant [pauseMs]. Au-delà il disparaît et le plan reprend la zone A. Une reprise rallume le
  * bloc sans rien déplacer. Horloge monotone donnée par l'appelant.
  */

@@ -7,9 +7,9 @@ import pytest
 import assistant as A
 
 GROUPE, SPOTIFY = "media_player.enceintes_maison", "media_player.spotify_sacha"
-SALON, CUISINE = "media_player.barre_son_salon_enceintes", "media_player.enceinte_cuisine_enceintes"
-MJ = {"nom": "Artiste Fictif", "uri": "spotify--D7ai9Jsy://artist/3fMbdgg4jU18AjLCKBhRSm",
-      "titre": "Artiste Fictif", "artistes": [], "type": "artist"}
+SALON, CUISINE = "media_player.barre_son_salon_enceinte", "media_player.enceinte_cuisine_enceinte"
+MJ = {"nom": "Les Fictifs", "uri": "spotify--D7ai9Jsy://artist/3fMbdgg4jU18AjLCKBhRSm",
+      "titre": "Les Fictifs", "artistes": [], "type": "artist"}
 
 
 class Reponse:
@@ -91,8 +91,8 @@ def test_correspond():
     assert A.correspond({"media_title": "Billie Jean - Single Version"}, piste)
     assert not A.correspond({"media_title": "Bad"}, {"titre": "Bad Romance", "type": "track"})
     assert not A.correspond({"media_title": "Bad Romance"}, {"titre": "Bad", "type": "track"})
-    assert A.correspond({"media_artist": "Akon, Artiste Fictif"}, {"titre": "Artiste Fictif", "type": "artist"})
-    assert not A.correspond({"media_artist": "Julien Doré"}, {"titre": "Artiste Fictif", "type": "artist"})
+    assert A.correspond({"media_artist": "Akon, Les Fictifs"}, {"titre": "Les Fictifs", "type": "artist"})
+    assert not A.correspond({"media_artist": "Julien Doré"}, {"titre": "Lou Fictif", "type": "artist"})
     assert A.correspond({"media_title": "(I Can't Get No) Satisfaction - Mono"},
                         {"titre": "(I Can't Get No) Satisfaction", "type": "track"})
     assert not A.correspond({"media_title": "(Sittin' On) The Dock of the Bay"},
@@ -107,18 +107,18 @@ def test_correspond():
 
 
 def lecture_connect(etats, corps):
-    etats[GROUPE] = etat("playing", source=A.HomeAssistant.SOURCE_CONNECT, media_artist="Artiste Fictif",
+    etats[GROUPE] = etat("playing", source=A.HomeAssistant.SOURCE_CONNECT, media_artist="Les Fictifs",
                          media_title="Billie Jean")
     etats[SPOTIFY] = etat("playing", source=A.HomeAssistant.SPOTIFY_APPAREIL, supported_features=444983,
-                          source_list=[A.HomeAssistant.SPOTIFY_APPAREIL], media_artist="Artiste Fictif")
+                          source_list=[A.HomeAssistant.SPOTIFY_APPAREIL], media_artist="Les Fictifs")
     etats[SALON] = etat("playing", media_title=A.HomeAssistant.SOURCE_CONNECT)
 
 
 def etats_session_connect():
-    """Les Enceintes jouent déjà en Spotify Connect (cas du soir du 22/10/2026)."""
+    """Les enceinte jouent déjà en Spotify Connect (cas du soir du 22/10/2026)."""
     return {GROUPE: etat("playing", source=A.HomeAssistant.SOURCE_CONNECT, media_artist="Daft Punk", media_title="Get Lucky"),
             SPOTIFY: etat("playing", source=A.HomeAssistant.SPOTIFY_APPAREIL, supported_features=444983,
-                          source_list=["téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL]),
+                          source_list=["Téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL]),
             SALON: etat("playing"), CUISINE: etat("playing")}
 
 
@@ -126,28 +126,28 @@ def test_session_connect_jouee_par_spotify(journal_musique_temporaire):
     client = FauxHA(etats_session_connect(), {"media_player.play_media": lecture_connect})
     ha = ha_avec(client)
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    res = ha.musique("Artiste Fictif", "artist")
-    assert res == {"ok": True, "confirme": True, "lance": "Artiste Fictif", "enceinte": GROUPE}
+    res = ha.musique("Les Fictifs", "artist")
+    assert res == {"ok": True, "confirme": True, "lance": "Les Fictifs", "enceinte": GROUPE}
     services = [s for s, _ in client.appels]
     assert "music_assistant.play_media" not in services and "media_player.select_source" not in services
     assert client.appels[-1] == ("media_player.play_media", {"entity_id": SPOTIFY, "media_content_type": "artist",
                                                               "media_content_id": "spotify:artist:3fMbdgg4jU18AjLCKBhRSm"})
     ligne = json.loads(journal_musique_temporaire.read_text(encoding="utf-8").splitlines()[-1])
     assert (ligne["demande"], ligne["voie"], ligne["lecteur"], ligne["resultat"]) == (
-        "Artiste Fictif", "spotify connect", SPOTIFY, "confirmé")
+        "Les Fictifs", "spotify connect", SPOTIFY, "confirmé")
     assert "duree_s" in ligne
 
 
 def test_prise_de_main_avant_lecture():
     etats = etats_session_connect()
     etats[GROUPE] = etat("idle", source="Music Assistant Queue")
-    etats[SPOTIFY] = etat("playing", source="téléphone de Sacha", supported_features=444983,
-                          source_list=["téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL])
+    etats[SPOTIFY] = etat("playing", source="Téléphone de Sacha", supported_features=444983,
+                          source_list=["Téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL])
     bascule = lambda e, c: e.update({GROUPE: etat("playing", source=A.HomeAssistant.SOURCE_CONNECT, media_title="Get Lucky")})
     client = FauxHA(etats, {"media_player.select_source": bascule, "media_player.play_media": lecture_connect})
     ha = ha_avec(client)
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    assert ha.musique("Artiste Fictif", "artist")["confirme"] is True
+    assert ha.musique("Les Fictifs", "artist")["confirme"] is True
     assert [s for s, _ in client.appels] == ["media_player.select_source", "media_player.play_media"]
 
 
@@ -156,22 +156,22 @@ def test_jamais_lance_sans_confirmation(journal_musique_temporaire):
     client = FauxHA(etats_session_connect())
     ha = ha_avec(client)
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    res = ha.musique("Artiste Fictif", "artist")
+    res = ha.musique("Les Fictifs", "artist")
     assert res["confirme"] is False and "lance" not in res and "attention" in res
     assert json.loads(journal_musique_temporaire.read_text(encoding="utf-8"))["resultat"] == res["attention"]
 
 
 def test_ma_qui_affiche_playing_sans_son():
-    # Repli par MA (une seule enceinte) : le lecteur de MA dit « playing », l'enceinte Enceintes est en pause.
+    # Repli par MA (une seule enceinte) : le lecteur de MA dit « playing », l'enceinte enceinte est en pause.
     etats = {SPOTIFY: etat("idle", source_list=[]), "media_player.barre_son_salon": etat("playing", media_title="Billie Jean"),
-             SALON: etat("paused", media_title="Billie Jean", media_artist="Artiste Fictif")}
+             SALON: etat("paused", media_title="Billie Jean", media_artist="Les Fictifs")}
     ha = ha_avec(FauxHA(etats))
-    ha.chercher_musique = lambda r, t, a="", fin=None: {"nom": "Billie Jean de Artiste Fictif", "uri": "spotify://track/x",
-                                              "titre": "Billie Jean", "artistes": ["Artiste Fictif"], "type": "track"}
+    ha.chercher_musique = lambda r, t, a="", fin=None: {"nom": "Billie Jean de Les Fictifs", "uri": "spotify://track/x",
+                                              "titre": "Billie Jean", "artistes": ["Les Fictifs"], "type": "track"}
     res = ha.musique("Billie Jean", "track", "salon")
     assert res["confirme"] is False and "lance" not in res
-    etats[SALON] = etat("playing", media_title="Billie Jean", media_artist="Artiste Fictif")
-    assert ha.musique("Billie Jean", "track", "salon")["lance"] == "Billie Jean de Artiste Fictif"
+    etats[SALON] = etat("playing", media_title="Billie Jean", media_artist="Les Fictifs")
+    assert ha.musique("Billie Jean", "track", "salon")["lance"] == "Billie Jean de Les Fictifs"
 
 
 def recherche(horloge, duree, resultats=None):
@@ -186,7 +186,7 @@ def test_recherche_lente_n_est_pas_rien_trouve(horloge):
     client = FauxHA({}, {"music_assistant.search": recherche(horloge, 8.0)})
     ha = ha_avec(client)
     debut = horloge.time()
-    assert "Spotify fait patienter" in ha.musique("Thriller Artiste Fictif", "track")["erreur"]
+    assert "Spotify fait patienter" in ha.musique("Thriller Les Fictifs", "track")["erreur"]
     assert horloge.time() - debut >= 8 + A.HomeAssistant.PAUSE_FREINAGE + 8
     # Première forme lente : la seconde (« titre artiste ») n'est pas tentée, mais un second essai après la pause.
     assert [s for s, _ in client.appels] == ["music_assistant.search"] * 2
@@ -202,7 +202,7 @@ def test_recherche_en_delai_depasse(horloge):
 
 
 def test_resultat_spotify_prefere_a_la_bibliotheque(horloge):
-    pistes = [{"name": "Thriller", "uri": "library://track/12", "artists": [{"name": "Artiste Fictif"}]},
+    pistes = [{"name": "Thriller", "uri": "library://track/12", "artists": [{"name": "Les Fictifs"}]},
               {"name": "Thriller", "uri": "spotify--D7ai9Jsy://track/3S2R0EVwBSAVMd5UMgKTL0", "artists": []}]
     ha = ha_avec(FauxHA({}, {"music_assistant.search": recherche(horloge, 0.2, pistes)}))
     assert ha.chercher_musique("Thriller", "track")["uri"].startswith("spotify--")
@@ -212,13 +212,13 @@ def test_pas_de_repli_par_ma_apres_la_prise_de_main(horloge, journal_musique_tem
     # Le groupe ne passe jamais en Spotify Connect : pas de music_assistant.play_media, qui se battrait
     # pour le compte avec la session Connect, et une réponse dans l'échéance.
     etats = {GROUPE: etat("idle", source="Music Assistant Queue"), SALON: etat("idle"),
-             SPOTIFY: etat("paused", source="téléphone de Sacha", supported_features=444983,
-                           source_list=["téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL])}
+             SPOTIFY: etat("paused", source="Téléphone de Sacha", supported_features=444983,
+                           source_list=["Téléphone de Sacha", A.HomeAssistant.SPOTIFY_APPAREIL])}
     client = FauxHA(etats)
     ha = ha_avec(client, vraie_attente=True)
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
     debut = horloge.time()
-    res = ha.musique("Artiste Fictif", "artist")
+    res = ha.musique("Les Fictifs", "artist")
     assert res["confirme"] is False and "lance" not in res
     assert [s for s, _ in client.appels] == ["media_player.select_source"]
     assert horloge.time() - debut <= A.HomeAssistant.DELAI_MUSIQUE
@@ -231,7 +231,7 @@ def test_delai_sur_play_media_de_spotify(horloge, journal_musique_temporaire):
         raise httpx.ReadTimeout("lent")
     ha = ha_avec(FauxHA(etats_session_connect(), {"media_player.play_media": lent}), vraie_attente=True)
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    assert ha.musique("Artiste Fictif", "artist")["confirme"] is True
+    assert ha.musique("Les Fictifs", "artist")["confirme"] is True
     assert json.loads(journal_musique_temporaire.read_text(encoding="utf-8"))["resultat"] == "confirmé"
 
 
@@ -241,7 +241,7 @@ def test_ha_injoignable_toujours_journalise(journal_musique_temporaire):
     ha = ha_avec(FauxHA({}))
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
     ha.lire = coupe
-    res = ha.musique("Artiste Fictif", "artist")
+    res = ha.musique("Les Fictifs", "artist")
     assert res["confirme"] is False and "ConnectError" in res["attention"]
     assert len(journal_musique_temporaire.read_text(encoding="utf-8").splitlines()) == 1
 
@@ -257,15 +257,15 @@ def test_relance_espacee(horloge):
 
 def test_garde_fou_musique():
     sans = [{"ok": False, "confirme": False, "attention": "..."}]
-    assert A.garde_fou_musique("Artiste Fictif est lancé.", sans) == (
+    assert A.garde_fou_musique("Les Fictifs est lancé.", sans) == (
         "J'ai demandé la musique, mais les enceintes ne la jouent pas encore.")
     assert A.garde_fou_musique("C'est parti !", [{"erreur": "x"}]) == "Je n'ai pas réussi à lancer cette musique."
     assert A.garde_fou_musique("La demande est partie, ça peut prendre une minute.", sans).startswith("La demande")
-    assert A.garde_fou_musique("Artiste Fictif est lancé.", [{"ok": True, "lance": "Artiste Fictif"}]).endswith("lancé.")
+    assert A.garde_fou_musique("Les Fictifs est lancé.", [{"ok": True, "lance": "Les Fictifs"}]).endswith("lancé.")
     assert A.garde_fou_musique("C'est lancé.", []) == "C'est lancé."
 
 
-def test_script_de_musique_confirme_par_les_enceintes(journal_musique_temporaire):
+def test_script_de_musique_confirme_par_les_enceinte(journal_musique_temporaire):
     etats = {GROUPE: etat("idle"), SALON: etat("idle"), CUISINE: etat("idle")}
     ha = ha_avec(FauxHA(etats))
     assert ha.confirmer("script.turn_on", {"entity_id": "script.lancer_musique"}) == [GROUPE]
@@ -281,11 +281,11 @@ def test_dictionnaire_musique_sans_son(journal_musique_temporaire):
     assistant.ha = ha_avec(FauxHA(etats))
     with pytest.raises(A.NonConfirme) as e:
         assistant.executer({"service": "script.turn_on", "entity_id": "script.lancer_musique"})
-    assert e.value.parole == "J'ai demandé la musique, mais les Enceintes ne jouent pas encore."
+    assert e.value.parole == "J'ai demandé la musique, mais les enceintes ne jouent pas encore."
 
 
 THRILLER = [{"name": "Thriller", "uri": "spotify--D7ai9Jsy://track/3S2R0EVwBSAVMd5UMgKTL0",
-             "artists": [{"name": "Artiste Fictif"}]}]
+             "artists": [{"name": "Les Fictifs"}]}]
 
 
 def test_freinage_pause_puis_second_essai(horloge):
@@ -356,8 +356,8 @@ def test_spotify_signale_la_cuisine_hors_ligne(journal_musique_temporaire):
     ha = ha_avec(FauxHA(etats, {"media_player.play_media": lambda e, c: (lecture_connect(e, c), e.update(
         {CUISINE: etat("unavailable")}))[1]}))
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    res = ha.musique("Artiste Fictif", "artist")
-    assert res["confirme"] and res["lance"] == "Artiste Fictif"
+    res = ha.musique("Les Fictifs", "artist")
+    assert res["confirme"] and res["lance"] == "Les Fictifs"
     assert res["remarque"].startswith("La musique est lancée, mais l'enceinte cuisine est hors ligne.")
     ligne = json.loads(journal_musique_temporaire.read_text(encoding="utf-8").splitlines()[-1])
     assert ligne["muettes"] == "cuisine"
@@ -368,11 +368,11 @@ def test_enceinte_nommee_sans_remarque(journal_musique_temporaire):
     etats = {SALON: etat("idle"), CUISINE: etat("unavailable"), "media_player.barre_son_salon": etat("idle")}
 
     def lancer(e, c):
-        e[SALON] = etat("playing", media_artist="Artiste Fictif", media_title="Billie Jean")
+        e[SALON] = etat("playing", media_artist="Les Fictifs", media_title="Billie Jean")
 
     ha = ha_avec(FauxHA(etats, {"music_assistant.play_media": lancer}))
     ha.chercher_musique = lambda r, t, a="", fin=None: MJ
-    res = ha.musique("Artiste Fictif", "artist", enceinte="salon")
+    res = ha.musique("Les Fictifs", "artist", enceinte="salon")
     assert res["confirme"] and "remarque" not in res
 
 

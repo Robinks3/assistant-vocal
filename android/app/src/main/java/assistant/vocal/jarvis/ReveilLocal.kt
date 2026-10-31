@@ -19,7 +19,7 @@ import kotlin.random.Random
  * bandes, transformées en x/10 + 2), plongement des 76 dernières trames (96 valeurs),
  * puis modèle hey_jarvis sur les 16 derniers plongements (1,28 s de son).
  *
- * Coût mesuré sur la tablette (Snapdragon 855) le 12/10/2026, par bloc de 80 ms : 35 ms sur un
+ * Coût mesuré sur la tablette le 12/10/2026, par bloc de 80 ms : 35 ms sur un
  * fil sans XNNPACK, 25 ms sur un fil avec (réglage retenu, un seul cœur occupé), 16 ms sur deux
  * fils avec. Le plongement pèse les deux tiers du temps.
  */

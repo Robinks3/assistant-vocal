@@ -29,7 +29,7 @@ class SanteDetailTest {
           {"date": "2026-10-21", "renseigne": true, "pas": 12080, "sommeil_minutes": 418},
           {"date": "2026-10-22", "renseigne": true, "pas": 4210, "sommeil_minutes": 432}],
         "seances": [
-          {"date": "2026-10-21", "debut": "2026-10-21T18:30:00+00:00", "fin": null, "type": "course", "titre": "course", "type_code": 1,
+          {"date": "2026-10-21", "debut": "2026-10-21T18:30:00+00:00", "fin": null, "type": "natation", "titre": "Natation", "type_code": 1,
            "minutes": 75, "kcal": 820, "distance_m": null, "trimp": null, "fc_moyenne": 148, "fc_max": 186, "fc_min": 90,
            "vitesse_moyenne_kmh": null, "vitesse_max_kmh": null, "zones_minutes": {"z1": 6, "z2": 14, "z3": 22, "z4": 24, "z5": 9},
            "fc_courbe": [[0, 95], [10, 150], [20, 186], [30, 120]]},
@@ -51,7 +51,7 @@ class SanteDetailTest {
         assertEquals(7, d.jours.size)
         assertEquals(2, d.seances.size)
         val s = d.seances[0]
-        assertEquals("course", s.titre)
+        assertEquals("Natation", s.titre)
         assertEquals(20, s.debut!!.hour)
         assertEquals(listOf(6, 14, 22, 24, 9), s.zones)
         assertEquals(4, s.courbe.size)
@@ -111,7 +111,8 @@ class SanteDetailTest {
 
     @Test
     fun titresDesSeancesEnFrancais() {
-        assertEquals("course", SanteDetail.libelleSeance(null, "course"))
+        assertEquals("Natation", SanteDetail.libelleSeance(null, "natation"))
+        assertEquals("Course nature", SanteDetail.libelleSeance(null, "course_nature"))
         assertEquals("Course à pied", SanteDetail.libelleSeance(null, "course"))
         assertEquals("Vélo d'appartement", SanteDetail.libelleSeance("", "velo_appartement"))
         assertEquals("Séance", SanteDetail.libelleSeance(null, "type_42"))

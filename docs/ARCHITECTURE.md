@@ -76,7 +76,7 @@ Variables lues par le serveur, en plus de celles de `poc/.env.exemple` :
 
 ### Appli Android, `android/`
 
-Paquet `assistant.vocal.jarvis`, sources dans `android/app/src/main/java/assistant/vocal/jarvis/`. Toute l'interface est
+Paquet Kotlin `assistant.vocal.jarvis` (`applicationId` lu dans `appareils.android.application_id`), sources dans `android/app/src/main/java/assistant/vocal/jarvis/`. Toute l'interface est
 construite en code, sans XML de mise en page.
 
 | Famille | Fichiers |
@@ -205,7 +205,7 @@ cerveau est toujours Claude.
 
 Les chiffres viennent du code et des journaux de versions d'avant la séparation du moteur. Ils ont été
 mesurés sur une installation d'exemple : un PC de bureau, une tablette Android d'entrée de gamme, un téléphone
-Android haut de gamme et un Home Assistant sur un mini-PC à processeur petit serveur.
+Android haut de gamme et un Home Assistant sur un petit serveur.
 
 | Étape | Durée typique |
 |---|---|
@@ -219,7 +219,7 @@ Android haut de gamme et un Home Assistant sur un mini-PC à processeur petit se
 | Lampe qui réagit | 0,2 s après l'ordre, confirmation relue toutes les 0,15 s |
 | Claude Haiku | 1,9 à 2,5 s par commande, environ 2,7 s depuis l'appareil par l'appli Home Assistant |
 | LLM local Qwen3.5-9B | 2,7 à 3,8 s par commande |
-| Piper | 0,2 s sur le PC, 0,7 s sur le mini-PC petit serveur |
+| Piper | 0,2 s sur le PC, 0,7 s sur le petit serveur |
 | Vision | 16 ms par image sur le PC (44 ms aller-retour), 27 à 28 ms par image sur la tablette |
 
 Par addition, une commande du dictionnaire sur le serveur du PC répond environ 1 à 1,5 s après la fin de la
@@ -446,7 +446,7 @@ quand le volume actuel est connu. Sans plafond, `volume_up` est aussi permis au 
 
 | Verrou | Où |
 |---|---|
-| Liste blanche des services (décision D6, 0.37.0) : tout ce que Home Assistant expose pour les domaines d'équipement (lumières, interrupteurs, ventilateurs, volets, climat, humidificateurs, chauffe-eau, vannes, sirènes, lecteurs, Music Assistant, aspirateurs, tondeuses, caméras en marche et arrêt, scènes, scripts, automatisations, entrées `input_*`, boutons, nombres, textes, minuteurs, compteurs, `remote`, `select`, `domaine_tele`), complété au démarrage par `GET /api/services` quand Home Assistant répond. Restent refusés : toute cible par `device_id`, `floor_id` ou `label_id`, les `DOMAINES_INTERDITS` (serrure, alarme, notification, etc.), les rechargements, `camera.snapshot`, `scene.apply`, `media_player.play_media`, `remote.learn_command` et ce qui écrit un fichier ou désigne d'autres appareils dans ses données. `domaine_tele`, `remote` et `select` sont dans `DOMAINES_HORS_LLM` : hors du contexte du LLM et de son outil `appeler_service`, réservés au dictionnaire. `launch_app` n'accepte qu'une URL `https://` | `liste_blanche.SERVICES_PERMIS`, `services_depuis_ha`, `HomeAssistant.service` |
+| Liste blanche des services (décision D6, 0.37.0) : tout ce que Home Assistant expose pour les domaines d'équipement (lumières, interrupteurs, ventilateurs, volets, climat, humidificateurs, chauffe-eau, vannes, sirènes, lecteurs, Music Assistant, aspirateurs, tondeuses, caméras en marche et arrêt, scènes, scripts, automatisations, entrées `input_*`, boutons, nombres, textes, minuteurs, compteurs, `remote`, `select`, `<domaine_tele>`), complété au démarrage par `GET /api/services` quand Home Assistant répond. Restent refusés : toute cible par `device_id`, `floor_id` ou `label_id`, les `DOMAINES_INTERDITS` (serrure, alarme, notification, etc.), les rechargements, `camera.snapshot`, `scene.apply`, `media_player.play_media`, `remote.learn_command` et ce qui écrit un fichier ou désigne d'autres appareils dans ses données. `<domaine_tele>`, `remote` et `select` sont dans `DOMAINES_HORS_LLM` : hors du contexte du LLM et de son outil `appeler_service`, réservés au dictionnaire. `launch_app` n'accepte qu'une URL `https://` | `liste_blanche.SERVICES_PERMIS`, `services_depuis_ha`, `HomeAssistant.service` |
 | Le LLM ne voit que les domaines de `DOMAINES_CONTEXTE` (`DOMAINES_LLM`, soit lumières, ventilateurs, volets, climat, lecteurs, Music Assistant, aspirateur, scènes, scripts et booléens, plus les capteurs de température, d'humidité, de porte, de fenêtre et la météo) et l'outil `appeler_service` n'accepte que `DOMAINES_OUTIL_LLM` (ces domaines, plus `button` et `switch`) : l'élargissement de la liste blanche ne change rien à ce que voit le modèle, qui reste sans les entités masquées par `llm.masquer` ni les entités protégées | `HomeAssistant.inventaire` |
 | Les entités permises partent en `enum` dans le schéma des outils, et toute entité hors de la liste est refusée par le code | `outils_avec_entites`, `HomeAssistant.service` |
 | Un changement de volume non demandé dans la phrase est refusé | `garde_fou_volume` |
@@ -468,21 +468,22 @@ La liste de ce que le LLM et l'appli peuvent faire sur la télé et les lampes v
 `poc/liste_blanche.py`, jamais en deux copies. Elle a deux parties.
 
 1. La table des services par domaine, `SERVICES_PERMIS` (décision D6, voir plus haut), avec `DOMAINES_HORS_LLM`
-   (`domaine_tele`, `remote`, `select`, réservés au dictionnaire et à l'appli). `assistant.py` la réexporte pour
+   (`<domaine_tele>`, `remote`, `select`, réservés au dictionnaire et à l'appli). `assistant.py` la réexporte pour
    `HomeAssistant.service`, `services_depuis_ha` et l'exporteur de dictionnaire de l'appli.
 2. Les réglages de la maison, lus dans la section `reglages` de `maison.json`, tous facultatifs. Une clé absente
    ne restreint rien de plus que la table et `securite.py`.
 
 | Clé de `reglages` | Effet |
 |---|---|
-| `applis` | Liste des noms d'applis que `domaine_tele.launch_app` accepte dans son champ `app` |
+| `tele.domaine` | Domaine Home Assistant de l'intégration de la télé, qui gagne `launch_app`, `send_text_input` et `set_picture_setting`, hors LLM. Un domaine déjà dans la table est refusé |
+| `applis` | Liste des noms d'applis que `<domaine_tele>.launch_app` accepte dans son champ `app` |
 | `interrupteurs` | Liste des `switch.*` appelables. Un appel sur un interrupteur absent de la liste, ou sans cible, est refusé |
 | `attributs_refuses` | Pour un service `domaine.service`, les clés de données refusées (`{"light.turn_on": ["flash"]}`) |
 
 Les deux voies passent par `acces.controler_service`, qui appelle `liste_blanche.refus_reglage` après les
 contrôles de schéma et de `launch_app`, et avant `securite.verifier`. La voie du LLM (`HomeAssistant.service`)
 applique en plus la table pour tous les domaines. La passerelle de l'appli (`acces.verifier_requete_ha`) applique
-la table pour les trois domaines réservés à l'appli (`domaine_tele`, `remote`, `select`), puisque l'appli
+la table pour les trois domaines réservés à l'appli (`<domaine_tele>`, `remote`, `select`), puisque l'appli
 appelle d'autres services d'équipement que le LLM. Rien dans les réglages ne rouvre `device_id`, `floor_id`,
 `label_id` ni un domaine de `DOMAINES_INTERDITS`. Test de parité : `poc/tests/test_liste_blanche_commune.py`.
 

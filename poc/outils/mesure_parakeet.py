@@ -2,7 +2,7 @@
 import time, numpy as np, onnx_asr
 from piper import PiperVoice
 voix = PiperVoice.load("poc/voix/fr_FR-siwis-medium.onnx")
-audio = b"".join(c.audio_int16_bytes for c in voix.synthesize("Éteins la lumière du salon et mets la musique sur le Enceintes."))
+audio = b"".join(c.audio_int16_bytes for c in voix.synthesize("Éteins la lumière du salon et mets la musique sur l'enceinte."))
 x = np.frombuffer(audio, np.int16).astype(np.float32) / 32768
 n = int(len(x) * 16000 / voix.config.sample_rate)
 x16 = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)

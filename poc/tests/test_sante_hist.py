@@ -29,14 +29,14 @@ def pesee():
     return jour(steps=None, kcal=None, sleepH=None, hr=None, hrMin=None, hrMax=None, spo2Min=None, weight=70)
 
 
-def seance(ident, debut, fin, type_="course", minutes=60, km=0, **detail):
+def seance(ident, debut, fin, type_="natation", minutes=60, km=0, **detail):
     d = {"id": ident, "typeBrut": type_, "typeCode": 52, "titre": "Séance inventée", "debut": debut, "fin": fin,
          "decalage": "+01:00", "fcMin": 90, "fcMax": 175, "fcMoy": 140.5, "fcN": 3000,
          "fcCourbe": [[i / 2, 120 + i % 50] for i in range(120)],
          "zones": {"z1": 5, "z2": 10, "z3": 20, "z4": 15, "z5": 6.5}, "trimp": 80, "vitMoy": 9.9, "vitMax": 30.1,
          "origine": "com.exemple", "saisie": 1}
     d.update(detail)
-    return {"t": "course / course", "min": minutes, "km": km, "cal": 600, "hr": 140.5, "start": debut[11:16], "detail": d}
+    return {"t": "Natation", "min": minutes, "km": km, "cal": 600, "hr": 140.5, "start": debut[11:16], "detail": d}
 
 
 def sans_fc(s):
@@ -108,7 +108,7 @@ def jeu_periode():
     days["2031-03-10"]["dist"] = None          # renseigné sans distance : 0 dans la moyenne
     days["2031-03-10"]["sessions"] = [seance("ski-1", "2031-03-10T09:00:00Z", "2031-03-10T11:00:00Z", "ski",
                                              minutes=120, trimp=200)]
-    days["2031-03-13"]["sessions"] = [seance("course-1", "2031-03-13T18:00:00Z", "2031-03-13T19:00:00Z")]
+    days["2031-03-13"]["sessions"] = [seance("natation-1", "2031-03-13T18:00:00Z", "2031-03-13T19:00:00Z")]
     days["2031-03-15"] = jour(steps=99999, hrMin=30, spo2Min=85, sessions=[
         seance("course-1", "2031-03-15T07:00:00Z", "2031-03-15T07:30:00Z", "course", minutes=30, km=5.0, trimp=40)])
     return donnees(days)
@@ -136,7 +136,7 @@ def test_periode_de_7_jours_et_comparaison():
     assert sp["trimp"] == 120  # ski exclu de la charge
     assert (sp["minutes_par_semaine"], sp["seances_par_semaine"], sp["trimp_par_semaine"]) == (210, 3, 120)
     assert sp["par_sport"]["ski"] == {"nom": "Ski", "minutes": 120, "seances": 1, "trimp": None, "sans_fc": 0}
-    assert sp["par_sport"]["course"]["trimp"] == 80
+    assert sp["par_sport"]["natation"]["trimp"] == 80
     assert sp["par_sport"]["course"] == {"nom": "Course à pied", "minutes": 30, "seances": 1, "trimp": 40,
                                          "sans_fc": 0}
     a = p["avant"]
@@ -288,7 +288,7 @@ def test_seance_sans_fc():
     assert ligne["avec_fc"] is False and ligne["fc_moyenne"] is None and ligne["trimp"] is None
     total = SH.periode(d, 7, AUJOURDHUI)["bilan"]["sport"]
     assert total["sans_fc"] == 1 and total["trimp"] is None and total["minutes"] == 60
-    assert total["trimp_par_semaine"] is None and total["par_sport"]["course"]["sans_fc"] == 1
+    assert total["trimp_par_semaine"] is None and total["par_sport"]["natation"]["sans_fc"] == 1
     detail = SH.detail_seance(d, s, 193, None)
     assert detail["zones_minutes"] is None and detail["fc_courbe"] is None and detail["zones_bornes"] is not None
     assert SH.records(d, AUJOURDHUI, 10000, 420)["records"]["fc_la_plus_haute"] is None
@@ -322,8 +322,8 @@ def test_liste_des_seances_par_sport():
     assert c1 == {"seance_id": "c1", "date": "2031-03-13", "debut_local": "2031-03-13T08:00", "minutes": 25,
                   "sport": "course", "nom": "Course à pied", "distance_m": 5000, "allure_s_par_km": 300,
                   "fc_moyenne": 140.5, "fc_max": 175, "trimp": 80, "avec_fc": True}
-    course = SH.liste_seances(d, 30, "course", AUJOURDHUI)["seances"]
-    assert [s["seance_id"] for s in course] == ["h1"] and course[0]["allure_s_par_km"] is None
+    natation = SH.liste_seances(d, 30, "natation", AUJOURDHUI)["seances"]
+    assert [s["seance_id"] for s in natation] == ["h1"] and natation[0]["allure_s_par_km"] is None
 
 
 def test_detail_d_une_seance_et_bornes_des_zones():
@@ -335,7 +335,7 @@ def test_detail_d_une_seance_et_bornes_des_zones():
         "z1": {"nom": "récupération", "min_bpm": 0, "max_bpm": 115}, "z2": {"nom": "endurance", "min_bpm": 116, "max_bpm": 135},
         "z3": {"nom": "tempo", "min_bpm": 136, "max_bpm": 154}, "z4": {"nom": "seuil", "min_bpm": 155, "max_bpm": 173},
         "z5": {"nom": "anaérobie", "min_bpm": 174, "max_bpm": None}}  # 60 % de 193 = 115,8, etc.
-    assert detail["dans_la_charge"] is True and detail["type"] == "course" and detail["analyse"] is None
+    assert detail["dans_la_charge"] is True and detail["type"] == "natation" and detail["analyse"] is None
     sans = SH.detail_seance(d, d.seances["h1"], None, None)
     assert sans["zones_bornes"] is None and sans["fc_max_reference"] is None
 
@@ -385,11 +385,11 @@ def test_records():
     assert r["journee_la_plus_active"] == {"valeur": 12000, "unite": "pas", "date": "2031-03-07", "battu_le": None}
     assert r["meilleure_semaine_pas"] is None  # aucune semaine complète hors première et en cours
     assert r["seance_la_plus_longue"]["seance_id"] == "ski"            # la durée compte le ski
-    # Semaine du 24/02 : 60 min de course, le ski du même dimanche (300 min) exclu. Semaine du 03/03 : 90 + 55.
+    # Semaine du 24/02 : 60 min de natation, le ski du même dimanche (300 min) exclu. Semaine du 03/03 : 90 + 55.
     assert r["semaine_la_plus_sportive"] == {"valeur": 145, "unite": "min", "lundi": "2031-03-03",
                                              "battu_le": "2031-03-09"}
     assert r["seance_la_plus_chargee"] == {"valeur": 150, "unite": "trimp", "date": "2031-03-03", "seance_id": "vrai",
-                                           "sport": "course", "battu_le": None}
+                                           "sport": "natation", "battu_le": None}
     assert r["zone5_la_plus_longue"]["valeur"] == 12.5
     assert r["course_la_plus_longue"]["valeur"] == 10 and r["course_la_plus_longue"]["seance_id"] == "c10"
     assert r["meilleure_allure_5km"] == {"valeur": 300, "unite": "s/km", "date": "2031-03-12", "seance_id": "c5",
@@ -397,7 +397,7 @@ def test_records():
                                          "battu_le": "2031-03-12"}  # 4 km trop court
     # 230 bpm dépasse de plus de 15 bpm le sommet de sa courbe (170) : pic de capteur écarté.
     assert r["fc_la_plus_haute"] == {"valeur": 190, "unite": "bpm", "date": "2031-03-03", "seance_id": "vrai",
-                                     "sport": "course", "battu_le": None}
+                                     "sport": "natation", "battu_le": None}
     assert r["fc_la_plus_basse"] == {"valeur": 44, "unite": "bpm", "date": "2031-03-14", "battu_le": "2031-03-14"}
     # Le 12/03 n'a que sleepH (9 h au lit, estimé) : écarté, la plus longue nuit mesurée est celle du 14.
     assert r["nuit_la_plus_longue"] == {"valeur": 500, "unite": "min", "date": "2031-03-14", "battu_le": "2031-03-14"}
@@ -669,7 +669,7 @@ def test_cache_des_commentaires_plafonne():
 @pytest.mark.parametrize("msg,attendu", [
     ({"type": "sante_periode", "jours": 14}, "période non prise en charge"),
     ({"type": "sante_periode", "jours": True}, "période non prise en charge"),
-    ({"type": "sante_seances", "jours": 30, "sport": "course!"}, "sport inconnu"),
+    ({"type": "sante_seances", "jours": 30, "sport": "Natation!"}, "sport inconnu"),
     ({"type": "sante_seance", "seance_id": 12}, "séance inconnue"),
     ({"type": "sante_jour", "date": "2031-02-30"}, "date invalide"),
     ({"type": "sante_jour", "date": "15/03/2031"}, "date invalide"),
@@ -1081,7 +1081,7 @@ def test_seances_d_une_fenetre_passee_avec_charge(jour_fixe):
     l = asyncio.run(h.repondre({"type": "sante_seances", "id": 2, "jours": 7, "au": "2031-03-05"}))
     assert (l["du"], l["au"], l["tronque"]) == ("2031-02-27", "2031-03-05", False)
     assert len(l["seances"]) == 37 and l["seances"][0]["date"] == "2031-03-05"
-    assert l["par_sport"]["course"] == {"nom": "course", "seances": 35, "minutes": 2100,
+    assert l["par_sport"]["natation"] == {"nom": "Natation", "seances": 35, "minutes": 2100,
                                                "distance_m": 0, "trimp": 350, "sans_fc": 0}
     assert l["par_sport"]["ski"]["trimp"] is None                  # hors charge
     assert l["par_sport"]["course"]["trimp"] is None and l["par_sport"]["course"]["sans_fc"] == 1

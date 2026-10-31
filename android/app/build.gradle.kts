@@ -9,7 +9,7 @@ plugins {
 
 // Version unique du livrable, à garder synchronisée avec ../VERSION.md.
 // L'écran principal et la notification l'affichent avec l'horodatage.
-val versionApplication = "0.49.0"
+val versionApplication = "0.50.0"
 val horodatageCompilation: String = SimpleDateFormat("yyyy-MM-dd HH:mm").apply {
     timeZone = TimeZone.getTimeZone("Europe/Paris")
 }.format(Date())
@@ -147,6 +147,11 @@ if (signatureFournie) {
 
 fun chaineJava(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
+// Identifiant installé de l'appli : appareils.android.application_id de maison.json. Le changer revient à installer
+// une autre appli (appairage et données perdus). Le code Kotlin garde son namespace, indépendant de cette valeur.
+val idApplication: String = (((maison["appareils"] as? Map<*, *>)?.get("android") as? Map<*, *>)?.get("application_id") as? String)
+    ?.takeIf { it.isNotBlank() } ?: "assistant.vocal.jarvis"
+
 android {
     namespace = "assistant.vocal.jarvis"
 
@@ -155,10 +160,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "assistant.vocal.jarvis"
+        applicationId = idApplication
         minSdk = 26
         targetSdk = 36
-        versionCode = 90
+        versionCode = 91
         versionName = if (utilisateur.isEmpty()) versionApplication else "$versionApplication-$utilisateur"
 
         buildConfigField("String", "VERSION_BASE", chaineJava(versionApplication))
@@ -176,7 +181,7 @@ android {
         resValue("string", "app_name", ressourceChaine(nomAssistant))
 
         // ONNX Runtime et OpenCV embarquent leur moteur natif par architecture : seuls les ARM
-        // des téléphones (téléphone, tablette, téléphone) sont gardés pour limiter la taille de l'APK.
+        // des téléphones et tablettes visés sont gardés pour limiter la taille de l'APK.
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }

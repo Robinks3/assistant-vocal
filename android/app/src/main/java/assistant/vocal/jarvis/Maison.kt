@@ -688,7 +688,7 @@ class Maison(
         planifLumieres.shutdownNow()
     }
 
-    /** Lecteur qui joue : identifiant, nom, morceau, et membres s'il est un groupe (Enceintes). */
+    /** Lecteur qui joue : identifiant, nom, morceau, et membres s'il est un groupe (enceintes). */
     class Lecteur(val id: String, val nom: String, val titre: String, val artiste: String, val membres: Set<String> = emptySet())
 
     /** Action relue dans une ligne « Fait » de l'historique. */
@@ -782,7 +782,7 @@ class Maison(
         }
 
         /**
-         * Une ligne par morceau (0.16.1) : un groupe Enceintes et ses enceintes jouent le même titre, qui
+         * Une ligne par morceau (0.16.1) : un groupe et ses enceintes jouent le même titre, qui
          * apparaissait deux fois. Les lecteurs au même titre et au même artiste sont réunis
          * (« sur Salon et Cuisine »), et un groupe qui contient tous les autres est seul
          * nommé. Sans titre connu, chaque lecteur garde sa ligne.

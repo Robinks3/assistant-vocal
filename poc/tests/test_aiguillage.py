@@ -185,7 +185,7 @@ def test_historique_par_appareil(monkeypatch):
     with assistant.requete(personne="sacha", appareil="tab"):
         c.repondre("allume le salon")
         assert len(c.historique) == 2
-    with assistant.requete(personne="sacha", appareil="téléphone"):
+    with assistant.requete(personne="sacha", appareil="telephone"):
         assert c.historique == []
     with assistant.requete(personne="camille", appareil="tab"):
         assert c.historique == []
@@ -202,7 +202,7 @@ def test_lecon_annulee_seulement_sur_son_appareil(monkeypatch):
     assistant.lecons = {"tab": ("allume la véranda", A.time.time())}
     assistant.cerveau = SimpleNamespace(repondre=lambda *a, **k: ("Je ne sais pas.", []))
     assistant.ha = SimpleNamespace(conversation=lambda t: None)
-    assistant.traiter("non", appareil="téléphone")
+    assistant.traiter("non", appareil="telephone")
     assert oublis == [] and "tab" in assistant.lecons
     parole = assistant.traiter("non", appareil="tab")
     assert oublis == ["allume la véranda"] and "oublie" in parole and "tab" not in assistant.lecons
@@ -252,7 +252,7 @@ def test_identite_transmise_par_repondre_llm(monkeypatch):
         async def diffuser(self, m):
             pass
     sat = object.__new__(S.Satellite)
-    sat.moteur, sat.nom, sat.identite = Moteur(), "tablette", "appareil:a1"
+    sat.moteur, sat.nom, sat.identite = Moteur(), "Tablette", "appareil:a1"
     envoyes = []
 
     async def envoyer(**m):
@@ -267,7 +267,7 @@ def test_identite_transmise_par_repondre_llm(monkeypatch):
     assert recus == [("allume le salon", False, "sacha", "appareil:a1")]
     # Un jeton fixe de poc/.env partagé : le nom de l'appareil sépare les historiques.
     sat.identite = "sacha"
-    assert sat.cle_appareil() == "sacha/tablette"
+    assert sat.cle_appareil() == "sacha/Tablette"
 
 
 def test_essai_du_serveur_est_un_plancher(monkeypatch):

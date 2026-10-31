@@ -71,7 +71,7 @@ modèle sans sa licence (`<mot>.onnx.LICENSE`) : ajoutez-la à côté.
 ### Gradle s'arrête sur la carte du vent
 
 ```text
-<dossier>/maison.json : vent.carte.cote (« carte/golfe_cote.txt ») absent de genere/android/, la carte du vent sortirait sans côte.
+<dossier>/maison.json : vent.carte.cote (« carte/cote.txt ») absent de genere/android/, la carte du vent sortirait sans côte.
 ```
 
 Avec `vent.actif` à `true`, les fichiers nommés par `vent.carte.cote` et `vent.carte.terre` doivent
@@ -127,7 +127,7 @@ liste est l'erreur la plus courante.
 
 ### Où la compilation Android écrit-elle ses fichiers
 
-Sous Windows, dans `C:/Dev/assistant-vocal-build`, hors du dépôt. Sous Linux ou macOS, dans le dossier `build/`
+Sous Windows, dans `../../assistant-vocal-build`, hors du dépôt. Sous Linux ou macOS, dans le dossier `build/`
 habituel de Gradle. `-PdossierBuild=<chemin>` impose un autre dossier dans les deux cas.
 
 ### L'APK compilée ne s'installe pas
@@ -375,7 +375,7 @@ Le Diagnostic de l'appli montre :
 modèle absent de <dossier> : à copier par adb (1,03 Go)
 ```
 
-Les quatre fichiers de Canary manquent dans `Android/data/assistant.vocal.jarvis/files/canary/`. Copiez-les
+Les quatre fichiers de Canary manquent dans `Android/data/<application_id>/files/canary/`. Copiez-les
 comme décrit à l'étape 7 de `INSTALLER.md`, ou choisissez un autre lieu de transcription. Lancez l'appli
 une fois avant la copie : Android 16 refuse de lire un dossier créé par adb. Si le dossier a été créé
 par adb, supprimez-le, relancez l'appli, puis recopiez.
@@ -386,7 +386,7 @@ par adb, supprimez-le, relancez l'appli, puis recopiez.
 aucun modèle .litertlm dans <dossier> : à copier par adb
 ```
 
-Déposez un fichier `.litertlm` reconnu dans `Android/data/assistant.vocal.jarvis/files/llm/`, ou laissez le repli
+Déposez un fichier `.litertlm` reconnu dans `Android/data/<application_id>/files/llm/`, ou laissez le repli
 à Claude par le serveur.
 
 ### Les phrases inconnues ne reçoivent jamais de réponse
@@ -637,7 +637,7 @@ panne : la configuration doit en tenir compte.
   de quatre nombres. Une maison qui n'a que la section `mer` n'a pas de page Mer sur la tablette, même si
   le serveur sert la météo marine.
 - `mer.nom` n'est lu par aucun code : le titre des pages vient des points déclarés.
-- Aucune source météo (Open-Meteo, VaguesRegional, StationsOfficielles, Balises, station à terre) ne s'éteint seule
+- Aucune source météo (Open-Meteo, vagues régionales, balises, stations officielles, station à terre) ne s'éteint seule
   depuis la configuration. Seules les sections entières s'éteignent, par `"actif": false`, `METEO_MER=0`
   ou `VENT_MESURE=0`.
 - Le trait de côte de la carte du vent n'a pas de générateur dans le moteur : il se fournit tout fait dans

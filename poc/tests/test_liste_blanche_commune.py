@@ -50,14 +50,14 @@ def voie_directe(domaine, service, corps):
 
 # (domaine, service, corps, accepté)
 CAS = [
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "app": "Netflix"}, True),
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "app": "Appli inconnue"}, False),
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "app": ["Netflix"]}, False),
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "url": "https://www.netflix.com/title/80100172"}, True),
-    ("domaine_tele", "launch_app", {"entity_id": TELE, "url": "http://www.netflix.com/title/80100172"}, False),
-    ("domaine_tele", "reboot", {"entity_id": TELE}, False),
-    ("domaine_tele", "send_text_input", {"entity_id": TELE, "text": "docteur"}, True),
-    ("domaine_tele", "send_text_input", {"entity_id": TELE, "text": "x", "device_id": "abcdef0123"}, False),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "app": "Netflix"}, True),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "app": "Appli inconnue"}, False),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "app": ["Netflix"]}, False),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "url": "https://www.netflix.com/title/80100172"}, True),
+    ("tele_connectee", "launch_app", {"entity_id": TELE, "url": "http://www.netflix.com/title/80100172"}, False),
+    ("tele_connectee", "reboot", {"entity_id": TELE}, False),
+    ("tele_connectee", "send_text_input", {"entity_id": TELE, "text": "docteur"}, True),
+    ("tele_connectee", "send_text_input", {"entity_id": TELE, "text": "x", "device_id": "abcdef0123"}, False),
     ("remote", "send_command", {"entity_id": "remote.salon", "command": "KEY_HOME"}, True),
     ("remote", "learn_command", {"entity_id": "remote.salon", "command": "KEY_HOME"}, False),
     ("select", "select_option", {"entity_id": "select.salon_mode", "option": "Cinéma"}, True),
@@ -84,7 +84,7 @@ def test_les_deux_filtres_repondent_pareil(reglages, domaine, service, corps, at
 
 
 @pytest.mark.parametrize("domaine,service,corps,attendu",
-                         [c for c in CAS if not c[3] and c[0] in ("domaine_tele", "switch", "light")])
+                         [c for c in CAS if not c[3] and c[0] in ("tele_connectee", "switch", "light")])
 def test_meme_motif_de_refus_sur_les_deux_voies(reglages, domaine, service, corps, attendu):
     """Le texte du refus de la voie LLM contient celui de la passerelle : une seule source."""
     refus = acces.controler_service(domaine, service, corps,
@@ -111,7 +111,7 @@ def test_une_seule_table_pour_le_llm_et_la_passerelle():
 
 def test_la_passerelle_applique_la_table_aux_domaines_de_l_appli():
     for domaine in liste_blanche.DOMAINES_HORS_LLM:
-        hors_table = "reboot" if domaine == "domaine_tele" else "learn_command" if domaine == "remote" else "reload"
+        hors_table = "reboot" if domaine == "tele_connectee" else "learn_command" if domaine == "remote" else "reload"
         assert hors_table not in liste_blanche.SERVICES_PERMIS[domaine]
         assert acces.verifier_requete_ha("POST", f"/api/services/{domaine}/{hors_table}",
                                          {"entity_id": TELE})
@@ -119,15 +119,15 @@ def test_la_passerelle_applique_la_table_aux_domaines_de_l_appli():
 
 def test_l_exemple_ouvre_les_applis_de_la_section_reglages():
     for app in liste_blanche.REGLAGES.get("applis") or []:
-        assert liste_blanche.refus_reglage("domaine_tele", "launch_app", {"entity_id": TELE, "app": app}) is None
-    assert liste_blanche.refus_reglage("domaine_tele", "launch_app", {"entity_id": TELE, "app": "Appli inconnue"})
+        assert liste_blanche.refus_reglage("tele_connectee", "launch_app", {"entity_id": TELE, "app": app}) is None
+    assert liste_blanche.refus_reglage("tele_connectee", "launch_app", {"entity_id": TELE, "app": "Appli inconnue"})
 
 
 def test_regle_absente_regle_inactive():
     """Sans clé dans les réglages, rien n'est restreint de plus que la table et securite.py."""
     vide = {}
     assert liste_blanche.refus_reglage("switch", "turn_on", {"entity_id": PRISE_HORS_LISTE}, vide) is None
-    assert liste_blanche.refus_reglage("domaine_tele", "launch_app", {"entity_id": TELE, "app": "x"}, vide) is None
+    assert liste_blanche.refus_reglage("tele_connectee", "launch_app", {"entity_id": TELE, "app": "x"}, vide) is None
     assert liste_blanche.refus_reglage("light", "turn_on", {"entity_id": LAMPE, "flash": "long"}, vide) is None
 
 

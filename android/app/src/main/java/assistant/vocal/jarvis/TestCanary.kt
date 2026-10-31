@@ -9,9 +9,9 @@ import java.nio.ByteOrder
 
 /**
  * Banc de Canary sur le téléphone, sans micro : charge le modèle déposé par adb dans
- * /sdcard/Android/data/assistant.vocal.jarvis/files/canary/ et transcrit des WAV (16 kHz, mono, 16 bits)
+ * /sdcard/Android/data/<application_id>/files/canary/ et transcrit des WAV (16 kHz, mono, 16 bits)
  * du dossier files/. Résultats dans logcat, étiquette JarvisCanary :
- *   adb shell am start -n assistant.vocal.jarvis/.MainActivity --es test_canary a.wav,b.wav
+ *   adb shell am start -n <application_id>/assistant.vocal.jarvis.MainActivity --es test_canary a.wav,b.wav
  */
 object TestCanary {
     private const val TAG = "JarvisCanary"

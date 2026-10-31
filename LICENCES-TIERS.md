@@ -107,7 +107,7 @@ Points que la vérification du 26/10/2026 n'a pas pu clore, faute de réseau ou 
 - Publication v0.5.1 d'openWakeWord : les empreintes sont celles de la roue, la publication elle-même n'a pas été téléchargée pour comparer.
 - pillow : non installé dans l'environnement contrôlé.
 - piper-tts et GPL : effet de l'import sur la licence du serveur à faire analyser.
-- Sources de données citées dans la documentation (Open-Meteo, VaguesRegional, Balises, StationsOfficielles, OpenStreetMap sous ODbL) : conditions d'usage non vérifiées ici.
+- Sources de données citées dans la documentation (Open-Meteo, OpenStreetMap sous ODbL) et sources régionales choisies dans la configuration : conditions d'usage non vérifiées ici.
 - Nom du titulaire du droit d'auteur dans `LICENSE` : « les auteurs de l'assistant vocal local », neutre, à remplacer par le propriétaire du dépôt s'il le souhaite.
 
 ## Idées reprises d'un projet tiers

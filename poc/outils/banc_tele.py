@@ -2,7 +2,7 @@
 
 Demande du 12/10/2026. La télé (appareils.tele de maison.json) sort le son sur ses
 propres haut-parleurs et n'accepte la sourdine qu'une fois allumée : l'état est relu toutes les
-0,1 s et la sourdine part dès qu'elle s'allume. La Enceintes Ray du salon est aussi en sourdine
+0,1 s et la sourdine part dès qu'elle s'allume. L'enceinte du salon est aussi en sourdine
 pendant tout le banc (appareils.musique.enceintes.salon), au cas où le son passerait par l'ARC. Tout est remis comme au départ.
 
 Voies testées : dictionnaire et LLM (verrouillé sur la télé). Pas les intentions de HA : trois
@@ -19,7 +19,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 import assistant as A  # noqa: E402
 
 # La télé et l'enceinte du salon (appareils de maison.json).
-TELE, enceintes = A.TELE, (A.MUSIQUE_MAISON.get("enceintes") or {}).get("salon", "")
+TELE, ENCEINTE = A.TELE, (A.MUSIQUE_MAISON.get("enceintes") or {}).get("salon", "")
 
 
 class HAVerrouille(A.HomeAssistant):
@@ -69,15 +69,15 @@ def main():
     ha = HAVerrouille(cfg["ha_url"], cfg["ha_token"])
     ha.vue_llm = assistant.dico.llm
     assistant.cerveau.ha = ha
-    enceintes_depart = etat(ha, enceintes)[1]
+    enceinte_depart = etat(ha, ENCEINTE)[1]
     tele_depart = etat(ha, TELE)[0]
-    print(f"Banc télé, assistant v{A.VERSION}. Télé {tele_depart}, Enceintes en sourdine : {enceintes_depart}")
-    appeler(ha, "media_player.volume_mute", entity_id=enceintes, is_volume_muted=True)
-    time.sleep(2)  # l'état de la Enceintes met environ une seconde à remonter
-    if etat(ha, enceintes)[1] is not True:
-        print("Enceintes pas en sourdine, banc annulé pour ne déranger personne.")
+    print(f"Banc télé, assistant v{A.VERSION}. Télé {tele_depart}, enceinte en sourdine : {enceinte_depart}")
+    appeler(ha, "media_player.volume_mute", entity_id=ENCEINTE, is_volume_muted=True)
+    time.sleep(2)  # l'état de l'enceinte met environ une seconde à remonter
+    if etat(ha, ENCEINTE)[1] is not True:
+        print("enceinte pas en sourdine, banc annulé pour ne déranger personne.")
         return
-    print("Enceintes Ray en sourdine : confirmé\n")
+    print("enceinte Ray en sourdine : confirmé\n")
 
     cycles = [
         ("dictionnaire", lambda: assistant.traiter("Allume la télé"), lambda: assistant.traiter("Éteins la télé")),
@@ -122,13 +122,13 @@ def main():
         if etat(ha, TELE)[0] != "off" and tele_depart == "off":
             appeler(ha, "media_player.turn_off", entity_id=TELE)
             attendre_extinction(ha, time.perf_counter())
-        appeler(ha, "media_player.volume_mute", entity_id=enceintes, is_volume_muted=bool(enceintes_depart))
-        for _ in range(30):  # l'état de la Enceintes peut mettre plus de 2 s à remonter dans HA
-            if etat(ha, enceintes)[1] == bool(enceintes_depart):
+        appeler(ha, "media_player.volume_mute", entity_id=ENCEINTE, is_volume_muted=bool(enceinte_depart))
+        for _ in range(30):  # l'état de l'enceinte peut mettre plus de 2 s à remonter dans HA
+            if etat(ha, ENCEINTE)[1] == bool(enceinte_depart):
                 break
             time.sleep(0.2)
         print(f"Résultat : {reussis}/{total}. Télé {etat(ha, TELE)[0]}, "
-              f"Enceintes en sourdine : {etat(ha, enceintes)[1]} (départ : {enceintes_depart})")
+              f"enceinte en sourdine : {etat(ha, ENCEINTE)[1]} (départ : {enceinte_depart})")
 
 
 if __name__ == "__main__":

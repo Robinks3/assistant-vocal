@@ -135,11 +135,10 @@ internal object SanteDetail {
     fun dort(cle: String): Boolean = cle in setOf("profond", "paradoxal", "leger", "endormi")
 
     /**
-     * Titres des séances (0.21.1) : sans titre, la clé de sante-api (« course », « course »,
+     * Titres des séances (0.21.1) : sans titre, la clé de sante-api (« course »,
      * « velo_appartement », « type_12 ») devient un libellé français, « Séance » par défaut.
      */
     private val TITRES = mapOf(
-        "course" to "course", "course" to "course", "course" to "course",
         "course" to "Course à pied", "course a pied" to "Course à pied", "trail" to "Trail",
         "marche" to "Marche", "randonnee" to "Randonnée",
         "velo" to "Vélo", "velo appartement" to "Vélo d'appartement", "vtt" to "VTT",
@@ -150,6 +149,9 @@ internal object SanteDetail {
         "danse" to "Danse", "escalade" to "Escalade", "patinage" to "Patinage", "sport" to "Sport",
     )
 
+    /** Titres propres à la maison : section sante.sports.titres de la configuration, clé normalisée. */
+    private fun titresMaison() = ConfigMaison.section("sante").optJSONObject("sports")?.optJSONObject("titres") ?: org.json.JSONObject()
+
     /** Libellé d'une séance : son titre s'il est lisible, sinon celui de son type, sinon « Séance ». */
     fun libelleSeance(titre: String?, type: String?): String {
         for (brut in listOf(titre, type)) {
@@ -157,6 +159,7 @@ internal object SanteDetail {
             if (t.isEmpty()) continue
             val n = DictionnaireLocal.normaliser(t)
             TITRES[n]?.let { return it }
+            titresMaison().optString(n).takeIf { it.isNotBlank() }?.let { return it }
             // Un vrai titre (avec majuscule, espace ou accent, sans soulignés) se montre tel quel.
             if ('_' !in t && !Regex("^type ?\\d+$").matches(n) && t != t.lowercase()) return t
         }
