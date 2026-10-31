@@ -284,7 +284,7 @@ dependencies {
     // Vision de la tablette (0.16.0) : caméra par CameraX, visages par OpenCV (YuNet et SFace).
     // OpenCV 4.14.0 de Maven Central (org.opencv:opencv, Apache 2.0), dernière de la branche 4.x,
     // celle de FaceDetectorYN et FaceRecognizerSF utilisés par poc/vision.py.
-    implementation("org.opencv:opencv:4.14.0")
+    implementation("org.opencv:opencv:5.0.0.1")
     implementation("androidx.camera:camera-camera2:1.6.2")
     implementation("androidx.camera:camera-lifecycle:1.6.2")
     implementation("androidx.camera:camera-view:1.6.2")
