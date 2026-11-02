@@ -124,6 +124,8 @@ class MoteurLocal(
     /** Modèle rechargé à chaud, repris par le fil de capture au bloc suivant. */
     @Volatile private var reveilNouveau: ReveilLocal? = null
     private var reveilAReinitialiser = false
+    /** Deux blocs au-dessus du seuil et de la parole récente avant de lancer l'écoute (0.51.0). */
+    private val confirmation = ConfirmationReveil()
     /** Silero VAD, ou null : seuil d'énergie comme avant. */
     @Volatile private var vad: VadSilero? = null
     @Volatile private var vadAReinitialiser = false
@@ -252,14 +254,22 @@ class MoteurLocal(
                     }
                 }
                 val r = reveil ?: return
+                val v = vad
                 if (reveilAReinitialiser) {
                     reveilAReinitialiser = false
                     r.reinitialiser()
+                    confirmation.reinitialiser()
+                    v?.reinitialiser()
                 }
                 if (SystemClock.elapsedRealtime() < sourdJusqua) return
                 val score = r.bloc(b)
                 Etat.modifier { it.copy(score = score.toDouble()) }
-                if (score >= seuilReveil) commencerEcoute("« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score))
+                val voix = v?.probabilites(b)?.any { it >= VadSilero.SEUIL_DEBUT }
+                if (confirmation.bloc(score, seuilReveil, voix)) {
+                    commencerEcoute("« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score))
+                } else if (score >= seuilReveil) {
+                    Log.i(TAG, "Réveil écarté, score " + "%.2f".format(Locale.FRANCE, score) + " : ${confirmation.refus}")
+                }
             }
             Phase.ECOUTE -> ecouter(b, niveau)
             Phase.REPONSE -> guetterPendantReponse(b)

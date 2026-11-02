@@ -6,6 +6,15 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.51.0 (2026-11-02), mot de réveil confirmé
+
+Mineure (versionCode 92). Faux réveils signalés le 02/11/2026 : au repos, un seul bloc de 80 ms au-dessus du seuil
+lançait l'écoute, si bien qu'un mot de la télé ou d'une conversation suffisait. `ConfirmationReveil.kt` exige deux
+blocs de suite au-dessus du seuil et de la parole vue par Silero VAD dans les 1,2 s précédentes (Silero tourne
+désormais aussi au repos). Sans Silero, seule la suite de blocs compte. Les réveils écartés sont journalisés
+(`adb logcat -s JarvisLocal`) avec leur score et la raison. Seuils, coupure de la réponse par le mot de réveil et
+réveil sur le serveur inchangés. Tests `ConfirmationReveilTest`.
+
 ## 0.50.0 (2026-10-31), paquet neutre et identifiant en configuration
 
 Mineure (versionCode 91). Paquet Kotlin `assistant.vocal.jarvis` (`namespace`), `applicationId` lu dans
