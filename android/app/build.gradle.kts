@@ -276,7 +276,7 @@ androidComponents {
 }
 
 dependencies {
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
     // Mot de réveil openWakeWord calculé sur le téléphone (v0.9.0).
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
     // LLM sur l'appareil (0.13.0) : LiteRT-LM de Google, modèles .litertlm (Gemma 4, Qwen) copiés par adb.
