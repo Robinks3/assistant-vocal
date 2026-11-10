@@ -1207,6 +1207,7 @@ class MainActivity : Activity() {
             ecranSante = sante
             a.surSante = { ouvrirSante() }
             a.surParler = { parler() }
+            a.surAnnuler = { surHeure -> Etat.actionAnnuler?.invoke(surHeure) }
             a.jour = { jourMaintenant() }
             a.sombre = { lumiere.sombre() }
             a.surReglages = { basculerReglages() }

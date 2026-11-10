@@ -105,7 +105,7 @@ Usage : python poc/serveur_satellite.py [--essai] [--port 8765] [--port-tls 8766
 Connexion : wss://<IP>:8766/ avec l'en-tête « Authorization: Bearer <jeton> » (ou, tant que
 JARVIS_ANCIEN_ACCES=1, l'ancienne forme ws://<IP>:8765/?jeton=<jeton>)
 """
-import argparse, asyncio, io, json, os, re, ssl, sys, time, wave
+import argparse, asyncio, io, json, os, re, ssl, sys, threading, time, wave
 from urllib.parse import parse_qs, urlparse
 
 import numpy as np
@@ -480,7 +480,9 @@ class Moteur:
         téléphone (0.28.0, un téléphone en réel ne lève plus l'essai du serveur).
         personne : qui parle d'après la tablette (règle 3 de securite.py, « ma chambre »), ou rien.
         appareil : identité de l'appareil appairé, pour l'historique et la leçon à annuler.
-        role : rôle de l'appareil quand l'appelant le connaît mieux que ROLE_DE (le client web, S-W3)."""
+        role : rôle de l'appareil quand l'appelant le connaît mieux que ROLE_DE (le client web, S-W3).
+        Annulation (0.60.0) : l'événement de la session passe par A.ANNULATION. Levé par un appui sur l'écran, la
+        réponse porte « annulee » et « faites » (actions déjà parties vers Home Assistant), rien n'est appris."""
         import securite
         essai = self.essai or bool(essai)
         refus = securite.phrase_protegee(texte, personne)
@@ -497,28 +499,39 @@ class Moteur:
             pre = a.routines_avant(epurer(texte))
             if pre is not None:
                 duree = time.perf_counter() - t
-                A.journaliser(texte, pre["voie"] + (" [essai]" if essai else ""), 0.0, duree, 0.0,
-                              pre["parole"], pre["actions"])
-                res = {"reponse": pre["parole"], "actions": list(pre["actions"]), "cerveau": "routines",
-                       "ms": round(duree * 1000), "erreur": "", "essai": essai}
-                if pre["confirmation"]:
+                annulee = A.demande_annulee()
+                A.journaliser(texte, pre["voie"] + (" annulée" if annulee else "") + (" [essai]" if essai else ""),
+                              0.0, duree, 0.0, "" if annulee else pre["parole"], pre["actions"])
+                res = {"reponse": "" if annulee else pre["parole"], "actions": list(pre["actions"]),
+                       "cerveau": "routines", "ms": round(duree * 1000), "erreur": "", "essai": essai}
+                if annulee:
+                    res.update(annulee=True, faites=A.actions_faites(pre["actions"]))
+                elif pre["confirmation"]:
                     res["confirmation_attendue"] = R.reglage("delai_confirmation_s")
                 return res
             try:
                 parole, actions = a.cerveau.repondre(texte)
                 a.apprendre(texte, parole)  # jamais en essai, comme pour une phrase entendue ici
+            except A.DemandeAnnulee as e:
+                parole, actions = "", e.actions
             except Exception as e:
                 parole, actions, erreur = "Le modèle de langage ne répond pas.", [], f"{e.__class__.__name__} : {e}"
+            annulee = A.demande_annulee()
+            if annulee:
+                parole = ""
             duree = time.perf_counter() - t
             nom = getattr(a.cerveau, "dernier_nom", None)  # cerveau avec repli (profil ha) : celui qui a répondu
             if not isinstance(nom, str):
                 nom = "Claude Haiku" if self.cerveau_actif == "claude" else "Qwen sur le PC"
             # Dans le contexte de la requête : le journal y lit l'appareil et la personne (filtre de l'historique).
             A.journaliser(texte, f"llm ({nom}, depuis l'appareil" + (f", {personne}" if personne else "") + ")"
-                          + (" [essai]" if essai else ""), 0.0, duree, 0.0,
+                          + (" annulée" if annulee else "") + (" [essai]" if essai else ""), 0.0, duree, 0.0,
                           parole, actions)
-        return {"reponse": parole, "actions": list(actions), "cerveau": nom, "ms": round(duree * 1000),
-                "erreur": erreur, "essai": essai}
+        res = {"reponse": parole, "actions": list(actions), "cerveau": nom, "ms": round(duree * 1000),
+               "erreur": erreur, "essai": essai}
+        if annulee:
+            res.update(annulee=True, faites=A.actions_faites(actions))
+        return res
 
     async def repondre_web(self, demande):
         """Demande d'un navigateur associé (S-W3, client web), écrite. Même chaîne que les autres appareils :
@@ -615,18 +628,24 @@ class Moteur:
         return texte, source
 
     def traiter(self, signal_f32, personne=None, appareil=None):
+        """Une phrase captée en mode serveur. Annulation (0.60.0) : l'événement de la session passe par A.ANNULATION.
+        Levé pendant la transcription, la phrase n'est pas traitée. Pendant le traitement, plus rien ne part vers Home
+        Assistant et la réponse n'est pas synthétisée."""
+        annulation = A.ANNULATION.get()
         t = time.perf_counter()
         texte, source = self.transcrire(signal_f32)
         t_stt = time.perf_counter() - t
         print(f"  transcription {source} : {t_stt:.2f} s")
         print(f"  Vous ({len(signal_f32) / TAUX:.1f} s) : {A.pour_console(texte)}")
-        if not texte:  # noté aussi, pour que le propriétaire voie dans l'historique ce qui n'a pas été compris
+        if not texte or (annulation is not None and annulation.is_set()):
+            # noté aussi, pour que le propriétaire voie dans l'historique ce qui n'a pas été compris ou annulé
+            voie = f"rien compris ({source})" if not texte else "transcription annulée"
             with self.assistant.requete(essai=self.essai, personne=personne, appareil=appareil, canal="voix"):
-                A.journaliser("", f"rien compris ({source})" + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
-            return texte, "", "rien compris", None
+                A.journaliser(texte, voie + (" [essai]" if self.essai else ""), t_stt, 0.0, 0.0, "", [])
+            return texte, "", voie, None
         reponse = self.assistant.traiter(texte, t_stt, personne, appareil=appareil, essai=self.essai, canal="voix")
         voie = derniere_voie(0)
-        if not reponse:
+        if not reponse or (annulation is not None and annulation.is_set()):
             audio = None
         elif self.voix:
             audio = wav_de(self.voix.synthetiser(reponse), self.voix.taux)
@@ -1301,6 +1320,16 @@ class Satellite:
         self.qui_parle = None
         # Réglés par accueil() : clé de l'appareil et liaison chiffrée (relais santé). Par défaut, refus.
         self.identite, self.chiffre = None, False
+        # Annulation par un appui (0.60.0) : un threading.Event par commande en cours de cet appareil (phrase entendue
+        # ou message llm), levés par {"type": "annuler"}. numero_phrase change à chaque annulation d'une phrase en
+        # réflexion : la fin de son traitement ne parle plus et ne touche plus à l'état.
+        self.annulations = set()
+        self.numero_phrase = 0
+        self.tache_phrase = None
+
+    def en_cours(self):
+        """Événements d'annulation des commandes en cours de cet appareil (créé à la demande pour les tests)."""
+        return self.__dict__.setdefault("annulations", set())
 
     async def envoyer(self, **message):
         await self.ws.send(json.dumps(message, ensure_ascii=False))
@@ -1421,23 +1450,78 @@ class Satellite:
             return
         self.silence = 0.0 if fort else self.silence + BLOC / TAUX
         if self.silence >= (SILENCE_FIN_VAD if self.vad else SILENCE_FIN) or len(self.capture) * BLOC / TAUX > DUREE_MAX:
+            self.lancer_phrase()
+
+    def lancer_phrase(self):
+        """Traitement de la phrase dans une tâche à part (0.60.0) : la boucle de réception continue de lire les
+        messages de la tablette pendant la réflexion, donc un « annuler » est vu tout de suite."""
+        self.etat = "reflexion"
+        self.tache_phrase = asyncio.create_task(self.terminer_phrase_protegee())
+
+    async def terminer_phrase_protegee(self):
+        try:
             await self.terminer_phrase()
+        except websockets.ConnectionClosed:
+            pass
+        except Exception as e:  # le texte d'une exception pourrait citer une valeur : seulement sa classe
+            print(f"[{self.nom}] phrase en échec ({e.__class__.__name__})")
+
+    async def annuler(self, msg):
+        """Appui sur l'écran pendant la réflexion (0.60.0). Les commandes en cours de CET appareil sont marquées
+        annulées : plus aucune action vers Home Assistant, ni réponse ni audio. Avec « ecouter », l'écoute reprend
+        tout de suite (appui sur l'heure). Une action déjà partie n'est pas défaite : la fin du traitement l'annonce
+        par {"etat": "annule", "faites": [...]}."""
+        for evenement in list(self.en_cours()):
+            evenement.set()
+        en_reflexion = getattr(self, "etat", "repos") == "reflexion"
+        print(f"[{self.nom}] annulation par un appui ({len(self.en_cours())} commande(s) en cours"
+              + (", phrase en réflexion" if en_reflexion else "") + ")")
+        if en_reflexion:
+            self.numero_phrase = getattr(self, "numero_phrase", 0) + 1
+            self.qui_parle = None
+            self.etat = "repos"
+            self.reinitialiser_reveil()
+            await self.envoyer(etat="repos", raison="annule")
+        if msg.get("ecouter") and self.etat == "repos":
+            self.qui_parle = self.personne_du_message(msg)
+            await self.commencer_ecoute("bouton Parler")
+
+    async def annoncer_annulation(self, actions):
+        """Ce qu'une commande annulée avait déjà fait, en clair, pour « Annulé, déjà fait : ... » sur la tablette."""
+        faites = A.actions_faites([a for a in actions if str(a).strip()])
+        if faites:
+            await self.envoyer(etat="annule", faites=actions_lisibles(" | ".join(faites), self.moteur.noms))
 
     async def terminer_phrase(self):
         self.etat = "reflexion"
+        numero = getattr(self, "numero_phrase", 0)
+        annulation = threading.Event()
+        self.en_cours().add(annulation)
+        jeton = A.ANNULATION.set(annulation)
         signal = np.concatenate(self.capture).astype(np.float32) / 32768.0
-        await self.envoyer(etat="reflexion", texte="")
-        avant = R.registre().version
-        self.annoncer_demande()
         try:
-            async with self.moteur.verrou:
-                texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
-                                                                     self.cle_appareil())
+            await self.envoyer(etat="reflexion", texte="")
+            avant = R.registre().version
+            self.annoncer_demande()
+            try:
+                async with self.moteur.verrou:
+                    texte, reponse, voie, audio = await asyncio.to_thread(self.moteur.traiter, signal, self.qui_parle,
+                                                                         self.cle_appareil())
+            finally:
+                A.ID_DEMANDE.set(None)  # l'identifiant ne vaut que pour cette demande
         finally:
-            A.ID_DEMANDE.set(None)  # l'identifiant ne vaut que pour cette demande
+            A.ANNULATION.reset(jeton)
+            self.en_cours().discard(annulation)
+        derniere = lire_journal(1)
+        if annulation.is_set() or numero != getattr(self, "numero_phrase", 0):
+            # Annulée par un appui : l'état appartient déjà à l'annulation (repos, ou nouvelle écoute).
+            if derniere:
+                await self.moteur.diffuser_historique(derniere[0])
+                await self.annoncer_annulation(str(derniere[0].get("actions") or "").split(" | "))
+            await self.signaler_routines(avant)
+            return
         self.qui_parle = None
         await self.envoyer(etat="reponse", texte=texte, reponse=reponse, voie=voie)
-        derniere = lire_journal(1)
         if derniere:  # l'historique de l'appli s'enrichit en direct, chez ceux qui ont le droit de le voir
             await self.moteur.diffuser_historique(derniere[0])
         await self.signaler_routines(avant)  # une routine créée ou lancée à la voix change la liste
@@ -1622,10 +1706,24 @@ class Satellite:
         personne = self.personne_du_message(msg)
         print(f"[{self.nom}] LLM demandé par l'appareil : {A.pour_console(texte)}" + (f" (personne : {personne})" if personne else ""))
         avant = R.registre().version
-        async with self.moteur.verrou:
-            res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
-                                          personne, self.cle_appareil())
-        await self.envoyer(etat="llm", **res)
+        annulation = threading.Event()
+        self.en_cours().add(annulation)
+        jeton = A.ANNULATION.set(annulation)  # asyncio.to_thread copie le contexte : llm_texte le retrouve
+        try:
+            async with self.moteur.verrou:
+                if annulation.is_set():  # annulée pendant l'attente du verrou : rien n'est lancé
+                    res = {"annulee": True, "faites": []}
+                else:
+                    res = await asyncio.to_thread(self.moteur.llm_texte, texte, bool(msg.get("essai", True)),
+                                                  personne, self.cle_appareil())
+        finally:
+            A.ANNULATION.reset(jeton)
+            self.en_cours().discard(annulation)
+        if res.get("annulee") or annulation.is_set():
+            # L'appli a déjà rendu la main : pas de réponse « llm » tardive, seulement ce qui a été fait.
+            await self.annoncer_annulation(res.get("faites") or [])
+        else:
+            await self.envoyer(etat="llm", **res)
         derniere = lire_journal(1)
         if derniere:
             await self.moteur.diffuser_historique(derniere[0])
@@ -1698,6 +1796,8 @@ class Satellite:
             self.sourd_jusqua = time.time() + 0.3
             self.tampon = np.zeros(0, dtype=np.int16)
             self.reinitialiser_reveil()
+        elif msg.get("type") == "annuler":
+            await self.annuler(msg)
         elif msg.get("type") == "parler" and self.etat == "repos":
             self.qui_parle = self.personne_du_message(msg)
             await self.commencer_ecoute("bouton Parler")

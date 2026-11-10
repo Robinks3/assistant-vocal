@@ -33,6 +33,8 @@ class PasserelleHa(
     private val changement: () -> Unit = {},
     /** Le serveur signale que les routines ont changé (`routines_maj`, 0.40.0), avec le numéro de version. */
     private val routinesMaj: (Int) -> Unit = {},
+    /** Une commande annulée par un appui avait déjà fait ces actions (`annule`, serveur 0.60.0), en clair. */
+    private val annule: (List<String>) -> Unit = {},
 ) : AutoCloseable {
 
     /** Réponse de HA. Pour une image (serveur 0.18.1), [base64] et [type] remplacent [corps]. */
@@ -244,6 +246,15 @@ class PasserelleHa(
         }
     }
 
+    /**
+     * Annulation par un appui (0.52.0) : chaque attente d'une réponse du serveur (llm, transcription, routines) rend
+     * null tout de suite. Les requêtes vers Home Assistant déjà parties gardent leur réponse : l'action a pu se faire.
+     */
+    fun abandonnerAttentes() {
+        for (p in attentesEtat.values) p.complete(null)
+        attentesEtat.clear()
+    }
+
     /** Envoi sans attendre de réponse (manque, retour, gestion des appareils). */
     fun envoyer(msg: JSONObject): Boolean {
         if (!attendre(6000)) return false
@@ -353,6 +364,12 @@ class PasserelleHa(
                     routinesMaj(j.optInt("version", 0))
                 } catch (ex: Exception) {
                     Log.w(TAG, "Rappel de routines_maj en erreur", ex)
+                }
+                // Jamais pris pour la réponse d'une attente : une commande annulée ne répond plus.
+                "annule" -> try {
+                    annule(j.optJSONArray("faites")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList())
+                } catch (ex: Exception) {
+                    Log.w(TAG, "Rappel de annule en erreur", ex)
                 }
                 // Réponse attendue par son identifiant (transcription), sinon par son seul état (llm).
                 else -> if (e.isNotEmpty()) (attentesEtat.remove("$e#${j.opt("id")}") ?: attentesEtat.remove(e))?.complete(j)

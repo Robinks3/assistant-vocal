@@ -230,6 +230,8 @@ class SatelliteService : Service() {
     @Volatile private var enLecture = false
     /** Orbe touché pendant la lecture d'une réponse du serveur : la lecture s'arrête. */
     @Volatile private var couperLecture = false
+    /** Heure touchée pendant la lecture (0.52.0) : après la fin de lecture, une nouvelle écoute est demandée. */
+    @Volatile private var parlerApresLecture = false
     @Volatile private var connecte = false
     @Volatile private var ws: WebSocket? = null
     /** Vrai entre « ecoute » et la fin de la phrase : seul moment où le son part au serveur
@@ -420,6 +422,10 @@ class SatelliteService : Service() {
                 enLecture -> couperLecture = true
                 else -> envoyerTexte(avecQuiParle(JSONObject().put("type", "parler")).toString())
             }
+        }
+        Etat.actionAnnuler = { surHeure ->
+            val m = moteurLocal
+            if (m != null) m.annuler(surHeure) else annulerServeur(surHeure)
         }
         Etat.actionVision = { mode -> changerVision(mode) }
         Etat.actionCouperParole = { oui -> moteurLocal?.couperParole = oui && echoAnnulable() }
@@ -675,10 +681,35 @@ class SatelliteService : Service() {
         passerelleStation?.ouvrir()
     }
 
+    /**
+     * Mode serveur : appui sur l'écran pendant la réflexion ou la réponse (0.52.0, logique dans [Annulation]).
+     * Pendant la réflexion, le serveur (0.60.0) annule la commande de cet appareil et relance l'écoute s'il le faut.
+     * Pendant la lecture, la voix s'arrête ici, puis l'heure redemande l'écoute une fois la fin de lecture envoyée.
+     */
+    private fun annulerServeur(surHeure: Boolean) {
+        val moment = if (enLecture) Annulation.Moment.REPONSE else Annulation.moment(Etat.courant.assistant)
+        when (Annulation.geste(moment, surHeure)) {
+            Annulation.Geste.ANNULER_REFLEXION -> {
+                envoyerTexte(avecQuiParle(JSONObject().put("type", "annuler").put("ecouter", surHeure)).toString())
+                Etat.modifier { it.copy(bref = Annulation.MESSAGE, brefLe = SystemClock.elapsedRealtime()) }
+                if (!surHeure) changer(assistant = "Repos")
+            }
+            Annulation.Geste.COUPER_ET_REECOUTER -> {
+                parlerApresLecture = true
+                couperLecture = true
+            }
+            Annulation.Geste.COUPER -> couperLecture = true
+            Annulation.Geste.ECOUTER -> envoyerTexte(avecQuiParle(JSONObject().put("type", "parler")).toString())
+            // Le protocole ne permet pas d'interrompre l'écoute du serveur, qui finit seule au silence.
+            Annulation.Geste.ARRETER_ECOUTE, Annulation.Geste.RIEN -> {}
+        }
+    }
+
     private fun arreterTout() {
         if (!actif) return
         actif = false
         Etat.actionParler = null
+        Etat.actionAnnuler = null
         Etat.actionCerveau = null
         Etat.actionMode = null
         Etat.actionTranscription = null
@@ -1244,6 +1275,11 @@ class SatelliteService : Service() {
                 son(SonsEcoute.Son.DEBUT)
                 changer(assistant = "Je t'écoute")
             }
+            "annule" -> {
+                // Commande annulée par un appui (serveur 0.60.0) : ce qu'elle avait déjà fait, rappelé sous l'heure.
+                val faites = j.optJSONArray("faites")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+                Annulation.message(faites)?.let { m -> Etat.modifier { it.copy(bref = m, brefLe = SystemClock.elapsedRealtime()) } }
+            }
             "reflexion" -> {
                 ecouteServeur = false
                 // Le mot de réveil guetté sur le téléphone reprend ici : pas pendant le son de fin.
@@ -1425,6 +1461,10 @@ class SatelliteService : Service() {
             sourdJusqua = SystemClock.elapsedRealtime() + 300
             reveilAReinitialiser = true
             envoyerTexte(JSONObject().put("type", "lecture_finie").toString())
+            if (parlerApresLecture) {
+                parlerApresLecture = false
+                envoyerTexte(avecQuiParle(JSONObject().put("type", "parler")).toString())
+            }
             Etat.modifier { if (it.parole.isNotEmpty() && it.paroleFinLe == 0L) it.copy(paroleFinLe = SystemClock.elapsedRealtime()) else it }
         }
     }

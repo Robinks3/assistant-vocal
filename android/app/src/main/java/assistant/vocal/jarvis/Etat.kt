@@ -270,6 +270,13 @@ object Etat {
     @Volatile
     var actionParler: (() -> Unit)? = null
 
+    /**
+     * Appui sur l'écran pendant la réflexion ou la réponse (0.52.0, [Annulation]) : vrai pour l'heure (annuler puis
+     * réécouter), faux ailleurs (annuler, repos). Posée par le service quand il tourne.
+     */
+    @Volatile
+    var actionAnnuler: ((Boolean) -> Unit)? = null
+
     /** Envoi du choix de cerveau au serveur, posé par le service quand il tourne. */
     @Volatile
     var actionCerveau: ((String) -> Unit)? = null

@@ -40,19 +40,58 @@ class Requete:
     canal de la voie par laquelle la commande est arrivée. La personne suit la même règle
     (acces.personne_effective)."""
 
-    def __init__(self, essai=False, personne=None, appareil=None, indication="", role="", canal=""):
+    def __init__(self, essai=False, personne=None, appareil=None, indication="", role="", canal="", annulation=None):
         self.essai, self.personne, self.appareil, self.indication = bool(essai), personne or None, appareil, indication
         self.role, self.canal = role or "", canal or ""
+        # Annulation par un appui sur l'écran (0.60.0) : un threading.Event tenu par la session de l'appareil, levé à
+        # la réception de {"type": "annuler"}. Les fils de la commande le voient aussi (copie du contexte).
+        self.annulation = annulation if annulation is not None else threading.Event()
 
 
 REQUETE = contextvars.ContextVar("requete", default=None)
 # Identifiant de la demande en cours, posé par le serveur quand il l'annonce au journal du client web (étape
 # « entendu »). journaliser le reprend pour que l'entrée finale remplace la carte « En cours ». Vide : un neuf.
 ID_DEMANDE = contextvars.ContextVar("id_demande", default=None)
+# Événement d'annulation de la commande à venir (0.60.0), posé par la session de l'appareil avant de lancer le
+# traitement dans un fil (asyncio.to_thread copie le contexte). Assistant.requete le reprend dans la Requete.
+ANNULATION = contextvars.ContextVar("annulation", default=None)
 
 
 def requete_en_cours():
     return REQUETE.get()
+
+
+class DemandeAnnulee(Exception):
+    """La commande en cours a été annulée par un appui sur l'écran (0.60.0) : plus rien ne part vers Home Assistant.
+    actions : ce que la commande avait déjà fait, au format du journal."""
+
+    def __init__(self, actions=None):
+        super().__init__("demande annulée")
+        self.actions = list(actions or [])
+
+
+def demande_annulee():
+    """Vrai quand la commande en cours (Requete) a été annulée. Hors requête : jamais annulée."""
+    r = REQUETE.get()
+    return bool(r and r.annulation.is_set())
+
+
+# Chemins de Home Assistant qui agissent sur la maison. Une commande annulée n'en appelle plus aucun.
+CHEMINS_ACTION_HA = ("/api/services/", "/api/conversation/process")
+
+
+def bloquer_si_annulee(requete_http):
+    """Crochet du client HTTP de Home Assistant (event_hooks) : un seul point de passage pour le dictionnaire, les
+    outils du LLM, la musique, Assist et les routines. Une lecture (GET, /api/template) passe toujours."""
+    if requete_http.method == "POST" and demande_annulee():
+        chemin = requete_http.url.path
+        if any(chemin.startswith(c) for c in CHEMINS_ACTION_HA):
+            raise DemandeAnnulee()
+
+
+def actions_faites(actions):
+    """Actions vraiment parties vers Home Assistant : ni refusées, ni annulées, ni non jouées."""
+    return [a for a in actions if not re.search(r"\((refusé|annulé|non joué)[^)]*\)\s*$", str(a))]
 
 # Appareils propres à la maison (section appareils de maison.json) : la télé, sa famille d'entités (même
 # préfixe, pour la présélection du LLM) et la musique. Sans musique configurée (pas d'enceinte « toutes »),
@@ -72,8 +111,8 @@ _EX_ARTISTE_3 = str(_TEXTES_MUSIQUE.get("exemple_artiste_3") or _EX_ARTISTE)
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.59.1"
-DATE_VERSION = "2026-10-31"
+VERSION = "0.60.0"
+DATE_VERSION = "2026-11-10"
 
 ICI = Path(__file__).resolve().parent
 # Données vivantes (dictionnaire, phrases apprises, journal) : à côté du code sur le PC, dans le
@@ -431,7 +470,8 @@ class HomeAssistant:
     def __init__(self, url, token):
         import httpx
         self.url = url
-        self.client = httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=15)
+        self.client = httpx.Client(headers={"Authorization": f"Bearer {token}"}, timeout=15,
+                                   event_hooks={"request": [bloquer_si_annulee]})
         self.conv_id = None
         self.essai = False
         self.vue_llm = {}
@@ -1337,25 +1377,38 @@ class Cerveau:
           (appel, résultat) dans l'ordre des appels ;
         - relancer(reponse), facultative, renvoie vrai quand une réponse sans outil doit redemander un tour.
 
-        Renvoie la réponse parlée. Les actions réussies ou refusées s'ajoutent à `actions`."""
-        for _ in range(TOURS_OUTILS_MAX):
-            tour = demander()
-            if tour.refus:
-                return PHRASE_REFUS_LLM
-            if not tour.appels:
-                if relancer and relancer(tour.reponse):
-                    continue
-                return tour.reponse
-            retours = []
-            for appel in tour.appels:
-                nom, args = lire_appel(appel)
-                res = (self.executer_outil(nom, args, texte, noms, actions, musiques)
-                       if isinstance(args, dict) else {"erreur": "arguments illisibles"})
-                retours.append((appel, res))
-            ajouter(tour, retours)
-            if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
-                return PAROLE_FIXEE.get()
-        return PHRASE_ABANDON
+        Renvoie la réponse parlée. Les actions réussies ou refusées s'ajoutent à `actions`.
+        Commande annulée (0.60.0) : DemandeAnnulee, avec les actions déjà faites. Pas de nouveau tour, pas d'outil.
+        Un appel au LLM déjà parti va à son terme, sa réponse est jetée."""
+        try:
+            for _ in range(TOURS_OUTILS_MAX):
+                self.verifier_annulation()
+                tour = demander()
+                self.verifier_annulation()
+                if tour.refus:
+                    return PHRASE_REFUS_LLM
+                if not tour.appels:
+                    if relancer and relancer(tour.reponse):
+                        continue
+                    return tour.reponse
+                retours = []
+                for appel in tour.appels:
+                    self.verifier_annulation()
+                    nom, args = lire_appel(appel)
+                    res = (self.executer_outil(nom, args, texte, noms, actions, musiques)
+                           if isinstance(args, dict) else {"erreur": "arguments illisibles"})
+                    retours.append((appel, res))
+                ajouter(tour, retours)
+                if PAROLE_FIXEE.get() is not None:  # reformulation écrite par le serveur : le tour s'arrête là
+                    return PAROLE_FIXEE.get()
+            return PHRASE_ABANDON
+        except DemandeAnnulee as e:
+            raise DemandeAnnulee(actions) from e
+
+    @staticmethod
+    def verifier_annulation():
+        if demande_annulee():
+            raise DemandeAnnulee()
 
     def terminer_tour(self, mode, historique, texte, reponse, actions, musiques, si_vide=""):
         """Fin commune d'une demande : le garde-fou de musique corrige la réponse, puis la conversation est gardée
@@ -1713,7 +1766,7 @@ class Assistant:
         self._essai = bool(valeur)
 
     @contextlib.contextmanager
-    def requete(self, essai=None, personne=None, appareil=None, role=None, canal=None):
+    def requete(self, essai=None, personne=None, appareil=None, role=None, canal=None, annulation=None):
         """Le temps d'une commande : essai, personne qui parle, appareil, rôle et canal, pour la sécurité,
         l'inventaire, la consigne et l'historique. Rien n'est écrit sur les objets partagés.
         Le rôle vient de l'appareil appairé (ROLE_DE) sauf si l'appelant le donne."""
@@ -1721,14 +1774,17 @@ class Assistant:
             essai = getattr(self, "_essai", False)
         if role is None:
             role = role_du_contexte(appareil)
-        jeton = REQUETE.set(Requete(essai, personne, appareil, self.indication(personne), role, canal))
+        if annulation is None:
+            annulation = ANNULATION.get()
+        jeton = REQUETE.set(Requete(essai, personne, appareil, self.indication(personne), role, canal, annulation))
         try:
             yield
         finally:
             REQUETE.reset(jeton)
 
-    def traiter(self, texte, t_stt=0.0, personne=None, appareil=None, essai=None, canal=None):
-        with self.requete(essai=essai, personne=personne, appareil=appareil, canal=canal):
+    def traiter(self, texte, t_stt=0.0, personne=None, appareil=None, essai=None, canal=None, annulation=None):
+        """Une phrase entendue. annulation : threading.Event de la session (0.60.0), levé par un appui sur l'écran."""
+        with self.requete(essai=essai, personne=personne, appareil=appareil, canal=canal, annulation=annulation):
             return self._traiter(texte, t_stt, personne)
 
     # ------------------------------------------------------------------------------------- routines (0.42.0)
@@ -1853,6 +1909,8 @@ class Assistant:
         {parole, voie, actions, confirmation}. Le texte est déjà passé par epurer."""
         try:
             return self._routines_avant(texte)
+        except DemandeAnnulee as e:  # appui sur l'écran pendant une routine : ce qui est fait reste, rien ne suit
+            return self._res_routine("", "routine", e.actions)
         except Exception as e:
             print(f"  routines : erreur ({e.__class__.__name__}: {e})")
             routines.journal("erreur", erreur=e.__class__.__name__)
@@ -1898,6 +1956,8 @@ class Assistant:
         """Fin d'un tour réglé par les routines : même sortie que _traiter (console, voix, journal)."""
         parole, voie, actions = pre["parole"], pre["voie"], pre["actions"]
         t_cerveau = time.perf_counter() - t
+        if demande_annulee():
+            voie, parole = voie + " annulée", ""
         print(f"  [{voie_courte(voie)}] {pour_console(parole)}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
         t_tts = 0.0
         if self.voix and parole:
@@ -2014,6 +2074,9 @@ class Assistant:
             for a in liste:
                 actions.append(resume_action(a["service"], a.get("entity_id"),
                                              {k: v for k, v in a.items() if k not in ("service", "entity_id")}))
+                if demande_annulee():
+                    actions[-1] += " (annulé)"
+                    continue
                 dom, _, srv = a["service"].partition(".")
                 refus = acces.controler_service(dom, srv, {k: v for k, v in a.items() if k != "service"},
                                                 personne=personne)
@@ -2033,6 +2096,8 @@ class Assistant:
                         parole = e.parole or f"J'ai envoyé l'ordre, mais {e} ne répond pas."
                         voie += " non confirmé"
                         actions[-1] += " (non confirmé)"
+                    except DemandeAnnulee:
+                        actions[-1] += " (annulé)"
                     except Exception as e:
                         parole = "Je n'ai pas réussi à le faire, Home Assistant a refusé."
                         voie += f" erreur {e.__class__.__name__}"
@@ -2043,11 +2108,15 @@ class Assistant:
         refus_phrase = securite.phrase_protegee(texte, personne) if not compris else None
         if refus_phrase:  # parle de l'occupant protégé : jamais de LLM (il agirait sur une autre pièce)
             compris, parole, voie = True, f"Je ne le fais pas : {refus_phrase}.", "refus sécurité avant le LLM"
+        if not compris and demande_annulee():  # annulée avant le LLM : aucun appel
+            compris, parole, voie = True, "", f"llm ({code})"
         if not compris:
             voie = f"llm ({code})"
             try:
                 parole, actions = self.cerveau.repondre(texte)
                 self.apprendre(texte, parole)
+            except DemandeAnnulee as e:
+                parole, actions = "", e.actions
             except Exception as e:
                 if str(e) == MANQUE_CLE_CLAUDE:  # 0.27.3 : la cause réelle, pas un PC soi-disant occupé
                     parole = "Je n'ai pas de clé Anthropic, Claude ne peut pas répondre."
@@ -2056,7 +2125,7 @@ class Assistant:
                 voie += f" erreur {e.__class__.__name__} : {e}"
                 # Repli Assist (S-D9) : le LLM a échoué, Assist peut tenter la phrase si le réglage l'ouvre et si
                 # la sécurité laisse passer la phrase. HA exécute lui-même ses intentions : jamais en mode essai.
-                if self.ha and not self.essai:
+                if self.ha and not self.essai and not demande_annulee():
                     try:
                         compris_ha, parole_ha, code_ha = self.ha.conversation(texte, personne)
                         if compris_ha:
@@ -2067,6 +2136,8 @@ class Assistant:
                     except Exception as e2:  # HA injoignable : la réponse d'échec reste
                         voie += f" ; repli Assist impossible {e2.__class__.__name__}"
         t_cerveau = time.perf_counter() - t
+        if demande_annulee():  # appui sur l'écran : rien n'est dit, le journal garde la ligne et ce qui est déjà fait
+            voie, parole = voie + " annulée", ""
         print(f"  [{voie_courte(voie)}] {pour_console(parole)}" + (f"   actions : {'; '.join(actions)}" if actions else ""))
         t_tts = 0.0
         if self.voix and parole:
@@ -2114,7 +2185,7 @@ class Assistant:
         except Exception as e:
             print(f"  routines : déclencheurs illisibles ({e.__class__.__name__})")
         if (self.essai or not actions or NON_APPRENABLE.search(texte) or REPONSE_DOUTEUSE.search(parole or "")
-                or len(texte.split()) < 2):
+                or len(texte.split()) < 2 or demande_annulee()):
             return
         # Une action permise à l'occupant protégé reconnu (règle 3) ne devient jamais une phrase apprise : le
         # dictionnaire la rejouerait pour n'importe qui, et la sécurité la refuserait.
@@ -2219,6 +2290,8 @@ def issue_de(voie):
     v = str(voie or "")
     if v.startswith("rien compris"):
         return "non compris"
+    if re.search(r" annulée( \[essai\])?$", v):
+        return "annulé"
     if " erreur" in v:
         return "erreur"
     if "refus" in v:

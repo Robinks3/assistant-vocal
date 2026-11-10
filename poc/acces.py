@@ -167,8 +167,9 @@ TYPES_ADMINISTRATION = frozenset({"appareils", "appairer", "refuser_appareil", "
 # Communs à tous les rôles : parler à l'assistant, piloter la maison par lui, météo, lecture d'une réponse, réglage
 # de l'écoute, retours sur une réponse. « historique » est permis à tous mais la réponse est filtrée par rôle
 # (entrees_visibles). « transcrire » : la tablette en mode « Cet appareil » transcrit pour un invité aussi.
+# « annuler » (0.60.0) : un appui sur l'écran annule les commandes en cours de cet appareil, et seulement les siennes.
 TYPES_COMMUNS = frozenset({"lecture_finie", "parler", "reveil", "llm", "ha", "meteo_mer", "vent_mesure", "retour",
-                           "transcrire", "historique"})
+                           "transcrire", "historique", "annuler"})
 # Santé : réservée aux rôles administrateur et habitant. La barrière fine (SANTE_PERSONNES, serveur_satellite.
 # refus_sante) s'ajoute : un habitant n'obtient les données d'une personne que si elle l'y autorise.
 TYPES_SANTE = frozenset({"sante", "sante_periode", "sante_seances", "sante_seance", "sante_records", "sante_jour"})

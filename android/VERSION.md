@@ -6,6 +6,20 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.52.0 (2026-11-10), annuler la réflexion d'un appui
+
+Mineure (versionCode 93), avec le serveur 0.60.0. Demande du 10/11/2026 : interrompre l'assistant d'un appui sur
+l'écran entre la fin de la phrase et la réponse. L'heure veut toujours dire « je reparle », le reste de l'écran « stop ».
+Pendant la réflexion, l'heure annule et relance l'écoute (son de début), ailleurs annule et revient au repos en silence,
+sans ouvrir le panneau touché. Pendant la réponse, l'heure coupe la voix et relance l'écoute (avant : repos), ailleurs
+coupe la voix (inchangé). Pendant l'écoute, un appui arrête toujours l'écoute. Aucun son d'annulation : « Annulé »
+s'affiche sous l'heure.
+La commande annulée ne fait plus rien : numéro de commande vérifié avant chaque action, avant Assist, avant et après
+le LLM et avant de parler. L'attente de la réponse du serveur est libérée tout de suite et le serveur est prévenu.
+Une action déjà partie n'est pas défaite : « Annulé, déjà fait : ... » la rappelle, l'historique garde la ligne
+marquée annulée. Mode serveur : message `annuler` au serveur pendant la réflexion. Logique dans `Annulation.kt`,
+tests `AnnulationTest`.
+
 ## 0.51.0 (2026-11-02), mot de réveil confirmé
 
 Mineure (versionCode 92). Faux réveils signalés le 02/11/2026 : au repos, un seul bloc de 80 ms au-dessus du seuil

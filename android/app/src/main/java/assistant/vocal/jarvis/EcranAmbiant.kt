@@ -54,8 +54,13 @@ import kotlin.math.max
  */
 internal class EcranAmbiant(private val ctx: Context) {
 
-    /** Toucher l'heure au repos (écoute), ou l'écran pendant l'écoute et la réponse (arrêt) : parler(). */
+    /** Toucher l'heure au repos (écoute), ou l'écran pendant l'écoute (arrêt) : parler(). */
     var surParler: () -> Unit = {}
+    /**
+     * Toucher l'écran pendant la réflexion ou la réponse (0.52.0, [Annulation]) : vrai sur l'heure (annuler puis
+     * réécouter), faux ailleurs (annuler, repos).
+     */
+    var surAnnuler: (Boolean) -> Unit = {}
     var surMaison: () -> Unit = {}
     var surMusique: () -> Unit = {}
     /** Toucher la date et la météo : panneau Météo. */
@@ -301,9 +306,14 @@ internal class EcranAmbiant(private val ctx: Context) {
             }
         }
         vue.surEchelle = { appliquer(it) }
-        // Pendant l'écoute et la réponse, toucher l'écran n'importe où arrête.
+        // Pendant l'écoute, la réflexion et la réponse, l'écran prend tout appui avant les panneaux : l'écoute s'arrête,
+        // la réflexion et la réponse s'annulent (sur l'heure, l'écoute reprend aussitôt).
         vue.capter = { _, _ -> capturable() }
-        vue.surCapte = { _, _, leve -> if (leve && capturable()) surParler() }
+        vue.surCapte = { x, y, leve ->
+            if (leve && capturable()) {
+                if (Annulation.moment(dernier.assistant) == Annulation.Moment.ECOUTE) surParler() else surAnnuler(surHeure(x, y))
+            }
+        }
         // Toucher dans le noir (hors plan et hors textes) : couche de service.
         vue.surVide = { montrerService() }
         appliquer(vue.echelle)
@@ -311,10 +321,22 @@ internal class EcranAmbiant(private val ctx: Context) {
         placerOrbe(Disposition.A)
     }
 
-    /** Écoute en cours ou voix qui parle : le toucher n'importe où arrête (second toucher de l'orbe). */
+    /** Écoute, réflexion ou voix qui parle : le toucher n'importe où arrête ou annule (second toucher de l'orbe). */
     private fun capturable(): Boolean {
         val e = dernier
-        return e.enMarche && (e.assistant == "Je t'écoute" || e.assistant == "Je réponds")
+        return e.enMarche && Annulation.capte(e.assistant)
+    }
+
+    /** Le point (x, y) du cadre [vue] tombe sur la zone de l'heure, visible. */
+    private fun surHeure(x: Float, y: Float): Boolean {
+        if (!zoneHeure.isShown || zoneHeure.alpha < 0.1f || zoneHeure.width == 0) return false
+        val cadre = IntArray(2)
+        val zone = IntArray(2)
+        vue.getLocationOnScreen(cadre)
+        zoneHeure.getLocationOnScreen(zone)
+        val ex = cadre[0] + x
+        val ey = cadre[1] + y
+        return ex >= zone[0] && ex < zone[0] + zoneHeure.width && ey >= zone[1] && ey < zone[1] + zoneHeure.height
     }
 
     /** Tailles de la maquette (pixels de maquette) à l'échelle [s] de l'écran (48 dp au moins pour toucher). */

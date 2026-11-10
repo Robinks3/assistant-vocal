@@ -4,6 +4,15 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.60.0 (2026-11-10), annuler une commande d'un appui
+
+Mineure, avec l'appli Android 0.52.0. Appli Home Assistant 0.60.0.
+- Nouveau message `{"type": "annuler"}` (avec `ecouter` pour relancer l'écoute), permis à tous les rôles. Il lève l'événement d'annulation des commandes en cours de cet appareil, et seulement des siennes.
+- Une commande annulée n'envoie plus rien à Home Assistant : le client HTTP de HA refuse tout POST `/api/services/...` et `/api/conversation/process` (crochet `bloquer_si_annulee`, un seul point de passage pour le dictionnaire, les outils du LLM, la musique, Assist et les routines). La boucle des outils ne fait plus de nouveau tour. Rien n'est appris, ni réponse ni audio ne partent, la conversation ne garde pas l'échange.
+- Le journal note la commande avec l'issue « annulé » et ce qui était déjà fait. Une action déjà partie n'est pas défaite : le serveur l'annonce par `{"etat": "annule", "faites": [...]}`.
+- Mode serveur : la phrase est traitée dans une tâche à part, le serveur lit donc les messages de la tablette pendant la réflexion.
+- Limite : un appel déjà parti vers le LLM va à son terme (son coût), sa réponse est jetée.
+
 ## Serveur 0.59.1 (2026-10-31), identifiants de routine sans collision
 
 - Un identifiant de routine ne portait qu'un octet aléatoire : deux routines créées la même minute partageaient leur identifiant une fois sur 256, et couper l'une pouvait viser l'autre. Il en porte quatre. Trouvé par la CI, sur un test instable. Les routines existantes gardent leur identifiant.

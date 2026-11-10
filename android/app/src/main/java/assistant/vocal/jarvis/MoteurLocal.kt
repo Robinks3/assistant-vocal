@@ -71,6 +71,7 @@ class MoteurLocal(
             changementPasserelle()
         },
         routinesMaj = { surRoutinesMaj() },
+        annule = { surAnnuleServeur(it) },
     )
 
     /** Routines reçues du serveur (0.40.0, S-R3) : reconnues ici, exécutées et jugées par le serveur. */
@@ -116,7 +117,9 @@ class MoteurLocal(
     @Volatile private var personne = ""
 
     @Volatile private var phase = Phase.CHARGEMENT
-    private val travail = Executors.newSingleThreadExecutor()
+    /** Fil de travail, reconnu par [ajouterEtape] et [majEtape] pour les étapes d'une commande annulée. */
+    @Volatile private var filTravail: Thread? = null
+    private val travail = Executors.newSingleThreadExecutor { r -> Thread(r, "MoteurLocal-travail").also { filTravail = it } }
     private val minuteur = Executors.newSingleThreadScheduledExecutor()
 
     // Utilisés seulement par le thread de capture.
@@ -296,6 +299,66 @@ class MoteurLocal(
     /** Second toucher sur l'orbe pendant l'écoute, pris en compte par le fil de capture. */
     @Volatile private var annulerEcoute = false
 
+    /**
+     * Numéro de la commande en cours (0.52.0) : il change à chaque nouvelle commande et à chaque annulation.
+     * [commandeDuFil] est celui de la commande que traite le fil de travail : s'ils diffèrent, elle est annulée.
+     */
+    @Volatile private var numeroCommande = 0
+    @Volatile private var commandeDuFil = 0
+    /** Commande dont le déroulé est à l'écran : une nouvelle écoute le prend pour la commande qui suit. */
+    @Volatile private var derouleDe = 0
+
+    /** Vrai quand la commande du fil de travail a été annulée par un appui. */
+    private fun annulee(): Boolean = Annulation.annulee(commandeDuFil, numeroCommande)
+
+    /**
+     * Appui sur l'écran pendant la réflexion ou la réponse (0.52.0, demande du 10/11/2026). [reecouter] : appui sur
+     * l'heure, l'écoute reprend tout de suite avec son son de début. Ailleurs : retour au repos, en silence.
+     * Pendant la réflexion, la commande est abandonnée : plus aucune action vers Home Assistant, plus de réponse,
+     * l'attente du serveur est libérée et le serveur est prévenu. Une action déjà partie n'est pas défaite.
+     * L'écoute et le repos gardent leur geste ([parler]). Rend vrai si l'appui a été pris.
+     */
+    fun annuler(reecouter: Boolean): Boolean {
+        val ou = if (reecouter) "heure touchée" else "écran touché"
+        val moment = when {
+            phase == Phase.REPOS -> Annulation.Moment.REPOS
+            phase == Phase.ECOUTE -> Annulation.Moment.ECOUTE
+            // Voix en cours : phase REPONSE, ou TRAITEMENT quand l'option Couper la parole est éteinte.
+            finLecture != null || phase == Phase.REPONSE -> Annulation.Moment.REPONSE
+            phase == Phase.TRAITEMENT -> Annulation.Moment.REFLEXION
+            else -> Annulation.Moment.AUTRE
+        }
+        when (Annulation.geste(moment, reecouter)) {
+            Annulation.Geste.ANNULER_REFLEXION -> {
+                numeroCommande++
+                passerelle.abandonnerAttentes()
+                // Hors du fil de l'écran : l'envoi attend la passerelle jusqu'à 6 s quand elle se reconnecte.
+                try {
+                    minuteur.execute { passerelle.envoyer(JSONObject().put("type", "annuler")) }
+                } catch (_: Exception) {
+                }
+                ajouterEtape("Annulé", "$ou pendant la réflexion : rien de plus n'est fait, rien n'est dit", Etat.Statut.SAUTE)
+                Etat.modifier { it.copy(aideReflexion = "") }
+                bref(Annulation.MESSAGE)
+                if (reecouter) commencerEcoute("$ou après annulation") else retourAuRepos()
+            }
+            Annulation.Geste.COUPER_ET_REECOUTER -> {
+                finLecture = null
+                try {
+                    voix?.stop()
+                } catch (_: Exception) {
+                }
+                ajouterEtape("Réponse coupée", "$ou pendant la réponse : nouvelle écoute", Etat.Statut.SAUTE)
+                commencerEcoute("$ou pendant la réponse")
+            }
+            Annulation.Geste.COUPER -> arreterReponse()
+            Annulation.Geste.ECOUTER -> commencerEcoute(ou)
+            Annulation.Geste.ARRETER_ECOUTE -> annulerEcoute = true
+            Annulation.Geste.RIEN -> return false
+        }
+        return true
+    }
+
     /** Second toucher pendant la réponse : la voix s'arrête, retour au repos sans réécouter. */
     private fun arreterReponse() {
         finLecture = null
@@ -357,6 +420,7 @@ class MoteurLocal(
     private fun commencerEcoute(origine: String, avecSon: Boolean = true) {
         this.origine = origine
         annulerEcoute = false
+        derouleDe = numeroCommande + 1
         personne = Etat.courant.quiParle()
         capture.clear()
         parle = false
@@ -457,7 +521,8 @@ class MoteurLocal(
             )
             son(SonsEcoute.Son.FIN)
             Etat.modifier { it.copy(assistant = "Je réfléchis") }
-            travail.execute { traiter(pcm) }
+            val numero = ++numeroCommande
+            travail.execute { traiter(pcm, numero) }
         }
     }
 
@@ -511,6 +576,11 @@ class MoteurLocal(
         }
     }
 
+    /** Repos demandé par le fil de travail : jamais pour une commande annulée, l'appui a déjà réglé la suite. */
+    private fun reposSiCourante() {
+        if (!annulee()) retourAuRepos()
+    }
+
     private fun retourAuRepos() {
         reveilAReinitialiser = true
         sourdJusqua = SystemClock.elapsedRealtime() + 300
@@ -520,25 +590,29 @@ class MoteurLocal(
 
     // ------------------------------------------------------------ traitement (thread de travail)
 
-    private fun traiter(pcm: ShortArray) {
+    private fun traiter(pcm: ShortArray, numero: Int) {
+        commandeDuFil = numero
+        if (annulee()) return
         val debut = SystemClock.elapsedRealtime()
         val c = canary
         val d = dico
         if (c == null || d == null) {
             ajouterEtape("Transcription", "Canary n'est pas chargé", Etat.Statut.ECHEC)
-            retourAuRepos()
+            reposSiCourante()
             return
         }
         val gain = amplifier(pcm)
         // Où transcrire (0.17.0) : la phrase part au serveur choisi, sinon (ou en repli) Canary ici.
         val texte = transcrireDeporte(pcm, gain) ?: run {
+            // Annulée pendant la transcription déportée : pas de repli sur Canary.
+            if (annulee()) return
             ajouterEtape("Transcription (Canary)", "en cours", Etat.Statut.EN_COURS)
             val r = try {
                 c.transcrire(pcm)
             } catch (e: Exception) {
                 Log.e(TAG, "Canary a échoué", e)
                 majEtape("Transcription (Canary)", "erreur : ${e.message}", null, Etat.Statut.ECHEC)
-                retourAuRepos()
+                reposSiCourante()
                 return
             }
             val msStt = r.msPreparation + r.msEncodeur + r.msDecodeur
@@ -550,6 +624,7 @@ class MoteurLocal(
             )
             r.texte
         }
+        if (annulee()) return // phrase annulée pendant la transcription : rien n'est compris ni dit
         Etat.modifier { it.copy(toi = texte, jarvis = "", voie = "", entendu = texte, entenduFinal = true) }
         if (texte.isBlank()) {
             terminer(texte, "rien compris", "", emptyList(), "Je n'ai rien entendu.", SystemClock.elapsedRealtime() - debut)
@@ -614,6 +689,8 @@ class MoteurLocal(
             val d = dico ?: return@execute
             if (phase != Phase.REPOS) return@execute
             phase = Phase.TRAITEMENT
+            commandeDuFil = ++numeroCommande
+            derouleDe = commandeDuFil
             val ancien = reel
             reel = false
             muet = true // test de nuit : la réponse s'affiche sans être dite
@@ -723,6 +800,10 @@ class MoteurLocal(
                 ajouterEtape("Actions", actions.joinToString("\n") { resumeAction(it) } + "\nnon exécutées : mode essai", Etat.Statut.SAUTE)
             } else {
                 for (a in actions) {
+                    if (annulee()) {
+                        faits.add(resumeAction(a) + Annulation.SUFFIXE)
+                        continue
+                    }
                     val nom = "Action ${resumeAction(a)}"
                     ajouterEtape(nom, "envoi à Home Assistant", Etat.Statut.EN_COURS)
                     val ta = SystemClock.elapsedRealtime()
@@ -748,6 +829,8 @@ class MoteurLocal(
                     (if (regles.isEmpty()) "" else " (${regles.joinToString(" et ")})"), Etat.Statut.SAUTE)
             } else if (!reel) {
                 ajouterEtape("Assist de Home Assistant", "non sollicité en essai (il exécuterait la commande)", Etat.Statut.SAUTE)
+            } else if (annulee()) {
+                ajouterEtape("Assist de Home Assistant", "non sollicité : commande annulée", Etat.Statut.SAUTE)
             } else {
                 ajouterEtape("Assist de Home Assistant", "phrase « ${chemin.epure} » envoyée", Etat.Statut.EN_COURS)
                 val ta = SystemClock.elapsedRealtime()
@@ -764,7 +847,7 @@ class MoteurLocal(
                     majEtape("Assist de Home Assistant", "pas compris (${ha.code})", msHa, Etat.Statut.ECHEC)
                 }
             }
-            if (comprisPar.isEmpty()) {
+            if (comprisPar.isEmpty() && !annulee()) {
                 val llm = demanderLlm(chemin.epure)
                 comprisPar = llm.comprisPar
                 detail = llm.detail
@@ -1140,6 +1223,10 @@ class MoteurLocal(
                 faits.add(resumeAction(json))
                 continue
             }
+            if (annulee()) {
+                faits.add(resumeAction(json) + Annulation.SUFFIXE)
+                continue
+            }
             val etapeNom = "Action ${resumeAction(json)}"
             ajouterEtape(etapeNom, "envoi à Home Assistant", Etat.Statut.EN_COURS)
             val ta = SystemClock.elapsedRealtime()
@@ -1180,6 +1267,10 @@ class MoteurLocal(
             Etat.modifier { it.copy(aideReflexion = "") }
         }
         val ms = SystemClock.elapsedRealtime() - t0
+        if (j == null && annulee()) {
+            majEtape(nom, "abandonné : commande annulée par un appui, le serveur est prévenu", ms, Etat.Statut.SAUTE)
+            return Llm("rien", "annulé", "", emptyList(), false)
+        }
         if (j == null) {
             majEtape(nom, "appli ${ConfigMaison.NOM_ASSISTANT} sur HA injoignable ou trop lente (${passerelle.etat})", ms, Etat.Statut.ECHEC)
             return Llm("rien", "Haiku injoignable", "Je n'ai pas pu joindre le modèle de langage.", emptyList(), true)
@@ -1266,6 +1357,10 @@ class MoteurLocal(
         entendu: String, comprisPar: String, detail: String, fait: List<String>, reponse: String, ms: Long,
         erreur: Boolean = false,
     ) {
+        if (annulee()) {
+            terminerAnnulee(entendu, comprisPar, detail, fait, ms)
+            return
+        }
         // Jamais de texte libre dans une chaîne de format : « à 100% » faisait planter l'appli (13/10/2026).
         ajouterEtape("Réponse", "« $reponse »  (" + "%.2f".format(Locale.FRANCE, ms / 1000.0) + " s après la fin de la phrase)", Etat.Statut.OK, ms)
         val entree = Etat.EntreeHistorique(
@@ -1302,11 +1397,36 @@ class MoteurLocal(
     }
 
     /**
+     * Fin d'une commande annulée par un appui (0.52.0) : rien n'est dit et l'état n'est pas touché (l'appui a déjà
+     * mis le repos ou une nouvelle écoute). L'historique garde la ligne, marquée annulée, avec ce qui est déjà fait,
+     * et une action déjà partie est rappelée sous l'heure pour la défaire à la main ou à la voix.
+     */
+    private fun terminerAnnulee(entendu: String, comprisPar: String, detail: String, fait: List<String>, ms: Long) {
+        ajouterEtape("Réponse", "non dite : commande annulée", Etat.Statut.SAUTE, ms)
+        val entree = Etat.EntreeHistorique(
+            id = System.currentTimeMillis().toString(),
+            date = JOUR.format(Date()), heure = HEURE.format(Date()), essai = !reel, entendu = entendu,
+            comprisPar = comprisPar, detailVoie = Annulation.detail(detail), fait = fait, erreur = false,
+            reponse = Annulation.REPONSE, duree = "%.2f s".format(Locale.FRANCE, ms / 1000.0),
+            personne = if (muet) "" else personne,
+        )
+        Etat.modifier { it.copy(historique = (listOf(entree) + it.historique).take(Etat.TAILLE_HISTORIQUE)) }
+        Etat.surNouvelleCommande?.invoke(entree)
+        if (reel) Annulation.message(Annulation.faites(fait).map { HistoriqueLisible.ligne(it, Etat.courant.noms) })?.let { bref(it) }
+    }
+
+    /** Message « annule » du serveur : ce que son LLM avait déjà fait avant l'appui. */
+    private fun surAnnuleServeur(faites: List<String>) {
+        Annulation.message(faites)?.let { bref(it) }
+    }
+
+    /**
      * Fin d'une réponse. Quand le serveur attend « oui » ou « non » à un brouillon de routine
      * (`confirmation_attendue`), l'écoute se rouvre sans mot de réveil, la phrase suivante repart en `routine_texte`.
      * Sinon retour au repos.
      */
     private fun apresReponse() {
+        if (annulee()) return
         if (routines.confirmationEnAttente(SystemClock.elapsedRealtime())) {
             commencerEcoute("réponse attendue à la proposition de routine")
         } else {
@@ -1356,11 +1476,19 @@ class MoteurLocal(
         }
     }
 
+    /**
+     * Étape d'une commande annulée dont le déroulé a déjà laissé la place à une nouvelle écoute (appui sur l'heure,
+     * 0.52.0) : elle n'est pas écrite, elle se mêlerait à la commande suivante.
+     */
+    private fun etapeHorsDeroule(): Boolean = Thread.currentThread() === filTravail && commandeDuFil != derouleDe
+
     private fun ajouterEtape(nom: String, detail: String, statut: Etat.Statut, ms: Long? = null) {
+        if (etapeHorsDeroule()) return
         Etat.modifier { it.copy(deroule = it.deroule + Etat.Etape(nom, detail, ms, statut)) }
     }
 
     private fun majEtape(nom: String, detail: String, ms: Long?, statut: Etat.Statut) {
+        if (etapeHorsDeroule()) return
         Etat.modifier { e ->
             val i = e.deroule.indexOfLast { it.nom == nom }
             if (i < 0) e.copy(deroule = e.deroule + Etat.Etape(nom, detail, ms, statut))
