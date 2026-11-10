@@ -48,7 +48,7 @@ class AnnulationTest {
     fun `seules les actions vraiment parties sont rappelees`() {
         val fait = listOf(
             "light.turn_on light.essai",
-            "light.turn_off light.autre" + Annulation.SUFFIXE,
+            "light.turn_off light.b" + Annulation.SUFFIXE,
             "lock.unlock lock.porte (refusé : sécurité)",
             "light.turn_on light.essai (non exécuté, essai)",
             "media_player.turn_on media_player.tele (écartée)",

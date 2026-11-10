@@ -121,9 +121,9 @@ def test_issue_d_une_commande_annulee(voie, issue):
 
 
 def test_actions_faites_ecarte_refus_et_annulations():
-    actions = ["light.turn_on light.a", "light.turn_on light.b (annulé)", "lock.unlock lock.p (refusé : sécurité)",
-               "music_assistant.play_media x (non joué)", "light.turn_off light.c (non confirmé)"]
-    assert A.actions_faites(actions) == ["light.turn_on light.a", "light.turn_off light.c (non confirmé)"]
+    actions = ["light.turn_on light.a", "light.turn_on light.b (annulé)", "lock.unlock lock.porte (refusé : sécurité)",
+               "music_assistant.play_media x (non joué)", "light.turn_off light.x (non confirmé)"]
+    assert A.actions_faites(actions) == ["light.turn_on light.a", "light.turn_off light.x (non confirmé)"]
 
 
 def test_rien_n_est_appris_d_une_commande_annulee():
