@@ -4,6 +4,10 @@ Journal du serveur (`poc/`) et de l'appli Home Assistant (`ha-app/`). L'appli An
 `android/VERSION.md`. La version s'affiche au démarrage du serveur et dans les capacités annoncées aux
 satellites.
 
+## Serveur 0.61.0 (2026-11-10), outil des captures du mot de réveil
+
+- `poc/outils/analyser_captures.py` pour les captures du mot de réveil de l'appli Android 0.53.0. `recuperer` copie les captures de l'appareil par `adb -s <série> exec-out run-as` (série obligatoire, APK de débogage), seulement les fichiers `capture-*`, à plat, et peut effacer sur l'appareil ce qui est copié et vérifié. `lister` montre étiquette, issue, seuil, score maximal et blocs au-dessus du seuil. `rejouer` recalcule les scores avec openWakeWord et le modèle de la capture, compare aux scores de l'appareil et sort un CSV par bloc. `seuils` balaye le seuil et la règle de confirmation de l'appli (reprise de `ConfirmationReveil.kt`) : manqués rattrapés, réveils gardés, faux évités. `ecouter` joue une capture. Dossier : `ASSISTANT_VOCAL_CAPTURES`, sinon `C:/Dev/captures-reveil` sous Windows. Les captures ne vont jamais dans un dépôt. Tests `test_analyser_captures.py`.
+
 ## Serveur 0.60.0 (2026-11-10), annuler une commande d'un appui
 
 Mineure, avec l'appli Android 0.52.0. Appli Home Assistant 0.60.0.

@@ -243,6 +243,8 @@ class MoteurLocal(
         var somme = 0.0
         for (s in b) somme += s.toDouble() * s
         val niveau = sqrt(somme / b.size) / 32768.0
+        // Captures du réveil (0.53.0) : phase du bloc, le score et Silero sont ajoutés au repos plus bas.
+        CapturesReveil.noter(Float.NaN, Float.NaN, lettrePhase())
         when (phase) {
             Phase.REPOS -> {
                 bruit = 0.95 * bruit + 0.05 * minOf(niveau, 0.05)
@@ -267,9 +269,13 @@ class MoteurLocal(
                 if (SystemClock.elapsedRealtime() < sourdJusqua) return
                 val score = r.bloc(b)
                 Etat.modifier { it.copy(score = score.toDouble()) }
-                val voix = v?.probabilites(b)?.any { it >= VadSilero.SEUIL_DEBUT }
+                val probas = v?.probabilites(b)
+                val voix = probas?.any { it >= VadSilero.SEUIL_DEBUT }
+                CapturesReveil.noter(score, probas?.maxOrNull() ?: Float.NaN, TamponReveil.PHASE_REPOS)
                 if (confirmation.bloc(score, seuilReveil, voix)) {
-                    commencerEcoute("« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score))
+                    val cause = "« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score)
+                    CapturesReveil.evenement(CapturesReveil.REVEIL, cause)
+                    commencerEcoute(cause)
                 } else if (score >= seuilReveil) {
                     Log.i(TAG, "Réveil écarté, score " + "%.2f".format(Locale.FRANCE, score) + " : ${confirmation.refus}")
                 }
@@ -294,6 +300,17 @@ class MoteurLocal(
             Phase.REPONSE, Phase.TRAITEMENT -> if (finLecture != null) arreterReponse()
             else -> {}
         }
+    }
+
+    /** Au repos : un toucher sur l'orbe lancerait l'écoute (captures du réveil, cas du réveil manqué). */
+    val auRepos: Boolean get() = phase == Phase.REPOS
+
+    private fun lettrePhase(): Char = when (phase) {
+        Phase.REPOS -> TamponReveil.PHASE_REPOS
+        Phase.ECOUTE -> TamponReveil.PHASE_ECOUTE
+        Phase.TRAITEMENT -> TamponReveil.PHASE_TRAITEMENT
+        Phase.REPONSE -> TamponReveil.PHASE_REPONSE
+        else -> TamponReveil.PHASE_INCONNUE
     }
 
     /** Second toucher sur l'orbe pendant l'écoute, pris en compte par le fil de capture. */
@@ -390,6 +407,7 @@ class MoteurLocal(
         if (SystemClock.elapsedRealtime() < sourdJusqua) return
         val score = r.bloc(b)
         Etat.modifier { it.copy(score = score.toDouble()) }
+        CapturesReveil.noter(score, Float.NaN, TamponReveil.PHASE_REPONSE)
         if (score >= seuilReveil + SURCROIT_COUPURE) {
             couper("« ${ReveilLocal.nom(motReveil)} » pendant la réponse, score " + "%.2f".format(Locale.FRANCE, score))
         }
@@ -490,6 +508,7 @@ class MoteurLocal(
                     else "rien entendu en 8 s : voix au plus à ${db(picVoix)}, il fallait dépasser ${db(seuil)} (bruit de fond ${db(bruit)})",
                     null, Etat.Statut.ECHEC,
                 )
+                CapturesReveil.issue(CapturesReveil.ISSUE_RIEN_ENTENDU)
                 retourAuRepos()
             } else {
                 while (capture.size > 4) capture.removeAt(0) // 320 ms gardées avant la parole
@@ -626,6 +645,7 @@ class MoteurLocal(
         }
         if (annulee()) return // phrase annulée pendant la transcription : rien n'est compris ni dit
         Etat.modifier { it.copy(toi = texte, jarvis = "", voie = "", entendu = texte, entenduFinal = true) }
+        CapturesReveil.issue(if (texte.isBlank()) CapturesReveil.ISSUE_TRANSCRIPTION_VIDE else CapturesReveil.ISSUE_COMMANDE)
         if (texte.isBlank()) {
             terminer(texte, "rien compris", "", emptyList(), "Je n'ai rien entendu.", SystemClock.elapsedRealtime() - debut)
             return

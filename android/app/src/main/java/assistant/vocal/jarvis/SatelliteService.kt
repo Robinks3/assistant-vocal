@@ -40,6 +40,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.log10
@@ -413,8 +414,24 @@ class SatelliteService : Service() {
         Etat.modifier {
             it.copy(enMarche = true, lien = Etat.Lien.CONNEXION, connexion = "Connexion...", assistant = "")
         }
+        CapturesReveil.initialiser(this)
+        CapturesReveil.reglages = {
+            val m = moteurLocal
+            CapturesReveil.Reglages(
+                seuil = m?.seuilReveil ?: seuil,
+                mot = motReveil,
+                mode = if (m != null) "appareil" else "serveur",
+                lieuReveil = if (m != null || reveilSurAppareil()) "appareil" else "serveur",
+                confirmation = m != null,
+                micro = if (microCommunication) "voice_communication" else "voice_recognition",
+            )
+        }
         Etat.actionParler = {
             val m = moteurLocal
+            // Captures du réveil (0.53.0) : l'orbe touché au repos, c'est que le réveil n'a pas entendu.
+            if (if (m != null) m.auRepos else !enLecture && !ecouteServeur) {
+                CapturesReveil.evenement(CapturesReveil.MANQUE, "orbe touché")
+            }
             when {
                 m != null -> m.parler()
                 // Mode serveur : un second toucher pendant la réponse arrête sa lecture (0.17.0). Le
@@ -1600,12 +1617,15 @@ class SatelliteService : Service() {
                 val rms = sqrt(somme / BLOC)
                 val db = if (rms < 1.0) -60f else (20 * log10(rms / 32768.0)).toFloat().coerceIn(-60f, 0f)
                 Etat.modifier { it.copy(niveauDb = db) }
+                // Captures du réveil (0.53.0) : les 30 dernières secondes en mémoire seulement, si la fonction est active.
+                CapturesReveil.ajouter(bloc, db)
 
                 val local = moteurLocal
                 if (local != null) {
                     local.bloc(bloc)
                     continue
                 }
+                CapturesReveil.noter(Float.NaN, Float.NaN, TamponReveil.PHASE_SERVEUR)
                 val socket = ws
                 if (socket == null || !connecte || enLecture) continue
                 // Mot de réveil guetté sur le téléphone : le son ne part au serveur que pendant
@@ -1639,8 +1659,13 @@ class SatelliteService : Service() {
                     if (SystemClock.elapsedRealtime() < sourdJusqua) continue
                     val score = d.bloc(bloc)
                     Etat.modifier { it.copy(score = score.toDouble()) }
+                    CapturesReveil.noter(score, Float.NaN, TamponReveil.PHASE_SERVEUR)
                     if (score >= seuil) {
                         Log.i(TAG, "${ReveilLocal.nom(motReveil)} détecté sur le téléphone, score $score")
+                        CapturesReveil.evenement(
+                            CapturesReveil.REVEIL,
+                            "« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score),
+                        )
                         sourdJusqua = SystemClock.elapsedRealtime() + 1500
                         reveilAReinitialiser = true
                         envoyerTexte(

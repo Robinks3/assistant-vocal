@@ -6,6 +6,21 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.53.0 (2026-11-10), captures du mot de réveil
+
+Mineure (versionCode 94). De quoi comprendre et corriger la détection du mot de réveil. Réglage « Captures du réveil »
+(carte Mot de réveil), désactivé par défaut. Activé, les 30 dernières secondes de son restent en mémoire
+(`TamponReveil.kt`, 960 Ko, rien sur disque), avec par bloc de 80 ms le score du détecteur, la probabilité de parole
+de Silero, le niveau et la phase. Trois événements les écrivent dans le dossier privé de l'appli
+(`files/captures-reveil/`, un WAV et un JSON par capture, `ArchiveCaptures.kt`) :
+- l'orbe touché au repos donne `manque` (le regard ne compte pas).
+- le réveil donne `reveil`, changé en `faux_probable` si rien n'est entendu en 8 s ou si la transcription est vide.
+- le bouton « C'était un faux réveil » de la carte Déroulé, visible deux minutes après un réveil, donne `faux_signale`.
+Le JSON garde horodatage, appareil, version de l'appli, modèle (fichier et empreinte sha256), seuil, règle de
+confirmation, mode, micro, cause et issue, sans texte transcrit ni prénom. Rétention : 200 captures et 14 jours au
+plus, bouton « Effacer les captures ». Couper la fonction vide le tampon. Récupération et analyse sur le PC :
+`poc/outils/analyser_captures.py`. Tests `TamponReveilTest`, `ArchiveCapturesTest`.
+
 ## 0.52.0 (2026-11-10), annuler la réflexion d'un appui
 
 Mineure (versionCode 93), avec le serveur 0.60.0. Demande du 10/11/2026 : interrompre l'assistant d'un appui sur

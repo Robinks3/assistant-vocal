@@ -111,8 +111,8 @@ _EX_ARTISTE_3 = str(_TEXTES_MUSIQUE.get("exemple_artiste_3") or _EX_ARTISTE)
 SCRIPT_LANCER = str(MUSIQUE_MAISON.get("script_lancer") or "")
 LLM_MAISON = maison.CONFIG.get("llm") or {}
 
-VERSION = "0.60.0"
-DATE_VERSION = "2026-11-10"
+VERSION = "0.61.0"
+DATE_VERSION = "2026-10-31"
 
 ICI = Path(__file__).resolve().parent
 # Données vivantes (dictionnaire, phrases apprises, journal) : à côté du code sur le PC, dans le

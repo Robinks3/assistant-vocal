@@ -274,6 +274,13 @@ class MainActivity : Activity() {
     private lateinit var segmentCoupureNon: TextView
     private lateinit var segmentCoupureOui: TextView
     private lateinit var texteCoupure: TextView
+    /** Captures du réveil (0.53.0) : réglage, bilan, effacement, et signalement d'un faux réveil. */
+    private lateinit var segmentCapturesNon: TextView
+    private lateinit var segmentCapturesOui: TextView
+    private lateinit var texteCaptures: TextView
+    private lateinit var boutonEffacerCaptures: TextView
+    private lateinit var boutonFauxReveil: TextView
+    private var cleCaptures = ""
     private lateinit var segmentsSons: List<TextView>
     private lateinit var texteSons: TextView
     private var cleStation = ""
@@ -478,6 +485,8 @@ class MainActivity : Activity() {
         // Palette retenue (0.19.0), avant toute vue : chaque vue prend ses couleurs à sa construction.
         Apparence.charger(this)
         Palette.reglerJour(jourMaintenant())
+        // Réglage et bilan des captures du réveil lisibles même service arrêté (0.53.0).
+        CapturesReveil.initialiser(this)
         // La fenêtre doit exister avant le plein écran (plantage 0.16.0 sur la tablette, 21/10/2026).
         setContentView(construireInterface())
         // Allumage de l'écran suivi pendant toute la vie de l'activité, arrêtée comprise (0.17.3) : le
@@ -1113,6 +1122,7 @@ class MainActivity : Activity() {
         cleStation = ""
         cleVision = ""
         cleCoupure = ""
+        cleCaptures = ""
         cleDirect = ""
         // Plan 3D de l'ancien accueil libéré (WebView détruite), lumières plus relues pour lui.
         ambiant?.liberer()
@@ -1852,7 +1862,72 @@ class MainActivity : Activity() {
         selecteur(c, segmentCoupureNon, segmentCoupureOui)
         texteCoupure = texte(13.5f, Couleur.TEXTE_2)
         c.addView(texteCoupure, marge(haut = 8))
+
+        // Captures du réveil (0.53.0) : de quoi comprendre les réveils manqués et les faux réveils.
+        c.addView(texte(14f, Couleur.TEXTE_2).apply { text = "Captures du réveil" }, marge(haut = 18, bas = 6))
+        segmentCapturesNon = segment("Désactivé") { choisirCaptures(false) }
+        segmentCapturesOui = segment("Activé") { choisirCaptures(true) }
+        selecteur(c, segmentCapturesNon, segmentCapturesOui)
+        texteCaptures = texte(13.5f, Couleur.TEXTE_2)
+        c.addView(texteCaptures, marge(haut = 8))
+        boutonEffacerCaptures = boutonDiscret("Effacer les captures", hauteurDp = 46) { confirmerEffacementCaptures() }
+        boutonEffacerCaptures.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
+        c.addView(boutonEffacerCaptures, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)).apply { topMargin = dp(10) })
         return c
+    }
+
+    private fun choisirCaptures(oui: Boolean) {
+        CapturesReveil.activer(this, oui)
+        cleCaptures = ""
+        afficherCaptures()
+    }
+
+    private fun confirmerEffacementCaptures() {
+        AlertDialog.Builder(this)
+            .setTitle("Effacer les captures du réveil")
+            .setMessage("Les ${CapturesReveil.nombre} captures gardées sur cet appareil seront effacées. Celles déjà copiées sur le PC ne sont pas touchées.")
+            .setPositiveButton("Effacer") { _, _ ->
+                CapturesReveil.effacer { n ->
+                    runOnUiThread {
+                        cleCaptures = ""
+                        afficherCaptures()
+                        message(if (n == 1) "1 capture effacée" else "$n captures effacées")
+                    }
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun signalerFauxReveil() {
+        message(if (CapturesReveil.signalerFaux()) "Noté : ce réveil est gardé comme faux réveil" else "Aucun réveil récent à signaler")
+        cleCaptures = ""
+        afficherCaptures()
+    }
+
+    /** Réglage, bilan et bouton de signalement des captures du réveil. Appelé à chaque instantané. */
+    private fun afficherCaptures() {
+        val actif = CapturesReveil.actif
+        val signalable = CapturesReveil.signalable()
+        val cle = "$actif|$signalable|${CapturesReveil.nombre}|${CapturesReveil.octets}"
+        if (cle == cleCaptures) return
+        cleCaptures = cle
+        peindreSegments(
+            listOf(Triple(segmentCapturesNon, "non", Couleur.ACCENT), Triple(segmentCapturesOui, "oui", Couleur.ACCENT)),
+            if (actif) "oui" else "non", "",
+        )
+        val n = CapturesReveil.nombre
+        val bilan = when (n) {
+            0 -> "aucune capture gardée"
+            1 -> "1 capture gardée"
+            else -> "$n captures gardées"
+        } + if (n > 0) String.format(Locale.FRANCE, ", %.1f Mo", CapturesReveil.octets / 1_048_576.0) else ""
+        texteCaptures.text = (if (actif) "Les 30 dernières secondes de son restent en mémoire, et ne sont écrites sur cet appareil " +
+            "qu'à un réveil, à un toucher de l'orbe au repos ou à un faux réveil signalé."
+        else "Désactivé : rien n'est gardé, ni en mémoire ni sur l'appareil.") +
+            "\n" + bilan + ", au plus ${ArchiveCaptures.MAX_CAPTURES} et 14 jours."
+        activer(boutonEffacerCaptures, n > 0)
+        boutonFauxReveil.visibility = if (signalable) View.VISIBLE else View.GONE
     }
 
     /**
@@ -2532,6 +2607,11 @@ class MainActivity : Activity() {
         c.addView(texteDerouleTitre, marge(bas = 14))
         conteneurDeroule = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         c.addView(conteneurDeroule, marge())
+        // Captures du réveil (0.53.0) : visible deux minutes après un réveil, si la fonction est active.
+        boutonFauxReveil = boutonDiscret("C'était un faux réveil", hauteurDp = 46) { signalerFauxReveil() }
+        boutonFauxReveil.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
+        boutonFauxReveil.visibility = View.GONE
+        c.addView(boutonFauxReveil, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46)).apply { topMargin = dp(14) })
         return c
     }
 
@@ -2821,6 +2901,7 @@ class MainActivity : Activity() {
         afficherStation()
         afficherVision(e)
         afficherCoupure(e)
+        afficherCaptures()
         afficherDirect(e)
         ambiant?.motReveil = ReveilLocal.nom(motAffiche(e))
         ambiant?.maj(e)
