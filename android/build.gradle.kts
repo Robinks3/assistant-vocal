@@ -2,7 +2,7 @@
 plugins {
     // AGP 9 embarque son propre support Kotlin : ne pas appliquer
     // org.jetbrains.kotlin.android en plus (« extension already registered »).
-    id("com.android.application") version "9.2.1" apply false
+    id("com.android.application") version "9.5.0" apply false
 }
 
 // Sous Windows, le projet est sous Documents, scanné par Defender et indexé par Windows Search :
