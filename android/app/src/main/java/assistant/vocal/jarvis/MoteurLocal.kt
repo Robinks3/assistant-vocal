@@ -274,10 +274,15 @@ class MoteurLocal(
                 CapturesReveil.noter(score, probas?.maxOrNull() ?: Float.NaN, TamponReveil.PHASE_REPOS)
                 if (confirmation.bloc(score, seuilReveil, voix)) {
                     val cause = "« ${ReveilLocal.nom(motReveil)} », score " + "%.2f".format(Locale.FRANCE, score)
+                    val silero = probas?.maxOrNull()
+                    Log.i(TAG, "Réveil accepté, score " + "%.2f".format(Locale.FRANCE, score) +
+                        ", seuil " + "%.2f".format(Locale.FRANCE, seuilReveil) +
+                        (if (silero != null) ", Silero " + "%.2f".format(Locale.FRANCE, silero) else ", sans Silero"))
                     CapturesReveil.evenement(CapturesReveil.REVEIL, cause)
-                    commencerEcoute(cause)
+                    commencerEcoute(cause, mesure = mesureReveil(score, silero))
                 } else if (score >= seuilReveil) {
                     Log.i(TAG, "Réveil écarté, score " + "%.2f".format(Locale.FRANCE, score) + " : ${confirmation.refus}")
+                    journalReveil("ecarte", mesureReveil(score, probas?.maxOrNull()).put("refus", confirmation.refus ?: ""))
                 }
             }
             Phase.ECOUTE -> ecouter(b, niveau)
@@ -409,18 +414,20 @@ class MoteurLocal(
         Etat.modifier { it.copy(score = score.toDouble()) }
         CapturesReveil.noter(score, Float.NaN, TamponReveil.PHASE_REPONSE)
         if (score >= seuilReveil + SURCROIT_COUPURE) {
-            couper("« ${ReveilLocal.nom(motReveil)} » pendant la réponse, score " + "%.2f".format(Locale.FRANCE, score))
+            Log.i(TAG, "Réveil pendant la réponse, score " + "%.2f".format(Locale.FRANCE, score))
+            couper("« ${ReveilLocal.nom(motReveil)} » pendant la réponse, score " + "%.2f".format(Locale.FRANCE, score),
+                mesureReveil(score, null))
         }
     }
 
     /** Arrêt immédiat de la voix, la suite de la réponse est abandonnée, écoute d'une nouvelle phrase. */
-    private fun couper(origine: String) {
+    private fun couper(origine: String, mesure: JSONObject? = null) {
         finLecture = null
         try {
             voix?.stop()
         } catch (_: Exception) {
         }
-        commencerEcoute(origine, avecSon = false)
+        commencerEcoute(origine, avecSon = false, mesure = mesure)
     }
 
     /** Nouveau mot de réveil : chargé sur le fil de travail, pris par le fil de capture ensuite. */
@@ -435,7 +442,11 @@ class MoteurLocal(
         }
     }
 
-    private fun commencerEcoute(origine: String, avecSon: Boolean = true) {
+    /**
+     * [mesure] : score et probabilité Silero quand c'est le mot de réveil qui lance l'écoute. Chaque écoute
+     * laisse une ligne « ecoute » dans le journal des réveils, puis une ligne « issue » (0.54.0).
+     */
+    private fun commencerEcoute(origine: String, avecSon: Boolean = true, mesure: JSONObject? = null) {
         this.origine = origine
         annulerEcoute = false
         derouleDe = numeroCommande + 1
@@ -447,6 +458,8 @@ class MoteurLocal(
         tEcoute = SystemClock.elapsedRealtime()
         vadAReinitialiser = true
         generation++
+        ecouteJournal = generation
+        journalReveil("ecoute", (mesure ?: JSONObject()).put("origine", origine).put("par_mot", mesure != null).put("ecoute", generation))
         dernierePasseLe = tEcoute
         intervallePasses = INTERVALLE_DIRECT_MS
         passes = 0
@@ -478,6 +491,7 @@ class MoteurLocal(
             generation++
             capture.clear()
             majEtape("Écoute", "coupée : orbe touché une seconde fois, rien n'est transcrit", null, Etat.Statut.SAUTE)
+            journalIssue("coupee")
             Etat.modifier { it.copy(entendu = "", entenduFinal = false) }
             retourAuRepos()
             return
@@ -509,6 +523,7 @@ class MoteurLocal(
                     null, Etat.Statut.ECHEC,
                 )
                 CapturesReveil.issue(CapturesReveil.ISSUE_RIEN_ENTENDU)
+                journalIssue("rien_entendu", JSONObject().put("pic_voix", db(picVoix)))
                 retourAuRepos()
             } else {
                 while (capture.size > 4) capture.removeAt(0) // 320 ms gardées avant la parole
@@ -646,6 +661,10 @@ class MoteurLocal(
         if (annulee()) return // phrase annulée pendant la transcription : rien n'est compris ni dit
         Etat.modifier { it.copy(toi = texte, jarvis = "", voie = "", entendu = texte, entenduFinal = true) }
         CapturesReveil.issue(if (texte.isBlank()) CapturesReveil.ISSUE_TRANSCRIPTION_VIDE else CapturesReveil.ISSUE_COMMANDE)
+        journalIssue(
+            if (texte.isBlank()) "transcription_vide" else "phrase",
+            JSONObject().put("mots", texte.split(Regex("\\s+")).count { it.isNotBlank() }),
+        )
         if (texte.isBlank()) {
             terminer(texte, "rien compris", "", emptyList(), "Je n'ai rien entendu.", SystemClock.elapsedRealtime() - debut)
             return
@@ -1070,6 +1089,55 @@ class MoteurLocal(
             envoyerJarvisHa(msg)
         }
     }
+
+    /** Score du mot de réveil, seuil et probabilité Silero du bloc, pour le journal des réveils. */
+    private fun mesureReveil(score: Float, silero: Float?): JSONObject = JSONObject()
+        .put("score", Math.round(score * 100) / 100.0)
+        .put("seuil", Math.round(seuilReveil * 100) / 100.0)
+        .put("mot", motReveil)
+        .apply { if (silero != null) put("silero", Math.round(silero * 100) / 100.0) }
+
+    /** Identifiant de l'écoute en cours dans le journal des réveils (la génération à son début). */
+    @Volatile private var ecouteJournal = 0
+
+    /** Issue de l'écoute en cours : une seule ligne par écoute. */
+    private fun journalIssue(issue: String, details: JSONObject = JSONObject()) {
+        val id = ecouteJournal
+        if (id == 0) return
+        ecouteJournal = 0
+        Log.i(TAG, "Issue de l'écoute $id : $issue")
+        journalReveil("issue", details.put("issue", issue).put("ecoute", id))
+    }
+
+    /**
+     * Journal des réveils (0.54.0), `journal/reveils.jsonl` sur l'appareil : chaque écoute avec son origine
+     * et, pour le mot de réveil, score, seuil et Silero, les réveils écartés et l'issue de chaque écoute.
+     * Aucune transcription, seulement le nombre de mots. L'heure est prise à l'appel, l'écriture se fait sur
+     * un fil à part. Au-delà de 2 Mo, le fichier passe en `reveils.1.jsonl` (un seul ancien gardé).
+     */
+    private fun journalReveil(evenement: String, champs: JSONObject) {
+        val quand = System.currentTimeMillis()
+        val ligne = champs.put("evenement", evenement)
+        ecritureReveils.execute {
+            try {
+                val d = Date(quand)
+                ligne.put("horodatage", JOUR_JOURNAL.format(d) + "T" + HEURE_JOURNAL.format(d))
+                val dossier = java.io.File(contexte.getExternalFilesDir(null), "journal").apply { mkdirs() }
+                val f = java.io.File(dossier, "reveils.jsonl")
+                if (f.length() > TAILLE_JOURNAL_REVEILS) f.renameTo(java.io.File(dossier, "reveils.1.jsonl"))
+                f.appendText(ligne.toString() + "\n", Charsets.UTF_8)
+            } catch (ex: Exception) {
+                Log.w(TAG, "Journal des réveils impossible", ex)
+            }
+        }
+    }
+
+    private val ecritureReveils by lazy {
+        Executors.newSingleThreadExecutor { r -> Thread(r, "MoteurLocal-reveils").apply { isDaemon = true } }
+    }
+    // Utilisés seulement sur le fil d'écriture des réveils.
+    private val JOUR_JOURNAL by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.FRANCE) }
+    private val HEURE_JOURNAL by lazy { SimpleDateFormat("HH:mm:ss.SSS", Locale.FRANCE) }
 
     private fun journalLocal(nom: String, msg: JSONObject) {
         try {
@@ -1548,6 +1616,7 @@ class MoteurLocal(
 
     companion object {
         private const val TAG = "JarvisLocal"
+        private const val TAILLE_JOURNAL_REVEILS = 2L * 1024 * 1024
         private const val BLOC_S = 1280 / 16000.0
         private const val SILENCE_FIN_S = 0.8
         /** Avec Silero VAD, qui ne confond pas un souffle ou la télé avec la parole (comme le serveur 0.17.0). */

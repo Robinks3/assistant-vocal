@@ -6,6 +6,20 @@ téléphones. La version et la date de compilation s'affichent dans la couche de
 tablette (un toucher dans le noir), dans l'en-tête des réglages, en pied de l'écran du téléphone et dans la
 notification du service.
 
+## 0.54.0 (2026-11-15), journal des réveils
+
+Mineure (versionCode 95). Pour compter les réveils spontanés, que logcat ne montrait pas : seuls les réveils écartés
+y étaient. En mode « Cet appareil », le moteur local écrit maintenant `journal/reveils.jsonl` dans le dossier de
+l'appli sur la carte (`Android/data/<paquet>/files/`), toujours actif, une ligne par événement :
+- `ecoute` : chaque début d'écoute, son origine (mot de réveil, orbe, réponse coupée, routine) et, pour le mot de
+  réveil, score, seuil, mot et probabilité Silero du bloc.
+- `ecarte` : réveil refusé par la confirmation, avec la raison.
+- `issue` : fin de l'écoute, `rien_entendu` (avec le pic de voix), `transcription_vide`, `phrase` (nombre de mots
+  seulement, aucune transcription) ou `coupee`.
+Chaque ligne porte l'heure de l'appel à la milliseconde. Écriture sur un fil à part, rotation à 2 Mo vers
+`reveils.1.jsonl`. Les mêmes faits partent dans logcat (`JarvisLocal`) : « Réveil accepté », « Réveil pendant la
+réponse », « Issue de l'écoute ».
+
 ## 0.53.0 (2026-11-10), captures du mot de réveil
 
 Mineure (versionCode 94). De quoi comprendre et corriger la détection du mot de réveil. Réglage « Captures du réveil »
